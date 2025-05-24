@@ -1,0 +1,17 @@
+.blog-posts {
+  padding-left: 0;
+
+  .published {
+    color: var(--accent-main);
+    font-weight: bold;
+  }
+
+  .post-item {
+    margin-bottom: 2rem;
+    list-style: none;
+  }
+  .post-item h3 {
+    margin-bottom: 0.2rem;
+  }
+
+}

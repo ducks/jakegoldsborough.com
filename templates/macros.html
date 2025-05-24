@@ -1,0 +1,42 @@
+{% macro list_pages_recursively(section) %}
+  {% set posts = [] %}
+  {% set drafts = [] %}
+
+  {# Separate drafts from non-drafts #}
+  {% for page in section.pages %}
+    {% if page.draft %}
+      {% set_global drafts = drafts | concat(with=page) %}
+    {% else %}
+      {% set_global posts = posts | concat(with=page) %}
+    {% endif %}
+  {% endfor %}
+
+  {# Sort non drafts #}
+  {% set sorted = posts | sort(attribute="date") | reverse %}
+
+  {% for page in sorted %}
+    <li class="post-item">
+      <h3><a href="{{ page.permalink }}">{{ page.title }}</a></h3>
+      <div class="meta">
+      {% if page.date %}
+        <p>Published on {{ page.date | date(format="%Y-%m-%d") }}</p>
+      {% endif %}
+      <p>{{ page.reading_time }} min read</p>
+      {% if page.description %}
+        <p class="desc">{{ page.description }}</p>
+      {% endif %}
+    </li>
+  {% endfor %}
+
+  {% for subsection_path in section.subsections %}
+    {% set subsection = get_section(path=subsection_path) %}
+    {{ self::list_pages_recursively(section=subsection) }}
+  {% endfor %}
+
+  {% for page in drafts %}
+    <li class="post-item">
+      <h3><a href="{{ page.permalink }}">{{ page.title }} (draft)</a></h3>
+    </li>
+  {% endfor %}
+{% endmacro %}
+

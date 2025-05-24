@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% import "macros.html" as macros %}
+
+{% block content %}
+  <h2>{{ section.title }}</h2>
+
+  <ul class="blog-posts">
+    {{ macros::list_pages_recursively(section=section) }}
+  </ul>
+{% endblock %}
+

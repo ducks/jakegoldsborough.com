@@ -1,0 +1,4 @@
+<a href="{{ href | safe }}"
+   {% if href is starting_with("http") %} target="_blank" rel="noopener noreferrer"{% endif %}>
+    {{ text | safe }}
+</a>

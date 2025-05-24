@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <article>
+    <h1>{{ page.title }}</h1>
+    <p>
+      Published {{ page.date | date(format="%B %e, %Y") }} ·
+      {{ page.reading_time }} min read
+    </p>
+
+    {% if page.taxonomies.tags %}
+      <p>
+        Tags:
+        {% for tag in page.taxonomies.tags %}
+          <a href="{{ tag.permalink }}">{{ tag.name }}</a>
+        {% endfor %}
+      </p>
+    {% endif %}
+
+    {{ page.content | safe }}
+  </article>
+{% endblock %}

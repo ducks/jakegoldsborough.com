@@ -1,0 +1,176 @@
+/* static/style.css */
+
+@font-face {
+  font-family: "BerkeleyMono";
+  src: url("/fonts/berkeley-mono/BerkeleyMono-Regular.woff2")
+       format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "BerkeleyMono";
+  src: url("/fonts/berkeley-mono/BerkeleyMono-Bold.woff2")
+       format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "BerkeleyMono";
+  src: url("/fonts/berkeley-mono/BerkeleyMono-Italic.woff2")
+       format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "BerkeleyMono";
+  src: url("/fonts/berkeley-mono/BerkeleyMono-BoldItalic.woff2")
+       format("woff2");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: dark light;
+
+  --bg: #282828;
+  --fg: #ebdbb2;
+  --red: #fb4934;
+  --green: #b8bb26;
+  --yellow: #fabd2f;
+  --blue: #83a598;
+  --purple: #d3869b;
+  --aqua: #8ec07c;
+  --orange: #d65d0e;
+  --gray: #a89984;
+
+  --font-main: BerkeleyMono, system-ui, sans-serif;
+  --font-mono: monospace;
+
+  --spacing: 1rem;
+  --max-width: 60rem;
+  --accent-main: var(--purple);
+  --accent-comp: var(--green);
+}
+
+body.light {
+  /* Gruvbox Light */
+  --bg:     #ebdbb2;
+  --fg:     #3c3836;
+
+  --red:    #9d0006;
+  --green:  #79740e;
+  --yellow: #b57614;
+  --blue:   #076678;
+  --purple: #8f3f71;
+  --aqua:   #427b58;
+  --orange: #af3a03;
+  --gray:   #928374;
+
+  --accent-main: var(--purple);
+  --accent-comp: var(--green);
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-main);
+  margin: 0;
+  line-height: 1.6;
+  padding: 2rem;
+}
+
+a {
+  color: var(--accent-main);
+  text-decoration: none;
+}
+
+a:hover, a.active {
+  text-decoration: underline;
+}
+
+header, footer {
+  padding: 1rem 0;
+  text-align: center;
+}
+
+header h1 {
+  color: var(--accent-main);
+  font-size: clamp(2.25rem, 7vw, 5rem);
+  margin-bottom: 0;
+
+  a:hover {
+    text-decoration: none;
+  }
+}
+
+footer {
+  border-top: 1px solid var(--gray);
+  border-bottom: none;
+  margin-top: 2rem;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+nav {
+  display: flex;
+  justify-content: center;
+  font-size: clamp(1.5rem, 5vw, 3rem);
+
+  a {
+    font-weight: bold;
+    flex: 0 auto;
+    margin: 0 0.5rem;
+  }
+}
+
+main {
+  max-width: 60ch;
+  margin: auto;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--accent-comp);
+  margin-top: 2rem;
+}
+
+h2 {
+  font-size: clamp(1.5rem, 5vw, 3rem);
+}
+
+h3 {
+  font-size: clamp(1.25rem, 4vw, 2rem);
+}
+
+h4 {
+  font-size: clamp(1.25rem, 4vw, 2rem);
+}
+
+code {
+  font-family: var(--font-mono);
+  background-color: #3c3836;
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+}
+
+pre code {
+  display: block;
+  padding: 1em;
+  overflow-x: auto;
+  background-color: #3c3836;
+  border-radius: 6px;
+}
+
+blockquote {
+  border-left: 4px solid var(--aqua);
+  padding-left: 1em;
+  margin-left: 0;
+  color: var(--gray);
+  font-style: italic;
+}

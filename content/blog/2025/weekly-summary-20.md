@@ -1,6 +1,8 @@
 +++
 title = "Weekly Summary - 20/52"
 date = 2025-05-16
+[taxonomies]
+tags = ["weekly summary", "rust", "rockpro64"]
 +++
 
 I am starting a weekly summary/reflection series that will be a high level

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="tagged-posts">
+    <h1>Posts tagged "{{ term.name }}"</h1>
+
+    {% if term.pages | length > 0 %}
+      <ul>
+        {% for page in term.pages %}
+          <li>
+            <a href="{{ page.permalink }}">{{ page.title }}</a>
+            <small>({{ page.date | date(format="%Y-%m-%d") }})</small>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No posts found for this tag.</p>
+    {% endif %}
+  </section>
+{% endblock %}

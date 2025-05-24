@@ -1,6 +1,8 @@
 +++
 title = "Deploying a Zola static site to a custom domain with Github Actions"
 date = "2025-05-24"
+[taxonomies]
+tags = ["rust", "github", "devops"]
 +++
 
 As I've been searching for a new gig, I've gotten the urge to write a bit more

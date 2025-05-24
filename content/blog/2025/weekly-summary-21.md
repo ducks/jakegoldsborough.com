@@ -1,6 +1,8 @@
 +++
 title = "Weekly Summary - 21/52"
 date = 2025-05-23
+[taxonomies]
+tags = ["weekly summary", "rockpro64", "nixos"]
 +++
 
 This has been a pretty productive week.

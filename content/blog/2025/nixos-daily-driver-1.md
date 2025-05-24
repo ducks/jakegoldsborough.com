@@ -1,6 +1,8 @@
 +++
 title = "NixOS as a daily driver, part 1/? - What and why?"
 date = 2025-05-18
+[taxonomies]
+tags = ["nixos", "linux"]
 +++
 
 First, it's worth explaining what NixOS is and why I or anyone would want to

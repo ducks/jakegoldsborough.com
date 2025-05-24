@@ -17,7 +17,7 @@
         <p>
           Tags:
           {% for tag in page.taxonomies.tags %}
-            <a href="{{ tag.permalink }}">{{ tag.name }}</a>
+            <a href="/tags/{{ tag | slugify }}">{{ tag }}</a>{% if not loop.last %}, {% endif %}
           {% endfor %}
         </p>
       {% endif %}

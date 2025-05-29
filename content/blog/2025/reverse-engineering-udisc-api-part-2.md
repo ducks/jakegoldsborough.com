@@ -1,6 +1,8 @@
 +++
 title = "Reverse engineering UDisc's API - Part 2, Search"
 date = 2025-05-29
+[taxonomies]
+tags = [ "APIs", "typescript" ]
 +++
 
 First part of the series, Courses, can be found here:

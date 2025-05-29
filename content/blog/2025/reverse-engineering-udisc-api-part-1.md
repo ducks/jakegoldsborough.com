@@ -412,7 +412,7 @@ In this post, we have:
 
 #### Plan For Next Time
 
-Enable the user to search for a `Place` and find a certain `Course`.
+Enable the user to search for a `Place` and `Courses`.
 
 
 #### Disclaimer

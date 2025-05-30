@@ -1,7 +1,6 @@
 +++
 title = "Weekly Summary - 22/52"
 date = 2025-05-30
-draft = true
 [taxonomies]
 tags = ["weekly summary"]
 +++

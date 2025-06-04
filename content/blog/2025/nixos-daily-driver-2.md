@@ -9,7 +9,7 @@ See [Part 1](/blog/2025/nixos-daily-driver-1) where I cover why you would want
 to run NixOS as a daily driver.
 
 In this post, we will cover installation on a personal machine and setting up
-a basic configuation file.
+a basic configuration file.
 
 Just as a note, for this specific post I am using:
 - efi
@@ -22,7 +22,7 @@ for a full installation guide.
 #### Installation
 
 Because Nix and Nixpkgs can be installed on almost any Linux distro, it's possible
-to install NixOS from inside an exisiting Linux install. You can even install
+to install NixOS from inside an existing Linux install. You can even install
 it in place on the same partition.
 [https://nixos.org/manual/nixos/stable/#sec-installing-from-other-distro](https://nixos.org/manual/nixos/stable/#sec-installing-from-other-distro)
 
@@ -155,7 +155,7 @@ Most of the default config will be commented out, but a basic
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  # Macbook Pro wireless firmeware
+  # Macbook Pro wireless firmware
   nixpkgs.config = {
     allowUnfree = true;
   };

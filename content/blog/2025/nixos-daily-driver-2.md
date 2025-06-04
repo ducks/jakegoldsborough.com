@@ -82,7 +82,10 @@ First, you will need to partition:
    partition) as its `/boot` partition. It uses the initially reserved 512MiB at
    the start of the disk.
 
-`parted /dev/sda -- mkpart primary linux-swap -8GB 100%`
+```
+parted /dev/sda -- mkpart ESP fat32 1MB 512MB
+parted /dev/sda -- set 3 esp on
+```
 
 Now, you need to format those partitions:
 
@@ -135,6 +138,34 @@ mount -o umask=077 /dev/disk/by-label/boot /mnt/boot
 
 `nixos-generate-config --root /mnt`
 
+This command will also create a file at `/mnt/etc/nixos/hardware-configuration.nix`.
+This includes important config for your filesystems among other things. While
+NixOS should handle this, it can't hurt to double check just to make sure
+things are defined correctly.
+
+Most of the default config will be commented out, but a basic
+`configuration.nix` file will look something like this:
+
+```
+{ config, pkgs, ... }:
+
+{
+  imports = [ ./hardware-configuration.nix ];
+
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.efi.canTouchEfiVariables = true;
+
+  # Macbook Pro wireless firmeware
+  nixpkgs.config = {
+    allowUnfree = true;
+  };
+
+  services.openssh.enable = true;
+
+  system.stateVersion = "24.11"; # Adjust to match your NixOS version
+}
+```
+
 Note for UEFI users: You must select a boot-loader, either systemd-boot or
 GRUB. The recommended option is systemd-boot: set the option
 `boot.loader.systemd-boot.enable` to true. `nixos-generate-config` should do
@@ -161,5 +192,6 @@ That's it for this post and the installation and basic configuration of NixOS.
 
 #### Next Time
 
-Next time, I will cover getting into actual configuration, installing needed
-packages, and setting up some tools including a DE and a text editor.
+In the next installment, we'll delve into setting up the Hyprland window
+manager, customizing the desktop environment, and installing some tools
+including neovim.

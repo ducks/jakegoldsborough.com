@@ -162,7 +162,7 @@ Most of the default config will be commented out, but a basic
 
   services.openssh.enable = true;
 
-  system.stateVersion = "24.11"; # Adjust to match your NixOS version
+  system.stateVersion = "25.05"; # Adjust to match your NixOS version
 }
 ```
 
@@ -192,6 +192,6 @@ That's it for this post and the installation and basic configuration of NixOS.
 
 #### Next Time
 
-In the next installment, we'll delve into setting up the Hyprland window
-manager, customizing the desktop environment, and installing some tools
-including neovim.
+In the next installment, we'll create a non-root user, configure the Hyprland
+window manager, and install some key daily-driver tools including Neovim, Git,
+and LibreWolf.

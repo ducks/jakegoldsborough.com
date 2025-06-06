@@ -143,8 +143,6 @@ it's just more mappings.
 
 Now that it makes sense manually, let's write some code to do it programmatically.
 
-#### Resolving a Course's Details Structure
-
 At a high level, the flow is:
 
 ```
@@ -156,9 +154,9 @@ const courseDetails = resolve_key_and_value_names(courseDetailsSchema, mockCours
 1. Break the big array down into a schema map of schema maps
 2. Pass that `courseDetailsSchema` and our original array to `resolve_key_and_value_names`
 
+#### Resolving a Course's Details Structure
 
-
-This function does 3 important things:
+The function below does 3 important things:
 - finds our route key label. this key seems to precede the schema map.
 - follows the next pointer to the schema map schema map
 - passes that to `resolve_key_and_value_names` to resolve each set of key/values

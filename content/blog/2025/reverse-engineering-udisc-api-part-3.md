@@ -148,18 +148,18 @@ At a high level, the flow is:
 ```
 const schemaMap = resolveCourseSchemaMapSchema(data);
 const courseDetailsSchema = schemaMap.courseDetail;
-const courseDetails = resolve_key_and_value_names(courseDetailsSchema, mockCourse);
+const courseDetails = resolveKeyAndValueNames(courseDetailsSchema, mockCourse);
 ```
 
 1. Break the big array down into a schema map of schema maps
-2. Pass that `courseDetailsSchema` and our original array to `resolve_key_and_value_names`
+2. Pass that `courseDetailsSchema` and our original array to `resolveKeyAndValueNames`
 
 #### Resolving a Course's Details Structure
 
 The function below does 3 important things:
 - finds our route key label. this key seems to precede the schema map.
 - follows the next pointer to the schema map schema map
-- passes that to `resolve_key_and_value_names` to resolve each set of key/values
+- passes that to `resolveKeyAndValueNames` to resolve each set of key/values
 
 ```
 export function resolveCourseSchemaMapSchema(data: any[]) {
@@ -178,7 +178,7 @@ export function resolveCourseSchemaMapSchema(data: any[]) {
       const referencedMap = data[pointerIndex];
 
       if (typeof referencedMap === "object") {
-        return resolve_key_and_value_names(referencedMap, data);
+        return resolveKeyAndValueNames(referencedMap, data);
       }
     }
   }
@@ -261,14 +261,14 @@ arrays of indexes:
 ```
 
 Next is our core function. We take the `courseDetail` schema map and pass it
-and our original data array to `resolve_key_and_value_names` to resolve the
+and our original data array to `resolveKeyAndValueNames` to resolve the
 actual values.
 
 ```
 /**
  * Resolves a schema map where both keys and values are index references into the data array.
  */
-export function resolve_key_and_value_names(schema: Record<string, number>, data: any[]): Record<string, any> {
+export function resolveKeyAndValueNames(schema: Record<string, number>, data: any[]): Record<string, any> {
   const result: Record<string, any> = {};
   for (const rawKey in schema) {
     const keyIndex = parseInt(rawKey.replace(/^_/, ""), 10);
@@ -355,7 +355,7 @@ We are now left with a nicely formatted and readable object of values:
 
 Note: Some fields like `conditions`, `location`, and `layoutConfiguration` are
 still partially encoded — they contain their own schema maps or references that
-need to be decoded separately using `resolve_key_and_value_names`. We'll cover
+need to be decoded separately using `resolveKeyAndValueNames`. We'll cover
 those in a future post when we dive deeper into layout and field-level data.
 
 #### Summary
@@ -364,7 +364,7 @@ In this post, we decoded the structure of UDisc’s `courseDetails` payloads by:
 
 - Resolving the `"routes/courses/$slug/index"` entry
 - Using `resolveCourseSchemaMapSchema` to get a field-labeled schema
-- Running that through `resolve_key_and_value_names` to extract readable values
+- Running that through `resolveKeyAndValueNames` to extract readable values
 
 This pattern gives us a fully usable course object with real field names. While
 some nested fields (like `conditions` or `layoutConfiguration`) still require

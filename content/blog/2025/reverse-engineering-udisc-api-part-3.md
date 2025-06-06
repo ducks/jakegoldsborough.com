@@ -375,3 +375,11 @@ structured course data.
 
 In the next post, we’ll go one level deeper—resolving nested layout data like
 hole-by-hole distances and tee types.
+
+#### Disclaimer
+
+The data accessed in this post is publicly available via standard browser
+network requests and does not require login, tokens, or circumvention of
+protections.
+
+It it accessed as fair use and for educational purposes.

@@ -57,6 +57,8 @@
   --max-width: 60rem;
   --accent-main: var(--purple);
   --accent-comp: var(--green);
+
+  --code-color: var(--fg);
 }
 
 body.light {
@@ -75,6 +77,8 @@ body.light {
 
   --accent-main: var(--purple);
   --accent-comp: var(--green);
+
+  --code-color: var(--bg);
 }
 
 body {
@@ -162,6 +166,7 @@ code {
   background-color: #3c3836;
   padding: 0.2em 0.4em;
   border-radius: 4px;
+  color: var(--code-color);
 }
 
 pre code {

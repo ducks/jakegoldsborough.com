@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>
+      
+      Reverse engineering UDisc&#x27;s API - Part 4 - SmartLayouts - Hole Details, Tees, and Targets -
+      
+
+      Jake Goldsborough
+    </title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/favicon.ico" />
+  </head>
+  <body>
+    <header>
+      <div class="theme-picker">
+        <label aria-label="Dark theme">
+          <input type="radio" name="theme" value="dark" />
+          <span aria-hidden="true"></span>
+        </label>
+        <label aria-label="Light theme">
+          <input type="radio" name="theme" value="light" />
+          <span aria-hidden="true"></span>
+        </label>
+        <noscript>
+          <label aria-label="Dark theme"><span aria-hidden="true">dark</span></label>
+          <label aria-label="Light theme"><span aria-hidden="true">light</span></label>
+        </noscript>
+      </div>
+      <h1>
+        <a href="https://jakegoldsborough.com/resume">Jake Goldsborough</a>
+      </h1>
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <span>|</span>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <span>|</span>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+
+    <main>
+      
+  
+    <article>
+      <h1>Reverse engineering UDisc&#x27;s API - Part 4 - SmartLayouts - Hole Details, Tees, and Targets</h1>
+      
+        <p>
+          Published June  9, 2025
+        </p>
+      
+      <p>
+        3 min read
+      </p>
+
+      
+        <p>
+          Tags:
+          
+            <a href="/tags/apis">APIs</a>, 
+          
+            <a href="/tags/typescript">typescript</a>
+          
+        </p>
+      
+
+      <p><a href="/blog/2025/reverse-engineering-udisc-api-part-1">Part 1</a> |
+<a href="/blog/2025/reverse-engineering-udisc-api-part-2">Part 2</a> |
+<a href="/blog/2025/reverse-engineering-udisc-api-part-3">Part 3</a></p>
+<p>In previous parts of this series, we explored how UDisc structures its course and
+detail data using schema maps and densely packed JSON arrays. Now we’re going a
+level deeper — into the <code>smartLayouts</code> array and the rich, interconnected
+structure that defines each <code>hole</code> in a layout.</p>
+<h4 id="what-is-a-smartlayout">What is a <code>SmartLayout</code></h4>
+<p>In UDisc, a <code>smartLayout</code> is a curated list of hole configurations —
+representing a specific way to play the course, like a tournament layout, long
+tees, or winter alt positions.</p>
+<p>Each course will have a <code>smartLayouts</code> field that is an array of ID. Each ID
+points to a layout configuration with specific hole details.</p>
+<p><code>smartLayouts: [345, 3534, 12323, ...]</code></p>
+<h4 id="resolve-smartlayout-objects">Resolve <code>SmartLayout</code> objects</h4>
+<p>We can resolve the layout entries using our <code>resolveByIds</code> utility, passing in
+the smart layout schema map and data array.</p>
+<p><code>const layouts = resolveByIds(layoutMap, data);</code></p>
+<p>Each layout will includes fields like <code>name</code>, <code>holes</code>, and various other layout
+details.</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>{
+</span><span>  _id: &#39;2daCeAPCLnsEQKntM&#39;,
+</span><span>  layoutId: 106061,
+</span><span>  courseId: 1523,
+</span><span>  type: &#39;smart&#39;,
+</span><span>  name: &#39;Glitch World Championship Qualifer&#39;,
+</span><span>  details: &#39;Layout for the Glitch World Championship Qualifier on 6/1/2025!&#39;,
+</span><span>  status: &#39;active&#39;,
+</span><span>  holes: [
+</span><span>    22549, 22566, 22583,
+</span><span>    22599, 22619, 22641,
+</span><span>    22658, 22674, 22691,
+</span><span>    22707, 23074, 23088,
+</span><span>    23867, 23886, 24225,
+</span><span>    24244, 24675, 24692
+</span><span>  ],
+</span><span>  sortIndex: 1998146,
+</span><span>  areLayoutSelectionsValid: true,
+</span><span>  playCount30: 15,
+</span><span>  lengthBin: &#39;intermediate&#39;,
+</span><span>  typicalHoleLengthLowerMeters: 66.925,
+</span><span>  typicalHoleLengthUpperMeters: 124.263,
+</span><span>  floorsAscended: 17,
+</span><span>  floorsDescended: 21,
+</span><span>  stepCount: 4797,
+</span><span>  time: 130.71908333333334,
+</span><span>  parRoundRating: 182.73106384277344,
+</span><span>  activationDate: undefined,
+</span><span>  deactivationDate: undefined,
+</span><span>  level: undefined,
+</span><span>  difficultyBin: &#39;intermediate&#39;,
+</span><span>  technicalityBin: &#39;technical&#39;,
+</span><span>  holeDistance: { _398: 24717, _400: 24718 }
+</span><span>}
+</span></code></pre>
+<h4 id="resolve-holes">Resolve Holes</h4>
+<p>Now it's time to figure out more about each hole.</p>
+<p>First, we have to follow the <code>holes</code> field which is an array of IDs.</p>
+<p>Similar to above, we use <code>resolveByIds</code>:</p>
+<p><code>const holesSchema = resolveByIds(holes, data);</code></p>
+<p>That will gives us an array of objects that turns out to be, you guessed it, a
+schema map.</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>[
+</span><span>  {
+</span><span>    _352: 353,
+</span><span>    _354: 4133,
+</span><span>    _72: 356,
+</span><span>    _357: 19527,
+</span><span>    _374: 19532,
+</span><span>    _385: 19538,
+</span><span>    _387: 388,
+</span><span>    _389: 4146,
+</span><span>    _147: 256,
+</span><span>    _366: 7,
+</span><span>    _1627: 131,
+</span><span>    _1628: 7,
+</span><span>    _707: 19539,
+</span><span>    _367: -5,
+</span><span>    _368: 19721,
+</span><span>    _393: 19722,
+</span><span>    _159: 19723,
+</span><span>    _396: 19724
+</span><span>  },
+</span><span>  ...
+</span><span>]
+</span></code></pre>
+<p>We can now take this, iterate over it, and resolve each object of IDs:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>holesSchema.forEach((schema) =&gt; {
+</span><span>  holesDecoded.push(resolveKeyAndValueNames(schema, data));
+</span><span>});
+</span></code></pre>
+<p>And we finally get to see some hole data:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>[
+</span><span>  {
+</span><span>    holeId: &#39;KRFy&#39;,
+</span><span>    pathConfigurationId: &#39;qXAC&#39;,
+</span><span>    name: &#39;1&#39;,
+</span><span>    status: &#39;active&#39;,
+</span><span>    teePosition: {
+</span><span>      _359: 360,
+</span><span>      _294: 22551,
+</span><span>      _147: 256,
+</span><span>      _149: 362,
+</span><span>      _152: 363,
+</span><span>      _186: 22552,
+</span><span>      _366: 7,
+</span><span>      _367: 21,
+</span><span>      _368: 22554
+</span><span>    },
+</span><span>    targetPosition: {
+</span><span>      _376: 377,
+</span><span>      _158: 22556,
+</span><span>      _147: 256,
+</span><span>      _149: 380,
+</span><span>      _152: 381,
+</span><span>      _223: 22558,
+</span><span>      _366: 7
+</span><span>    },
+</span><span>    doglegs: [],
+</span><span>    par: 3,
+</span><span>    distance: 80.749,
+</span><span>    description: &#39;&#39;,
+</span><span>    isTemporary: false,
+</span><span>    notes: &#39;OB: Pond (defined by white stakes). Play, with a one stroke penalty, from last place disc was in bounds or re-tee.&#39;,
+</span><span>    teeSign: { _370: 371, _372: 373 },
+</span><span>    teePad: { _149: 362, _152: 363 },
+</span><span>    basket: { _149: 380, _152: 381 },
+</span><span>    holeDistance: { _398: 399, _400: 390 }
+</span><span>  },
+</span><span>  {
+</span><span>    holeId: &#39;L43O&#39;,
+</span><span>    pathConfigurationId: &#39;zwYI&#39;,
+</span><span>    name: &#39;2&#39;,
+</span><span>    status: &#39;active&#39;,
+</span><span>    teePosition: {
+</span><span>      _359: 406,
+</span><span>      _294: 22568,
+</span><span>      _147: 256,
+</span><span>      _149: 409,
+</span><span>      _152: 410,
+</span><span>      _186: 22569,
+</span><span>      _366: 7
+</span><span>    },
+</span><span>    targetPosition: {
+</span><span>      _376: 415,
+</span><span>      _158: 22573,
+</span><span>      _147: 256,
+</span><span>      _149: 418,
+</span><span>      _152: 419,
+</span><span>      _223: 22575,
+</span><span>      _366: 7
+</span><span>    },
+</span><span>    doglegs: [],
+</span><span>    par: 3,
+</span><span>    distance: 70.07600000000001,
+</span><span>    notes: undefined,
+</span><span>    teeSign: undefined,
+</span><span>    teePad: { _149: 409, _152: 410 },
+</span><span>    basket: { _149: 418, _152: 419 },
+</span><span>    holeDistance: { _398: 429, _400: 425 }
+</span><span>  },
+</span><span>  ...
+</span><span>]
+</span></code></pre>
+<h4 id="introducing-deephydrate">Introducing <code>deepHydrate</code></h4>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>export function deepHydrate&lt;T&gt;(input: T, data: unknown[]): T {
+</span><span>  if (Array.isArray(input)) {
+</span><span>    return input.map(item =&gt; deepHydrate(item, data)) as T;
+</span><span>  }
+</span><span>
+</span><span>  if (typeof input !== &#39;object&#39; || input === null) return input;
+</span><span>
+</span><span>  const result: Record&lt;string, unknown&gt; = {};
+</span><span>
+</span><span>  for (const [key, value] of Object.entries(input)) {
+</span><span>    if (isSchemaMap(value)) {
+</span><span>      result[key] = resolveKeyAndValueNames(value, data);
+</span><span>    } else if (Array.isArray(value)) {
+</span><span>      result[key] = value.map(v =&gt;
+</span><span>        isSchemaMap(v) ? resolveKeyAndValueNames(v, data) : deepHydrate(v, data)
+</span><span>      );
+</span><span>    } else {
+</span><span>      result[key] = deepHydrate(value, data);
+</span><span>    }
+</span><span>  }
+</span><span>
+</span><span>  return result as T;
+</span><span>}
+</span></code></pre>
+<p>The <code>deepHydrate</code> function recursively walks through any input object (or array)
+and resolves all embedded schema maps into human-readable objects using
+<code>resolveKeyAndValueNames</code>.</p>
+<p>One caveat: <code>deepHydrate</code> only resolves schema maps found in the original
+structure. If a resolved field itself contains a new schema map, that won't be
+resolved unless you hydrate it separately or extend the function recursively.</p>
+<p>Calling this function on each hole will show you what I mean:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>{
+</span><span>  holeId: &#39;KRFy&#39;,
+</span><span>  pathConfigurationId: &#39;qXAC&#39;,
+</span><span>  name: &#39;1&#39;,
+</span><span>  status: &#39;active&#39;,
+</span><span>  teePosition: {
+</span><span>    teePositionId: &#39;XMhc&#39;,
+</span><span>    teeType: { _292: 293, _147: 256, _294: 295 },
+</span><span>    status: &#39;active&#39;,
+</span><span>    latitude: 42.2765401,
+</span><span>    longitude: -71.896142,
+</span><span>    teePositionLabels: [ 22553 ],
+</span><span>    isTemporary: false,
+</span><span>    notes: &#39;&#39;,
+</span><span>    teeSign: { _370: 371, _372: 373 }
+</span><span>  },
+</span><span>  targetPosition: {
+</span><span>    targetPositionId: &#39;PQ1G&#39;,
+</span><span>    targetType: {
+</span><span>      _254: 255,
+</span><span>      _147: 256,
+</span><span>      _104: 159,
+</span><span>      _72: 193,
+</span><span>      _257: 22557,
+</span><span>      _194: 195
+</span><span>    },
+</span><span>    status: &#39;active&#39;,
+</span><span>    latitude: 42.2770589,
+</span><span>    longitude: -71.8968277,
+</span><span>    targetPositionLabels: [ 22559, 22560 ],
+</span><span>    isTemporary: false
+</span><span>  },
+</span><span>  doglegs: {},
+</span><span>  par: 3,
+</span><span>  distance: 80.749,
+</span><span>  description: &#39;&#39;,
+</span><span>  isTemporary: false,
+</span><span>  notes: &#39;OB: Pond (defined by white stakes). Play, with a one stroke penalty, from last place disc was in bounds or re-tee.&#39;,
+</span><span>  teeSign: {
+</span><span>    imageUrl: &#39;https://udisc-parse.s3.amazonaws.com/league/c9f63559-3322-46c5-aedb-9bd8211e03c0_Red1.png&#39;,
+</span><span>    optimizedUrl: &#39;https://udisc-parse.s3.amazonaws.com/r_c9f63559-3322-46c5-aedb-9bd8211e03c0_Red1.png&#39;
+</span><span>  },
+</span><span>  teePad: { latitude: 42.2765401, longitude: -71.896142 },
+</span><span>  basket: { latitude: 42.2770589, longitude: -71.8968277 },
+</span><span>  holeDistance: { feet: 264.92454915999997, meters: 80.749 }
+</span><span>}
+</span></code></pre>
+<p>You can see the fields like <code>teePosition</code> and <code>targetPosition</code> have been resolved
+but since they also contained schema maps, there are still unresolved fields.</p>
+<p>I am working on updating <code>deepHydrate</code> to walk new schema maps it finds
+but that will be for another post.</p>
+<p>We are getting into some really cool data now. You could come up with some neat
+map visualizations using the longitude and latitude. Maybe you want to find
+the average distance for holes on the Disc Golf Pro Tour and figure out how
+many holes Forrest Gump would have played. The possibilities are endless.</p>
+<h4 id="summary">Summary</h4>
+<p>In this post, we dug into how UDisc represents hole layouts using the
+smartLayouts structure. We walk through resolving layout metadata, decoding
+individual holes with schema maps, and using deepHydrate to unpack nested
+fields. It gets us most of the way there — tees, targets, distances, etc. — but
+we also run into a limit: deepHydrate only resolves the first layer. If the
+resolved fields themselves contain schema maps, those stay untouched (for now).</p>
+<p>This post highlights how deeply structured and graph-like the data really is —
+and sets up where we're headed next with full hydration and maybe even some
+event/live scoring stuff.</p>
+
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p>&copy; 2025 Jake Goldsborough</p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+  </body>
+</html>
+

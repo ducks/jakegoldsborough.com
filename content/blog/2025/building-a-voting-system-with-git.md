@@ -1,6 +1,6 @@
 +++
 title = "Building a Fully Decentralized Voting System Using Just Git and Pull Requests"
-date = 2025-06-22
+date = 2025-06-23
 [taxonomies]
 tags = ["rust", "git", "devops"]
 +++

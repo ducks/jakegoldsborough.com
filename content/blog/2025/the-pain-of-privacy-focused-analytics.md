@@ -145,3 +145,18 @@ There’s a huge opportunity here to improve the ecosystem:
 
 If we want ethical software to be the default, we need to make it easier, not
 harder.
+
+### Edit (20250526)
+
+#### There **IS** a Docker Image
+
+Welp, naturally, after all of this — the registry issues, the broken builds, the
+manual binary install — I found out *there is* a Docker image for GoatCounter:
+
+[arp242/goatcounter](https://hub.docker.com/r/arp242/goatcounter)
+
+*(Yes, maintained by the actual author.)*
+
+Apparently I was just one `docker pull` away the whole time.
+
+:facepalm:

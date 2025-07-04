@@ -5,16 +5,6 @@ date = 2025-07-02
 tags = [ "oss", "APIs" ]
 +++
 
-### Reverse Engineering UDisc API series
-[Part 1](/blog/2025/reverse-engineering-udisc-api-part-1) |
-[Part 2](/blog/2025/reverse-engineering-udisc-api-part-2) |
-[Part 3](/blog/2025/reverse-engineering-udisc-api-part-3) |
-[Part 4](/blog/2025/reverse-engineering-udisc-api-part-4) |
-[Part 5](/blog/2025/reverse-engineering-udisc-api-part-5)
-
-[fairway-client repo](https://github.com/ducks/fairway-client)
-
-
 ### Takedown Request
 
 Recently, I've been writing about reverse engineering a unique data
@@ -36,8 +26,8 @@ automation, not downloading spreadsheets.
 
 I posted about my findings and tools on the UDisc forum. That didn't go
 well. First, I didn't realize posts were moderated so my comment never got
-posted. Second, they weren't pleased. I received a sternly worded email asking
-me to remove both the blog series and the codebase.
+posted and that's on me. Second, they weren't pleased. I received a sternly
+worded email asking me to remove both the blog series and the codebase.
 
 I wasn't sure what to expect - but I was still disappointed.
 I was hoping for curiosity, maybe even appreciation.
@@ -46,9 +36,8 @@ Instead, I got a takedown request.
 They cited their ToS, but if offering a clean, read-only interface to user-owned
 public data violates the ToS, maybe it's the ToS that is wrong.
 
-I will be complying by the end of the week by taking the code down. I will be
-obscuring the posts to not reveal details but I have spent time and effort on
-them so they will be staying up in some form.
+The the code is down. I will be obscuring the posts to not reveal details but I
+have spent time and effort on them so they will be staying up in some form.
 
 It might be time to give disc golf metrix a shot:
 [https://discgolfmetrix.com/](https://discgolfmetrix.com/)

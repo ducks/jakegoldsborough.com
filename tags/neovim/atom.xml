@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <title>Jake Goldsborough - neovim</title>
+    <link rel="self" type="application/atom+xml" href="https://jakegoldsborough.com/tags/neovim/atom.xml"/>
+    <link rel="alternate" type="text/html" href="https://jakegoldsborough.com"/>
+    <generator uri="https://www.getzola.org/">Zola</generator>
+    <updated>2025-06-25T00:00:00+00:00</updated>
+    <id>https://jakegoldsborough.com/tags/neovim/atom.xml</id>
+    <entry xml:lang="en">
+        <title>How I accidentally wrote my first Neovim plugin</title>
+        <published>2025-06-25T00:00:00+00:00</published>
+        <updated>2025-06-25T00:00:00+00:00</updated>
+        
+        <author>
+          <name>
+            
+              Unknown
+            
+          </name>
+        </author>
+        
+        <link rel="alternate" type="text/html" href="https://jakegoldsborough.com/blog/2025/releasing-a-neovim-plugin/"/>
+        <id>https://jakegoldsborough.com/blog/2025/releasing-a-neovim-plugin/</id>
+        
+        <content type="html" xml:base="https://jakegoldsborough.com/blog/2025/releasing-a-neovim-plugin/">&lt;h3 id=&quot;just-show-me-the-code&quot;&gt;Just Show Me The Code&lt;&#x2F;h3&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;nvim-vandelay&quot;&gt;repo&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-problem&quot;&gt;The Problem&lt;&#x2F;h3&gt;
+&lt;p&gt;There is a simple motion I use in Neovim often and I finally decided to do
+something about it.&lt;&#x2F;p&gt;
+&lt;p&gt;That motion is breaking up single line imports into multiline imports.&lt;&#x2F;p&gt;
+&lt;p&gt;Example:&lt;&#x2F;p&gt;
+&lt;p&gt;This:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;import { foo, bar, baz } from &#x27;.&#x2F;utils&#x27;;&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Should become:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;import {
+&lt;&#x2F;span&gt;&lt;span&gt;  foo,
+&lt;&#x2F;span&gt;&lt;span&gt;  bar,
+&lt;&#x2F;span&gt;&lt;span&gt;  baz,
+&lt;&#x2F;span&gt;&lt;span&gt;} from &amp;#39;.&#x2F;utils&amp;#39;;
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;It&#x27;s a tiny thing but something I do all the time in javascript, typescript, and
+rust. Even if it&#x27;s less than 80 characters wide, I really like breaking multiple
+modules imports down to separate lines.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-first-approach-regex-and-why-it-worked&quot;&gt;The First Approach: Regex (And Why It Worked)&lt;&#x2F;h3&gt;
+&lt;p&gt;The very first version of Vandelay used simple Lua string matching:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;local pattern = [[import%s*{%s*(.-)%s*}%s*from%s*(.*);]]
+&lt;&#x2F;span&gt;&lt;span&gt;local names, from = string.match(line, pattern)
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This captured two groups:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;names&lt;&#x2F;code&gt; - the full list inside &lt;code&gt;{ ... }&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;from&lt;&#x2F;code&gt; - the source string&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;After capturing, it simply:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Split &lt;code&gt;names&lt;&#x2F;code&gt; on commas into a table of individual imports&lt;&#x2F;li&gt;
+&lt;li&gt;Trimmed whitespace&lt;&#x2F;li&gt;
+&lt;li&gt;Reconstructed the formatted import line with newlines and indentation&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h4 id=&quot;why-it-worked&quot;&gt;Why It Worked&lt;&#x2F;h4&gt;
+&lt;p&gt;The format of imports I wanted to modify was extremely predictable. I only cared
+about one specific form and I was only operating on one line at a time. Lua
+strings were simple and fast for this very specific case. This worked extremely
+well from the start and passed some simple tests that tests import structure.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;adding-treesitter-and-why-it-didn-t-work&quot;&gt;Adding Treesitter (And Why It Didn&#x27;t Work)&lt;&#x2F;h3&gt;
+&lt;p&gt;I thought using Treesitter would make the plugin more robust. It sounded like a
+perfect fit: parse the full AST, extract imports properly, and avoid relying on
+fragile string patterns.&lt;&#x2F;p&gt;
+&lt;p&gt;In practice, I quickly ran into problems:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Complex Treesitter queries for what seemed like simple tasks&lt;&#x2F;li&gt;
+&lt;li&gt;Accidental full-line and full-file rewrites when I only wanted to touch one line&lt;&#x2F;li&gt;
+&lt;li&gt;Query capture ordering issues that merged unrelated imports together&lt;&#x2F;li&gt;
+&lt;li&gt;Inconsistent grammar across different Treesitter parser versions&lt;&#x2F;li&gt;
+&lt;li&gt;Parser installation requirements that added more dependencies&lt;&#x2F;li&gt;
+&lt;li&gt;Much more boilerplate code for very minimal benefit&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Treesitter excels for full-file refactors, linters, or analysis tools.
+But for surgical, highly structured, one-line rewrites? It was overkill.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;what-i-learned&quot;&gt;What I Learned&lt;&#x2F;h3&gt;
+&lt;p&gt;Treesitter is powerful. But &lt;strong&gt;power doesn’t always equal simplicity&lt;&#x2F;strong&gt; —
+especially for narrowly scoped formatting tasks.&lt;&#x2F;p&gt;
+&lt;p&gt;For this plugin, regex provided:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Faster iteration&lt;&#x2F;li&gt;
+&lt;li&gt;Predictable behavior&lt;&#x2F;li&gt;
+&lt;li&gt;No parser dependencies&lt;&#x2F;li&gt;
+&lt;li&gt;Simple implementation&lt;&#x2F;li&gt;
+&lt;li&gt;Easier testing&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Sometimes simple string matching really is enough -- especially when your input
+format is highly constrained.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;nvim-vandelay-1-0&quot;&gt;nvim-vandelay 1.0&lt;&#x2F;h3&gt;
+&lt;p&gt;The end result became &lt;code&gt;nvim-vandelay&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;A micro-plugin for formatting imports&lt;&#x2F;li&gt;
+&lt;li&gt;Fully manual keybind control&lt;&#x2F;li&gt;
+&lt;li&gt;Regex-powered single-line rewriting&lt;&#x2F;li&gt;
+&lt;li&gt;Rust and JavaScript support out of the box&lt;&#x2F;li&gt;
+&lt;li&gt;Fully tested via Plenary + CI&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Here is another link to the repo:
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;nvim-vandelay&quot;&gt;nvim-vandelay&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+</content>
+        
+    </entry>
+</feed>

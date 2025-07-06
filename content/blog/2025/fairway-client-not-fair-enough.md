@@ -1,6 +1,6 @@
 +++
 title = "Fairway Client Not Fair Enough for UDisc"
-date = 2025-07-02
+date = 2025-07-06
 [taxonomies]
 tags = [ "oss", "APIs" ]
 +++

@@ -219,7 +219,7 @@ After adding both files, remember to run `dotter deploy`. This will add symlinks
 for our newly added files to our correct Hyprland config directory by default
 based on our Dotter config.
 
-#### Fun Fact
+### Fun Fact
 
 This post was written from NixOS!
 

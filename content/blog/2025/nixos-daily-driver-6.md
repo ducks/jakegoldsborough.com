@@ -14,13 +14,13 @@ See that post [here](/blog/2025/nixos-daily-driver-5).
 
 ### Intro
 
-Today, I will be introducting `NixVim` and show you how to set up some
+Today, I will be introducing `NixVim` and show you how to set up some
 per-project development shells. The latter is a very powerful part of NixOS as
 you'll see.
 
 ### NixVim
 
-NixVim is a project that let's you declaratively configure Neovim in Nix. No
+NixVim is a project that lets you declaratively configure Neovim in Nix. No
 `init.lua`, `vimrc`, or plugin managers like Lazy or Packer.
 
 It's part of a broader Nix-native ecosystem where tools, config, and
@@ -96,6 +96,67 @@ First, and most importantly, we enable Nixvim by setting
 `programs.nixvim.enable` to `true`. Then, we enable a few basic plugins through
 `programs.nixvim.plugins`.
 
-After that we enable the `gruxbox` color scheme and setup some basic LSP support.
+After that we enable the `gruvbox` color scheme and setup some basic LSP support.
 
 Finally, we setup a keymap for `<leader>ff` that uses `telescope` to find files.
+
+### `nix-shell` - What is it?
+
+Now onto `nix-shell`. `nix-shell` is a tool that lets you temporarily enter a
+development environment defined by a Nix expression. Think of it as a
+lightweight, project-specific sandbox with all the tools and dependencies you
+need -- and nothing you don't. They are like Python virtual environments, but
+for any tool or language.
+
+You can use `nix-shell` to:
+
+- Spin up a shell with specific packages available
+- Test tools or languages without installing them system-wide
+- Set up consistent dev environments across machines or teams
+
+#### Why Use It?
+
+If you've ever run into "works on my machine" issues, `nix-shell` is the
+antidote. By declaring your environment as code, you get repeatable,
+deterministic setups every time -- no more dependency drift or missing tools.
+
+It's also fantastic for trying out a new language or toolchain. Want to test
+something in Ruby, Rust, or Go? You can be up and running with just a few
+lines.
+
+#### Example
+
+Here’s what a simple `shell.nix` might look like for Rust development:
+
+```nix
+{ pkgs ? import <nixpkgs> {} }:
+
+pkgs.mkShell {
+  buildInputs = [
+    pkgs.rustc
+    pkgs.cargo
+  ];
+}
+```
+
+Run `nix-shell` in that directory, and boom, you'll be dropped into a shell
+environment with `rustc` and `cargo` available but without being installed
+globally.
+
+#### One-Off Shells
+
+In fact, you don't even need a `shell.nix` file. You could run
+`nix-shell -p nodejs` and you would be dropped into a shell with `nodejs` 
+installed locally, meaning it's not installed globally.
+
+Overall, `nix-shell` is one of the most powerful parts of Nix/NixOS.
+
+### Summary
+
+In this post, we have:
+
+- Enabled NixVim and set up a simple, usable Neovim config
+- Introduced `nix-shell` and showed how it can be used to create temporary,
+  repeatable dev environments
+- Explained how to launch one-off shells and why `nix-shell` is so useful for
+  development workflows

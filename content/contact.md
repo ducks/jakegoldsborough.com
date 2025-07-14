@@ -5,7 +5,7 @@ path = "contact"
 
 email: [site@jakegoldsborough.com](mailto:site@jakegoldsborough.com)
 
-github: [github](https://github.com/ducks)
+github: [ducks](https://github.com/ducks)
 
 mastodon: <a rel="me" href="https://hachyderm.io/@ducks">ducks on Mastodon</a>
 

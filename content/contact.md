@@ -7,6 +7,6 @@ email: [site@jakegoldsborough.com](mailto:site@jakegoldsborough.com)
 
 github: [ducks](https://github.com/ducks)
 
-mastodon: <a rel="me" href="https://hachyderm.io/@ducks">ducks on Mastodon</a>
+mastodon: <a rel="me" href="https://hachyderm.io/@ducks">ducks</a>
 
 etsy: [GnarlyVoid](https://www.etsy.com/shop/GnarlyVoid)

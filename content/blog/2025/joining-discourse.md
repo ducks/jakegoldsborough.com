@@ -12,7 +12,7 @@ the infrastructure team.
 > decade of the Internet. We make it easy to have meaningful conversations and
 > collaborate anytime, anywhere.
 
-They are the home of ~22k communities across 23 countries and 13 timezones.
+We are the home of ~22k communities across 23 countries and 13 timezones.
 
 ### Why Discourse?
 
@@ -39,5 +39,5 @@ This is the second time now I've lost a job then found a much, much better one.
 I think this is a valuable lesson to try and remember if I'm in that situation
 again.
 
-If Discourse sounds like the place for you, we're hiring:
+If Discourse sounds like the place for you, see if we're hiring:
 [https://discourse.org/jobs](https://discourse.org/jobs)

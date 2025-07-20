@@ -93,6 +93,29 @@ Example:
 }
 ```
 
+You will also need to add your `.dotter/local.toml` file.
+
+That will look something like this:
+
+```
+packages = [
+  'cmus',
+  'git',
+  'hypr',
+  'nvim',
+  'nushell',
+  'starship',
+  'waybar',
+  'wezterm',
+  'wofi'
+]
+```
+
+This is telling Dotter which of the "packages" in your `global.toml` should be
+copied. This helps allow us to define our complete config in one repo even if
+every host doesn't use every package. Each host will have a `local.toml` that
+copies specific packages.
+
 Now it's finally time to run `dotter deploy`. This will do the important step
 of taking our local dotfiles and copying (or symlinking) to the dirs we
 specified. After running that command, you will see

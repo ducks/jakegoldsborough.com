@@ -1,6 +1,6 @@
 +++
 title = "NixOS as a daily driver or Zero to Nixty, part 8/? - Modular Config"
-date = 2025-07-17
+date = 2025-07-20
 [taxonomies]
 tags = ["nixos", "linux"]
 +++

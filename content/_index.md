@@ -16,6 +16,8 @@ cross-functional teams to deliver efficient, maintainable solutions.
 
 #### Experience
 
+**Discourse - Software Engineer, Infrastructure Team (2025-current)**
+
 **Flashpoint - Software Engineer II (Mid-Level) (2022 - 2024)**
 
 - **Reduced infrastructure setup time from days to hours by leading the Terraform

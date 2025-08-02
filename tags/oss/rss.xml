@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - oss</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/oss/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Sun, 06 Jul 2025 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Fairway Client Not Fair Enough for UDisc</title>
+          <pubDate>Sun, 06 Jul 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/fairway-client-not-fair-enough/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/fairway-client-not-fair-enough/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/fairway-client-not-fair-enough/">&lt;h3 id=&quot;takedown-request&quot;&gt;Takedown Request&lt;&#x2F;h3&gt;
+&lt;p&gt;Recently, I&#x27;ve been writing about reverse engineering a unique data
+structure I found while investigating the UDisc web app. I also created
+a free and open source library called Fairway Client. It&#x27;s a fair way for
+accessing UDisc&#x27;s &lt;code&gt;.data&lt;&#x2F;code&gt; endpoints - the same ones their own web app uses.
+These are public, unauthenticated endpoints available to any browser.&lt;&#x2F;p&gt;
+&lt;p&gt;The only intent was curiosity and a belief in open, user-accessible data
+and software. People have asked for this kind of access before, and
+UDisc has repeatedly said no. So I decided to see for myself. The data
+was right there - how hard could it be?&lt;&#x2F;p&gt;
+&lt;p&gt;Turns out, not very.&lt;&#x2F;p&gt;
+&lt;p&gt;Much of this data is &lt;strong&gt;user-submitted&lt;&#x2F;strong&gt;, and in some cases, &lt;strong&gt;user-paid&lt;&#x2F;strong&gt;.
+UDisc does offer a CSV export, but come on - programming is about
+automation, not downloading spreadsheets.&lt;&#x2F;p&gt;
+&lt;p&gt;I posted about my findings and tools on the UDisc forum. That didn&#x27;t go
+well. First, I didn&#x27;t realize posts were moderated so my comment never got
+posted and that&#x27;s on me. Second, they weren&#x27;t pleased. I received a sternly
+worded email asking me to remove both the blog series and the codebase.&lt;&#x2F;p&gt;
+&lt;p&gt;I wasn&#x27;t sure what to expect - but I was still disappointed.
+I was hoping for curiosity, maybe even appreciation.
+Instead, I got a takedown request.&lt;&#x2F;p&gt;
+&lt;p&gt;They cited their ToS, but if offering a clean, read-only interface to user-owned
+public data violates the ToS, maybe it&#x27;s the ToS that is wrong.&lt;&#x2F;p&gt;
+&lt;p&gt;The the code is down. I will be obscuring the posts to not reveal details but I
+have spent time and effort on them so they will be staying up in some form.&lt;&#x2F;p&gt;
+&lt;p&gt;It might be time to give disc golf metrix a shot:
+&lt;a href=&quot;https:&#x2F;&#x2F;discgolfmetrix.com&#x2F;&quot;&gt;https:&#x2F;&#x2F;discgolfmetrix.com&#x2F;&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

@@ -1,5 +1,5 @@
 +++
-title = "Contributing to AWS SDK Ruby: When Documentation and Implementation Don't Match"
+title = "Contributing to the AWS Ruby SDK: When Documentation and Implementation Don't Match"
 date = 2025-08-23
 [taxonomies]
 tags = ["aws", "ruby", "oss"]

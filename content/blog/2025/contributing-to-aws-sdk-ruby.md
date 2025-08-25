@@ -5,7 +5,7 @@ date = 2025-08-23
 tags = ["aws", "ruby", "oss"]
 +++
 
-## The Problem
+### The Problem
 
 I was working on some IAM role configuration at work when our Discourse
 deployment started failing with AWS credential errors. The error was
@@ -16,7 +16,7 @@ The deployment was trying to use `credential_source = Environment` in the AWS
 config, which is a standard approach documented in the AWS CLI guide. But for
 some reason, the Ruby SDK wasn't picking up the credentials.
 
-## The Investigation
+### The Investigation
 
 Like any good debugging session, I started by tracing through the credential
 chain. The AWS Ruby SDK has a pretty clear credential resolution process, so I
@@ -43,7 +43,7 @@ case credential_source
 The CLI supports it, the documentation says it should work, but the Ruby SDK
 just... doesn't implement it.
 
-## The Solution
+### The Solution
 
 This felt like a classic case where implementation lagged behind documentation.
 Since I needed this working for our deployment, I decided to contribute the
@@ -62,7 +62,7 @@ when 'Environment'
 I added comprehensive tests to make sure it worked correctly and that I wasn't
 breaking any of the existing 20,000+ tests in the project.
 
-## The Contribution
+### The Contribution
 
 [https://github.com/aws/aws-sdk-ruby/pull/3283](https://github.com/aws/aws-sdk-ruby/pull/3283)
 
@@ -76,7 +76,7 @@ I submitted the PR with:
 -   Proper test coverage
 -   Clear documentation of what was being added
 
-## The Response
+### The Response
 
 The response from the AWS team was exactly what you hope for in open source:
 
@@ -86,7 +86,7 @@ The response from the AWS team was exactly what you hope for in open source:
 That's maintainer gold right there - acknowledgment that the gap was real and
 willingness to collaborate on getting it merged.
 
-## What I Learned
+### What I Learned
 
 This whole experience reinforced a few things for me:
 
@@ -101,7 +101,7 @@ Small changes can have big impact: This was maybe 10 lines of actual code, but
 it unblocked our deployment and will help other developers who hit the same
 issue.
 
-## The Bigger Picture
+### The Bigger Picture
 
 This kind of contribution is exactly why I love working as a generalist.
 Instead of saying "that's not my language" or "someone else should fix the AWS
@@ -109,3 +109,11 @@ SDK," I could trace the problem to its source and ship a fix.
 
 The best part? Our Discourse deployment should work now, and hopefully other
 developers won't hit this same roadblock in the future.
+
+### Update
+
+Since writing this, the change has been expanded with additional tests and
+[approved by the maintainers](https://github.com/aws/aws-sdk-ruby/pull/3283).
+It's really rewarding to see a small contribution grow into something that's
+now part of the SDK itself. This is a great reminder that even small fixes
+matter -- they can make life easier for the next developer who comes along.

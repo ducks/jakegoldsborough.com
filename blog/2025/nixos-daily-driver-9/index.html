@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+    <meta
+      name="description"
+      content="A blog about NixOS, self-hosting, Rust projects, and other tech musings. Maybe some meatspace stuff as well."
+    >
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+    <title>
+      
+      NixOS as a daily driver or Zero to Nixty, part 9&#x2F;? - Enabling Wi-Fi -
+      
+
+      Jake Goldsborough
+    </title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      <div class="theme-picker">
+        <label aria-label="Dark theme">
+          <input type="radio" name="theme" value="dark" />
+          <span aria-hidden="true"></span>
+        </label>
+        <label aria-label="Light theme">
+          <input type="radio" name="theme" value="light" />
+          <span aria-hidden="true"></span>
+        </label>
+        <noscript>
+          <label aria-label="Dark theme"><span aria-hidden="true">dark</span></label>
+          <label aria-label="Light theme"><span aria-hidden="true">light</span></label>
+        </noscript>
+      </div>
+      <h1>
+        <a href="https://jakegoldsborough.com/resume">Jake Goldsborough</a>
+      </h1>
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <span>|</span>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <span>|</span>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+
+    <main>
+      
+  
+    <article>
+      <h1>NixOS as a daily driver or Zero to Nixty, part 9&#x2F;? - Enabling Wi-Fi</h1>
+      
+        <p>
+          Published July 27, 2025
+        </p>
+      
+      <p>
+        2 min read
+      </p>
+
+      
+        <p>
+          Tags:
+          
+            <a href="/tags/nixos">nixos</a>, 
+          
+            <a href="/tags/framework">framework</a>
+          
+        </p>
+      
+
+      <p>I recently got a new
+<a href="https://frame.work/products/laptop16-diy-amd-7040">Framework 16</a> (thanks
+Discourse!). In the previous post, we talked about encrypting the machine and
+refactoring our config into a modular layout. You can read about that and more
+in the <a href="/tags/nixos">NixOS As A Daily Driver</a> series.</p>
+<p>Today I will be showing how I got Wi-Fi working because it did not work on NixOS
+by default. The Framework 16 ships with an Intel AX210 Wi-Fi module.</p>
+<h3 id="the-symptoms">The Symptoms</h3>
+<ul>
+<li><code>nmcli device status</code> shows my <code>wlp2s0</code> as "DOWN"</li>
+<li><code>ip link set wlp2s0 up</code> was not effective</li>
+<li><code>nmtui</code> would show SSIDs but refused to connect</li>
+</ul>
+<h3 id="steps-to-fix">Steps To Fix</h3>
+<p><strong>Load the Intel driver</strong></p>
+<p>The AX210 needs the <code>iwlwifi</code> kernel module and firmware:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>boot.kernelModules = [ &quot;iwlwifi&quot; ];
+</span><span>hardware.enableRedistributableFirmware = true;
+</span></code></pre>
+<p>This ensures the driver is in my <code>init-ramfs</code> and the firmware is present.</p>
+<p><strong>Explicitly define Wi-Fi backend</strong></p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>networking.networkmanager.enable = true;
+</span><span>networking.networkmanager.wifi.backend = &quot;wpa_supplicant&quot;;
+</span></code></pre>
+<h3 id="full-minimal-config-snippet">Full Minimal Config Snippet</h3>
+<p>All in all, this is what I added:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span># Load the Intel AX210 driver and firmware
+</span><span>boot.kernelModules               = [ &quot;iwlwifi&quot; ];
+</span><span>hardware.enableRedistributableFirmware = true;
+</span><span>
+</span><span># Enable the wireless module and NM
+</span><span>networking.networkmanager.enable = true;
+</span><span>networking.networkmanager.wifi.backend = &quot;wpa_supplicant&quot;;
+</span></code></pre>
+<h3 id="rebuild-reboot">Rebuild &amp; Reboot</h3>
+<p>Make sure all the new config will take hold by rebuilding and rebooting.</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>sudo nixos-rebuild switch
+</span><span>sudo reboot now
+</span></code></pre>
+<p>You can confirm everything worked by running:
+<code>nmcli device status | grep wlp2s0</code></p>
+<h3 id="victory">Victory!</h3>
+<p>After rebooting, my <code>iwlwifi</code> driver loaded, <code>wlp2s0</code> came up, and <code>nmtui</code> was
+able to both see and connect to the SSIDs.</p>
+
+    </article>
+  
+
+    </main>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

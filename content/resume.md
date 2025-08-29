@@ -18,6 +18,17 @@ cross-functional teams to deliver efficient, maintainable solutions.
 
 **Discourse - Software Engineer, Infrastructure Team (2025-current)**
 
+- **Contributed upstream to AWS SDK for Ruby**, expanding credential provider
+  support by implementing the `Environment` source in `SharedConfig`. This
+  aligned SDK behavior with the AWS CLI, preventing `InvalidCredentialSourceError`
+  and improving developer workflows relying on environment variables.
+
+  **Added full test coverage** across credential resolution paths, ensuring zero
+  regressions in a suite of 23,000+ examples.
+
+  **Accelerated adoption** with a PR that was reviewed, approved, and merged the
+  same day, delivering immediate impact for the Ruby community.
+
 **Flashpoint - Software Engineer II (Mid-Level) (2022 - 2024)**
 
 - **Reduced infrastructure setup time from days to hours by leading the Terraform

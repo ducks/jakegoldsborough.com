@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - aws</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/aws/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Sat, 23 Aug 2025 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Contributing to the AWS Ruby SDK: When Documentation and Implementation Don&#x27;t Match</title>
+          <pubDate>Sat, 23 Aug 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/contributing-to-aws-sdk-ruby/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/contributing-to-aws-sdk-ruby/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/contributing-to-aws-sdk-ruby/">&lt;h3 id=&quot;the-problem&quot;&gt;The Problem&lt;&#x2F;h3&gt;
+&lt;p&gt;I was working on some IAM role configuration at work when our Discourse
+deployment started failing with AWS credential errors. The error was
+frustrating because according to the AWS documentation, everything should have
+been working perfectly.&lt;&#x2F;p&gt;
+&lt;p&gt;The deployment was trying to use &lt;code&gt;credential_source = Environment&lt;&#x2F;code&gt; in the AWS
+config, which is a standard approach documented in the AWS CLI guide. But for
+some reason, the Ruby SDK wasn&#x27;t picking up the credentials.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-investigation&quot;&gt;The Investigation&lt;&#x2F;h3&gt;
+&lt;p&gt;Like any good debugging session, I started by tracing through the credential
+chain. The AWS Ruby SDK has a pretty clear credential resolution process, so I
+dug into the source code to see what was happening.&lt;&#x2F;p&gt;
+&lt;p&gt;That&#x27;s when I found something interesting: the AWS CLI documentation clearly
+shows &lt;code&gt;Environment&lt;&#x2F;code&gt; as a supported credential source, but when I looked at the
+Ruby SDK implementation, that option was completely missing.&lt;&#x2F;p&gt;
+&lt;p&gt;Here are the &lt;a href=&quot;https:&#x2F;&#x2F;docs.aws.amazon.com&#x2F;cli&#x2F;latest&#x2F;userguide&#x2F;cli-configure-role.html&quot;&gt;docs&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Here&#x27;s what I found in the &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;aws&#x2F;aws-sdk-ruby&#x2F;blob&#x2F;version-3&#x2F;gems&#x2F;aws-sdk-core&#x2F;lib&#x2F;aws-sdk-core&#x2F;shared_config.rb#L362&quot;&gt;SDK&lt;&#x2F;a&gt;:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;case credential_source
+&lt;&#x2F;span&gt;&lt;span&gt;  when &amp;#39;Ec2InstanceMetadata&amp;#39;
+&lt;&#x2F;span&gt;&lt;span&gt;    # ... implementation exists
+&lt;&#x2F;span&gt;&lt;span&gt;  when &amp;#39;EcsContainer&amp;#39;
+&lt;&#x2F;span&gt;&lt;span&gt;    # ... implementation exists
+&lt;&#x2F;span&gt;&lt;span&gt;  when &amp;#39;Environment&amp;#39;
+&lt;&#x2F;span&gt;&lt;span&gt;    # ... nothing here! end
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The CLI supports it, the documentation says it should work, but the Ruby SDK
+just... doesn&#x27;t implement it.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-solution&quot;&gt;The Solution&lt;&#x2F;h3&gt;
+&lt;p&gt;This felt like a classic case where implementation lagged behind documentation.
+Since I needed this working for our deployment, I decided to contribute the
+missing functionality back to the project.&lt;&#x2F;p&gt;
+&lt;p&gt;The fix was actually pretty straightforward once I understood the pattern:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;when &amp;#39;Environment&amp;#39;
+&lt;&#x2F;span&gt;&lt;span&gt;  Aws::Credentials.new(
+&lt;&#x2F;span&gt;&lt;span&gt;    ENV[&amp;#39;AWS_ACCESS_KEY_ID&amp;#39;],
+&lt;&#x2F;span&gt;&lt;span&gt;    ENV[&amp;#39;AWS_SECRET_ACCESS_KEY&amp;#39;],
+&lt;&#x2F;span&gt;&lt;span&gt;    ENV[&amp;#39;AWS_SESSION_TOKEN&amp;#39;]
+&lt;&#x2F;span&gt;&lt;span&gt;  )
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;I added comprehensive tests to make sure it worked correctly and that I wasn&#x27;t
+breaking any of the existing 20,000+ tests in the project.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-contribution&quot;&gt;The Contribution&lt;&#x2F;h3&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;aws&#x2F;aws-sdk-ruby&#x2F;pull&#x2F;3283&quot;&gt;https:&#x2F;&#x2F;github.com&#x2F;aws&#x2F;aws-sdk-ruby&#x2F;pull&#x2F;3283&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Here&#x27;s the thing - I don&#x27;t really know Ruby that well. But the codebase was
+well-organized and the patterns were clear enough that I could understand what
+needed to happen.&lt;&#x2F;p&gt;
+&lt;p&gt;I submitted the PR with:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;The missing implementation&lt;&#x2F;li&gt;
+&lt;li&gt;Proper test coverage&lt;&#x2F;li&gt;
+&lt;li&gt;Clear documentation of what was being added&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;the-response&quot;&gt;The Response&lt;&#x2F;h3&gt;
+&lt;p&gt;The response from the AWS team was exactly what you hope for in open source:&lt;&#x2F;p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&quot;Hey, thanks for opening a PR. I agree that we should support this and I may
+make some changes to this PR as well.&quot;&lt;&#x2F;p&gt;
+&lt;&#x2F;blockquote&gt;
+&lt;p&gt;That&#x27;s maintainer gold right there - acknowledgment that the gap was real and
+willingness to collaborate on getting it merged.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;what-i-learned&quot;&gt;What I Learned&lt;&#x2F;h3&gt;
+&lt;p&gt;This whole experience reinforced a few things for me:&lt;&#x2F;p&gt;
+&lt;p&gt;Documentation gaps happen: Even in well-maintained projects like the AWS SDKs,
+there can be mismatches between what&#x27;s documented and what&#x27;s implemented.&lt;&#x2F;p&gt;
+&lt;p&gt;Don&#x27;t let unfamiliar languages stop you: I was able to contribute meaningfully
+to a Ruby project despite not being a Ruby developer. Good code organization
+and clear patterns make this possible.&lt;&#x2F;p&gt;
+&lt;p&gt;Small changes can have big impact: This was maybe 10 lines of actual code, but
+it unblocked our deployment and will help other developers who hit the same
+issue.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-bigger-picture&quot;&gt;The Bigger Picture&lt;&#x2F;h3&gt;
+&lt;p&gt;This kind of contribution is exactly why I love working as a generalist.
+Instead of saying &quot;that&#x27;s not my language&quot; or &quot;someone else should fix the AWS
+SDK,&quot; I could trace the problem to its source and ship a fix.&lt;&#x2F;p&gt;
+&lt;p&gt;The best part? Our Discourse deployment should work now, and hopefully other
+developers won&#x27;t hit this same roadblock in the future.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;update&quot;&gt;Update&lt;&#x2F;h3&gt;
+&lt;p&gt;Since writing this, the change has been expanded with additional tests and
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;aws&#x2F;aws-sdk-ruby&#x2F;pull&#x2F;3283&quot;&gt;approved by the maintainers&lt;&#x2F;a&gt;.
+It&#x27;s really rewarding to see a small contribution grow into something that&#x27;s
+now part of the SDK itself. This is a great reminder that even small fixes
+matter -- they can make life easier for the next developer who comes along.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

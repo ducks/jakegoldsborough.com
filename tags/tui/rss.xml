@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - tui</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/tui/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Tue, 24 Jun 2025 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Introducing Shelltrax - Or how I vibe programmed my way to a TUI music player</title>
+          <pubDate>Tue, 24 Jun 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/introducing-shelltrax/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/introducing-shelltrax/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/introducing-shelltrax/">&lt;h3 id=&quot;shelltrax&quot;&gt;Shelltrax&lt;&#x2F;h3&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;shelltrax&quot;&gt;github&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;I love the terminal and have dabbled in Rust since the very early days. I&#x27;ve
+been to 5 RustConfs, but my actual knowledge of Rust never really went past the
+basics. I come from a scripted language background, so while I &lt;em&gt;understood&lt;&#x2F;em&gt; the
+ideas, I didn&#x27;t really understand them in practice -- mostly because I hadn’t
+personally suffered the pain points Rust tries to solve.&lt;&#x2F;p&gt;
+&lt;p&gt;The only way for me to truly understand was to build something real. Not
+another tutorial. Not another toy example. Something I’d actually use.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;cmus&quot;&gt;cmus&lt;&#x2F;h3&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;cmus.github.io&#x2F;&quot;&gt;cmus&lt;&#x2F;a&gt; is a small, &lt;em&gt;fast&lt;&#x2F;em&gt;, and powerful console
+music player for Unix-like operating systems and it&#x27;s easily one of the apps
+I use most.&lt;&#x2F;p&gt;
+&lt;p&gt;And like I mentioned above, I learn best by writing real tools so
+why not try to recreate one of my daily drivers? It seemed like the perfect mix
+of things to learn: input handling, TUI design, file scanning, metadata parsing,
+and real-time playback.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;stack-and-structure&quot;&gt;Stack and Structure&lt;&#x2F;h3&gt;
+&lt;p&gt;I tried to keep the stack small, modern, and as &quot;Rust-native&quot; as possible:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;ratatui&lt;&#x2F;code&gt; - TUI layout and rendering&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;crossterm&lt;&#x2F;code&gt; - keyboard input handling and terminal backend&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;walkdir&lt;&#x2F;code&gt; - recursive file scanning and directory walking&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;id3v2&lt;&#x2F;code&gt; and &lt;code&gt;symphonia&lt;&#x2F;code&gt; - parsing audio metadata (ID3, Vorbis, FLAC, etc)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;rodio&lt;&#x2F;code&gt; - audio playback&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Together, these gave me a good spread of &quot;real&quot; Rust problems to tackle:
+filesystems, decoding binary formats, audio streaming, real-time UI state, and
+concurrency.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;interface-design&quot;&gt;Interface Design&lt;&#x2F;h3&gt;
+&lt;p&gt;From the start, I wanted it to feel very simple.&lt;&#x2F;p&gt;
+&lt;p&gt;The interface is split into a few key views:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;A &lt;strong&gt;library view&lt;&#x2F;strong&gt;, where I can browse artists, albums, and tracks&lt;&#x2F;li&gt;
+&lt;li&gt;A &lt;strong&gt;file browser&lt;&#x2F;strong&gt;, which lets me scan new folders and import music to the
+library&lt;&#x2F;li&gt;
+&lt;li&gt;A persistent &lt;strong&gt;footer&lt;&#x2F;strong&gt;, showing the current track, album, artist and a
+real-time progress bar while the song plays&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Even building that much required learning how to manage state in a long-running
+TUI app, wire up input handling with &lt;code&gt;crossterm&lt;&#x2F;code&gt;, and keep the UI responsive
+while streaming audio in the background.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;what-s-working&quot;&gt;What&#x27;s Working&lt;&#x2F;h3&gt;
+&lt;p&gt;Despite starting this as mostly an experiment to learn Rust, I now have a music player that:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Scans my local library for FLAC and MP3 files&lt;&#x2F;li&gt;
+&lt;li&gt;Parses metadata (title, album, artist, album artist, etc) correctly using Symphonia&lt;&#x2F;li&gt;
+&lt;li&gt;Sorts and groups tracks by album artist for proper browsing&lt;&#x2F;li&gt;
+&lt;li&gt;Supports autoplay, automatically advancing to the next track&lt;&#x2F;li&gt;
+&lt;li&gt;Displays a footer with current song info and a live progress bar&lt;&#x2F;li&gt;
+&lt;li&gt;Supports pause and resume functionality with synchronized playback state&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;It&#x27;s already become my daily music player, replacing cmus for my listening.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;reflections&quot;&gt;Reflections&lt;&#x2F;h3&gt;
+&lt;p&gt;The most valuable part of this project was finally experiencing what Rust is
+really trying to protect you from.&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Shared state&lt;&#x2F;strong&gt;: Coordinating real-time playback state across multiple
+threads (UI thread, playback thread, decode thread) forced me to actually
+deal with ownership, borrowing, and synchronization directly.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Lifetimes&lt;&#x2F;strong&gt;: I finally had to understand where lifetimes mattered when
+dealing with borrowed references and streaming APIs.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Real-world edge cases&lt;&#x2F;strong&gt;: Dealing with weird metadata formats, malformed
+files, and partial decode failures showed me how fragile real-world data can
+be.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;I&#x27;ve read about these things for years, but building Shelltrax forced me to
+feel the problems directly. That&#x27;s what finally made the learning click.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;vibe-programming&quot;&gt;Vibe programming&lt;&#x2F;h3&gt;
+&lt;p&gt;There’s a lot of discourse around &quot;vibe programming&quot; — the idea of just writing
+code by intuition, following your gut, and iteratively figuring it out as you
+go. It sometimes gets a bad rap: &quot;You’re just hacking around without fully
+understanding the language or design.&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;But for me, vibe programming doesn’t mean ignoring fundamentals. It means
+building something real, fast enough to stay motivated, but being careful
+enough to stop and actually understand why something works (or why it doesn’t).&lt;&#x2F;p&gt;
+&lt;p&gt;I could have read Rust books or done more exercises, but none of that would
+have taught me what happens when a real audio stream crosses threads and you
+forget to reset a state flag at just the right time. And I&#x27;ll be honest, I
+didn&#x27;t magically learn Rust completely and know how to handle every situation
+but I certainly have a much better idea than a few weeks ago.&lt;&#x2F;p&gt;
+&lt;p&gt;Vibe programming can force you into real problems. If you stay curious and
+careful, those problems become extremely effective teachers.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

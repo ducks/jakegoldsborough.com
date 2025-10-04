@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+    <meta
+      name="description"
+      content="A blog about NixOS, self-hosting, Rust projects, and other tech musings. Maybe some meatspace stuff as well."
+    >
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+    <title>
+      
+      Going off the Rails on the AWS Credential Chain -
+      
+
+      Jake Goldsborough
+    </title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      <div class="theme-picker">
+        <label aria-label="Dark theme">
+          <input type="radio" name="theme" value="dark" />
+          <span aria-hidden="true"></span>
+        </label>
+        <label aria-label="Light theme">
+          <input type="radio" name="theme" value="light" />
+          <span aria-hidden="true"></span>
+        </label>
+        <noscript>
+          <label aria-label="Dark theme"><span aria-hidden="true">dark</span></label>
+          <label aria-label="Light theme"><span aria-hidden="true">light</span></label>
+        </noscript>
+      </div>
+      <h1>
+        <a href="https://jakegoldsborough.com/resume">Jake Goldsborough</a>
+      </h1>
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <span>|</span>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <span>|</span>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+
+    <main>
+      
+  
+    <article>
+      <h1>Going off the Rails on the AWS Credential Chain</h1>
+      
+        <p>
+          Published October  4, 2025
+        </p>
+      
+      <p>
+        4 min read
+      </p>
+
+      
+        <p>
+          Tags:
+          
+            <a href="/tags/aws">aws</a>, 
+          
+            <a href="/tags/ruby">ruby</a>, 
+          
+            <a href="/tags/oss">oss</a>
+          
+        </p>
+      
+
+      <h3 id="the-plot-twist">The Plot Twist</h3>
+<p>Remember that <a href="https://jakegoldsborough.com/blog/2025/contributing-to-aws-sdk-ruby/">AWS SDK
+contribution</a>
+I wrote about? The one where I fixed missing <code>credential_source = Environment</code>
+support? Well, turns out that was only half the story.</p>
+<p>After my PR got merged and we updated our Discourse deployment to <code>aws-sdk-core 3.233.0</code>, I was excited to finally see role assumption working. The missing
+credential source was fixed, our config looked perfect, and all the unit tests
+were passing.</p>
+<p>But when I deployed it to our test cluster, I got the exact same error as before.</p>
+<h3 id="the-real-problem">The Real Problem</h3>
+<p>Here's what was happening. I'd check the identity in our Rails console:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span>discourse(prod)&gt; sts = </span><span style="color:#ebcb8b;">Aws</span><span>::</span><span style="color:#ebcb8b;">STS</span><span>::</span><span style="color:#ebcb8b;">Client</span><span>.</span><span style="color:#8fa1b3;">new
+</span><span>discourse(prod)&gt; </span><span style="color:#96b5b4;">puts</span><span> sts.get_caller_identity.arn
+</span><span style="color:#a3be8c;">arn:aws:</span><span>iam::</span><span style="color:#d08770;">123456789012</span><span style="color:#a3be8c;">:user</span><span>/</span><span style="color:#bf616a;">MyUser
+</span></code></pre>
+<p>That should have been showing an assumed role ARN like:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>arn:aws:iam::123456789012:assumed-role/MyRole/session-name
+</span></code></pre>
+<p>The SDK was still using environment variables directly instead of using them as
+source credentials to assume the configured role.</p>
+<h3 id="the-investigation-round-2">The Investigation (Round 2)</h3>
+<p>Back to the AWS SDK source code, this time looking at
+<code>credential_provider_chain.rb</code>. And there it was - a classic ordering problem:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">providers
+</span><span>[
+</span><span style="color:#65737e;"># ... other providers ...
+</span><span>[</span><span style="color:#a3be8c;">:env_credentials</span><span>, {}], </span><span style="color:#65737e;"># Position 7 ← Wins!
+</span><span style="color:#65737e;"># ... other providers ...
+</span><span>[</span><span style="color:#a3be8c;">:assume_role_credentials</span><span>, {}], </span><span style="color:#65737e;"># Position 10 ← Never reached
+</span><span>]
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>The credential chain finds <code>AWS_ACCESS_KEY_ID</code> and <code>AWS_SECRET_ACCESS_KEY</code> in
+position 7, returns those credentials immediately, and never reaches the role
+assumption logic at position 10.</p>
+<p>But here's the thing - this isn't as simple as just moving
+<code>assume_role_credentials</code> higher in the chain. That would break existing
+behavior for thousands of applications that rely on direct environment variable
+usage.</p>
+<h3 id="the-real-architecture-problem">The Real Architecture Problem</h3>
+<p>What should happen with this config:</p>
+<pre data-lang="ini" style="background-color:#2b303b;color:#c0c5ce;" class="language-ini "><code class="language-ini" data-lang="ini"><span style="color:#b48ead;">[default]
+</span><span style="color:#bf616a;">role_arn </span><span>= arn:aws:iam::</span><span style="color:#d08770;">123456789012</span><span>:role/MyRole
+</span><span style="color:#bf616a;">credential_source </span><span>= Environment
+</span><span style="color:#bf616a;">role_session_name </span><span>= test-session
+</span><span style="color:#bf616a;">region </span><span>= us-west-</span><span style="color:#d08770;">2
+</span></code></pre>
+<p><strong>Expected flow:</strong></p>
+<ol>
+<li>SDK sees <code>role_arn</code> + <code>credential_source = Environment</code></li>
+<li>SDK uses <code>AWS_ACCESS_KEY_ID</code>/<code>AWS_SECRET_ACCESS_KEY</code> as <strong>source credentials</strong></li>
+<li>SDK calls <code>AssumeRole</code> with those source credentials</li>
+<li>SDK returns <strong>assumed role credentials</strong></li>
+</ol>
+<p><strong>Actual flow:</strong></p>
+<ol>
+<li>SDK finds <code>AWS_ACCESS_KEY_ID</code>/<code>AWS_SECRET_ACCESS_KEY</code> in environment</li>
+<li>SDK returns those credentials directly (chain stops)</li>
+<li>Role assumption config is never processed</li>
+</ol>
+<h3 id="the-contribution">The Contribution</h3>
+<p>I filed <a href="https://github.com/aws/aws-sdk-ruby/issues/3301">Bug #3301</a> with:</p>
+<ul>
+<li>Clear reproduction steps</li>
+<li>Root cause analysis pointing to the specific code location</li>
+<li>Expected vs. actual behavior with ARN examples</li>
+<li>A workaround using <code>source_profile</code> (though it requires plaintext keys)</li>
+</ul>
+<h3 id="the-response">The Response</h3>
+<p>The AWS team's response was exactly what you hope for:</p>
+<blockquote>
+<p>"Hey, thanks for opening an issue. I believe you are correct and this is
+something we need to fix. I need to confirm some details regarding
+AssumeRoleCredentials profile chaining with the team first and I'll keep you
+updated."</p>
+</blockquote>
+<p>That's maintainer validation that this is a real architectural issue, not user
+error.</p>
+<h3 id="what-i-learned-again">What I Learned (Again)</h3>
+<p><strong>Complex systems have complex bugs:</strong> My first fix solved the missing feature,
+but revealed a deeper architectural problem with credential chain precedence.</p>
+<p><strong>Sometimes the obvious fix isn't right:</strong> Moving <code>assume_role_credentials</code>
+higher might seem simple, but it requires careful consideration of context and
+backward compatibility.</p>
+<p><strong>Good bug reports matter:</strong> Clear reproduction steps, root cause analysis, and
+concrete examples help maintainers understand and prioritize issues.</p>
+<p><strong>Persistence pays off:</strong> I could have stopped after the first fix and lived
+with workarounds. But pushing deeper led to identifying a more fundamental
+issue.</p>
+<h3 id="the-bigger-picture">The Bigger Picture</h3>
+<p>This experience reinforced something important about systems work: fixing one
+layer often reveals problems in the next layer down.</p>
+<p>The first bug was a missing feature - straightforward to implement. The second
+bug is an architectural design issue that requires careful consideration of how
+credential resolution should work when role assumption is involved.</p>
+<p>Both bugs are real, both needed fixing, and both will help developers who hit
+the same issues. But they required completely different approaches - one needed
+code, the other needed a thoughtful design discussion with the maintainers.</p>
+<h3 id="status-update">Status Update</h3>
+<p>As of this writing, the AWS team is dicussing the fix for the credential chain
+precedence issue. Our Discourse implementation is ready to go - we're just
+waiting on the upstream architectural fix.</p>
+<p>Sometimes the best contribution you can make is clearly identifying and
+documenting a problem, even when the solution isn't obvious. That's exactly
+what happened here.</p>
+<p>The adventure continues...</p>
+
+    </article>
+  
+
+    </main>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

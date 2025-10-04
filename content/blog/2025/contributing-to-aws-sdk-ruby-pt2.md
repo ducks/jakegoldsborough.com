@@ -1,5 +1,5 @@
 +++
-title = "Going off the Rails of the AWS Credential Chain"
+title = "Going off the Rails on the AWS Credential Chain"
 date = 2025-10-04
 [taxonomies]
 tags = ["aws", "ruby", "oss"]

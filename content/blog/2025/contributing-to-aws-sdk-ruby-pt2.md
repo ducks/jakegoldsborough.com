@@ -62,7 +62,7 @@ position 7, returns those credentials immediately, and never reaches the role
 assumption logic at position 10.
 
 But here's the thing - this isn't as simple as just moving
-`assume_role_credentials` higher in the chain. That would break existing
+`assume_role_credentials` higher in the chain. That might break existing
 behavior for thousands of applications that rely on direct environment variable
 usage.
 

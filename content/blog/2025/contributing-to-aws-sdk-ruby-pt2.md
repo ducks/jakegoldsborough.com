@@ -139,7 +139,7 @@ code, the other needed a thoughtful design discussion with the maintainers.
 
 ### Status Update
 
-As of this writing, the AWS team is dicussing the fix for the credential chain
+As of this writing, the AWS team is discussing the fix for the credential chain
 precedence issue. Our Discourse implementation is ready to go - we're just
 waiting on the upstream architectural fix.
 

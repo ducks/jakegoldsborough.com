@@ -18,7 +18,9 @@ After my PR got merged and we updated our Discourse deployment to `aws-sdk-core
 credential source was fixed, our config looked perfect, and all the unit tests
 were passing.
 
-But when I deployed it to our test cluster, I got the exact same error as before.
+But when I deployed it to our test cluster, I still got an error. It was a new
+error, but an error nonetheless. Instead of `UnsupportedCredentialType`, I was
+now getting a permission denied error when trying to use AWS S3 operations.
 
 ### The Real Problem
 

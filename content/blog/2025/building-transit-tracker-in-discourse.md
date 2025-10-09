@@ -1,8 +1,8 @@
 ---
 title: "Building a Live Transit Departure Board with Discourse"
 date: 2025-10-08
-tags: ["discourse", "plugins", "gtfs", "transit", "ruby"]
-draft: false
+tags: ["discourse", "ruby", "oss"]
+description: "Experimenting with Discourse as a live transit departure board - blending GTFS data, aviation APIs, and forum topics into one real-time display."
 ---
 
 I've been working at Discourse for a few months now, learning how flexible
@@ -11,12 +11,12 @@ we used it for something completely different?
 
 Something like tracking flights and trains?
 
-I wanted to learn more about Discourse by building something real. Not a toy
-example, not a tutorial project. Something that would force me into actual
-problems and involves something I'm interested in. I love transit infrastructure
-and open data so why not a transit tracker using free government feeds. And I
-had this image in my head: those old split-flap airport departure boards, the
-ones that click and whir as letters rotate into place.
+I wanted to learn more about Discourse by building something that felt real and
+that would force me into actual problems. Most importantly though, I wanted to
+build something that involves my interests. I love transit infrastructure and open
+data so why not a transit tracker using free government feeds? I had this image
+in my head: those old split-flap airport departure boards, the ones that click
+and whir as letters rotate into place.
 
 ![Split-flap departure board](/images/transit-tracker-source.jpg)
 *Photo by [Amsterdam City Archives](https://unsplash.com/@amsterdamcityarchives) on
@@ -61,7 +61,7 @@ used it. Claude Code became a learning tool. I'd describe what I wanted to
 build, Claude would suggest an approach using Discourse conventions, and
 I'd understand why those patterns exist.
 
-The result? I learned the platform faster than reading docs alone would
+This allowed me to learn the platform faster than reading docs alone would
 have taught me. I saw real implementations of custom fields, service
 objects, Ember components, and ActiveRecord patterns. And because Claude
 follows Discourse's style guide and architecture, the code I wrote actually

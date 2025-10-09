@@ -13,10 +13,10 @@ Something like tracking flights and trains?
 
 I wanted to learn more about Discourse by building something that felt real and
 that would force me into actual problems. Most importantly though, I wanted to
-build something that involves my interests. I love transit infrastructure and open
-data so why not a transit tracker using free government feeds? I had this image
-in my head: those old split-flap airport departure boards, the ones that click
-and whir as letters rotate into place.
+build something that involves my interests and would be fun. I love transit
+infrastructure and open data so why not a transit tracker using free government
+feeds? I had this image in my head: those old split-flap airport departure
+boards, the ones that click and whir as letters rotate into place.
 
 ![Split-flap departure board](/images/transit-tracker-source.jpg)
 *Photo by [Amsterdam City Archives](https://unsplash.com/@amsterdamcityarchives) on

@@ -1,6 +1,7 @@
 +++
 title = "Contributing to the AWS Ruby SDK: When Documentation and Implementation Don't Match"
 date = 2025-08-23
+description = "Discovering and fixing a missing credential source implementation in the AWS Ruby SDK where documentation promised Environment support but the code didn't deliver."
 [taxonomies]
 tags = ["aws", "ruby", "oss"]
 +++

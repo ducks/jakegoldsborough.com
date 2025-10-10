@@ -1,6 +1,7 @@
 +++
 title = "ChatGPT Changelog (fka Weekly Summary) - 24/52"
 date = 2025-06-13
+description = "Introducing ChatGPT-generated personal changelogs covering MyFrisbee blog series, PostgreSQL exporter deployment, NixOS Hyprland configuration, and ongoing Swedish language learning."
 [taxonomies]
 tags = ["gpt", "changelog", "weekly summary"]
 +++

@@ -1,6 +1,7 @@
 +++
 title = "NixOS as a daily driver or Zero to Nixty, part 5/? - QoL enhancements"
 date = 2025-07-07
+description = "Configuring keyboard remapping with Interception Tools to make Caps Lock act as Escape when tapped and Control when held, plus setting up hypridle and hyprlock for automatic screen locking."
 [taxonomies]
 tags = ["nixos", "linux"]
 +++

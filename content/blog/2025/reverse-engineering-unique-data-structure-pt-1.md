@@ -1,6 +1,7 @@
 +++
 title = "Reverse Engineering A Unique Data Structure - Part 1, Courses"
 date = 2025-08-27
+description = "Uncovering how a Remix-based disc golf app encodes course data in obfuscated arrays using index maps and schema maps, then writing TypeScript to parse it into usable objects."
 [taxonomies]
 tags = [ "APIs", "typescript" ]
 +++

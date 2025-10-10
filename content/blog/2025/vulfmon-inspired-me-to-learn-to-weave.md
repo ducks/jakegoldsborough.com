@@ -1,6 +1,7 @@
 +++
 title = "How Vulfmon Inspired Me to Learn to Weave"
 date = 2025-05-31
+description = "Discovering a beautiful weaving in a Vulfmon music video sparked a new creative journey, resulting in six handmade pieces inspired by Jack Stratton's aesthetic."
 [taxonomies]
 tags = ["weaving", "art"]
 +++

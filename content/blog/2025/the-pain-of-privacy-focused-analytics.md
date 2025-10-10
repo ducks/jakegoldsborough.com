@@ -1,6 +1,7 @@
 +++
 title = "The Accidental Complexity of Doing The Right Thing or The Pain of Setting Up Privacy-Focused Analytics (2025 Edition)"
 date = 2025-06-22
+description = "The frustrating journey of setting up GoatCounter for privacy-respecting analytics, encountering broken Docker registries, build failures, and tooling friction that makes ethical software harder to deploy."
 [taxonomies]
 tags = [ "devops", "privacy" ]
 +++

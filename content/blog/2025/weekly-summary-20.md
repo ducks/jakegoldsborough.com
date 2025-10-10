@@ -1,6 +1,7 @@
 +++
 title = "Weekly Summary - 20/52"
 date = 2025-05-16
+description = "Starting a weekly reflection series covering site deployment, Raspberry Pi revival, Rust learning with blockchain and TUI projects, woodworking, and job hunting progress."
 [taxonomies]
 tags = ["weekly summary", "rust", "rockpro64"]
 +++

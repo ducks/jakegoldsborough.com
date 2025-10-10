@@ -1,6 +1,7 @@
 +++
 title = "ChatGPT assisted Changelog - 29/52"
 date = 2025-07-18
+description = "Refining NixOS setup with modular dotfiles, exploring Framework laptop RGB customization, researching task managers, and planning for NixCon 2025 attendance."
 [taxonomies]
 tags = ["gpt", "changelog", "weekly summary"]
 +++

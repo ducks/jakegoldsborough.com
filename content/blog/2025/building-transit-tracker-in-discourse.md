@@ -28,11 +28,6 @@ instead of actual flights?
 You can see the result here: [discourse-transit-tracker on
 GitHub](https://github.com/ducks/discourse-transit-tracker)
 
-**Live demo:** [discourse.gnarlyvoid.com/board](https://discourse.gnarlyvoid.com/board)
-
-*(Note: Running on a small demo droplet, so it might be a bit slow. The
-plugin runs great on properly-sized servers!)*
-
 ## Why This Makes No Sense (And Why I Did It Anyway)
 
 Let's be clear: **Discourse is not a transit tracking system**. It's a

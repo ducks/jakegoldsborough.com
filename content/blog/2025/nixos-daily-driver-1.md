@@ -1,6 +1,7 @@
 +++
 title = "NixOS as a daily driver on a late 2011 Macbook Pro, part 1/? - What and why?"
 date = 2025-05-18
+description = "An introduction to Nix and NixOS, explaining purely functional package management, declarative system configuration, atomic rollbacks, and why this approach makes for a powerful daily driver OS."
 [taxonomies]
 tags = ["nixos", "linux"]
 +++

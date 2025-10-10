@@ -1,6 +1,7 @@
 +++
 title = "Weekly Summary - 21/52"
 date = 2025-05-23
+description = "Celebrating RockPro64 revival, continuing Swedish studies, starting API inspection work, and solving NixOS Hyprland boot issues."
 [taxonomies]
 tags = ["weekly summary", "rockpro64", "nixos"]
 +++

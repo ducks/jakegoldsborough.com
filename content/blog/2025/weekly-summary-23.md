@@ -1,6 +1,7 @@
 +++
 title = "Weekly Summary - 23/52"
 date = 2025-06-07
+description = "Accomplishments in reverse engineering MyFrisbee API, TypeScript module publishing, static site improvements, NixOS blog series, Gitea self-hosting, and reaching 179-day Swedish streak."
 [taxonomies]
 tags = ["weekly summary"]
 +++

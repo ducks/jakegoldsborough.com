@@ -1,6 +1,7 @@
 +++
 title = "NixOS as a daily driver or Zero to Nixty, part 8/? - Modular Config"
 date = 2025-07-20
+description = "Breaking down a NixOS configuration into reusable modules organized by host and common settings, making it easy to deploy consistent environments across multiple machines."
 [taxonomies]
 tags = ["nixos", "linux"]
 +++

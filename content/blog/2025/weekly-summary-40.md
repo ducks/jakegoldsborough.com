@@ -1,6 +1,7 @@
 +++
 title = "ChatGPT assisted Changelog - 40/52"
 date = 2025-10-03
+description = "Weekly topics spanning Czechia residency planning, Anki language learning setup, Framework 16 NixOS troubleshooting, Discourse plugin ideas, and practical logistics for international relocation."
 [taxonomies]
 tags = ["gpt", "changelog", "weekly summary"]
 +++

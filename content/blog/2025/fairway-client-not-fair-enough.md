@@ -1,6 +1,7 @@
 +++
-title = "Fairway Client Not Fair Enough for UDisc"
+title = "Fairway Client Not Fair Enough for MyFrisbee"
 date = 2025-07-06
+description = "The story of building an open source library to access public MyFrisbee data endpoints, receiving a takedown request despite working with user-submitted information, and the disappointment that followed."
 [taxonomies]
 tags = [ "oss", "APIs" ]
 +++

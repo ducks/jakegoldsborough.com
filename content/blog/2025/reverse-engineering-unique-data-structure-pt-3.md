@@ -1,6 +1,7 @@
 +++
 title = "Reverse Engineering A Unique Data Structure - Part 3, Course & Course Details"
 date = 2025-09-03
+description = "Decoding deeply nested course data by resolving schema maps within schema maps to extract readable information about disc golf courses including layouts, holes, and amenities."
 [taxonomies]
 tags = [ "APIs", "typescript" ]
 +++

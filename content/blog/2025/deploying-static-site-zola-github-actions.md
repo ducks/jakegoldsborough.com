@@ -1,6 +1,7 @@
 +++
 title = "Deploying a Zola static site to a custom domain with Github Actions"
 date = "2025-05-24"
+description = "Setting up automated deployment for a Zola-based static site using GitHub Actions to build and publish to GitHub Pages with a custom domain and DNS configuration."
 [taxonomies]
 tags = ["rust", "github", "devops"]
 +++

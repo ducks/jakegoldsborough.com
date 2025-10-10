@@ -1,6 +1,7 @@
 +++
 title = "NixOS as a daily driver on a late 2011 Macbook Pro, part 3/? - user, WM, tools"
 date = 2025-06-05
+description = "Setting up a non-root user with sudo access, installing Hyprland as a window manager, and configuring essential daily driver tools like Neovim, Git, and Librewolf on NixOS."
 [taxonomies]
 tags = ["nixos", "linux"]
 +++

@@ -1,6 +1,7 @@
 +++
 title = "NixOS as a daily driver on a late 2011 Macbook Pro, part 2/? - Installation, Basic Configuration"
 date = 2025-06-04
+description = "A step-by-step guide to installing NixOS from a minimal ISO, including partitioning with EFI, formatting drives, generating configuration files, and completing the first system build."
 [taxonomies]
 tags = ["nixos", "linux"]
 +++

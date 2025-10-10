@@ -1,6 +1,7 @@
 +++
 title = "Building a Fully Decentralized Voting System Using Just Git and Pull Requests"
 date = 2025-06-23
+description = "Creating a transparent, auditable voting system where Git commits are the ledger, pull requests are ballots, and CI validates every vote without any centralized servers or databases."
 [taxonomies]
 tags = ["rust", "git", "devops"]
 +++

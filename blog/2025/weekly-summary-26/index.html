@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+    <meta
+      name="description"
+      content="A blog about NixOS, self-hosting, Rust projects, and other tech musings. Maybe some meatspace stuff as well."
+    >
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+    <title>
+      
+      ChatGPT Changelog (fka Weekly Summary) - 26&#x2F;52 -
+      
+
+      Jake Goldsborough
+    </title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      <div class="theme-picker">
+        <label aria-label="Dark theme">
+          <input type="radio" name="theme" value="dark" />
+          <span aria-hidden="true"></span>
+        </label>
+        <label aria-label="Light theme">
+          <input type="radio" name="theme" value="light" />
+          <span aria-hidden="true"></span>
+        </label>
+        <noscript>
+          <label aria-label="Dark theme"><span aria-hidden="true">dark</span></label>
+          <label aria-label="Light theme"><span aria-hidden="true">light</span></label>
+        </noscript>
+      </div>
+      <h1>
+        <a href="https://jakegoldsborough.com/resume">Jake Goldsborough</a>
+      </h1>
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <span>|</span>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <span>|</span>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+
+    <main>
+      
+  
+    <article>
+      <h1>ChatGPT Changelog (fka Weekly Summary) - 26&#x2F;52</h1>
+      
+        <p>
+          Published June 27, 2025
+        </p>
+      
+      <p>
+        2 min read
+      </p>
+
+      
+
+      <h2 id="nixos-workflow-improvements">NixOS Workflow &amp; Improvements</h2>
+<ul>
+<li>Refined NixOS development workflow by exploring the use of <code>nix-shell</code>
+and Flakes for environment isolation and reproducibility. Discussed how to
+structure shell files for separate projects (e.g. Rust/Zola vs. Node).</li>
+<li>Discovered how tools like <code>rustup</code> and <code>volta</code> behave in Nix environments.
+You acknowledged that <code>nix-shell</code> helps contain them safely, but the
+Nix-native approach may still be preferable long term.</li>
+<li>Cleaned up a bug with <code>nixvim</code> setup by updating to the latest
+version and resolving a plugin rename (<code>coedium-vim</code> ➝ <code>windsurf</code>).</li>
+<li>Added Blueman via Nix, and experimented with different ways to start Waybar
+without tying up terminal (eventually using <code>hyprctl dispatch exec</code>).</li>
+<li>Successfully reversed trackpad scroll direction in Hyprland using overrides,
+and this worked well across setup.</li>
+</ul>
+<h2 id="gitvote-gpg-work">GitVote &amp; GPG Work</h2>
+<ul>
+<li>Progressed <code>gitvote</code> CLI and backend significantly:
+<ul>
+<li>Implemented registration and GPG signature support.</li>
+<li>Verified that voting model and simulation strategy still worked.</li>
+<li>Explored commit signing, storing keys in-repo, and ensuring modular CLI
+support for different user flows.</li>
+</ul>
+</li>
+<li>Began planning for how to handle edge cases like simultaneous votes and
+eventually tallying.</li>
+</ul>
+<h2 id="blogging-writing">Blogging &amp; Writing</h2>
+<ul>
+<li>Continued work on NixOS daily driver series, planning to document how to
+set up Dotter and Hyprland cleanly from scratch before layering more config.</li>
+<li>Reflected on privacy-focused analytics post, considering how to improve
+tracking and discussing stance on respecting blockers.</li>
+</ul>
+<h2 id="udisc-api-wrapper-library">UDisc API &amp; Wrapper Library</h2>
+<ul>
+<li>
+<p>Worked on orchestration pattern for the TypeScript <code>UDiscAPI</code> class,
+ensuring everything flows through a clean and testable interface.</p>
+</li>
+<li>
+<p>Removed unnecessary <code>loadFromFile</code> logic and moved toward using raw JSON
+inputs with explicit route extraction.</p>
+</li>
+<li>
+<p>Streamlined the construction flow:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>const udisc = new UDisc();
+</span><span>const schemaMap = udisc.extractSchemaMap(raw);
+</span><span>const eventListings = udisc.resolveKeyValuePairs(&#39;eventListing&#39;);
+</span></code></pre>
+</li>
+</ul>
+<h2 id="personal-progress">Personal Progress</h2>
+<ul>
+<li>Maintained streak of learning Swedish — now at 193 days in a row. Mostly
+review. Need to listen to more podcasts/books again.</li>
+<li>Only played one round of disc golf this week</li>
+</ul>
+
+    </article>
+  
+
+    </main>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

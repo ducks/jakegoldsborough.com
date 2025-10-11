@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+    <meta
+      name="description"
+      content="A blog about NixOS, self-hosting, Rust projects, and other tech musings. Maybe some meatspace stuff as well."
+    >
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+    <title>
+      
+      NixOS as a daily driver on a late 2011 Macbook Pro, part 1&#x2F;? - What and why? -
+      
+
+      Jake Goldsborough
+    </title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      <div class="theme-picker">
+        <label aria-label="Dark theme">
+          <input type="radio" name="theme" value="dark" />
+          <span aria-hidden="true"></span>
+        </label>
+        <label aria-label="Light theme">
+          <input type="radio" name="theme" value="light" />
+          <span aria-hidden="true"></span>
+        </label>
+        <noscript>
+          <label aria-label="Dark theme"><span aria-hidden="true">dark</span></label>
+          <label aria-label="Light theme"><span aria-hidden="true">light</span></label>
+        </noscript>
+      </div>
+      <h1>
+        <a href="https://jakegoldsborough.com/resume">Jake Goldsborough</a>
+      </h1>
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <span>|</span>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <span>|</span>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+
+    <main>
+      
+  
+    <article>
+      <h1>NixOS as a daily driver on a late 2011 Macbook Pro, part 1&#x2F;? - What and why?</h1>
+      
+        <p>
+          Published May 18, 2025
+        </p>
+      
+      <p>
+        3 min read
+      </p>
+
+      
+
+      <p>First, it's worth explaining what NixOS is and why I or anyone would want to
+run it as a daily driver.</p>
+<p>But even before diving into NixOS, we have to talk about Nix.</p>
+<h3 id="nix">Nix</h3>
+<p>Nix is a package manager that is purely functional and creates reproducible
+builds specified in the Nix Expression Language. Nix expressions are functions
+that take dependencies as arguments which creates a <em>derivation</em> that specifies
+a reproducible build environment. Nix then stores the results of the build at
+unique address specified by a hash of the complete dependency tree. This
+is known as the Nix store and it's immutable which allows atomic upgrades,
+rollbacks, and simultaneous installations of packages with different versions.</p>
+<h3 id="nixos">NixOS</h3>
+<p>NixOS is an operating system that is built on top of Nix and the idea of purely
+functional package management. Packages are never overwritten once built. If
+you change the Nix expression for a package, it will be rebuilt, and stored
+under a new address with a new hash, preventing interference with an old version.</p>
+<p>NixOS takes this a step further and applies this to configuration. By building
+your entire system from a Nix expression, NixOS ensures that your old
+configuration is never overwritten which allows for easy rollbacks. One big
+caveat of this is the elimination of "global" directores such as <code>/bin</code>,
+<code>/lib</code>, <code>/usr</code>, etc. All packages are kept in <code>/nix/store</code> under a hashed
+address. (One exception is a symlink <code>/bin/sh</code> to Bash in the Nix store). There
+is a <code>/etc</code> for system-wide config but many of those files are symlinks to files
+in the Nix store.</p>
+<p>Everything in NixOS is built by the Nix package manager. This includes the
+kernel, applications, system packages, and configuration.</p>
+<p>To configure NixOS, you have a file at <code>/etc/nixos/configuration.nix</code>.
+You will setup everything from your boot devices to what services you want
+to run.</p>
+<p>Here is a minimal config that enables sshd:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>{
+</span><span>  boot.loader.grub.device = &quot;/dev/sda&quot;;
+</span><span>  fileSystems.&quot;/&quot;.device = &quot;/dev/sda1&quot;;
+</span><span>  services.sshd.enable = true;
+</span><span>}
+</span></code></pre>
+<p>More on this later though.</p>
+<h3 id="why">Why?</h3>
+<p>Now the whys. I think many of them speak for themselves but here are mine:</p>
+<p><strong>Rollbacks</strong></p>
+<p>This one is very big especially when learning about a new, drastically different
+OS like Nix. Because old config is never overwritten, you can easily cause a
+breaking change without being worried about how to fix it (unless maybe it's
+bootloader related). In fact, old configs are listed in the boot menu.</p>
+<p><strong>Reproducible Build Configurations</strong></p>
+<p>Kind of like a rollback but starting from scratch. You can take the
+<code>configuration.nix</code> file, copy to another machine, rebuild, and you will have
+the same applications, services, and configuration as before.</p>
+<p><strong>Ad-hoc shell environments</strong></p>
+<p>In a "Nix shell", you can use any program that is packaged with Nix without
+needing to install permanently.</p>
+<p>For example, you can run <code>nix-shell -p git neovim node</code> and you will be dropped
+into a shell with those applications installed. This may take some time
+depending on the applications installed.</p>
+<p><strong>It's a new way to think</strong></p>
+<p>Honestly, I just like trying new stuff, especially when it's done in a new way.
+Linux has mostly been the same for a long time now, so it's refreshing to see
+a new way of doing it that also improves on an already solid OS. I also
+have really fallen in love with DevOps/IaC type of work, and NixOS definitely
+scratches that itch.</p>
+<h3 id="next-time">Next time</h3>
+<p>In the next post, I will go over how to install NixOS and maybe a bit of the
+configuration.</p>
+
+    </article>
+  
+
+    </main>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

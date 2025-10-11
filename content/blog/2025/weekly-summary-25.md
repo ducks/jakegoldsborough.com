@@ -1,10 +1,14 @@
-+++
-title = "ChatGPT Changelog (fka Weekly Summary) - 25/52"
-date = 2025-06-20
-description = "Weekly accomplishments including Shelltrax TUI refinements, MyFrisbee API decoding progress, node-postgres-exporter release, NixOS configuration improvements, and Swedish study milestone."
-[taxonomies]
-tags = ["gpt", "changelog", "weekly summary"]
-+++
+---
+title: ChatGPT Changelog (fka Weekly Summary) - 25/52
+date: '2025-06-20'
+description: Weekly accomplishments including Shelltrax TUI refinements, MyFrisbee
+  API decoding progress, node-postgres-exporter release, NixOS configuration improvements,
+  and Swedish study milestone.
+tags:
+- gpt
+- changelog
+- weekly summary
+---
 
 ## Weekly Summary — 2025-06-13 to 2025-06-20
 

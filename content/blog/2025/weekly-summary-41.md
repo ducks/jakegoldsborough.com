@@ -1,10 +1,14 @@
-+++
-title = "ChatGPT assisted Changelog - 41/52"
-date = 2025-10-10
-description = "A quieter but productive week focused on publishing the Discourse transit tracker post, analyzing GoatCounter data across 37 countries and six continents, and continuing open source contributions to the AWS SDK for Ruby."
-[taxonomies]
-tags = ["gpt", "changelog", "weekly summary"]
-+++
+---
+title: ChatGPT assisted Changelog - 41/52
+date: '2025-10-10'
+description: A quieter but productive week focused on publishing the Discourse transit
+  tracker post, analyzing GoatCounter data across 37 countries and six continents,
+  and continuing open source contributions to the AWS SDK for Ruby.
+tags:
+- gpt
+- changelog
+- weekly summary
+---
 
 This week centered on publishing, polishing, and reflecting on your Discourse
 work, with some light data analysis and side discussions along the way.

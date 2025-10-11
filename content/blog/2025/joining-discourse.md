@@ -1,8 +1,10 @@
-+++
-title = "Today is my first day at Discourse!"
-date = 2025-07-21
-description = "Celebrating the start of a new role at Discourse as a software engineer on the infrastructure team, working on open source software with an async, remote-first company."
-+++
+---
+title: Today is my first day at Discourse!
+date: '2025-07-21'
+description: Celebrating the start of a new role at Discourse as a software engineer
+  on the infrastructure team, working on open source software with an async, remote-first
+  company.
+---
 
 Today I am joining [Discourse](https://discourse.org) as a software engineer on
 the infrastructure team.

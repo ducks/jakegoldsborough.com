@@ -1,10 +1,13 @@
-+++
-title = "NixOS as a daily driver or Zero to Nixty, part 6/? - Dev environment"
-date = 2025-07-08
-description = "Introducing NixVim for declarative Neovim configuration and exploring nix-shell for creating reproducible, project-specific development environments without global installs."
-[taxonomies]
-tags = ["nixos", "linux"]
-+++
+---
+title: NixOS as a daily driver or Zero to Nixty, part 6/? - Dev environment
+date: '2025-07-08'
+description: Introducing NixVim for declarative Neovim configuration and exploring
+  nix-shell for creating reproducible, project-specific development environments without
+  global installs.
+tags:
+- nixos
+- linux
+---
 
 ### Recap
 

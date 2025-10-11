@@ -1,10 +1,14 @@
-+++
-title = "ChatGPT Changelog - 27/52"
-date = 2025-07-04
-description = "Week of NixOS and NixVim work including caps lock remapping, Starship integration, PipeWire setup, MyFrisbee reverse engineering takedown, woodworking projects, and job offer celebration."
-[taxonomies]
-tags = ["gpt", "changelog", "weekly summary"]
-+++
+---
+title: ChatGPT Changelog - 27/52
+date: '2025-07-04'
+description: Week of NixOS and NixVim work including caps lock remapping, Starship
+  integration, PipeWire setup, MyFrisbee reverse engineering takedown, woodworking
+  projects, and job offer celebration.
+tags:
+- gpt
+- changelog
+- weekly summary
+---
 
 ### NixOS & NixVim Work
 

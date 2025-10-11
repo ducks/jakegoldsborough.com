@@ -1,10 +1,13 @@
-+++
-title = "How I accidentally wrote my first Neovim plugin"
-date = 2025-06-25
-description = "A journey from regex-powered single-line rewrites to a fully tested Neovim plugin for formatting JavaScript and Rust imports, learning why simpler solutions sometimes beat powerful tools like Treesitter."
-[taxonomies]
-tags = ["neovim", "lua"]
-+++
+---
+title: How I accidentally wrote my first Neovim plugin
+date: '2025-06-25'
+description: A journey from regex-powered single-line rewrites to a fully tested Neovim
+  plugin for formatting JavaScript and Rust imports, learning why simpler solutions
+  sometimes beat powerful tools like Treesitter.
+tags:
+- neovim
+- lua
+---
 
 ### Just Show Me The Code
 

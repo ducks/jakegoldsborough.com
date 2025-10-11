@@ -1,10 +1,14 @@
-+++
-title = "ChatGPT assisted Changelog - 31/52"
-date = 2025-08-01
-description = "Weekly progress on Nix package development, NixOS Wi-Fi setup on Framework 16, Git commit signing, Hyprland keybinds, and exploring privacy-focused smartwatch options."
-[taxonomies]
-tags = ["gpt", "changelog", "weekly summary"]
-+++
+---
+title: ChatGPT assisted Changelog - 31/52
+date: '2025-08-01'
+description: Weekly progress on Nix package development, NixOS Wi-Fi setup on Framework
+  16, Git commit signing, Hyprland keybinds, and exploring privacy-focused smartwatch
+  options.
+tags:
+- gpt
+- changelog
+- weekly summary
+---
 
 **Nix package development**
 

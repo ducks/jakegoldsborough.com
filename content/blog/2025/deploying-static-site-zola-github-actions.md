@@ -1,10 +1,13 @@
-+++
-title = "Deploying a Zola static site to a custom domain with Github Actions"
-date = "2025-05-24"
-description = "Setting up automated deployment for a Zola-based static site using GitHub Actions to build and publish to GitHub Pages with a custom domain and DNS configuration."
-[taxonomies]
-tags = ["rust", "github", "devops"]
-+++
+---
+title: Deploying a Zola static site to a custom domain with Github Actions
+date: '2025-05-24'
+description: Setting up automated deployment for a Zola-based static site using GitHub
+  Actions to build and publish to GitHub Pages with a custom domain and DNS configuration.
+tags:
+- rust
+- github
+- devops
+---
 
 As I've been searching for a new gig, I've gotten the urge to write a bit more
 about some of the stuff I'm up to to help make myself stand out. I really like

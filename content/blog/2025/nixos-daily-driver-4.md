@@ -1,10 +1,13 @@
-+++
-title = "NixOS as a daily driver or Zero to Nixty, part 4/? - dotfile/config management"
-date = 2025-06-27
-description = "Using Dotter to manage NixOS configuration and Hyprland settings in version control with symlinks, making it simple to deploy and reproduce your setup across machines."
-[taxonomies]
-tags = ["nixos", "linux"]
-+++
+---
+title: NixOS as a daily driver or Zero to Nixty, part 4/? - dotfile/config management
+date: '2025-06-27'
+description: Using Dotter to manage NixOS configuration and Hyprland settings in version
+  control with symlinks, making it simple to deploy and reproduce your setup across
+  machines.
+tags:
+- nixos
+- linux
+---
 
 ### From TTY to Tiling
 

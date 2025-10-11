@@ -1,10 +1,11 @@
-+++
-title = "My First Official Contribution to Discourse"
-date = 2025-10-06
-description = "A small but satisfying first PR to the Discourse core codebase."
-[taxonomies]
-tags = ["discourse", "oss"]
-+++
+---
+title: My First Official Contribution to Discourse
+date: '2025-10-06'
+description: A small but satisfying first PR to the Discourse core codebase.
+tags:
+- discourse
+- oss
+---
 
 This past week marked a small but meaningful milestone for me - I submitted and
 merged my first pull request to the Discourse core project. The fix is simple

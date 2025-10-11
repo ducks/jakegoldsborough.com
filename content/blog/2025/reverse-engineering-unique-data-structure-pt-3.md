@@ -1,10 +1,13 @@
-+++
-title = "Reverse Engineering A Unique Data Structure - Part 3, Course & Course Details"
-date = 2025-09-03
-description = "Decoding deeply nested course data by resolving schema maps within schema maps to extract readable information about disc golf courses including layouts, holes, and amenities."
-[taxonomies]
-tags = [ "APIs", "typescript" ]
-+++
+---
+title: Reverse Engineering A Unique Data Structure - Part 3, Course & Course Details
+date: '2025-09-03'
+description: Decoding deeply nested course data by resolving schema maps within schema
+  maps to extract readable information about disc golf courses including layouts,
+  holes, and amenities.
+tags:
+- APIs
+- typescript
+---
 
 Second part of the series, Search, can be found here:
 [Search for Places and Courses](/blog/2025/reverse-engineering-unique-data-structure-pt-2/)

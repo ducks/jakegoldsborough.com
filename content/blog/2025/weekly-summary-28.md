@@ -1,10 +1,13 @@
-+++
-title = "ChatGPT assisted Changelog - 28/52"
-date = 2025-07-11
-description = "Publishing NixOS daily driver posts, fighting encrypted disk installation issues, playing disc golf, continuing Swedish language studies, and garden updates."
-[taxonomies]
-tags = ["gpt", "changelog", "weekly summary"]
-+++
+---
+title: ChatGPT assisted Changelog - 28/52
+date: '2025-07-11'
+description: Publishing NixOS daily driver posts, fighting encrypted disk installation
+  issues, playing disc golf, continuing Swedish language studies, and garden updates.
+tags:
+- gpt
+- changelog
+- weekly summary
+---
 
 ### 20250704 - 20250711
 

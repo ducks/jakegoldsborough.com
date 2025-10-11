@@ -1,10 +1,13 @@
-+++
-title = "Reverse Engineering A Unique Data Structure - Part 2, Search"
-date = 2025-08-30
-description = "Discovering and using search endpoints for places and courses that return well-formed data, making it easy to find specific locations and query disc golf course information."
-[taxonomies]
-tags = [ "APIs", "typescript" ]
-+++
+---
+title: Reverse Engineering A Unique Data Structure - Part 2, Search
+date: '2025-08-30'
+description: Discovering and using search endpoints for places and courses that return
+  well-formed data, making it easy to find specific locations and query disc golf
+  course information.
+tags:
+- APIs
+- typescript
+---
 
 First part of the series, Courses, can be found here:
 [Courses](/blog/2025/reverse-engineering-unique-data-structure-pt-1/)

@@ -1,10 +1,14 @@
-+++
-title = "Going off the Rails on the AWS Credential Chain"
-date = 2025-10-04
-description = "Uncovering a deeper architectural issue in the AWS Ruby SDK where credential chain precedence prevented role assumption from working correctly with environment variable source credentials."
-[taxonomies]
-tags = ["aws", "ruby", "oss"]
-+++
+---
+title: Going off the Rails on the AWS Credential Chain
+date: '2025-10-04'
+description: Uncovering a deeper architectural issue in the AWS Ruby SDK where credential
+  chain precedence prevented role assumption from working correctly with environment
+  variable source credentials.
+tags:
+- aws
+- ruby
+- oss
+---
 
 
 ### The Plot Twist

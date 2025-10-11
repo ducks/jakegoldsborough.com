@@ -1,10 +1,14 @@
-+++
-title = "ChatGPT assisted Changelog - 34/52"
-date = 2025-08-22
-description = "A week balancing travel research for Europe, Shelltrax autoplay debugging, Discourse logo design experiments, and technical problem-solving across multiple projects."
-[taxonomies]
-tags = ["gpt", "changelog", "weekly summary"]
-+++
+---
+title: ChatGPT assisted Changelog - 34/52
+date: '2025-08-22'
+description: A week balancing travel research for Europe, Shelltrax autoplay debugging,
+  Discourse logo design experiments, and technical problem-solving across multiple
+  projects.
+tags:
+- gpt
+- changelog
+- weekly summary
+---
 
 This week balanced travel research, disc golf writing edits, technical
 debugging, and creative design work. On the travel side, questions came up

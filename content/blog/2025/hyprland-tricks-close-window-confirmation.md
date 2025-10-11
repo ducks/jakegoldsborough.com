@@ -1,10 +1,11 @@
-+++
-title = "Hyprland Tricks - Close Window Keybind With Confirmation Window"
-date = 2025-07-28
-description = "Adding a simple Wofi confirmation dialog to Hyprland's window close keybind to prevent accidentally closing important windows with a quick Yes/No prompt."
-[taxonomies]
-tags = [ "hyprland" ]
-+++
+---
+title: Hyprland Tricks - Close Window Keybind With Confirmation Window
+date: '2025-07-28'
+description: Adding a simple Wofi confirmation dialog to Hyprland's window close keybind
+  to prevent accidentally closing important windows with a quick Yes/No prompt.
+tags:
+- hyprland
+---
 
 By default, `hyprctl dispatch killactive` will instantly close your focused
 window. If you're like me and have ever yanked a terminal or browser window

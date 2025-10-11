@@ -1,10 +1,14 @@
-+++
-title = "ChatGPT Changelog (fka Weekly Summary) - 26/52"
-date = 2025-06-27
-description = "Refining NixOS workflow with nix-shell and Flakes, progressing GitVote CLI with GPG signatures, continuing blog writing, and maintaining Swedish language learning streak."
-[taxonomies]
-tags = ["gpt", "changelog", "weekly summary"]
-+++
+---
+title: ChatGPT Changelog (fka Weekly Summary) - 26/52
+date: '2025-06-27'
+description: Refining NixOS workflow with nix-shell and Flakes, progressing GitVote
+  CLI with GPG signatures, continuing blog writing, and maintaining Swedish language
+  learning streak.
+tags:
+- gpt
+- changelog
+- weekly summary
+---
 
 ## NixOS Workflow & Improvements
 

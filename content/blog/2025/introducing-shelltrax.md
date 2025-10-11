@@ -1,10 +1,13 @@
-+++
-title = "Introducing Shelltrax - Or how I vibe programmed my way to a TUI music player"
-date = 2025-06-24
-description = "Building a terminal-based music player in Rust from scratch to learn the language through real-world challenges like TUI rendering, audio streaming, metadata parsing, and concurrent state management."
-[taxonomies]
-tags = ["rust", "tui"]
-+++
+---
+title: Introducing Shelltrax - Or how I vibe programmed my way to a TUI music player
+date: '2025-06-24'
+description: Building a terminal-based music player in Rust from scratch to learn
+  the language through real-world challenges like TUI rendering, audio streaming,
+  metadata parsing, and concurrent state management.
+tags:
+- rust
+- tui
+---
 
 ### Shelltrax
 

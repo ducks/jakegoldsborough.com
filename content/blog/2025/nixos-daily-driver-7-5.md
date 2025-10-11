@@ -1,10 +1,13 @@
-+++
-title = "NixOS as a daily driver or Zero to Nixty, part 7.5/? - Trial by Encrypted Fire"
-date = 2025-07-13
-description = "A detailed account of struggling through manual LUKS encryption setup on NixOS, hitting multiple roadblocks, and ultimately succeeding with the graphical installer after three failed attempts."
-[taxonomies]
-tags = ["nixos", "linux"]
-+++
+---
+title: NixOS as a daily driver or Zero to Nixty, part 7.5/? - Trial by Encrypted Fire
+date: '2025-07-13'
+description: A detailed account of struggling through manual LUKS encryption setup
+  on NixOS, hitting multiple roadblocks, and ultimately succeeding with the graphical
+  installer after three failed attempts.
+tags:
+- nixos
+- linux
+---
 
 ### Intro
 

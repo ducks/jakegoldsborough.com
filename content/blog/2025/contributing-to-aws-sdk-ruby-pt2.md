@@ -14,7 +14,7 @@ tags:
 ### The Plot Twist
 
 Remember that [AWS SDK
-contribution](https://jakegoldsborough.com/blog/2025/contributing-to-aws-sdk-ruby/)
+contribution](/blog/2025/contributing-to-aws-sdk-ruby/)
 I wrote about? The one where I fixed missing `credential_source = Environment`
 support? Well, turns out that was only half the story.
 
@@ -154,4 +154,9 @@ Sometimes the best contribution you can make is clearly identifying and
 documenting a problem, even when the solution isn't obvious. That's exactly
 what happened here.
 
-The adventure continues...
+### The Adventure Continues
+
+Read [Part
+3](/blog/2025/contributing-to-aws-sdk-ruby-pt3/) to
+see how the maintainers responded to the bug report and the workaround I ended
+up implementing.

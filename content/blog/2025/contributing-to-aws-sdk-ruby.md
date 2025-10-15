@@ -123,3 +123,12 @@ Since writing this, the change has been expanded with additional tests and
 It's really rewarding to see a small contribution grow into something that's
 now part of the SDK itself. This is a great reminder that even small fixes
 matter -- they can make life easier for the next developer who comes along.
+
+### The Saga Continues
+
+This turned out to be just the beginning. After getting the feature merged, I
+discovered it didn't actually work due to credential chain precedence issues.
+Read more in [Part
+2](/blog/2025/contributing-to-aws-sdk-ruby-pt2/)
+and [Part
+3](/blog/2025/contributing-to-aws-sdk-ruby-pt3/).

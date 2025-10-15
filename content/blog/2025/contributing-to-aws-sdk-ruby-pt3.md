@@ -11,9 +11,9 @@ tags:
 ### The Saga Continues
 
 If you've been following along ([Part
-1](https://jakegoldsborough.com/blog/2025/contributing-to-aws-sdk-ruby/) and
+1](/blog/2025/contributing-to-aws-sdk-ruby/) and
 [Part
-2](https://jakegoldsborough.com/blog/2025/going-off-the-rails-on-the-aws-credential-chain/)),
+2](/blog/2025/contributing-to-aws-sdk-ruby-pt2/)),
 you know I've been on a journey fixing AWS SDK Ruby credential handling. First
 I added the missing `credential_source = Environment` implementation, then I
 discovered it didn't actually work due to credential chain precedence issues.

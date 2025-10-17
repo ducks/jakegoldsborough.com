@@ -1,7 +1,7 @@
 ---
 title: "Building Yaks: A Virtual Currency System for Discourse (Part 2:
   Features and Expiration)"
-date: 2025-10-12
+date: 2025-10-17
 tags: ["discourse", "ruby", "oss"]
 description: "Part 2 covers implementing topic pinning, building a modular service architecture, and creating an expiration system with background jobs."
 ---
@@ -19,9 +19,9 @@ Part 2 covers:
 
 ## Topic Pinning
 
-Topic pinning lets users spend 100 Yaks to pin their topic to the top of
-its category for 24 hours. This uses Discourse's native pinning mechanism,
-but requires currency to access.
+Topic pinning lets users spend Yaks to pin their topic to the top of its
+category for a configurable duration. This uses Discourse's native pinning
+mechanism, but requires currency to access.
 
 ### Why This Feature Matters
 
@@ -29,8 +29,8 @@ Forums prioritize content by recency. Older discussions get buried. Topic
 pinning gives users a way to temporarily boost visibility for important
 discussions without needing moderator intervention.
 
-The constraint is time. You get 24 hours. After that, the pin expires and
-the topic returns to normal sorting.
+The constraint is time. After the configured duration expires, the pin is
+removed and the topic returns to normal sorting.
 
 ### The Service Architecture Problem
 
@@ -68,8 +68,13 @@ The fix was adding support for both posts and topics:
 def self.apply_feature(user, feature_key, related_post, feature_data: {})
 
 # New (modular, all keyword)
-def self.apply_feature(user:, feature_key:, related_post: nil,
-  related_topic: nil, feature_data: {})
+def self.apply_feature(
+  user:,
+  feature_key:,
+  related_post: nil,
+  related_topic: nil,
+  feature_data: {}
+)
 ```
 
 Now the service accepts either a post or a topic (or neither, for
@@ -116,7 +121,8 @@ Discourse has built-in topic pinning. The `Topic` model has an
 `update_pinned` method:
 
 ```ruby
-topic.update_pinned(true, false, 24.hours.from_now.to_s)
+duration = feature.duration_hours.hours
+topic.update_pinned(true, false, duration.from_now.to_s)
 ```
 
 Three parameters:
@@ -130,10 +136,10 @@ This caught me during implementation:
 
 ```ruby
 # Wrong (creates YakFeatureUse but topic doesn't actually pin)
-topic.update_pinned(true, false, 24.hours.from_now)
+topic.update_pinned(true, false, feature.duration_hours.hours.from_now)
 
 # Correct
-topic.update_pinned(true, false, 24.hours.from_now.to_s)
+topic.update_pinned(true, false, feature.duration_hours.hours.from_now.to_s)
 ```
 
 The feature use was being created, the Yaks were being deducted, but the
@@ -142,8 +148,8 @@ silently fails if you pass a Time object instead of a string.
 
 ## Expiration System
 
-Features need to expire. Each feature has a duration based on what the user
-purchases. We need a way to clean up expired features and undo their
+Features need to expire. Each feature has a configurable duration stored in
+the database. We need a way to clean up expired features and undo their
 effects.
 
 ### The Architecture
@@ -501,14 +507,15 @@ navigation just needs debugging.
 ## What's Next
 
 The immediate task is fixing the admin UI tab navigation. Once that's
-working, the admin can:
-- Add/edit/delete purchase packages
-- Configure feature costs and durations
+working, admins will have full control over the system configuration:
+- Add/edit/delete purchase packages (price, Yak amounts, bonus structure)
+- Configure feature costs and durations (how many Yaks, how long they last)
 - View system statistics (total wallets, Yaks in circulation, active
   features)
 
 After that:
-- Implement the earning system (reward quality posts based on likes)
+- Implement the earning system (reward quality posts based on configurable
+  criteria)
 - Build the remaining features (post pin, post boost, custom flair)
 - Add purchase flow integration (Stripe for buying Yaks with real money)
 

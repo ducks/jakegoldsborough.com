@@ -290,6 +290,10 @@ The frontend needed two things:
 1. A "Spend Yaks" button on topics
 2. Context-aware modal that shows appropriate features
 
+![Spend Yaks button on topic footer](/images/spend-yaks.png)
+
+![Spend Yaks modal showing available features](/images/spend-yaks-2.png)
+
 ### Topic Footer Button
 
 Discourse has an API for adding buttons to topic footers:

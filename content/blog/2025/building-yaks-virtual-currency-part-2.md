@@ -17,6 +17,10 @@ Part 2 covers:
 - Building an expiration system with background jobs
 - Starting the admin configuration UI
 
+![Spend Yaks button on topic footer](/images/spend-yaks.png)
+
+![Spend Yaks modal showing available features](/images/spend-yaks-2.png)
+
 ## Topic Pinning
 
 Topic pinning lets users spend Yaks to pin their topic to the top of its
@@ -289,10 +293,6 @@ have the original feature use record.
 The frontend needed two things:
 1. A "Spend Yaks" button on topics
 2. Context-aware modal that shows appropriate features
-
-![Spend Yaks button on topic footer](/images/spend-yaks.png)
-
-![Spend Yaks modal showing available features](/images/spend-yaks-2.png)
 
 ### Topic Footer Button
 

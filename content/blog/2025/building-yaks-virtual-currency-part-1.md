@@ -9,6 +9,8 @@ I'm building a virtual currency system for Discourse. Users earn and spend
 "Yaks" on premium post features like colored highlighting, pinned posts, and
 custom user flair.
 
+![Image showing 1000 Yaks in wallet](/images/yaks-wallet.png)
+
 ![Post highlighting with purple border](/images/yaks-highlighted-post-1.png)
 
 This is Part 1 of a series documenting the development. This post focuses on

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+    <meta
+      name="description"
+      content="A blog about NixOS, self-hosting, Rust projects, and other tech musings. Maybe some meatspace stuff as well."
+    >
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+    <title>
+      
+      NixOS as a daily driver or Zero to Nixty, part 6&#x2F;? - Dev environment -
+      
+
+      Jake Goldsborough
+    </title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      <div class="theme-picker">
+        <label aria-label="Dark theme">
+          <input type="radio" name="theme" value="dark" />
+          <span aria-hidden="true"></span>
+        </label>
+        <label aria-label="Light theme">
+          <input type="radio" name="theme" value="light" />
+          <span aria-hidden="true"></span>
+        </label>
+        <noscript>
+          <label aria-label="Dark theme"><span aria-hidden="true">dark</span></label>
+          <label aria-label="Light theme"><span aria-hidden="true">light</span></label>
+        </noscript>
+      </div>
+      <h1>
+        <a href="https://jakegoldsborough.com/resume">Jake Goldsborough</a>
+      </h1>
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <span>|</span>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <span>|</span>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+
+    <main>
+      
+  
+    <article>
+      <h1>NixOS as a daily driver or Zero to Nixty, part 6&#x2F;? - Dev environment</h1>
+      
+        <p>
+          Published July  8, 2025
+        </p>
+      
+      <p>
+        3 min read
+      </p>
+
+      
+
+      <h3 id="recap">Recap</h3>
+<p>In the last post, we added some quality of life enhancements. This included
+key remapping and getting hypridle and hyprlock set up.</p>
+<p>See that post <a href="/blog/2025/nixos-daily-driver-5">here</a>.</p>
+<h3 id="intro">Intro</h3>
+<p>Today, I will be introducing <code>NixVim</code> and show you how to set up some
+per-project development shells. The latter is a very powerful part of NixOS as
+you'll see.</p>
+<h3 id="nixvim">NixVim</h3>
+<p>NixVim is a project that lets you declaratively configure Neovim in Nix. No
+<code>init.lua</code>, <code>vimrc</code>, or plugin managers like Lazy or Packer.</p>
+<p>It's part of a broader Nix-native ecosystem where tools, config, and
+dependencies are defined in one declarative, reproducible system.</p>
+<p>I use and suggest this for a few reasons:</p>
+<ol>
+<li>Fully Declarative Neovim Config</li>
+</ol>
+<p>This means all your plugins, keymaps, etc
+are explicity defined. This will allow you to easily version it, share it, and
+reproduce it on another system.</p>
+<ol start="2">
+<li>Automatic Plugin Management</li>
+</ol>
+<p>No need to install anything with a plugin manager or run <code>:PackerInstall</code>,
+<code>:LazySync</code> etc. When you build Nix, NixVim builds Neovim with all your plugins
+downloaded and ready.</p>
+<ol start="3">
+<li>Tight Integration with Nix packages</li>
+</ol>
+<p>You can inherit pkgs to bring in dependencies like <code>ripgrep</code>,
+<code>lua-language-server</code>, or <code>stylua</code> directly. No external <code>npm</code>, <code>cargo</code>, <code>pip</code>,
+or language-specific managers needed.</p>
+<h4 id="initial-config">Initial Config</h4>
+<p>We are going to start small with our config and extend it further later.</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>{ pkgs, ... }: {
+</span><span>  programs.nixvim = {
+</span><span>    enable = true;
+</span><span>
+</span><span>    # Enable basic plugins
+</span><span>    plugins = {
+</span><span>      lualine.enable = true;           # Statusline
+</span><span>      telescope.enable = true;         # Fuzzy finder
+</span><span>      treesitter.enable = true;        # Better syntax highlighting
+</span><span>    };
+</span><span>
+</span><span>    # Use a Gruvbox theme (optional)
+</span><span>    colorschemes.gruvbox.enable = true;
+</span><span>
+</span><span>    # LSP support
+</span><span>    plugins.lsp = {
+</span><span>      enable = true;
+</span><span>
+</span><span>      # Example LSP: Lua
+</span><span>      servers = {
+</span><span>        lua-ls.enable = true;
+</span><span>      }
+</span><span>    }
+</span><span>
+</span><span>    # Keymap example
+</span><span>    keymaps = [
+</span><span>      {
+</span><span>        mode = &quot;n&quot;;
+</span><span>        key = &quot;&lt;leader&gt;ff&quot;;
+</span><span>        action = &quot;&lt;cmd&gt;Telescope find_files&lt;CR&gt;&quot;;
+</span><span>        options = {
+</span><span>          desc = &quot;Find files&quot;;
+</span><span>        };
+</span><span>      }
+</span><span>    ];
+</span><span>  };
+</span><span>}
+</span></code></pre>
+<p>Let's break this config down.</p>
+<p>First, and most importantly, we enable Nixvim by setting
+<code>programs.nixvim.enable</code> to <code>true</code>. Then, we enable a few basic plugins through
+<code>programs.nixvim.plugins</code>.</p>
+<p>After that we enable the <code>gruvbox</code> color scheme and setup some basic LSP support.</p>
+<p>Finally, we setup a keymap for <code>&lt;leader&gt;ff</code> that uses <code>telescope</code> to find files.</p>
+<h3 id="nix-shell-what-is-it"><code>nix-shell</code> - What is it?</h3>
+<p>Now onto <code>nix-shell</code>. <code>nix-shell</code> is a tool that lets you temporarily enter a
+development environment defined by a Nix expression. Think of it as a
+lightweight, project-specific sandbox with all the tools and dependencies you
+need -- and nothing you don't. They are like Python virtual environments, but
+for any tool or language.</p>
+<p>You can use <code>nix-shell</code> to:</p>
+<ul>
+<li>Spin up a shell with specific packages available</li>
+<li>Test tools or languages without installing them system-wide</li>
+<li>Set up consistent dev environments across machines or teams</li>
+</ul>
+<h4 id="why-use-it">Why Use It?</h4>
+<p>If you've ever run into "works on my machine" issues, <code>nix-shell</code> is the
+antidote. By declaring your environment as code, you get repeatable,
+deterministic setups every time -- no more dependency drift or missing tools.</p>
+<p>It's also fantastic for trying out a new language or toolchain. Want to test
+something in Ruby, Rust, or Go? You can be up and running with just a few
+lines.</p>
+<h4 id="example">Example</h4>
+<p>Here’s what a simple <code>shell.nix</code> might look like for Rust development:</p>
+<pre data-lang="nix" style="background-color:#2b303b;color:#c0c5ce;" class="language-nix "><code class="language-nix" data-lang="nix"><span style="color:#8fa1b3;">{ </span><span>pkgs ? </span><span style="color:#96b5b4;">import </span><span style="color:#a3be8c;">&lt;nixpkgs&gt; </span><span>{} </span><span style="color:#8fa1b3;">}</span><span>:
+</span><span>
+</span><span style="color:#bf616a;">pkgs</span><span>.</span><span style="color:#bf616a;">mkShell </span><span>{
+</span><span>  </span><span style="color:#d08770;">buildInputs </span><span>= [
+</span><span>    </span><span style="color:#bf616a;">pkgs</span><span>.</span><span style="color:#bf616a;">rustc
+</span><span>    </span><span style="color:#bf616a;">pkgs</span><span>.</span><span style="color:#bf616a;">cargo
+</span><span>  ];
+</span><span>}
+</span></code></pre>
+<p>Run <code>nix-shell</code> in that directory, and boom, you'll be dropped into a shell
+environment with <code>rustc</code> and <code>cargo</code> available but without being installed
+globally.</p>
+<h4 id="one-off-shells">One-Off Shells</h4>
+<p>In fact, you don't even need a <code>shell.nix</code> file. You could run
+<code>nix-shell -p nodejs</code> and you would be dropped into a shell with <code>nodejs</code>
+installed locally, meaning it's not installed globally.</p>
+<p>Overall, <code>nix-shell</code> is one of the most powerful parts of Nix/NixOS.</p>
+<h3 id="summary">Summary</h3>
+<p>In this post, we have:</p>
+<ul>
+<li>Enabled NixVim and set up a simple, usable Neovim config</li>
+<li>Introduced <code>nix-shell</code> and showed how it can be used to create temporary,
+repeatable dev environments</li>
+<li>Explained how to launch one-off shells and why <code>nix-shell</code> is so useful for
+development workflows</li>
+</ul>
+
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

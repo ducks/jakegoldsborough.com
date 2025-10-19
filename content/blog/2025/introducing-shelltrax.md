@@ -14,14 +14,16 @@ taxonomies:
 
 [github](https://github.com/ducks/shelltrax)
 
+![A screenshot showing a libray view of a CLI music player](/images/shelltrax-1.png)
+
 I love the terminal and have dabbled in Rust since the very early days. I've
 been to 5 RustConfs, but my actual knowledge of Rust never really went past the
 basics. I come from a scripted language background, so while I *understood* the
-ideas, I didn't really understand them in practice -- mostly because I hadn’t
+ideas, I didn't really understand them in practice -- mostly because I hadn't
 personally suffered the pain points Rust tries to solve.
 
 The only way for me to truly understand was to build something real. Not
-another tutorial. Not another toy example. Something I’d actually use.
+another tutorial. Not another toy example. Something I'd actually use.
 
 ### cmus
 
@@ -77,6 +79,8 @@ Despite starting this as mostly an experiment to learn Rust, I now have a music 
 
 It's already become my daily music player, replacing cmus for my listening.
 
+![A screenshot showing a libray view of a CLI music player](/images/shelltrax-2.png)
+
 ### Reflections
 
 The most valuable part of this project was finally experiencing what Rust is
@@ -96,14 +100,14 @@ feel the problems directly. That's what finally made the learning click.
 
 ### Vibe programming
 
-There’s a lot of discourse around "vibe programming" — the idea of just writing
+There's a lot of discourse around "vibe programming" -- the idea of just writing
 code by intuition, following your gut, and iteratively figuring it out as you
-go. It sometimes gets a bad rap: "You’re just hacking around without fully
+go. It sometimes gets a bad rap: "You're just hacking around without fully
 understanding the language or design."
 
-But for me, vibe programming doesn’t mean ignoring fundamentals. It means
+But for me, vibe programming doesn't mean ignoring fundamentals. It means
 building something real, fast enough to stay motivated, but being careful
-enough to stop and actually understand why something works (or why it doesn’t).
+enough to stop and actually understand why something works (or why it doesn't).
 
 I could have read Rust books or done more exercises, but none of that would
 have taught me what happens when a real audio stream crosses threads and you

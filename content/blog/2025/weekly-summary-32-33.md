@@ -3,10 +3,11 @@ title: ChatGPT assisted Changelog - 32+33/52
 date: '2025-08-17'
 description: Two weeks of NixOS troubleshooting, node-postgres-exporter development,
   Framework 16 hardware configuration, and preparation for upcoming European travel.
-tags:
-- gpt
-- changelog
-- weekly summary
+taxonomies:
+  tags:
+    - gpt
+    - changelog
+    - weekly summary
 ---
 
 **Early August Projects**

@@ -4,9 +4,10 @@ date: '2025-06-27'
 description: Using Dotter to manage NixOS configuration and Hyprland settings in version
   control with symlinks, making it simple to deploy and reproduce your setup across
   machines.
-tags:
-- nixos
-- linux
+taxonomies:
+  tags:
+    - nixos
+    - linux
 ---
 
 ### From TTY to Tiling

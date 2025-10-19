@@ -4,9 +4,10 @@ date: '2025-07-20'
 description: Breaking down a NixOS configuration into reusable modules organized by
   host and common settings, making it easy to deploy consistent environments across
   multiple machines.
-tags:
-- nixos
-- linux
+taxonomies:
+  tags:
+    - nixos
+    - linux
 ---
 
 Check out the whole series here:

@@ -4,9 +4,10 @@ date: '2025-07-06'
 description: The story of building an open source library to access public MyFrisbee
   data endpoints, receiving a takedown request despite working with user-submitted
   information, and the disappointment that followed.
-tags:
-- oss
-- APIs
+taxonomies:
+  tags:
+    - oss
+    - APIs
 ---
 
 ### Takedown Request

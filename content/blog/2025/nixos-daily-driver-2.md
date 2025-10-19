@@ -5,9 +5,10 @@ date: '2025-06-04'
 description: A step-by-step guide to installing NixOS from a minimal ISO, including
   partitioning with EFI, formatting drives, generating configuration files, and completing
   the first system build.
-tags:
-- nixos
-- linux
+taxonomies:
+  tags:
+    - nixos
+    - linux
 ---
 
 See [Part 1](/blog/2025/nixos-daily-driver-1) where I cover why you would want

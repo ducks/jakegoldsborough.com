@@ -4,9 +4,10 @@ date: '2025-06-05'
 description: Setting up a non-root user with sudo access, installing Hyprland as a
   window manager, and configuring essential daily driver tools like Neovim, Git, and
   Librewolf on NixOS.
-tags:
-- nixos
-- linux
+taxonomies:
+  tags:
+    - nixos
+    - linux
 ---
 
 #### Recap

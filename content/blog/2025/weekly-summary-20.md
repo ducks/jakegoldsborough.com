@@ -4,10 +4,11 @@ date: '2025-05-16'
 description: Starting a weekly reflection series covering site deployment, Raspberry
   Pi revival, Rust learning with blockchain and TUI projects, woodworking, and job
   hunting progress.
-tags:
-- weekly summary
-- rust
-- rockpro64
+taxonomies:
+  tags:
+    - weekly summary
+    - rust
+    - rockpro64
 ---
 
 I am starting a weekly summary/reflection series that will be a high level

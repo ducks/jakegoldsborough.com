@@ -3,8 +3,9 @@ title: Hyprland Tricks - Close Window Keybind With Confirmation Window
 date: '2025-07-28'
 description: Adding a simple Wofi confirmation dialog to Hyprland's window close keybind
   to prevent accidentally closing important windows with a quick Yes/No prompt.
-tags:
-- hyprland
+taxonomies:
+  tags:
+    - hyprland
 ---
 
 By default, `hyprctl dispatch killactive` will instantly close your focused

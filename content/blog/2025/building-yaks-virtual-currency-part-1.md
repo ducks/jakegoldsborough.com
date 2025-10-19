@@ -1,9 +1,11 @@
----
-title: "Building Yaks: A Virtual Currency System for Discourse (Part 1: Backend Architecture)"
-date: 2025-10-11
-tags: ["discourse", "ruby", "oss"]
-description: "Building a virtual currency plugin for Discourse. Part 1 covers the backend architecture: wallets, transactions, features, and the service layer that ties it together."
----
++++
+title = "Building Yaks: A Virtual Currency System for Discourse (Part 1: Backend Architecture)"
+date = 2025-10-11
+description = "Building a virtual currency plugin for Discourse. Part 1 covers the backend architecture: wallets, transactions, features, and the service layer that ties it together."
+
+[taxonomies]
+tags = ["discourse", "ruby", "oss"]
++++
 
 I'm building a virtual currency system for Discourse. Users earn and spend
 "Yaks" on premium post features like colored highlighting, pinned posts, and

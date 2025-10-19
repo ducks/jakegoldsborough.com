@@ -4,10 +4,11 @@ date: '2025-06-23'
 description: Creating a transparent, auditable voting system where Git commits are
   the ledger, pull requests are ballots, and CI validates every vote without any centralized
   servers or databases.
-tags:
-- rust
-- git
-- devops
+taxonomies:
+  tags:
+    - rust
+    - git
+    - devops
 ---
 
 ### The Premise

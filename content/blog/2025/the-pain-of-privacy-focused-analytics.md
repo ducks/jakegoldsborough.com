@@ -5,9 +5,10 @@ date: '2025-06-22'
 description: The frustrating journey of setting up GoatCounter for privacy-respecting
   analytics, encountering broken Docker registries, build failures, and tooling friction
   that makes ethical software harder to deploy.
-tags:
-- devops
-- privacy
+taxonomies:
+  tags:
+    - devops
+    - privacy
 ---
 
 ### Introduction

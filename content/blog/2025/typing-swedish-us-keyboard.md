@@ -4,9 +4,10 @@ date: '2025-06-12'
 description: Configuring Hyprland to type Swedish characters using a US keyboard layout
   with Right Alt as a modifier, perfect for learners who want proper typing practice
   without remapping keys.
-tags:
-- swedish
-- keyboard
+taxonomies:
+  tags:
+    - swedish
+    - keyboard
 ---
 
 ### Intro

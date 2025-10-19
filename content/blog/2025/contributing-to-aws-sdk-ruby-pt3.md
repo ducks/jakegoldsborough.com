@@ -2,10 +2,11 @@
 title: 'AWS SDK Ruby Part 3: When "Working as Intended" Means "Broken by Design"'
 date: '2025-10-14'
 description: The conclusion to the AWS credential chain saga, where maintainers close a valid bug report, the feature remains broken, and we learn about the politics of backward compatibility in open source.
-tags:
-- aws
-- ruby
-- oss
+taxonomies:
+  tags:
+    - aws
+    - ruby
+    - oss
 ---
 
 ### The Saga Continues

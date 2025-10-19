@@ -4,9 +4,10 @@ date: '2025-08-27'
 description: Uncovering how a Remix-based disc golf app encodes course data in obfuscated
   arrays using index maps and schema maps, then writing TypeScript to parse it into
   usable objects.
-tags:
-- APIs
-- typescript
+taxonomies:
+  tags:
+    - APIs
+    - typescript
 ---
 
 **Note: Real app name and URL have been replaced**

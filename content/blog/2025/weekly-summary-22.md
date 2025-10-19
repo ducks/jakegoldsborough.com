@@ -3,8 +3,9 @@ title: Weekly Summary - 22/52
 date: '2025-05-30'
 description: A productive week focused on API inspection and blog writing, continuing
   Swedish language studies for 172 days, and sending out 13 job applications.
-tags:
-- weekly summary
+taxonomies:
+  tags:
+    - weekly summary
 ---
 
 Another pretty decent week. Mostly concentrated on job hunt and API inspection.

@@ -4,10 +4,11 @@ date: '2025-10-04'
 description: Uncovering a deeper architectural issue in the AWS Ruby SDK where credential
   chain precedence prevented role assumption from working correctly with environment
   variable source credentials.
-tags:
-- aws
-- ruby
-- oss
+taxonomies:
+  tags:
+    - aws
+    - ruby
+    - oss
 ---
 
 

@@ -1,8 +1,13 @@
 ---
 title: "Building a Live Transit Departure Board with Discourse"
 date: 2025-10-08
-tags: ["discourse", "ruby", "oss"]
 description: "Experimenting with Discourse as a live transit departure board - blending GTFS data, aviation APIs, and forum topics into one real-time display."
+
+taxonomies:
+  tags:
+    - discourse
+    - ruby
+    - oss
 ---
 
 I've been working at Discourse for a few months now, learning how flexible

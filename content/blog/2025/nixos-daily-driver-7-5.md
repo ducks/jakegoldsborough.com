@@ -4,9 +4,10 @@ date: '2025-07-13'
 description: A detailed account of struggling through manual LUKS encryption setup
   on NixOS, hitting multiple roadblocks, and ultimately succeeding with the graphical
   installer after three failed attempts.
-tags:
-- nixos
-- linux
+taxonomies:
+  tags:
+    - nixos
+    - linux
 ---
 
 ### Intro

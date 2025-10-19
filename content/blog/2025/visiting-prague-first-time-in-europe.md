@@ -3,9 +3,10 @@ title: 'First time in Europe: One week in Prague'
 date: '2025-09-16'
 description: 'Field notes from a first-timer: a castle, smooth city transit,  and
   tattoos.'
-tags:
-- travel
-- prague
+taxonomies:
+  tags:
+    - travel
+    - prague
 ---
 
 ### A Country Boy Goes to Europe

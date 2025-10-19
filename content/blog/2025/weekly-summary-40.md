@@ -4,10 +4,11 @@ date: '2025-10-03'
 description: Weekly topics spanning Czechia residency planning, Anki language learning
   setup, Framework 16 NixOS troubleshooting, Discourse plugin ideas, and practical
   logistics for international relocation.
-tags:
-- gpt
-- changelog
-- weekly summary
+taxonomies:
+  tags:
+    - gpt
+    - changelog
+    - weekly summary
 ---
 
 The week covered a mix of practical, technical, and personal topics.

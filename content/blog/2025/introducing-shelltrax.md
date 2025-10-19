@@ -4,9 +4,10 @@ date: '2025-06-24'
 description: Building a terminal-based music player in Rust from scratch to learn
   the language through real-world challenges like TUI rendering, audio streaming,
   metadata parsing, and concurrent state management.
-tags:
-- rust
-- tui
+taxonomies:
+  tags:
+    - rust
+    - tui
 ---
 
 ### Shelltrax

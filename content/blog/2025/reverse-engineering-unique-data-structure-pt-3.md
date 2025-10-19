@@ -4,9 +4,10 @@ date: '2025-09-03'
 description: Decoding deeply nested course data by resolving schema maps within schema
   maps to extract readable information about disc golf courses including layouts,
   holes, and amenities.
-tags:
-- APIs
-- typescript
+taxonomies:
+  tags:
+    - APIs
+    - typescript
 ---
 
 Second part of the series, Search, can be found here:

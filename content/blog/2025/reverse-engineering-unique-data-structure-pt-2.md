@@ -4,9 +4,10 @@ date: '2025-08-30'
 description: Discovering and using search endpoints for places and courses that return
   well-formed data, making it easy to find specific locations and query disc golf
   course information.
-tags:
-- APIs
-- typescript
+taxonomies:
+  tags:
+    - APIs
+    - typescript
 ---
 
 First part of the series, Courses, can be found here:

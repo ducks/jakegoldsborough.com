@@ -4,9 +4,10 @@ date: '2025-07-08'
 description: Introducing NixVim for declarative Neovim configuration and exploring
   nix-shell for creating reproducible, project-specific development environments without
   global installs.
-tags:
-- nixos
-- linux
+taxonomies:
+  tags:
+    - nixos
+    - linux
 ---
 
 ### Recap

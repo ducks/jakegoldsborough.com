@@ -4,9 +4,10 @@ date: '2025-05-18'
 description: An introduction to Nix and NixOS, explaining purely functional package
   management, declarative system configuration, atomic rollbacks, and why this approach
   makes for a powerful daily driver OS.
-tags:
-- nixos
-- linux
+taxonomies:
+  tags:
+    - nixos
+    - linux
 ---
 
 First, it's worth explaining what NixOS is and why I or anyone would want to

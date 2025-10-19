@@ -4,9 +4,10 @@ date: '2025-07-27'
 description: Troubleshooting and fixing Wi-Fi on a Framework 16 laptop running NixOS
   by loading the Intel AX210 driver, enabling firmware, and configuring NetworkManager
   with wpa_supplicant.
-tags:
-- nixos
-- framework
+taxonomies:
+  tags:
+    - nixos
+    - framework
 ---
 
 I recently got a new

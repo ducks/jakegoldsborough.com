@@ -5,9 +5,10 @@ date: '2025-06-20'
 description: Building a flexible Node.js-based Prometheus exporter for PostgreSQL
   with multi-database support, dynamic custom metrics via JSON configuration, and
   production-ready fault isolation.
-tags:
-- devops
-- nodejs
+taxonomies:
+  tags:
+    - devops
+    - nodejs
 ---
 
 I’m releasing a small project I’ve been building:

@@ -4,10 +4,11 @@ date: '2025-10-17'
 description: A week of creative experiments and follow-ups -- from launching a live transit
   board inside Discourse and polishing your AWS SDK Ruby series, to debugging
   GoatCounter exports and exploring privacy-friendly tools on GrapheneOS.
-tags:
-- gpt
-- changelog
-- weekly summary
+taxonomies:
+  tags:
+    - gpt
+    - changelog
+    - weekly summary
 ---
 
 **AWS SDK Ruby contributions and follow-up**

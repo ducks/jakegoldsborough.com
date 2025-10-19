@@ -13,7 +13,7 @@
         {{ page.reading_time }} min read
       </p>
 
-      {% if page.taxonomies.tags %}
+      {% if page.taxonomies and page.taxonomies.tags %}
         <p>
           Tags:
           {% for tag in page.taxonomies.tags %}
@@ -23,6 +23,37 @@
       {% endif %}
 
       {{ page.content | safe }}
+
+      {% if page.taxonomies and page.taxonomies.tags %}
+        {% set_global related = [] %}
+        {% set tags = get_taxonomy(kind="tags") %}
+
+        {% for tag_name in page.taxonomies.tags %}
+          {% for tag in tags.items %}
+            {% if tag.slug == tag_name | slugify %}
+              {% for tagged_page in tag.pages %}
+                {% if tagged_page.permalink != page.permalink %}
+                  {% set_global related = related | concat(with=tagged_page) %}
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+          {% endfor %}
+        {% endfor %}
+
+        {% if related | length > 0 %}
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul>
+              {% for post in related | slice(end=5) %}
+                <li>
+                  <a href="{{ post.permalink }}">{{ post.title }}</a>
+                  <span class="post-date">{{ post.date | date(format="%B %e, %Y") }}</span>
+                </li>
+              {% endfor %}
+            </ul>
+          </section>
+        {% endif %}
+      {% endif %}
     </article>
   {% else %}
     <h2>{{ page.title }}</h2>

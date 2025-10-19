@@ -4,10 +4,11 @@ date: '2025-06-13'
 description: Introducing ChatGPT-generated personal changelogs covering MyFrisbee
   blog series, PostgreSQL exporter deployment, NixOS Hyprland configuration, and ongoing
   Swedish language learning.
-tags:
-- gpt
-- changelog
-- weekly summary
+taxonomies:
+  tags:
+    - gpt
+    - changelog
+    - weekly summary
 ---
 
 ### Happy Friday the 13th!

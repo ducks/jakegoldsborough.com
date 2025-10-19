@@ -5,10 +5,11 @@ date: '2025-08-23'
 description: Discovering and fixing a missing credential source implementation in
   the AWS Ruby SDK where documentation promised Environment support but the code didn't
   deliver.
-tags:
-- aws
-- ruby
-- oss
+taxonomies:
+  tags:
+    - aws
+    - ruby
+    - oss
 ---
 
 ### The Problem

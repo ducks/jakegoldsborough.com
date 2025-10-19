@@ -4,10 +4,11 @@ date: '2025-08-22'
 description: A week balancing travel research for Europe, Shelltrax autoplay debugging,
   Discourse logo design experiments, and technical problem-solving across multiple
   projects.
-tags:
-- gpt
-- changelog
-- weekly summary
+taxonomies:
+  tags:
+    - gpt
+    - changelog
+    - weekly summary
 ---
 
 This week balanced travel research, disc golf writing edits, technical

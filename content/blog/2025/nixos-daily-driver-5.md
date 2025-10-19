@@ -4,9 +4,10 @@ date: '2025-07-07'
 description: Configuring keyboard remapping with Interception Tools to make Caps Lock
   act as Escape when tapped and Control when held, plus setting up hypridle and hyprlock
   for automatic screen locking.
-tags:
-- nixos
-- linux
+taxonomies:
+  tags:
+    - nixos
+    - linux
 ---
 
 ### Recap

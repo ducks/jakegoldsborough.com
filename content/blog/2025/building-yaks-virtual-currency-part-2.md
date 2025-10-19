@@ -1,10 +1,11 @@
----
-title: "Building Yaks: A Virtual Currency System for Discourse (Part 2:
-  Features and Expiration)"
-date: 2025-10-17
-tags: ["discourse", "ruby", "oss"]
-description: "Part 2 covers implementing topic pinning, building a modular service architecture, and creating an expiration system with background jobs."
----
++++
+title = "Building Yaks: A Virtual Currency System for Discourse (Part 2: Features and Expiration)"
+date = 2025-10-17
+description = "Part 2 covers implementing topic pinning, building a modular service architecture, and creating an expiration system with background jobs."
+
+[taxonomies]
+tags = ["discourse", "ruby", "oss"]
++++
 
 In [Part 1](/blog/2025/building-yaks-virtual-currency-part-1), I covered
 the backend architecture for Yaks: wallets, transactions, and the service

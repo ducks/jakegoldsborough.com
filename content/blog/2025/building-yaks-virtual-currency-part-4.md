@@ -2,7 +2,8 @@
 title: "Building Yaks: A Virtual Currency System for Discourse (Part 4:
   Custom Titles and Earning System)"
 date: 2025-10-19
-tags: ["discourse", "ruby", "oss"]
+taxonomies:
+  tags: ["discourse", "ruby", "oss"]
 description: "Implementing custom user titles and the Yaks earning system.
   This post covers serializer overrides for titles and building a complete
   earning system with rate limiting, trust level requirements, and real-time
@@ -114,7 +115,7 @@ From the start, the requirements were clear:
 1. Be modular (database-driven, not hardcoded)
 2. Rate limiting (can't spam posts to farm Yaks)
 3. Trust level requirements (new accounts can't abuse it)
-4. Content quality minimums (no one-word posts)
+4. Content length minimums (beyond Discourse's defaults, prevent low-effort farming)
 
 ### Database Schema
 
@@ -284,9 +285,9 @@ messageBus.subscribe(`/yak-balance/${currentUser.id}`, (data) => {
 Now when you create a post, the balance in your user menu updates instantly.
 No polling, no page refresh.
 
-## Bugs Fixed (That Tests Would Have Caught)
+## Bugs Fixed
 
-Three bugs were discovered during manual testing. All three would have been
+Some bugs were discovered during manual testing. All three would have been
 caught immediately by integration tests.
 
 ### Bug 1: Event Hook User Parameter
@@ -350,7 +351,7 @@ YakTransaction.create!(
 
 Any test attempting to create a transaction would have failed validation.
 
-## Test Suite Structure
+## A New Basic Test Suite Structure
 
 The test suite covers all validation paths:
 
@@ -418,9 +419,6 @@ The admin UI shows all earning rules in a table:
 - Minimum trust level
 - Enabled status
 
-Future enhancement: Add edit functionality so admins can adjust amounts and
-caps without database access.
-
 ## Architecture Wins
 
 **Database-Driven Configuration**: No code changes needed to adjust earning
@@ -477,8 +475,8 @@ Remaining work:
 **Serializers Are Powerful**: Understanding Discourse's serializer
 architecture unlocks a lot of customization possibilities.
 
-**MessageBus Is Underused**: Real-time updates are so easy with MessageBus,
-yet many plugins don't use it. Game changer for UX.
+**MessageBus Is Handy**: Real-time updates are easy with MessageBus, yet some
+plugins don't use it.
 
 **Database-Driven Config Is Worth It**: The upfront effort to make earning
 rules configurable pays off in flexibility.

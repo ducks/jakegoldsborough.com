@@ -13,6 +13,8 @@ window. If you're like me and have ever yanked a terminal or browser window
 when you weren't ready, this tiny script adds a "Yes/No" confirmation window
 using Wofi.
 
+![A dialog showing a yes or no confirmation selection](/images/wofi-close-window-dialog.png)
+
 ### Create the Script
 
 For me, I will be adding this to `~/dotfiles/hypr/scripts/hypr-confirm-close`.

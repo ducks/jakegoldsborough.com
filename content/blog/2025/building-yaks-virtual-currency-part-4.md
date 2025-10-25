@@ -486,7 +486,7 @@ consistently and provide the data you need.
 
 ## Conclusion
 
-Building a virtual currency system is teatching me a lot about Discourse's
+Building a virtual currency system is teaching me a lot about Discourse's
 architecture. Serializers, custom fields, MessageBus, service objects, event
 hooks - all pieces that work together to create a cohesive plugin.
 

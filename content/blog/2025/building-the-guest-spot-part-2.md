@@ -1,7 +1,7 @@
 ---
-title: "Building The Guest Spot: Part 2 - Refactoring and Pin/Unpin"
+title: "Building The Guest Spot: Part 2 - Two Refactors"
 date: 2025-10-26
-description: "Refactoring from custom models to Discourse Topics, implementing pin/unpin functionality, and fixing four bugs along the way."
+description: "Two major refactors: custom model to Topics, then custom feed to plugin outlets. Less code, more features, better maintainability."
 
 taxonomies:
   tags:
@@ -12,7 +12,7 @@ taxonomies:
 
 In [Part 1](/blog/2025/building-the-guest-spot-part-1/), I built an Instagram-style showcase using a custom `GuestSpotPost` model. It worked. But it also meant maintaining a parallel data structure instead of leveraging what Discourse already provides.
 
-This post covers two major changes: refactoring to use Discourse Topics instead of custom models, and implementing the pin/unpin feature that lets artists feature their best work.
+This post covers two major refactors: first from custom models to Discourse Topics, then from custom feed infrastructure to plugin outlets. Each time, less code gave me more features.
 
 ## Why Refactor?
 
@@ -115,203 +115,229 @@ Auto-generated titles keep them unique. The caption goes in the first post's raw
 
 Frontend barely changed. The serializer provides the same JSON structure, so components worked as-is. The only update was changing `@post.id` to reference topic IDs instead of custom model IDs.
 
-## Pin/Unpin Feature
+### What This Got Us
 
-Artists need to feature their best work. The carousel at the top of the feed shows pinned posts. But we needed UI to pin and unpin.
+The refactor from custom models to Topics gave us:
+- Comments work natively (no custom implementation)
+- Moderation tools work (flags, hiding, deleting)
+- File uploads work (native uploader)
+- Revision history works (edit tracking)
+- Trust levels work (spam protection)
+- All for free, by using what Discourse already provides
 
-### Backend: The Update Method
+But I still had a custom feed with its own routes, controllers, and serializers. That was the next problem to solve.
 
-The update endpoint needed to handle pinning without breaking when other params are present:
+## Going Native: Deleting the Custom Feed
 
-```ruby
-def update
-  raise Discourse::InvalidAccess if !can_edit?(@topic)
+In Part 1, I built a custom `GuestSpotPost` model. Then I realized that was
+overkill and refactored to use Discourse Topics. But I kept the custom feed
+with its own routes, controllers, and serializers.
 
-  # Handle caption changes
-  if params.key?(:caption)
-    first_post = @topic.first_post
-    revisor = PostRevisor.new(first_post, @topic)
-    changes = { raw: params[:caption] }
+After implementing that custom feed, I realized there was an uncomfortable
+disconnect. Users would browse an Instagram-style feed, click a post, and
+suddenly land in Discourse's standard topic view. The context switch was jarring.
 
-    if !revisor.revise!(current_user, changes)
-      render_json_error(@topic.errors.full_messages.join(", "))
-      return
-    end
-  end
+The question became: why maintain a custom feed at all? If the custom model
+was unnecessary, maybe the custom feed was too.
 
-  # Handle pinning separately
-  if params.key?(:pinned)
-    should_pin = ActiveModel::Type::Boolean.new.cast(params[:pinned])
+Discourse already has everything we need:
+- Category pages show topic lists
+- Category permissions control who can post and who can view
+- Native pinning highlights featured content
+- Theme system allows extensive visual customization
 
-    if should_pin
-      # Unpin any other posts by this user first
-      category_id = CategoryHelper.public_feed_category_id
-      Topic
-        .where(category_id: category_id, user_id: current_user.id)
-        .where.not(id: @topic.id)
-        .where.not(pinned_at: nil)
-        .each { |topic| topic.update_pinned(false, false) }
+Instead of maintaining a parallel feed system, we could just make the Public
+Feed category look great using plugin outlets.
 
-      @topic.update_pinned(true, false)
-    else
-      @topic.update_pinned(false, false)
-    end
-  end
+### The Deletion
 
-  render_serialized(@topic, GuestSpotPostSerializer)
-end
-```
+I deleted the entire custom feed infrastructure:
 
-Two key details:
+**Removed (1,078 lines)**:
+- Custom feed routes and controllers (`guest_spot/feed_controller.rb`,
+  `guest_spot/posts_controller.rb`)
+- Custom post serializer (`guest_spot_post_serializer.rb`)
+- All custom Ember components (`guest-spot-feed.gjs`,
+  `guest-spot-post-card.gjs`)
+- Custom route definitions and templates
+- Multiple initializers for hiding UI elements
 
-1. **Split logic**: Caption changes and pinning handled separately. Calling `revisor.revise!` with an empty changes hash causes 422 errors.
+**Added (264 lines)**:
+- Single plugin outlet connector:
+  `assets/javascripts/discourse/connectors/topic-list-item/guest-spot-item.gjs`
+- CSS Grid layout for responsive cards
 
-2. **Boolean conversion**: Rails treats the string `"false"` as truthy. Use `ActiveModel::Type::Boolean.new.cast()` to properly convert params.
+Net result: 814 fewer lines of code.
 
-3. **1-pin-per-artist**: When pinning a new post, unpin all other posts by that user. Keeps the featured carousel focused.
+### Plugin Outlets: The Right Pattern
 
-### Frontend: Reactive UI Updates
+Discourse provides plugin outlets - extension points where plugins can inject
+custom HTML. There are two types:
 
-The pin/unpin button lives on the post detail page. Only visible to the post author:
+**Regular outlets** inject content but Discourse still renders the default
+elements. **Wrapper outlets** completely replace the template.
+
+I used the `topic-list-item` wrapper outlet to completely replace how topics
+display in the Public Feed category:
 
 ```javascript
-export default class GuestSpotPost extends Component {
-  @service currentUser;
-  @tracked isPinned;
+import Component from "@glimmer/component";
+import avatar from "discourse/helpers/avatar";
+import replaceEmoji from "discourse/helpers/replace-emoji";
+import formatDate from "discourse/helpers/format-date";
 
-  constructor() {
-    super(...arguments);
-    this.isPinned = this.args.model.guest_spot_post.pinned;
+export default class GuestSpotItem extends Component {
+  get isPublicFeed() {
+    return this.args.outletArgs?.topic?.category?.slug === "public-feed";
   }
 
-  get canManagePin() {
-    return (
-      this.currentUser &&
-      this.currentUser.id === this.args.model.guest_spot_post.user_id
-    );
-  }
-
-  @action
-  async togglePin() {
-    const post = this.args.model.guest_spot_post;
-    const newPinnedState = !this.isPinned;
-
-    try {
-      const result = await ajax(`/guest-spot/posts/${post.id}`, {
-        type: "PUT",
-        data: { pinned: newPinnedState },
-      });
-
-      // Update tracked property for reactive UI
-      this.isPinned = result.guest_spot_post.pinned;
-      post.pinned = result.guest_spot_post.pinned;
-    } catch (error) {
-      popupAjaxError(error);
+  get truncatedExcerpt() {
+    const excerpt = this.args.outletArgs?.topic?.excerpt || "";
+    if (excerpt.length <= 50) {
+      return excerpt;
     }
+    return excerpt.substring(0, 50) + "...";
   }
 
   <template>
-    {{#if this.canManagePin}}
-      <DButton
-        @action={{this.togglePin}}
-        @label={{if this.isPinned "guest_spot.post.unpin" "guest_spot.post.pin"}}
-        @icon={{if this.isPinned "unlink" "thumbtack"}}
-        class="btn-default pin-toggle-btn"
-      />
+    {{#if this.isPublicFeed}}
+      <td class="topic-list-data guest-spot-card">
+        <div class="guest-spot-author">
+          <a href="/u/{{this.args.outletArgs.topic.creator.username}}">
+            {{avatar this.args.outletArgs.topic.creator imageSize="medium"}}
+            <span class="username">
+              {{this.args.outletArgs.topic.creator.username}}
+            </span>
+          </a>
+        </div>
+
+        <div class="guest-spot-image">
+          <a href={{this.args.outletArgs.topic.url}}>
+            <img src={{this.args.outletArgs.topic.image_url}} alt="" />
+          </a>
+        </div>
+
+        <div class="guest-spot-excerpt">
+          {{replaceEmoji this.truncatedExcerpt}}
+        </div>
+
+        <div class="guest-spot-metadata">
+          <div class="meta-item">
+            Views: {{this.args.outletArgs.topic.views}}
+          </div>
+          <div class="meta-item">
+            Replies: {{this.args.outletArgs.topic.posts_count}}
+          </div>
+          <div class="meta-item">
+            Posted: {{formatDate this.args.outletArgs.topic.createdAt
+            leaveAgo=true}}
+          </div>
+        </div>
+      </td>
+    {{else}}
+      {{@default}}
     {{/if}}
   </template>
 }
 ```
 
-The critical part: `@tracked isPinned`. Without it, changing `post.pinned` directly doesn't trigger Ember's reactivity. The button label and badge wouldn't update until you refreshed the page.
+The component checks if we're in the public-feed category. If yes, render the
+custom card layout. If no, render the default (`{{@default}}`).
 
-With `@tracked`, everything updates instantly:
-- Button label toggles between "Pin to featured" and "Remove from featured"
-- Icon switches between thumbtack and unlink
-- "Featured" badge appears/disappears
-- All without page refresh
+### CSS Grid for Responsive Layout
 
-### The 404 Bug
+Instead of JavaScript handling the layout, CSS Grid does all the work:
 
-Everything worked when clicking through the feed. But refresh the page on `/guest-spot/post/40` and you'd get "No route matches [GET]".
+```scss
+.category-public-feed {
+  .topic-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
 
-The problem: Rails had no route for that path. Ember's client-side routing handled it when navigating within the app, but direct URL navigation hit Rails first.
+    @media (max-width: 480px) {
+      grid-template-columns: 1fr;
+    }
 
-The fix: Catch-all routes in `plugin.rb`:
+    tr.topic-list-item {
+      display: flex;
+      flex-direction: column;
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--primary-very-low);
+      transition: transform 0.2s;
 
-```ruby
-Discourse::Application.routes.append do
-  scope module: :guest_spot do
-    get '/guest-spot' => 'feed#index'
-    get '/guest-spot/post/:id' => 'feed#index'  # Ember handles routing
-    get '/guest-spot/user/:username' => 'feed#index'  # Ember handles routing
-    resources :posts, only: [:index, :show, :create, :update, :destroy],
-              path: '/guest-spot/posts'
-  end
-end
+      &:hover {
+        transform: translateY(-2px);
+      }
+    }
+  }
+}
 ```
 
-Rails serves the Ember app for these paths. Ember's router takes over from there. Now direct URL navigation and page refreshes both work.
+On mobile, it collapses to a single column. On tablet and desktop, it flows
+naturally based on available space.
 
-## The Result
+### Discovery Process
 
-The showcase works. Artists can create posts using Discourse's native composer, pin their best work to the featured carousel, and navigate smoothly between the feed and individual posts. Everything updates instantly without page refreshes thanks to Ember's reactivity.
+Finding the right plugin outlet took some research. I used `rg` to search
+Discourse core for available outlets:
 
-The refactor from custom models to Topics gave us commenting, moderation, uploads, and revisions for free. The pin/unpin feature with 1-pin-per-artist enforcement keeps the carousel focused on each artist's best work.
+```bash
+rg "PluginOutlet" app/assets/javascripts/discourse/app/components/ \
+  | grep topic-list
+```
 
-## Update: Simplifying Further
+Found several candidates:
+- `topic-list-before-link` - Injects before the title link (still renders
+  default content)
+- `topic-list-after-title` - Injects after the title (still renders default
+  content)
+- `topic-list-item` - Wrapper outlet (replaces entire template)
 
-After implementing the custom feed (`/guest-spot`), I realized there was an uncomfortable disconnect. Users would browse an Instagram-style feed, click a post, and suddenly land in Discourse's standard topic view. The context switch was jarring.
+The wrapper outlet was key. Regular outlets would have shown both my custom
+card and the default topic row, creating duplicate content.
 
-The question became: why maintain a custom feed at all?
+### What Works Now
 
-### The Simpler Approach
+The native approach gives us:
+- Comments work out of the box (no custom implementation needed)
+- All Discourse features work (moderation, flags, bookmarks, etc.)
+- 814 fewer lines of code to maintain
+- Better mobile support (Grid automatically adapts)
+- No custom API (no serializers, controllers, or routes)
+- Pin/unpin still works (using Discourse's native pinning)
 
-Discourse already has everything we need:
-- **Category pages** show topic lists
-- **Category permissions** control who can post and who can view
-- **Native pinning** highlights featured content
-- **Theme system** allows extensive visual customization
+The showcase is now just "a really nicely styled Discourse category" instead
+of "a custom app built on top of Discourse."
 
-Instead of building `/guest-spot` with custom routes, controllers, and
-templates, we could just make the Public Feed category look great:
+## Vibe Coding: Pros and Cons
 
-1. Style the category's topic list as a visual grid (CSS + plugin outlets)
-2. Use native pinned topics for the featured carousel
-3. Let Discourse handle everything else (commenting, permissions, search)
+This project is a perfect example of "vibe coding" - building something by
+feel, iterating quickly, and learning what works through trial and error.
 
-### Category-Level Permissions
+I started with a custom model because that felt right. Then I realized Topics
+already did everything I needed. I built a custom feed because I wanted full
+control. Then I realized plugin outlets gave me that control without the
+maintenance burden.
 
-The key insight: Discourse supports per-category permissions. You can have a
-site-wide `login_required = true` (entire forum private), but override it for
-one category with `read_restricted = false`.
+**The downside**: I went too fast and tried too much. Each iteration meant
+throwing away code. The custom model, the custom feed infrastructure - all
+that work ended up deleted. If I'd researched Discourse patterns first, I
+could have gone straight to the plugin outlet approach.
 
-This means:
-- **Public Feed category**: Anyone can browse (`everyone: See`)
-- **Create permission**: Only approved users (`trust_level_1` or custom "artists" group)
-- **All other categories**: Login required (site default)
+**The upside**: I learned way more by doing it wrong first. I understand why
+wrapper outlets exist, because I felt the pain of duplicate content with
+regular outlets. I understand why Discourse's native features are powerful,
+because I tried to rebuild them and saw how much work that is.
 
-No custom authentication code needed. No parallel permission system to
-maintain. Just native Discourse category security.
+Fast iteration meant I could course-correct. I wasn't six months into building
+a custom ORM before realizing Topics existed. I was a few days in, so
+refactoring didn't hurt. The velocity of vibe coding let me try ideas, see
+them fail, and pivot quickly.
 
-### What This Changes
-
-Instead of maintaining:
-- Custom feed route and controller
-- Custom serializers
-- Custom Ember routes and templates
-- Bridge logic between custom feed and native topics
-
-We'd have:
-- Native category page with custom styling
-- Plugin outlets to enhance the topic list visually
-- CSS to transform the layout into a grid
-- That's it
-
-The showcase becomes "a really nicely styled Discourse category" instead of "a
-custom app built on top of Discourse."
-
-This is the direction I'm taking the plugin. Part 3 will cover ripping out the
-custom feed and rebuilding with native Discourse features.
+The final result is simple and maintainable. It took three iterations to get
+there, but each iteration taught me something. Now I know how to not do things,
+which is just as valuable as knowing how to do them.
 
 The code is on GitHub: [discourse-guest-spot](https://github.com/ducks/discourse-guest-spot)

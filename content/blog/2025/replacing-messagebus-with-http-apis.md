@@ -7,11 +7,10 @@ synchronous HTTP APIs to eliminate message replay issues and gain operational
 visibility."
 ---
 
-We recently converted one of our infrastructure services from MessageBus
-pub/sub to a synchronous REST API. This wasn't about choosing HTTP over HTTP -
-both architectures use HTTP. This was about replacing fire-and-forget
-asynchronous messaging with request/response patterns that provide immediate
-feedback.
+We're converting one of our infrastructure services from MessageBus pub/sub to
+a synchronous REST API. This isn't about choosing between protocols - both
+architectures use HTTP. This is about replacing fire-and-forget asynchronous
+messaging with request/response patterns that provide immediate feedback.
 
 ## The Problem
 
@@ -22,36 +21,36 @@ commands.
 
 MessageBus uses HTTP long-polling for pub/sub messaging. Publishers send
 messages to channels, subscribers open long-lived HTTP connections and wait for
-messages to arrive. It works well for many use cases, but we hit two critical
-problems:
+messages to arrive. It works well for many use cases, but we've hit two
+critical problems:
 
-**1. No feedback mechanism.** When mothership published a message like "create
-database for site X", it had no way to know if the operation succeeded or
-failed. The message was sent and forgotten.
+1. No feedback mechanism. When the control plane published a message like
+"create database for site X", it had no way to know if the operation succeeded
+or failed. The message was sent and forgotten.
 
-**2. Message replay on restarts.** MessageBus keeps a backlog of messages. When
-postgres-manager restarted, it would replay unacknowledged messages, causing
-duplicate operations. We had multiple production outages from databases being
-recreated or users being decommissioned twice.
+2. Message replay on restarts. MessageBus keeps a backlog of messages. When
+postgres-manager restarts, it replays unacknowledged messages, causing duplicate
+operations. We've had multiple production outages from databases being recreated
+or users being decommissioned twice.
 
-The second issue was the immediate trigger, but the first was the underlying
-architectural problem. We needed synchronous request/response patterns with
-immediate success/failure feedback.
+The message replay issue is the immediate trigger, but the lack of feedback is
+the underlying architectural problem. We need synchronous request/response
+patterns with immediate success/failure feedback.
 
 ## The Solution: REST API with Request/Response
 
-We converted postgres-manager to a Sinatra HTTP service that responds
+We're converting postgres-manager to a Sinatra HTTP service that responds
 synchronously to requests. Instead of subscribing to MessageBus channels, it
-exposes REST endpoints:
+will expose REST endpoints:
 
 - `POST /databases` - Create database and user
 - `DELETE /databases/:username` - Decommission database
 - `POST /users` - Create user (triggers sync)
 - `DELETE /users/:username` - Decommission user
-- `POST /sync` - Sync all databases/users from mothership
+- `POST /sync` - Sync all databases/users from control plane
 
-Each endpoint returns an immediate response with proper HTTP status codes: 200
-for success, 401 for auth failures, 400 for bad parameters, 500 for server
+Each endpoint will return an immediate response with proper HTTP status codes:
+200 for success, 401 for auth failures, 400 for bad parameters, 500 for server
 errors.
 
 ## Implementation
@@ -62,8 +61,8 @@ The old implementation used ServiceSkeleton to subscribe to MessageBus:
 
 ```ruby
 message_bus = MessageBus::HTTPClient.new(
-  config.mothership_base_url,
-  headers: { "Discourse-Access-Token" => config.mothership_token }
+  config.control_plane_base_url,
+  headers: { "Discourse-Access-Token" => config.control_plane_token }
 )
 
 message_bus.subscribe(config.message_bus_channel) do |message|
@@ -78,7 +77,7 @@ message_bus.subscribe(config.message_bus_channel) do |message|
 end
 ```
 
-The mothership would publish messages:
+The control plane would publish messages:
 
 ```ruby
 PostgresManagerPublisher.create_db(owner, cluster_name)
@@ -139,7 +138,7 @@ delete "/databases/:username" do
 end
 ```
 
-The mothership now makes HTTP requests and gets immediate responses:
+The control plane will make HTTP requests and get immediate responses:
 
 ```ruby
 PostgresManagerHttpClient.create_db(owner, cluster_name)
@@ -220,11 +219,11 @@ end
 
 ## Testing Without Real Infrastructure
 
-One major benefit: we can now test the HTTP service without needing actual
-PostgreSQL infrastructure. The old MessageBus setup required a full environment
+One major benefit: we can test the HTTP service without needing actual
+PostgreSQL infrastructure. The old MessageBus setup requires a full environment
 to test end-to-end.
 
-We created a simple test script using WebMock to stub HTTP requests:
+We're creating a simple test script using WebMock to stub HTTP requests:
 
 ```ruby
 it "makes POST request to /databases with correct parameters" do
@@ -244,8 +243,9 @@ it "makes POST request to /databases with correct parameters" do
 end
 ```
 
-We also created a local test script that runs the HTTP service without needing
-database access, making it easy to verify the service works before deployment.
+We've also created a local test script that runs the HTTP service without
+needing database access, making it easy to verify the service works before
+deployment.
 
 ## Migration Strategy
 
@@ -254,52 +254,51 @@ We can't switch all clusters at once. The migration strategy:
 1. **Deploy HTTP version alongside MessageBus** - Run both in separate
    containers
 2. **Test HTTP version manually** - Verify endpoints work, check metrics
-3. **Switch mothership to HTTP** - Deploy mothership changes, monitor logs
+3. **Switch control plane to HTTP** - Deploy control plane changes, monitor logs
 4. **Clean up MessageBus** - Stop old containers, remove environment variables
 
 Both services can run simultaneously during migration, and rollback is just
-reverting the mothership code and restarting services.
+reverting the control plane code and restarting services.
 
-## Results
+## Expected Results
 
 - No more duplicate operations from message replay
 - Immediate visibility into success/failure
 - Proper error handling with retries
 - Easy to test with curl or standard HTTP tools
-- Can be load balanced via Snorlax proxy
+- Can be load balanced through standard proxies
 - Standard HTTP monitoring and metrics
 
-## Lessons Learned
+## Lessons Learned So Far
 
-1. **Fire-and-forget messaging has hidden costs.** The lack of feedback made
-   debugging production issues extremely difficult. We didn't know if operations
-   failed until customers complained.
+1. Fire-and-forget messaging has hidden costs. The lack of feedback makes
+debugging production issues extremely difficult. We don't know if operations
+fail until customers complain.
 
-2. **Message replay is a feature until it's a bug.** MessageBus's backlog
-   replay is useful for reliable message delivery, but caused havoc when
-   operations weren't idempotent.
+2. Message replay is a feature until it's a bug. MessageBus's backlog replay is
+useful for reliable message delivery, but causes havoc when operations aren't
+idempotent.
 
-3. **HTTP isn't just HTTP.** Both MessageBus and our REST API use HTTP as the
-   transport layer, but the patterns are completely different. The choice wasn't
-   HTTP vs something else - it was pub/sub vs request/response.
+3. Different HTTP patterns, same protocol. Both MessageBus and our REST API use
+HTTP as the transport layer, but the patterns are completely different. The
+choice isn't between protocols - it's between pub/sub and request/response.
 
-4. **Testing gets easier with simpler patterns.** The old MessageBus setup
-   required a full environment. The HTTP version can be tested with simple
-   request/response stubs.
+4. Testing gets easier with simpler patterns. The old MessageBus setup requires
+a full environment. The HTTP version can be tested with simple request/response
+stubs.
 
-5. **Synchronous doesn't mean slow.** We were worried about performance, but
-   the HTTP version is actually faster because there's no message queue delay.
-   Operations complete immediately.
+5. Synchronous doesn't mean slow. We expect the HTTP version to be faster
+because there's no message queue delay. Operations should complete immediately.
 
 ## When to Use Each Pattern
 
-**Use pub/sub (MessageBus, Kafka, RabbitMQ) when:**
+Use pub/sub (MessageBus, Kafka, RabbitMQ) when:
 - Multiple consumers need the same event
 - Order of processing matters
 - You need replay capability for recovery
 - Operations are idempotent
 
-**Use request/response (REST, gRPC) when:**
+Use request/response (REST, gRPC) when:
 - You need immediate feedback
 - Operations aren't idempotent
 - Failures should stop the workflow
@@ -310,10 +309,10 @@ operations aren't idempotent (creating a database twice is bad), we need
 immediate feedback (did it work?), and we want simple debugging (just check the
 HTTP response).
 
-## Code
+## Summary
 
-The full implementation is in two repositories:
-- **docker-postgres/postgres-manager** - HTTP service (Sinatra)
-- **mothership** - HTTP client and integration
-
-Migration guide: `docker-postgres/postgres-manager/MIGRATION.md`
+This migration will take our infrastructure service from fire-and-forget
+messaging to synchronous request/response patterns. The expected result: no more
+duplicate operations, immediate feedback on success/failure, and much simpler
+debugging. Sometimes the solution isn't choosing new technology - it's choosing
+the right pattern for your use case.

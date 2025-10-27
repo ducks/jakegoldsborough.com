@@ -278,6 +278,10 @@ Instead of JavaScript handling the layout, CSS Grid does all the work:
 On mobile, it collapses to a single column. On tablet and desktop, it flows
 naturally based on available space.
 
+![Mobile view of The Guest Spot showing a nature image from Tattoo Mike](/images/guest-spot-mobile-3.png)
+
+![Desktop view of The Guest Spot showing a grid of tattoo pictures](/images/guest-spot-feed-1.png)
+
 ### Discovery Process
 
 Finding the right plugin outlet took some research. I used `rg` to search

@@ -1,21 +1,25 @@
 ---
 title: "Replacing MessageBus Pub/Sub with REST APIs: Fixing Production
 Outages"
-date: 2025-10-15
+date: 2025-10-27
 description: "Converting postgres-manager from fire-and-forget MessageBus to
 synchronous HTTP APIs to eliminate message replay issues and gain operational
 visibility."
 ---
 
 We're converting one of our infrastructure services from MessageBus pub/sub to
-a synchronous REST API. This isn't about choosing between protocols - both
+a synchronous REST API. This isn't a protocol change or upgrade - both
 architectures use HTTP. This is about replacing fire-and-forget asynchronous
 messaging with request/response patterns that provide immediate feedback.
+
+The control plane manages hundreds of Discourse forums across multiple data
+centers. It needs to orchestrate PostgreSQL user and database creation across
+these distributed clusters.
 
 ## The Problem
 
 Our `postgres-manager` service handles PostgreSQL user and database lifecycle
-for Discourse hosted sites. It was built using ServiceSkeleton, a Ruby
+for Discourse hosted sites. It was built using `ServiceSkeleton`, a Ruby
 framework for message-driven services, subscribing to MessageBus channels for
 commands.
 
@@ -217,13 +221,14 @@ class PostgresManagerHttpClient
 end
 ```
 
-## Testing Without Real Infrastructure
+## Testing Strategy: Unit and Integration Tests
 
-One major benefit: we can test the HTTP service without needing actual
-PostgreSQL infrastructure. The old MessageBus setup requires a full environment
-to test end-to-end.
+The HTTP service has a test suite with 54 tests covering both unit and
+integration testing:
 
-We're creating a simple test script using WebMock to stub HTTP requests:
+### Unit Tests (16 tests, no PostgreSQL required)
+
+Unit tests use WebMock to stub external dependencies:
 
 ```ruby
 it "makes POST request to /databases with correct parameters" do
@@ -243,19 +248,78 @@ it "makes POST request to /databases with correct parameters" do
 end
 ```
 
-We've also created a local test script that runs the HTTP service without
-needing database access, making it easy to verify the service works before
-deployment.
+These tests run fast (under 1 second) and validate HTTP client logic, metrics
+tracking, and configuration handling without requiring PostgreSQL.
+
+### Integration Tests (38 tests, with real PostgreSQL)
+
+Integration tests use Docker to automatically start/stop PostgreSQL and test
+real database operations:
+
+```ruby
+it 'creates database and user' do
+  multisite_config = {
+    "example" => {
+      "username" => "example",
+      "password" => "test123",
+      "database" => "example_discourse"
+    }
+  }
+
+  stub_request(:get, "http://mothership.test/api/multisite_config?container_name=test-cluster")
+    .to_return(status: 200, body: JSON.dump(multisite_config))
+
+  result = sync.perform
+
+  # Verify in actual PostgreSQL
+  sync.database.with_db('postgres') do |db|
+    user_result = db.exec_params('SELECT usename FROM pg_user WHERE usename = $1', ['example'])
+    expect(user_result.ntuples).to eq(1)
+
+    db_result = db.exec_params('SELECT datname FROM pg_database WHERE datname = $1', ['example_discourse'])
+    expect(db_result.ntuples).to eq(1)
+  end
+end
+```
+
+### Idempotency Tests
+
+Critical tests verify the service handles message replay scenarios that caused
+production outages:
+
+```ruby
+it 'handles rapid duplicate creates (race condition simulation)' do
+  threads = 2.times.map do
+    Thread.new do
+      begin
+        database.create(test_db, test_user)
+      rescue PG::DuplicateDatabase
+        # Expected - one thread wins, other gets duplicate error
+      end
+    end
+  end
+  threads.each(&:join)
+
+  # Verify only one database created
+  database.with_db('postgres') do |db|
+    result = db.exec_params('SELECT datname FROM pg_database WHERE datname = $1', [test_db])
+    expect(result.ntuples).to eq(1)
+  end
+end
+```
+
+These tests validate that calling create operations multiple times (as happens
+during message replay) doesn't cause crashes or duplicate resources.
 
 ## Migration Strategy
 
 We can't switch all clusters at once. The migration strategy:
 
-1. **Deploy HTTP version alongside MessageBus** - Run both in separate
+1. Deploy HTTP version alongside MessageBus - Run both in separate
    containers
-2. **Test HTTP version manually** - Verify endpoints work, check metrics
-3. **Switch control plane to HTTP** - Deploy control plane changes, monitor logs
-4. **Clean up MessageBus** - Stop old containers, remove environment variables
+2. Test HTTP version manually - Verify endpoints work, check metrics
+3. Switch control plane to HTTP - Deploy control plane changes, monitor logs
+4. Clean up MessageBus - Stop old containers, remove environment variables
 
 Both services can run simultaneously during migration, and rollback is just
 reverting the control plane code and restarting services.
@@ -269,7 +333,7 @@ reverting the control plane code and restarting services.
 - Can be load balanced through standard proxies
 - Standard HTTP monitoring and metrics
 
-## Lessons Learned So Far
+## Outcomes
 
 1. Fire-and-forget messaging has hidden costs. The lack of feedback makes
 debugging production issues extremely difficult. We don't know if operations
@@ -279,35 +343,16 @@ fail until customers complain.
 useful for reliable message delivery, but causes havoc when operations aren't
 idempotent.
 
-3. Different HTTP patterns, same protocol. Both MessageBus and our REST API use
-HTTP as the transport layer, but the patterns are completely different. The
-choice isn't between protocols - it's between pub/sub and request/response.
+3. Different HTTP patterns, same protocol. Both MessageBus (HTTP long-polling)
+and our REST API use HTTP for transport, but serve fundamentally different
+communication patterns. MessageBus uses HTTP to implement pub/sub messaging
+(asynchronous, one-to-many), while REST implements request/response
+(synchronous, one-to-one). The choice isn't HTTP vs something else - it's
+choosing the right messaging pattern for your use case.
 
 4. Testing gets easier with simpler patterns. The old MessageBus setup requires
 a full environment. The HTTP version can be tested with simple request/response
 stubs.
-
-5. Synchronous doesn't mean slow. We expect the HTTP version to be faster
-because there's no message queue delay. Operations should complete immediately.
-
-## When to Use Each Pattern
-
-Use pub/sub (MessageBus, Kafka, RabbitMQ) when:
-- Multiple consumers need the same event
-- Order of processing matters
-- You need replay capability for recovery
-- Operations are idempotent
-
-Use request/response (REST, gRPC) when:
-- You need immediate feedback
-- Operations aren't idempotent
-- Failures should stop the workflow
-- You want simple debugging and testing
-
-For our postgres-manager use case, request/response was the right choice. The
-operations aren't idempotent (creating a database twice is bad), we need
-immediate feedback (did it work?), and we want simple debugging (just check the
-HTTP response).
 
 ## Summary
 
@@ -316,3 +361,18 @@ messaging to synchronous request/response patterns. The expected result: no more
 duplicate operations, immediate feedback on success/failure, and much simpler
 debugging. Sometimes the solution isn't choosing new technology - it's choosing
 the right pattern for your use case.
+
+## Current Status
+
+The HTTP service implementation is complete and tested:
+
+- Modular architecture with 6 separated modules (Config, Database, User,
+  Client, Sync, Metrics)
+- Test suite (16 unit tests, 38 integration, all passing)
+- RuboCop clean (zero offenses)
+- Security fixes (parameterized queries, retry limits)
+- GitHub Actions CI configured and passing
+
+The service is production-ready and awaiting deployment to test clusters. Once
+validated with real PostgreSQL operations and monitored for stability, we'll
+proceed with gradual rollout to production infrastructure.

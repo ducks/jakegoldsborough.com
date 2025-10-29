@@ -1,7 +1,7 @@
 ---
 title: "Shelltrax Part 2: Footer, Tests, and CI"
-date: 2025-10-27
-description: "Adding a proper footer with playback progress, implementing unit tests, and setting up GitHub Actions CI for the Rust TUI music player."
+date: 2025-10-29
+description: "Fixing footer playback progress, implementing unit tests, and setting up GitHub Actions CI for the Rust TUI music player."
 taxonomies:
   tags:
     - rust

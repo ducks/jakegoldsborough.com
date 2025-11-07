@@ -1,6 +1,6 @@
 ---
 title: "vimdeck.nvim: Markdown Presentations in Neovim"
-date: 2025-11-06
+date: 2025-11-07
 description: "Rewrote vimdeck for Neovim using Treesitter. No Ruby, no temp files, just native Lua and clean slide rendering."
 taxonomies:
   tags:
@@ -122,7 +122,7 @@ underline.
 creates a Treesitter string parser for the code content and applies highlight
 queries.
 
-**Lists** render with bullet points (`•`). **Blockquotes** render with
+**Lists** render with bullet points (`*`). **Blockquotes** render with
 vertical bars (`┃`).
 
 ![A neovim deck slide showing heading styling, lists, and blockquotes](/images/neovim-deck-heading.png)

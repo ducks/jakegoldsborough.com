@@ -1,5 +1,5 @@
 ---
-title: "Like a Pig In Shit: Why I Love AI \"Slop\""
+title: "Like a Pig in Shit: Why I Love AI \"Slop\""
 date: 2025-11-08
 description: "I'm having the time of my life building projects with AI assistance. Call it slop if you want - I'm too busy shipping to care."
 taxonomies:

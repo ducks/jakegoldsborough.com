@@ -62,6 +62,31 @@ its built-in dump function doesn't give enough control over formatting.
 I needed custom formatting rules like consistent indentation and compact
 array notation.
 
+Here's what yaml-janitor fixes:
+
+```yaml
+# Before: mixed indentation, explicit array format
+config:
+    # Database settings
+    database:
+      host: localhost
+        port: 5432
+    features:
+      -
+        name: caching
+        enabled: true
+
+# After: consistent indentation, compact arrays
+config:
+  # Database settings
+  database:
+    host: localhost
+    port: 5432
+  features:
+    - name: caching
+      enabled: true
+```
+
 The solution was to build a custom emitter that walks the loaded data
 structure and outputs formatted YAML while preserving all comments:
 
@@ -219,6 +244,8 @@ now safely automate YAML editing without losing critical context in
 comments. The infrastructure was already there, it just needed psych-pure
 to stabilize and someone to finish building the tooling.
 
-yaml-janitor is open source and available at
-github.com/ducks/yaml-janitor. If you've ever had to choose between
-manual YAML editing and losing your comments, check it out.
+yaml-janitor is open source and available on
+[GitHub](https://github.com/ducks/yaml-janitor) and
+[RubyGems](https://rubygems.org/gems/yaml-janitor). If you've ever had
+to choose between manual YAML editing and losing your comments, check
+it out.

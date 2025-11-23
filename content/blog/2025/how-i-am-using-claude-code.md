@@ -2,10 +2,11 @@
 title: "How I'm Using Claude Code for Daily Development Work"
 date: 2025-10-24
 description: "Real-world AI pair programming: what works, what doesn't, and how to avoid the traps"
-tags:
-  - ai
-  - dev
-  - tools
+taxonomies:
+  tags:
+    - ai
+    - dev
+    - tools
 ---
 
 I've been using Claude Code for a few months now as my primary development assistant. Not as a replacement for thinking, but as a way to move faster on the boring stuff while keeping the interesting problems for myself.

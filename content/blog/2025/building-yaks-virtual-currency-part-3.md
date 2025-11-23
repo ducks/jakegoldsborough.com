@@ -1,11 +1,13 @@
-+++
-title = "Building Yaks: A Virtual Currency System for Discourse (Part 3: Advanced Features)"
-date = 2025-10-18
-description = "Implementing topic-level features and user customization in the Yaks virtual currency plugin. This post covers topic boosting with global pinning and custom avatar flair."
-
-[taxonomies]
-tags = ["discourse", "ruby", "oss"]
-+++
+---
+title: "Building Yaks: A Virtual Currency System for Discourse (Part 3: Advanced Features)"
+date: 2025-10-18
+description: "Implementing topic-level features and user customization in the Yaks virtual currency plugin. This post covers topic boosting with global pinning and custom avatar flair."
+taxonomies:
+  tags:
+    - discourse
+    - ruby
+    - oss
+---
 
 [Part 1](/blog/2025/building-yaks-virtual-currency-part-1/) covered the
 backend architecture and [Part 2](/blog/2025/building-yaks-virtual-currency-part-2/)

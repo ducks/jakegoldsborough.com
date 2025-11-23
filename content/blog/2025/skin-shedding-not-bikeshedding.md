@@ -14,6 +14,9 @@ comes next.
 
 I've been thinking about that lately.
 
+This whole reflection started because I caught myself in yet another argument
+where nobody was building anything.
+
 ## The Bikeshed Problem
 
 There's this concept in software development called bikeshedding. The term
@@ -98,6 +101,9 @@ Judge by outcomes, not aesthetics. Code that's a bit messy but works reliably
 is better than code that's architecturally pure but brittle. The goal is to
 solve problems, not win style points.
 
+All of this beats spending three hours arguing about the hypothetical failure
+modes of something nobody has tested.
+
 ## The Meta Lesson
 
 Here's the thing: this post is about code, but it's not really about code.
@@ -117,6 +123,9 @@ We're still the same developers. We're just not trapped by what we thought
 we knew before we tried it.
 
 ## Try It and See
+
+Last week, instead of debating the limitations of someone else's critique, I
+just built the tool I wished we had.
 
 Next time you're in a debate about the "right" way to do something, ask
 yourself: would it be faster to just try it?

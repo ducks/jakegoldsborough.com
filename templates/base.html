@@ -55,6 +55,11 @@
           >Resume</a>
         <span>|</span>
         <a
+          href="{{ get_url(path='projects') }}"
+          class="{% if 'projects' in current_path %}active{% endif %}"
+          >Projects</a>
+        <span>|</span>
+        <a
           href="{{ get_url(path='contact') }}"
           class="{% if 'contact' in current_path %}active{% endif %}"
           >Contact</a>

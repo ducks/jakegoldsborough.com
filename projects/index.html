@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+    <meta
+      name="description"
+      content="A blog about NixOS, self-hosting, Rust projects, and other tech musings. Maybe some meatspace stuff as well."
+    >
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+    <title>
+      
+      Projects -
+      
+
+      Jake Goldsborough
+    </title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      <div class="theme-picker">
+        <label aria-label="Dark theme">
+          <input type="radio" name="theme" value="dark" />
+          <span aria-hidden="true"></span>
+        </label>
+        <label aria-label="Light theme">
+          <input type="radio" name="theme" value="light" />
+          <span aria-hidden="true"></span>
+        </label>
+        <noscript>
+          <label aria-label="Dark theme"><span aria-hidden="true">dark</span></label>
+          <label aria-label="Light theme"><span aria-hidden="true">light</span></label>
+        </noscript>
+      </div>
+      <h1>
+        <a href="https://jakegoldsborough.com/resume">Jake Goldsborough</a>
+      </h1>
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class=""
+        >Blog</a>
+        <span>|</span>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <span>|</span>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class="active"
+          >Projects</a>
+        <span>|</span>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+
+    <main>
+      
+  
+    <h2>Projects</h2>
+    <p>A collection of tools, plugins, and experiments I've built and maintain. Most
+are open source and actively developed.</p>
+<h2 id="rust-tui-applications">Rust TUI Applications</h2>
+<p>Terminal user interfaces built with Ratatui. I prefer keyboard-driven,
+minimal interfaces for daily workflows.</p>
+<p><strong><a href="https://github.com/ducks/shellcast">shellcast</a></strong> - A minimal TUI podcast
+player for the terminal. Subscribe to feeds, download episodes, and play
+audio without leaving the command line.</p>
+<p><strong><a href="https://github.com/ducks/shelltrax">shelltrax</a></strong> - A cmus-inspired
+terminal music player written in Rust. Lightweight, keyboard-driven playback
+with playlist management.</p>
+<p><strong><a href="https://github.com/ducks/llm-tui">llm-tui</a></strong> - TUI for Ollama chat with
+vim bindings and project-based session management. Local LLM conversations
+organized by context.</p>
+<p><strong><a href="https://github.com/ducks/discourse-tui">discourse-tui</a></strong> - Browse Discourse
+forums from the terminal. Navigate categories, read topics, and browse posts
+with vim-style keybindings.</p>
+<p><strong><a href="https://github.com/ducks/vim-navigator-rs">vim-navigator-rs</a></strong> - Vim-style
+modal editing and navigation for Ratatui TUIs. Reusable component for building
+vim-like interfaces in terminal applications.</p>
+<h2 id="discourse-plugins">Discourse Plugins</h2>
+<p>Extensions for Discourse forums. Built during my work at Discourse and for
+personal experimentation.</p>
+<p><strong><a href="https://github.com/ducks/discourse-yaks">discourse-yaks</a></strong> - Virtual
+currency system for Discourse. Users earn and spend "Yaks" to unlock premium
+post features like colored highlights, pins, and boosts. Includes wallet
+management and transaction history.</p>
+<p><strong><a href="https://github.com/ducks/discourse-guest-spot">discourse-guest-spot</a></strong> -
+Transforms Discourse into a dual-purpose platform for tattoo artists: public
+Instagram-style showcase combined with a private, invite-only community.</p>
+<p><strong><a href="https://github.com/ducks/discourse-transit-tracker">discourse-transit-tracker</a></strong> -
+Split-flap departure board plugin for Discourse. Display real-time transit
+information with retro airport aesthetic.</p>
+<p><strong><a href="https://github.com/ducks/discourse-invite-stats">discourse-invite-stats</a></strong> -
+Visualizes invite relationships as an ASCII tree, showing how users invited
+each other to join the community.</p>
+<p><strong><a href="https://github.com/ducks/discourse-frndr">discourse-frndr</a></strong> - Friend
+finding app built on Discourse. Match people based on interests and
+compatibility.</p>
+<h2 id="neovim-plugins">Neovim Plugins</h2>
+<p>Plugins for Neovim written in Lua. Focus on markdown workflows and
+presentation tools.</p>
+<p><strong><a href="https://github.com/ducks/vimdeck.nvim">vimdeck.nvim</a></strong> - Modern Neovim
+presentation plugin for markdown files. ASCII art headers, clean rendering,
+Treesitter parsing.</p>
+<p><strong><a href="https://github.com/ducks/mdpreview.nvim">mdpreview.nvim</a></strong> - Live markdown
+preview in Neovim split window. Treesitter parsing, synced scrolling, styled
+headers.</p>
+<p><strong><a href="https://github.com/ducks/nvim-vandelay">nvim-vandelay</a></strong> - Import
+management for JavaScript and TypeScript. Automatically organize and insert
+import statements.</p>
+<h2 id="development-tools">Development Tools</h2>
+<p>Command-line tools and libraries for developers. Automation, infrastructure,
+and API clients.</p>
+<p><strong><a href="https://github.com/ducks/date-ver">date-ver</a></strong> - Date-based versioning
+specification. Use YYYYMMDD, YYYYMM, or YYYY for releases where timing matters
+more than compatibility signals.</p>
+<p><strong><a href="https://github.com/ducks/denver">denver</a></strong> - Discourse ENV managER. CLI
+tool for managing multiple isolated Discourse development environments. Create,
+switch between, and test different plugin combinations without breaking your
+main setup.</p>
+<p><strong><a href="https://github.com/ducks/yaml-janitor">yaml-janitor</a></strong> - YAML linter that
+preserves comments using psych-pure. Detects issues and fixes formatting
+without destroying documentation.</p>
+<p><strong><a href="https://github.com/ducks/discourse-api-rs">discourse-api-rs</a></strong> - Async Rust
+client for the Discourse forum API. Fetch topics, posts, categories, and more.</p>
+<p><strong><a href="https://github.com/ducks/node-postgres-exporter">node-postgres-exporter</a></strong> -
+A lightweight, configurable Prometheus exporter for PostgreSQL written in
+Node.js.</p>
+<h2 id="web-applications">Web Applications</h2>
+<p>Browser-based tools and services. Mapping and route generation.</p>
+<p><strong><a href="https://github.com/ducks/slumprutt">slumprutt</a></strong> - Generate random walking,
+cycling, or driving routes for your next adventure. Built with Svelte.</p>
+<h2 id="experiments">Experiments</h2>
+<p>Older projects and experiments.</p>
+<p><strong><a href="https://github.com/ducks/gitvote">gitvote</a></strong> - Git-based cryptographically
+verifiable voting system using signed commits, pull requests, and fully
+auditable blockchain-style block generation.</p>
+<p>All repositories are available on <a href="https://github.com/ducks">GitHub</a>.</p>
+
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

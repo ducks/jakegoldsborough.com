@@ -20,7 +20,7 @@
       {% if page.taxonomies and page.taxonomies.tags %}
         <div class="tags">
           {% for tag in page.taxonomies.tags %}
-          <p><a href="/tags/{{ tag | slugify }}">{{ tag }}</a></p>
+          <p><a href="/tags/{{ tag | slugify }}">#{{ tag }}</a></p>
           {% endfor %}
         </div>
       {% endif %}

@@ -16,7 +16,11 @@ cross-functional teams to deliver efficient, maintainable solutions.
 
 #### Experience
 
-**Discourse - Software Engineer, Infrastructure Team (2025-current)**
+##### Discourse
+
+Software Engineer, Infrastructure Team
+
+2025-current
 
 - **Contributed upstream to AWS SDK for Ruby**, expanding credential provider
   support by implementing the `Environment` source in `SharedConfig`. This
@@ -29,7 +33,11 @@ cross-functional teams to deliver efficient, maintainable solutions.
   **Accelerated adoption** with a PR that was reviewed, approved, and merged the
   same day, delivering immediate impact for the Ruby community.
 
-**Flashpoint - Software Engineer II (Mid-Level) (2022 - 2024)**
+##### Flashpoint
+
+Software Engineer II (Mid-Level)
+
+2022 - 2024
 
 - **Reduced infrastructure setup time from days to hours by leading the Terraform
   and Kubernetes pipeline implementation**. Designed reusable Terraform modules
@@ -53,7 +61,11 @@ cross-functional teams to deliver efficient, maintainable solutions.
 - **Mentored junior engineers** and contributed to technical interviews,
   fostering a culture of continuous learning and collaboration.
 
-**Infinity Interactive - Software Engineer (2010 - 2020)**
+##### Infinity Interactive
+
+Software Engineer
+
+2010 - 2020
 
 - **Contracted for projects with Fortune 100 and Fortune 500 companies**,
   including Shutterstock, Allegra, and Flashpoint.

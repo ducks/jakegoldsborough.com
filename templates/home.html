@@ -6,4 +6,46 @@
 
 {% block content %}
   {{ section.content | safe }}
+
+  <h2>Recent Posts</h2>
+
+  {% set blog_section = get_section(path="blog/_index.md") %}
+  {% set all_posts = [] %}
+
+  {# Recursively collect all posts from subsections #}
+  {% for subsection_path in blog_section.subsections %}
+    {% set subsection = get_section(path=subsection_path) %}
+    {% for page in subsection.pages %}
+      {% if not page.draft %}
+        {% set_global all_posts = all_posts | concat(with=page) %}
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+
+  {% set sorted_posts = all_posts | sort(attribute="date") | reverse %}
+
+  <ul class="blog-posts">
+    {% for post in sorted_posts | slice(end=3) %}
+      <li class="post-item">
+        <h3><a href="{{ post.permalink }}">{{ post.title }}</a></h3>
+        <div class="meta">
+          {% if post.date %}
+          <p>{{ post.date | date(format="%b %d, %Y") }}</p>
+          {% endif %}
+          <p>{{ post.reading_time }} min read</p>
+        </div>
+        {% if post.description %}
+          <p class="desc">{{ post.description }}</p>
+        {% endif %}
+        {% if post.taxonomies and post.taxonomies.tags %}
+          <div class="tags">
+            {% for tag in post.taxonomies.tags %}
+            <p><a href="/tags/{{ tag | slugify }}">#{{ tag }}</a></p>
+            {% endfor %}
+          </div>
+        {% endif %}
+        <div class="squiqqle-line"></div>
+      </li>
+    {% endfor %}
+  </ul>
 {% endblock %}

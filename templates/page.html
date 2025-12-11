@@ -1,25 +1,28 @@
 {% extends 'base.html' %}
 
+{% block hero %}
+  {% if page.components | first != "blog" %}
+    <h1>{{ page.title }}</h1>
+  {% endif %}
+{% endblock %}
+
 {% block content %}
   {% if page.components | first == "blog" %}
     <article>
       <h1>{{ page.title }}</h1>
-      {% if page.date %}
-        <p>
-          Published {{ page.date | date(format="%B %e, %Y") }}
-        </p>
-      {% endif %}
-      <p>
-        {{ page.reading_time }} min read
-      </p>
+      <div class="meta">
+        {% if page.date %}
+        <p>{{ page.date | date(format="%b %d, %Y") }}</p>
+        {% endif %}
+        <p>{{ page.reading_time }} min read</p>
+      </div>
 
       {% if page.taxonomies and page.taxonomies.tags %}
-        <p>
-          Tags:
+        <div class="tags">
           {% for tag in page.taxonomies.tags %}
-            <a href="/tags/{{ tag | slugify }}">{{ tag }}</a>{% if not loop.last %}, {% endif %}
+          <p><a href="/tags/{{ tag | slugify }}">{{ tag }}</a></p>
           {% endfor %}
-        </p>
+        </div>
       {% endif %}
 
       {{ page.content | safe }}
@@ -56,7 +59,8 @@
       {% endif %}
     </article>
   {% else %}
-    <h2>{{ page.title }}</h2>
-    {{ page.content | safe }}
+    <article>
+      {{ page.content | safe }}
+    </article>
   {% endif %}
 {% endblock %}

@@ -26,46 +26,36 @@
   </head>
   <body>
     <header>
-      <div class="theme-picker">
-        <label aria-label="Dark theme">
-          <input type="radio" name="theme" value="dark" />
-          <span aria-hidden="true"></span>
-        </label>
-        <label aria-label="Light theme">
-          <input type="radio" name="theme" value="light" />
-          <span aria-hidden="true"></span>
-        </label>
-        <noscript>
-          <label aria-label="Dark theme"><span aria-hidden="true">dark</span></label>
-          <label aria-label="Light theme"><span aria-hidden="true">light</span></label>
-        </noscript>
-      </div>
-      <h1>
-        <a href="{{ get_url(path='resume') }}">{{ config.title }}</a>
-      </h1>
+      {% block site_name %}
+        <h1><a href="{{ get_url(path='/') }}">{{ config.title }}</a></h1>
+      {% endblock %}
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
       <nav>
         <a
           href="{{ get_url(path='blog') }}"
           class="{% if 'blog' in current_path %}active{% endif %}"
         >Blog</a>
-        <span>|</span>
         <a
           href="{{ get_url(path='resume') }}"
           class="{% if 'resume' in current_path %}active{% endif %}"
           >Resume</a>
-        <span>|</span>
         <a
           href="{{ get_url(path='projects') }}"
           class="{% if 'projects' in current_path %}active{% endif %}"
           >Projects</a>
-        <span>|</span>
         <a
           href="{{ get_url(path='contact') }}"
           class="{% if 'contact' in current_path %}active{% endif %}"
           >Contact</a>
       </nav>
     </header>
-
     <main>
       {% block content %}{% endblock %}
     </main>

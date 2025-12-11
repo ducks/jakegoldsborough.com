@@ -1,0 +1,30 @@
+/* Wavy/scalloped border on top and bottom edges */
+
+.wavy-border {
+  --s: 50px;  /* control the size of the scallops */
+  --a: 90deg; /* control the angle */
+  --d: 15px;  /* the depth */
+
+  padding: calc(var(--d) + 1rem) 2rem;
+  background:
+    conic-gradient(from calc(var(--a)/-2) at 50% calc(100% - var(--d)),
+      #0008, #0000 1deg calc(var(--a) - 1deg), #0004 var(--a) calc(180deg + var(--a)/2), #0008 0)
+      50%/var(--s);
+  mask:
+    conic-gradient(from calc(var(--a)/-2) at top,
+      #0000, #000 1deg calc(var(--a) - 1deg), #0000 var(--a)) 50%/var(--s),
+    conic-gradient(from calc(var(--a)/-2) at bottom,
+      #0000, #000 1deg calc(var(--a) - 1deg), #0000 var(--a)) 50% 100%/var(--s);
+  mask-repeat: repeat-x;
+}
+
+/* Size modifiers */
+.wavy-border-small {
+  --s: 30px;
+  --d: 10px;
+}
+
+.wavy-border-large {
+  --s: 70px;
+  --d: 20px;
+}

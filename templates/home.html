@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 
+{% block site_name %}
+  <h1><a href="{{ get_url(path='/') }}">{{ config.title }}</a></h1>
+{% endblock %}
+
 {% block content %}
-  <section class="homepage">
-    {{ section.content | safe }}
-  </section>
+  {{ section.content | safe }}
 {% endblock %}

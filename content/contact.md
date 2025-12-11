@@ -3,10 +3,18 @@ title = "Contact"
 path = "contact"
 +++
 
-email: [site@jakegoldsborough.com](mailto:site@jakegoldsborough.com)
+### email
 
-github: [ducks](https://github.com/ducks)
+[site@jakegoldsborough.com](mailto:site@jakegoldsborough.com)
 
-mastodon: <a rel="me" href="https://hachyderm.io/@ducks">ducks</a>
+### github
 
-etsy: [GnarlyVoid](https://www.etsy.com/shop/GnarlyVoid)
+[ducks](https://github.com/ducks)
+
+### mastodon
+
+<a rel="me" href="https://hachyderm.io/@ducks">ducks</a>
+
+### etsy
+
+[GnarlyVoid](https://www.etsy.com/shop/GnarlyVoid)

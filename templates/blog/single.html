@@ -3,10 +3,12 @@
 {% block content %}
   <article>
     <h1>{{ page.title }}</h1>
-    <p>
-      Published {{ page.date | date(format="%B %e, %Y") }} ·
-      {{ page.reading_time }} min read
-    </p>
+    <div class="meta">
+      {% if page.date %}
+      <p>{{ page.date | date(format="%b %d, %Y") }}</p>
+      {% endif %}
+      <p>{{ page.reading_time }} min read</p>
+    </div>
 
     {% if page.taxonomies and page.taxonomies.tags %}
       <p>

@@ -1,0 +1,123 @@
+[[categories]]
+name = "Rust TUI Applications"
+description = "Terminal user interfaces built with Ratatui. I prefer keyboard-driven, minimal interfaces for daily workflows."
+
+[[categories.projects]]
+name = "shellcast"
+url = "https://github.com/ducks/shellcast"
+description = "A minimal TUI podcast player for the terminal. Subscribe to feeds, download episodes, and play audio without leaving the command line."
+
+[[categories.projects]]
+name = "shelltrax"
+url = "https://github.com/ducks/shelltrax"
+description = "A cmus-inspired terminal music player written in Rust. Lightweight, keyboard-driven playback with playlist management."
+
+[[categories.projects]]
+name = "llm-tui"
+url = "https://github.com/ducks/llm-tui"
+description = "TUI for Ollama chat with vim bindings and project-based session management. Local LLM conversations organized by context."
+
+[[categories.projects]]
+name = "discourse-tui"
+url = "https://github.com/ducks/discourse-tui"
+description = "Browse Discourse forums from the terminal. Navigate categories, read topics, and browse posts with vim-style keybindings."
+
+[[categories.projects]]
+name = "vim-navigator-rs"
+url = "https://github.com/ducks/vim-navigator-rs"
+description = "Vim-style modal editing and navigation for Ratatui TUIs. Reusable component for building vim-like interfaces in terminal applications."
+
+[[categories]]
+name = "Discourse Plugins"
+description = "Extensions for Discourse forums. Built during my work at Discourse and for personal experimentation."
+
+[[categories.projects]]
+name = "discourse-yaks"
+url = "https://github.com/ducks/discourse-yaks"
+description = "Virtual currency system for Discourse. Users earn and spend \"Yaks\" to unlock premium post features like colored highlights, pins, and boosts. Includes wallet management and transaction history."
+
+[[categories.projects]]
+name = "discourse-guest-spot"
+url = "https://github.com/ducks/discourse-guest-spot"
+description = "Transforms Discourse into a dual-purpose platform for tattoo artists: public Instagram-style showcase combined with a private, invite-only community."
+
+[[categories.projects]]
+name = "discourse-transit-tracker"
+url = "https://github.com/ducks/discourse-transit-tracker"
+description = "Split-flap departure board plugin for Discourse. Display real-time transit information with retro airport aesthetic."
+
+[[categories.projects]]
+name = "discourse-invite-stats"
+url = "https://github.com/ducks/discourse-invite-stats"
+description = "Visualizes invite relationships as an ASCII tree, showing how users invited each other to join the community."
+
+[[categories.projects]]
+name = "discourse-frndr"
+url = "https://github.com/ducks/discourse-frndr"
+description = "Friend finding app built on Discourse. Match people based on interests and compatibility."
+
+[[categories]]
+name = "Neovim Plugins"
+description = "Plugins for Neovim written in Lua. Focus on markdown workflows and presentation tools."
+
+[[categories.projects]]
+name = "vimdeck.nvim"
+url = "https://github.com/ducks/vimdeck.nvim"
+description = "Modern Neovim presentation plugin for markdown files. ASCII art headers, clean rendering, Treesitter parsing."
+
+[[categories.projects]]
+name = "mdpreview.nvim"
+url = "https://github.com/ducks/mdpreview.nvim"
+description = "Live markdown preview in Neovim split window. Treesitter parsing, synced scrolling, styled headers."
+
+[[categories.projects]]
+name = "nvim-vandelay"
+url = "https://github.com/ducks/nvim-vandelay"
+description = "Import management for JavaScript and TypeScript. Automatically organize and insert import statements."
+
+[[categories]]
+name = "Development Tools"
+description = "Command-line tools and libraries for developers. Automation, infrastructure, and API clients."
+
+[[categories.projects]]
+name = "date-ver"
+url = "https://github.com/ducks/date-ver"
+description = "Date-based versioning specification. Use YYYYMMDD, YYYYMM, or YYYY for releases where timing matters more than compatibility signals."
+
+[[categories.projects]]
+name = "denver"
+url = "https://github.com/ducks/denver"
+description = "Discourse ENV managER. CLI tool for managing multiple isolated Discourse development environments. Create, switch between, and test different plugin combinations without breaking your main setup."
+
+[[categories.projects]]
+name = "yaml-janitor"
+url = "https://github.com/ducks/yaml-janitor"
+description = "YAML linter that preserves comments using psych-pure. Detects issues and fixes formatting without destroying documentation."
+
+[[categories.projects]]
+name = "discourse-api-rs"
+url = "https://github.com/ducks/discourse-api-rs"
+description = "Async Rust client for the Discourse forum API. Fetch topics, posts, categories, and more."
+
+[[categories.projects]]
+name = "node-postgres-exporter"
+url = "https://github.com/ducks/node-postgres-exporter"
+description = "A lightweight, configurable Prometheus exporter for PostgreSQL written in Node.js."
+
+[[categories]]
+name = "Web Applications"
+description = "Browser-based tools and services. Mapping and route generation."
+
+[[categories.projects]]
+name = "slumprutt"
+url = "https://github.com/ducks/slumprutt"
+description = "Generate random walking, cycling, or driving routes for your next adventure. Built with Svelte."
+
+[[categories]]
+name = "Experiments"
+description = "Older projects and experiments."
+
+[[categories.projects]]
+name = "gitvote"
+url = "https://github.com/ducks/gitvote"
+description = "Git-based cryptographically verifiable voting system using signed commits, pull requests, and fully auditable blockchain-style block generation."

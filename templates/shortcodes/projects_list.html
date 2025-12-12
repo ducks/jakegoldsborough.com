@@ -1,0 +1,31 @@
+{% set projects_data = load_data(path="data/projects.toml") %}
+
+{% for category in projects_data.categories %}
+<h2>{{ category.name }}</h2>
+
+<p>{{ category.description }}</p>
+
+{% for project in category.projects %}
+<h3>{{ project.name }}</h3>
+<p><a href="{{ project.url }}">{{ project.url }}</a></p>
+
+<p>{{ project.description }}</p>
+
+{% if loop.index is odd %}
+  {% if loop.index0 % 4 == 0 %}
+<div class="squiqqle-line"></div>
+  {% else %}
+<div class="squiqqle-line alt1"></div>
+  {% endif %}
+{% else %}
+  {% if loop.index0 % 4 == 2 %}
+<div class="squiqqle-line alt2"></div>
+  {% else %}
+<div class="squiqqle-line alt3"></div>
+  {% endif %}
+{% endif %}
+
+{% endfor %}
+{% endfor %}
+
+<p>All repositories are available on <a href="https://github.com/ducks">GitHub</a>.</p>

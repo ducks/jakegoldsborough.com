@@ -5,11 +5,27 @@
     <h1>Posts tagged "{{ term.name }}"</h1>
 
     {% if term.pages | length > 0 %}
-      <ul>
+      <ul class="blog-posts">
         {% for page in term.pages %}
-          <li>
-            <a href="{{ page.permalink }}">{{ page.title }}</a>
-            <small>({{ page.date | date(format="%Y-%m-%d") }})</small>
+          <li class="post-item">
+            <h3><a href="{{ page.permalink }}">{{ page.title }}</a></h3>
+            <div class="meta">
+              {% if page.date %}
+              <p>{{ page.date | date(format="%b %d, %Y") }}</p>
+              {% endif %}
+              <p>{{ page.reading_time }} min read</p>
+            </div>
+            {% if page.description %}
+              <p class="desc">{{ page.description }}</p>
+            {% endif %}
+            {% if page.taxonomies and page.taxonomies.tags %}
+              <div class="tags">
+                {% for tag in page.taxonomies.tags %}
+                <p><a href="/tags/{{ tag | slugify }}">#{{ tag }}</a></p>
+                {% endfor %}
+              </div>
+            {% endif %}
+            <div class="squiqqle-line"></div>
           </li>
         {% endfor %}
       </ul>

@@ -10,33 +10,6 @@
 }
 
 @font-face {
-  font-family: "Bergen";
-  src: url("/fonts/bergen/bnbergen-webfont.woff2") format("woff2"),
-       url("/fonts/bergen/bnbergen-webfont.woff") format("woff");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Bergen";
-  src: url("/fonts/bergen/bnbergen-bold-webfont.woff2") format("woff2"),
-       url("/fonts/bergen/bnbergen-bold-webfont.woff") format("woff");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Bergen";
-  src: url("/fonts/bergen/bnbergen-light-webfont.woff2") format("woff2"),
-       url("/fonts/bergen/bnbergen-light-webfont.woff") format("woff");
-  font-weight: 300;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
   font-family: "Berkeley Mono";
   src: url("/fonts/berkeley-mono/BerkeleyMono-Regular.woff2") format("woff2"),
        url("/fonts/berkeley-mono/BerkeleyMono-Regular.woff") format("woff");
@@ -134,7 +107,7 @@
   --aqua: var(--bright-aqua);
   --orange: var(--neutral-orange);
 
-  --font-main: Bergen, sans-serif;
+  --font-main: "Berkeley Mono", sans-serif;
   --font-mono: "Berkeley Mono", monospace;
 
   --spacing: 1rem;

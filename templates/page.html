@@ -46,11 +46,27 @@
         {% if related | length > 0 %}
           <section class="related-posts">
             <h2>Related Posts</h2>
-            <ul>
+            <ul class="blog-posts">
               {% for post in related | slice(end=5) %}
-                <li>
-                  <a href="{{ post.permalink }}">{{ post.title }}</a>
-                  <span class="post-date">{{ post.date | date(format="%B %e, %Y") }}</span>
+                <li class="post-item">
+                  <h3><a href="{{ post.permalink }}">{{ post.title }}</a></h3>
+                  <div class="meta">
+                    {% if post.date %}
+                    <p>{{ post.date | date(format="%b %d, %Y") }}</p>
+                    {% endif %}
+                    <p>{{ post.reading_time }} min read</p>
+                  </div>
+                  {% if post.description %}
+                    <p class="desc">{{ post.description }}</p>
+                  {% endif %}
+                  {% if post.taxonomies and post.taxonomies.tags %}
+                    <div class="tags">
+                      {% for tag in post.taxonomies.tags %}
+                      <p><a href="/tags/{{ tag | slugify }}">#{{ tag }}</a></p>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                  <div class="squiqqle-line"></div>
                 </li>
               {% endfor %}
             </ul>

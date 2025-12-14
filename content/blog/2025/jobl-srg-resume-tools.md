@@ -17,8 +17,8 @@ watching coworkers lose their jobs to remind you that stability is an illusion
 and preparation matters.
 
 I have been in a spec and tool building mood lately anyway. Something about the
-combination of uncertainty makes me want to build things I can control. JOBL
-and SRG fit that mood perfectly.
+uncertainty makes me want to build things I can control. JOBL and SRG fit that
+mood perfectly.
 
 ## The Problem
 

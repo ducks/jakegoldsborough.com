@@ -80,6 +80,16 @@ name = "Development Tools"
 description = "Command-line tools and libraries for developers. Automation, infrastructure, and API clients."
 
 [[categories.projects]]
+name = "jobl"
+url = "https://github.com/ducks/jobl"
+description = "TOML-based resume format with strict validation. Human-readable, version-controllable, plain text resume data structure."
+
+[[categories.projects]]
+name = "srg"
+url = "https://github.com/ducks/srg"
+description = "Static Resume Generator. Converts JOBL files to HTML and PDF using headless Chrome. Includes customizable layout system with quoted string support."
+
+[[categories.projects]]
 name = "date-ver"
 url = "https://github.com/ducks/date-ver"
 description = "Date-based versioning specification. Use YYYYMMDD, YYYYMM, or YYYY for releases where timing matters more than compatibility signals."

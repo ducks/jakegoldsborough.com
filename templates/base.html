@@ -44,7 +44,7 @@
         >Blog</a>
         <a
           href="{{ get_url(path='resume') }}"
-          class="{% if 'resume' in current_path %}active{% endif %}"
+          class="{% if current_path == '/resume/' or current_path == '/resume' %}active{% endif %}"
           >Resume</a>
         <a
           href="{{ get_url(path='projects') }}"

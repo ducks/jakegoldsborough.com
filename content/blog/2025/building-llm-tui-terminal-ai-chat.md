@@ -211,5 +211,3 @@ architecture. Re-sharing files. Starting conversations from scratch.
 
 llm-tui fixes that. Sessions persist. File context survives restarts. You pick
 up exactly where you left off. The AI remembers what it knew yesterday.
-
-That's the win. Not the terminal. Not the vim keybindings. The context stays.

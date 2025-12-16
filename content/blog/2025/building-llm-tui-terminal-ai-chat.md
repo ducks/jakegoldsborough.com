@@ -1,6 +1,6 @@
 ---
 title: "Building LLM-TUI: Never Lose Context Again"
-date: 2025-12-10
+date: 2025-12-16
 description: "Built a terminal AI chat that remembers everything. File context persists across sessions, tools execute with confirmation, and you never lose your place."
 ---
 
@@ -97,6 +97,14 @@ The key part: tool results get cached per session. If the AI reads
 that session, it already knows what was in that file. No re-reading. No
 re-explaining. The context persists.
 
+## The Future Is Weird
+
+As you can probably tell, I love and prefer open source software. Unfortunately,
+Claude does not fall into that category so I could not look at it for inspiration.
+So, I tried a wild idea. I simply asked Claude how it's tools worked and what the API
+response looked like. And you know what, it worked! I had Claude help me basically
+rebuild it's tools by internal reflection. The future is a trip, man.
+
 ## Session Management
 
 This is where context persistence actually lives. Each session is a separate
@@ -151,8 +159,8 @@ conversation. You just use fewer tokens to maintain it.
 
 ## The Stack
 
-Written in Rust. UI built with ratatui (terminal UI library). SQLite for
-storage via rusqlite. crossterm for terminal handling.
+Written in Rust. The UI is built with ratatui (terminal UI library). SQLite for
+storage via rusqlite and crossterm for terminal handling.
 
 Three API clients: reqwest for Ollama's HTTP API, anthropic-sdk-rust for
 Claude, and AWS SDK for Bedrock.
@@ -184,51 +192,6 @@ sending messages), or timer (save every N seconds).
 
 Auto-start Ollama if not running (configurable). Set default provider. Pick
 your context window sizes.
-
-## Takeaways
-
-**Ratatui is excellent**
-
-The widget system makes complex TUIs manageable. Stateful widgets handle their
-own rendering. Event loop is clean.
-
-**SQLite is perfect for this**
-
-Fast queries, single file, no server. The bundled feature means no system
-SQLite dependency.
-
-**Tool confirmation UX matters**
-
-Early versions required too many confirmations. Now it batches them when
-sensible and caches results to reduce repeated prompts.
-
-**Token counting is hard**
-
-Different models use different tokenizers. I'm approximating with character
-counts (roughly 4 chars = 1 token). Close enough for context management.
-
-**Vim keybindings are muscle memory**
-
-Once you add them to a TUI, anything else feels broken. j/k navigation, i for
-insert, Esc to escape - it just works.
-
-## The Result
-
-I don't lose context anymore. Close a session, come back tomorrow, and it's
-exactly where you left it. The AI has the files loaded. The conversation picks
-up mid-thought.
-
-Work on multiple projects without mixing contexts. Switch between sessions
-without re-explaining architecture. The tool results are cached. The files are
-already read.
-
-Is it perfect? No. The UI could be more polished. Context compaction sometimes
-loses nuance. Token counting is approximate.
-
-But it solved my problem. No more starting over. No more re-sharing files. The
-context persists.
-
-**Try it yourself**: [github.com/ducks/llm-tui](https://github.com/ducks/llm-tui)
 
 ## Roadmap
 

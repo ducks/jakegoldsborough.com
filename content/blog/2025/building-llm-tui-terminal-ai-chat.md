@@ -2,6 +2,11 @@
 title: "Building LLM-TUI: Never Lose Context Again"
 date: 2025-12-16
 description: "Built a terminal AI chat that remembers everything. File context persists across sessions, tools execute with confirmation, and you never lose your place."
+taxonomies:
+  tags:
+   - tools
+   - ai
+   - dev
 ---
 
 I am loving CLI agentic LLM apps except for one thing... and that's losing context.

@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - self-hosting</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/self-hosting/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Fri, 02 Jan 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Building Scrob: A Self-Hosted Music Scrobbling Server</title>
+          <pubDate>Fri, 02 Jan 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/building-scrob-self-hosted-scrobbling/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/building-scrob-self-hosted-scrobbling/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/building-scrob-self-hosted-scrobbling/">&lt;p&gt;I wanted to track what music I listen to without sending that data to
+Last.fm. Part privacy preference, part self-hosting habit.&lt;&#x2F;p&gt;
+&lt;p&gt;So I set up &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;scrob&quot;&gt;scrob&lt;&#x2F;a&gt; - a self-hosted
+scrobbling server that tracks my listening history and makes it
+shareable.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;2026&#x2F;scrob-ui&#x2F;1.png&quot; alt=&quot;Scrob UI - Latest Scrobbles&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;2026&#x2F;scrob-ui&#x2F;2.png&quot; alt=&quot;Scrob UI - All Stats&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;how-it-works&quot;&gt;How It Works&lt;&#x2F;h2&gt;
+&lt;p&gt;Scrob is a REST API server with a separate static UI:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;Music Player (shelltrax, etc.)
+&lt;&#x2F;span&gt;&lt;span&gt;    |
+&lt;&#x2F;span&gt;&lt;span&gt;    v
+&lt;&#x2F;span&gt;&lt;span&gt;[POST &#x2F;scrob] with Bearer token
+&lt;&#x2F;span&gt;&lt;span&gt;    |
+&lt;&#x2F;span&gt;&lt;span&gt;    v
+&lt;&#x2F;span&gt;&lt;span&gt;Scrob API (Axum + Rust)
+&lt;&#x2F;span&gt;&lt;span&gt;    |
+&lt;&#x2F;span&gt;&lt;span&gt;    v
+&lt;&#x2F;span&gt;&lt;span&gt;PostgreSQL (scrobbles + users)
+&lt;&#x2F;span&gt;&lt;span&gt;    |
+&lt;&#x2F;span&gt;&lt;span&gt;    v
+&lt;&#x2F;span&gt;&lt;span&gt;Scrob UI (static Svelte site)
+&lt;&#x2F;span&gt;&lt;span&gt;    |
+&lt;&#x2F;span&gt;&lt;span&gt;    v
+&lt;&#x2F;span&gt;&lt;span&gt;Public profile: ui.scrob.example.com&#x2F;username
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The server authenticates clients via Bearer tokens, stores scrobbles in
+Postgres, and serves stats via REST endpoints. The UI is a static site
+that fetches data from the API.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;public-profiles&quot;&gt;Public Profiles&lt;&#x2F;h2&gt;
+&lt;p&gt;The interesting part was adding public user profiles. Like Last.fm, I
+wanted people to be able to share their music taste via a URL:
+&lt;code&gt;ui.scrob.jakegoldsborough.com&#x2F;username&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;This required:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;New public API endpoints (&lt;code&gt;&#x2F;users&#x2F;:username&#x2F;recent&lt;&#x2F;code&gt;,
+&lt;code&gt;&#x2F;users&#x2F;:username&#x2F;top&#x2F;artists&lt;&#x2F;code&gt;, &lt;code&gt;&#x2F;users&#x2F;:username&#x2F;top&#x2F;tracks&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;Privacy controls (users are public by default, can opt-in to private)&lt;&#x2F;li&gt;
+&lt;li&gt;URL-based routing in the Svelte app&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;The privacy model is simple: a boolean &lt;code&gt;is_private&lt;&#x2F;code&gt; column in the users
+table. Public endpoints check the flag and return 403 if private. Users
+can toggle it via &lt;code&gt;&#x2F;settings&#x2F;privacy&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;security-model&quot;&gt;Security Model&lt;&#x2F;h2&gt;
+&lt;p&gt;Scrob uses token-based authentication:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Login with username&#x2F;password to get a Bearer token&lt;&#x2F;li&gt;
+&lt;li&gt;All scrobble submissions require &lt;code&gt;Authorization: Bearer &amp;lt;token&amp;gt;&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Tokens are stored in the database with revocation support&lt;&#x2F;li&gt;
+&lt;li&gt;Passwords are hashed with bcrypt&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;TLS is expected to be handled by a reverse proxy (Caddy, nginx, etc.).
+The server itself runs over HTTP.&lt;&#x2F;p&gt;
+&lt;p&gt;Rate limiting is not currently implemented. Future work.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-stack&quot;&gt;The Stack&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;strong&gt;Backend&lt;&#x2F;strong&gt;: Rust + Axum + PostgreSQL + sqlx&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Frontend&lt;&#x2F;strong&gt;: Svelte 5 + Vite + TypeScript&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Client&lt;&#x2F;strong&gt;: &lt;a href=&quot;https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;introducing-shelltrax&#x2F;&quot;&gt;Shelltrax&lt;&#x2F;a&gt; (my terminal music player)&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Infrastructure&lt;&#x2F;strong&gt;: Systemd services on a VPS, no Docker&lt;&#x2F;p&gt;
+&lt;p&gt;Scrob is straightforward. It&#x27;s an API server that receives scrobble
+data, stores it in Postgres, and serves it back via REST endpoints. The
+UI is a static site that shows your listening history.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;try-it&quot;&gt;Try It&lt;&#x2F;h2&gt;
+&lt;p&gt;If you want to run your own scrob instance:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Prerequisites: Rust 1.82+, PostgreSQL 12+, reverse proxy for TLS&lt;&#x2F;li&gt;
+&lt;li&gt;Clone repo and build: &lt;code&gt;cargo build --release&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Set &lt;code&gt;DATABASE_URL&lt;&#x2F;code&gt; environment variable&lt;&#x2F;li&gt;
+&lt;li&gt;Migrations run automatically on first startup via &lt;code&gt;sqlx::migrate!()&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Create a user with &lt;code&gt;.&#x2F;scripts&#x2F;bootstrap.sh&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Start UI (separate repo: scrob-ui) or use API directly&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;See the &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;scrob&quot;&gt;README&lt;&#x2F;a&gt; for full details.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;sqlx-and-offline-query-caching&quot;&gt;sqlx and Offline Query Caching&lt;&#x2F;h2&gt;
+&lt;p&gt;Scrob uses &lt;code&gt;sqlx&lt;&#x2F;code&gt; for compile-time checked SQL queries. This is great for type safety but annoying for CI: you need a database to compile.&lt;&#x2F;p&gt;
+&lt;p&gt;The solution is &lt;code&gt;cargo sqlx prepare&lt;&#x2F;code&gt; which generates a &lt;code&gt;.sqlx&#x2F;&lt;&#x2F;code&gt; cache of
+query metadata. Then CI can build with &lt;code&gt;SQLX_OFFLINE=true&lt;&#x2F;code&gt; without
+needing Postgres.&lt;&#x2F;p&gt;
+&lt;p&gt;The problem: running &lt;code&gt;cargo sqlx prepare&lt;&#x2F;code&gt; manually is tedious. You need
+to spin up Postgres, run migrations, prepare the cache, tear it down.&lt;&#x2F;p&gt;
+&lt;p&gt;I automated it with a Makefile:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;makefile&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-makefile &quot;&gt;&lt;code class=&quot;language-makefile&quot; data-lang=&quot;makefile&quot;&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;prepare&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;docker&lt;&#x2F;span&gt;&lt;span&gt; run postgres:16-alpine (port 5433)
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;Wait&lt;&#x2F;span&gt;&lt;span&gt; for postgres
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;cargo&lt;&#x2F;span&gt;&lt;span&gt; sqlx migrate run
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;cargo&lt;&#x2F;span&gt;&lt;span&gt; sqlx prepare
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;docker&lt;&#x2F;span&gt;&lt;span&gt; rm postgres
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Now &lt;code&gt;make prepare&lt;&#x2F;code&gt; handles everything. One command, query cache updated.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;dev-tooling&quot;&gt;Dev Tooling&lt;&#x2F;h3&gt;
+&lt;p&gt;The prepare target must be rerun whenever you:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Add or modify SQL queries in the codebase&lt;&#x2F;li&gt;
+&lt;li&gt;Create new migrations&lt;&#x2F;li&gt;
+&lt;li&gt;Change database schema&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Without updating &lt;code&gt;.sqlx&#x2F;&lt;&#x2F;code&gt;, CI builds fail with query verification
+errors. The cache is committed to git, so offline builds work without a
+live database connection.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;deployment&quot;&gt;Deployment&lt;&#x2F;h2&gt;
+&lt;p&gt;The deployment setup is declarative:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Migrations live in the scrob repo&lt;&#x2F;li&gt;
+&lt;li&gt;On startup, scrob automatically detects and runs new migrations via
+&lt;code&gt;sqlx::migrate!()&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;The deploy script checks GitHub releases for new versions and only
+downloads if there&#x27;s an update&lt;&#x2F;li&gt;
+&lt;li&gt;Systemd restarts the service after updating the binary&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;No manual migration management. No separate migration runner. Single
+source of truth.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-works&quot;&gt;What Works&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Scrobbling from Shelltrax to the API&lt;&#x2F;li&gt;
+&lt;li&gt;Public profile pages with recent scrobbles and top stats&lt;&#x2F;li&gt;
+&lt;li&gt;Privacy toggle (public by default, opt-in private)&lt;&#x2F;li&gt;
+&lt;li&gt;Automated migrations on startup&lt;&#x2F;li&gt;
+&lt;li&gt;Version-aware deployment script&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;what-doesn-t&quot;&gt;What Doesn&#x27;t&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;No album stats yet (just artists and tracks)&lt;&#x2F;li&gt;
+&lt;li&gt;No client&#x2F;player tracking (can&#x27;t tell if you scrobbled from Shelltrax
+vs another client)&lt;&#x2F;li&gt;
+&lt;li&gt;Limited metadata (no album art, genre tags, etc.)&lt;&#x2F;li&gt;
+&lt;li&gt;UI is functional but basic&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;reflections&quot;&gt;Reflections&lt;&#x2F;h2&gt;
+&lt;p&gt;The best part of this project was the deployment automation. The &lt;code&gt;make prepare&lt;&#x2F;code&gt; command and the version-checking deploy script make updates
+trivial. Push a tag, wait for CI, run &lt;code&gt;sudo .&#x2F;bin&#x2F;deploy&lt;&#x2F;code&gt;, done.&lt;&#x2F;p&gt;
+&lt;p&gt;Scrob isn&#x27;t trying to compete with Last.fm&#x27;s features... yet. It&#x27;s a simple,
+self-hosted alternative that does one thing: tracks what you listen to
+and makes it shareable.&lt;&#x2F;p&gt;
+&lt;p&gt;That&#x27;s enough for now.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;links&quot;&gt;Links&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;scrob&quot;&gt;scrob (backend)&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;scrob-ui&quot;&gt;scrob-ui (frontend)&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;ui.scrob.jakegoldsborough.com&#x2F;users&#x2F;ducks&quot;&gt;My public profile&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+      </item>
+    </channel>
+</rss>

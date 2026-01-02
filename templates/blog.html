@@ -6,8 +6,57 @@
 {% endblock %}
 
 {% block content %}
+  {% set all_posts = [] %}
+
+  {# Recursively collect all posts from subsections #}
+  {% for subsection_path in section.subsections %}
+    {% set subsection = get_section(path=subsection_path) %}
+    {% for page in subsection.pages %}
+      {% if not page.draft %}
+        {% set_global all_posts = all_posts | concat(with=page) %}
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+
+  {# Sort all posts by date #}
+  {% set sorted_posts = all_posts | sort(attribute="date") | reverse %}
+
   <ul class="blog-posts">
-    {{ macros::list_pages_recursively(section=section) }}
+    {% for page in sorted_posts %}
+      {% set_global cycle_counter = loop.index0 %}
+      <li class="post-item">
+        <h3><a href="{{ page.permalink }}">{{ page.title }}</a></h3>
+        <div class="meta">
+          {% if page.date %}
+          <p>{{ page.date | date(format="%b %d, %Y") }}</p>
+          {% endif %}
+          <p>{{ page.reading_time }} min read</p>
+        </div>
+        {% if page.description %}
+          <p class="desc">{{ page.description }}</p>
+        {% endif %}
+        {% if page.taxonomies and page.taxonomies.tags %}
+          <div class="tags">
+            {% for tag in page.taxonomies.tags %}
+            <p><a href="/tags/{{ tag | slugify }}">#{{ tag }}</a></p>
+            {% endfor %}
+          </div>
+        {% endif %}
+        {% if loop.index is odd %}
+          {% if loop.index0 % 4 == 0 %}
+            <div class="squiqqle-line"></div>
+          {% else %}
+            <div class="squiqqle-line alt1"></div>
+          {% endif %}
+        {% else %}
+          {% if loop.index0 % 4 == 2 %}
+            <div class="squiqqle-line alt2"></div>
+          {% else %}
+            <div class="squiqqle-line alt3"></div>
+          {% endif %}
+        {% endif %}
+      </li>
+    {% endfor %}
   </ul>
 {% endblock %}
 

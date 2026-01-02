@@ -115,6 +115,15 @@ url = "https://github.com/ducks/node-postgres-exporter"
 description = "A lightweight, configurable Prometheus exporter for PostgreSQL written in Node.js."
 
 [[categories]]
+name = "Self-Hosted Services"
+description = "Services and infrastructure I run myself. Music tracking, analytics, and personal data ownership."
+
+[[categories.projects]]
+name = "scrob"
+url = "https://github.com/ducks/scrob"
+description = "Self-hosted music scrobbling server with Rust and PostgreSQL. Track listening history, share public profiles, and own your music data without relying on Last.fm."
+
+[[categories]]
 name = "Web Applications"
 description = "Browser-based tools and services. Mapping and route generation."
 

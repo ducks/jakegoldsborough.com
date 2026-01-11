@@ -1,6 +1,6 @@
 ---
 title: "Running VPS Infrastructure with Systemd"
-date: 2026-01-02
+date: 2026-01-10
 description: "Declarative VPS infrastructure using systemd services. Running Gitea, Woodpecker CI, Scrob, and GoatCounter with automated deployment scripts."
 taxonomies:
   tags:

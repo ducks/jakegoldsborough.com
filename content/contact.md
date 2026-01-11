@@ -15,6 +15,6 @@ path = "contact"
 
 <a rel="me" href="https://hachyderm.io/@ducks">ducks</a>
 
-### etsy
+### meatspace
 
-[GnarlyVoid](https://www.etsy.com/shop/GnarlyVoid)
+[GnarlyVoid](https://gnarlyvoid.com)

@@ -110,6 +110,11 @@ url = "https://github.com/ducks/discourse-api-rs"
 description = "Async Rust client for the Discourse forum API. Fetch topics, posts, categories, and more."
 
 [[categories.projects]]
+name = "discourse-comments"
+url = "https://github.com/ducks/discourse-comments"
+description = "Drop-in embedded comment widget for static sites. Uses discourse-api-rs compiled to WASM, bundled as a single script tag with no iframe required."
+
+[[categories.projects]]
 name = "node-postgres-exporter"
 url = "https://github.com/ducks/node-postgres-exporter"
 description = "A lightweight, configurable Prometheus exporter for PostgreSQL written in Node.js."

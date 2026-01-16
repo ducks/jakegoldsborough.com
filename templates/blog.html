@@ -21,6 +21,8 @@
   {# Sort all posts by date #}
   {% set sorted_posts = all_posts | sort(attribute="date") | reverse %}
 
+  <p>Want to know about something technical but don't want to spend the time? <a href="/request-an-article/">Sometimes it's easier to pay someone to read the fucking manual. I'm that someone.</a></p>
+
   <ul class="blog-posts">
     {% for page in sorted_posts %}
       {% set_global cycle_counter = loop.index0 %}

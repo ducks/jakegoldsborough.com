@@ -6,18 +6,23 @@
     <meta name="fediverse:creator" content="@ducks@hachyderm.io">
     <link rel="me" href="https://hachyderm.io/@ducks" />
     <meta name="author" content="Jake Goldsborough">
-    <meta
-      name="description"
-      content="A blog about NixOS, self-hosting, Rust projects, and other tech musings. Maybe some meatspace stuff as well."
-    >
+    {% set page_description = page.description | default(value="A blog about NixOS, self-hosting, Rust projects, and other tech musings. Maybe some meatspace stuff as well.") %}
+    <meta name="description" content="{{ page_description }}">
     <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
-    <title>
-      {% if page.title %}
-      {{ page.title }} -
-      {% endif %}
 
-      {{ config.title }}
-    </title>
+    {# Open Graph meta tags #}
+    <meta property="og:site_name" content="{{ config.title }}">
+    <meta property="og:title" content="{% if page.title %}{{ page.title }}{% else %}{{ config.title }}{% endif %}">
+    <meta property="og:description" content="{{ page_description }}">
+    <meta property="og:type" content="{% if page %}article{% else %}website{% endif %}">
+    <meta property="og:url" content="{{ current_url | default(value=config.base_url) }}">
+
+    {# Twitter Card meta tags #}
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{% if page.title %}{{ page.title }}{% else %}{{ config.title }}{% endif %}">
+    <meta name="twitter:description" content="{{ page_description }}">
+
+    <title>{% if page.title %}{{ page.title }} - {% endif %}{{ config.title }}</title>
 
     <link rel="stylesheet" href="{{ get_url(path='css/style.css') }}" />
 

@@ -1,6 +1,7 @@
 +++
 title = "Request an Article"
 path = "request-an-article"
+description = "Commission a technical deep-dive article. Tell me what you want to understand and your budget, and I'll research and write about it."
 +++
 
 ## How it works

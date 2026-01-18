@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - hyprland</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/hyprland/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Mon, 28 Jul 2025 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Hyprland Tricks - Close Window Keybind With Confirmation Window</title>
+          <pubDate>Mon, 28 Jul 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/hyprland-tricks-close-window-confirmation/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/hyprland-tricks-close-window-confirmation/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/hyprland-tricks-close-window-confirmation/">&lt;p&gt;By default, &lt;code&gt;hyprctl dispatch killactive&lt;&#x2F;code&gt; will instantly close your focused
+window. If you&#x27;re like me and have ever yanked a terminal or browser window
+when you weren&#x27;t ready, this tiny script adds a &quot;Yes&#x2F;No&quot; confirmation window
+using Wofi.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;wofi-close-window-dialog.png&quot; alt=&quot;A dialog showing a yes or no confirmation selection&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;create-the-script&quot;&gt;Create the Script&lt;&#x2F;h3&gt;
+&lt;p&gt;For me, I will be adding this to &lt;code&gt;~&#x2F;dotfiles&#x2F;hypr&#x2F;scripts&#x2F;hypr-confirm-close&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;#!&#x2F;usr&#x2F;bin&#x2F;env bash
+&lt;&#x2F;span&gt;&lt;span&gt;# prompt &amp;quot;Close window?&amp;quot; with Yes&#x2F;No via wofi
+&lt;&#x2F;span&gt;&lt;span&gt;choice=$(printf &amp;quot;Yes\nNo&amp;quot; \
+&lt;&#x2F;span&gt;&lt;span&gt;  | wofi --dmenu --prompt=&amp;quot;Close window?&amp;quot; --lines=5)
+&lt;&#x2F;span&gt;&lt;span&gt;[ &amp;quot;$choice&amp;quot; = &amp;quot;Yes&amp;quot; ] &amp;amp;&amp;amp; hyprctl dispatch killactive
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Remember to make it executable.
+&lt;code&gt;chmod +x ~&#x2F;dotfiles&#x2F;hypr&#x2F;scripts&#x2F;hypr-confirm-close&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;bind-the-key&quot;&gt;Bind the Key&lt;&#x2F;h3&gt;
+&lt;p&gt;In your &lt;code&gt;hyprland.conf&lt;&#x2F;code&gt;:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;bind = $mod, q, exec, bash, ~&#x2F;.config&#x2F;hypr&#x2F;scripts&#x2F;hypr-confirm-close
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The filepath is different here because it will get copied from our &lt;code&gt;~&#x2F;dotfiles&lt;&#x2F;code&gt;
+dir to the normal &lt;code&gt;~&#x2F;.config&lt;&#x2F;code&gt; directory.&lt;&#x2F;p&gt;
+&lt;p&gt;Reload:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;hyprctl reload&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;summary&quot;&gt;Summary&lt;&#x2F;h3&gt;
+&lt;p&gt;Now &lt;code&gt;MOD+q&lt;&#x2F;code&gt; pops up a two-line menu and only when you select &quot;Yes&quot; will your
+window be closed.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

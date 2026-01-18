@@ -1,0 +1,1148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - rust</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/rust/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Wed, 14 Jan 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Building Embedded Discourse Comments with Rust and WASM</title>
+          <pubDate>Wed, 14 Jan 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/building-discourse-embedded-comments/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/building-discourse-embedded-comments/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/building-discourse-embedded-comments/">&lt;p&gt;I built an embedded comment widget that lets you add Discourse-powered comments
+to any static site with a single script tag. No iframe, no build step, just
+drop it in and it works.&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;html&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-html &quot;&gt;&lt;code class=&quot;language-html&quot; data-lang=&quot;html&quot;&gt;&lt;span&gt;&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;script &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;src&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;https:&#x2F;&#x2F;unpkg.com&#x2F;discourse-comments&#x2F;dist&#x2F;discourse-comments.min.js&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&amp;gt;&amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;script&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;discourse-comments
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;discourse-url&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;https:&#x2F;&#x2F;forum.example.com&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;topic-id&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;123&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;discourse-comments&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The widget fetches comments from a Discourse topic, renders them with a clean
+UI, and lets authenticated users post replies and like posts. All in a 725KB
+bundle with the WASM runtime inlined.&lt;&#x2F;p&gt;
+&lt;p&gt;You can see the code here:
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-comments&quot;&gt;discourse-comments on GitHub&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;why-build-this&quot;&gt;Why Build This?&lt;&#x2F;h2&gt;
+&lt;p&gt;Discourse has had an embedding feature for years, but it uses iframes. Iframes
+work, but they come with baggage: height management issues, styling isolation,
+auth cookie problems, SEO invisibility, accessibility complications. It&#x27;s 2026
+and we have web components, Shadow DOM, and ES modules. We can do better.&lt;&#x2F;p&gt;
+&lt;p&gt;I wanted to see if a standalone component talking directly to Discourse&#x27;s REST
+API could provide a cleaner experience. And I wanted an excuse to push some
+Rust into the browser.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-stack&quot;&gt;The Stack&lt;&#x2F;h2&gt;
+&lt;p&gt;The widget is built in three layers:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-api-rs&quot;&gt;discourse-api-rs&lt;&#x2F;a&gt;&lt;&#x2F;strong&gt; - A Rust
+client library for Discourse&#x27;s API, compiled to WASM with wasm-bindgen&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-comments&quot;&gt;discourse-comments&lt;&#x2F;a&gt;&lt;&#x2F;strong&gt; - A
+TypeScript web component that uses the WASM client&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;esbuild bundler&lt;&#x2F;strong&gt; - Inlines the WASM as base64 so the whole thing is a
+single file&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;The Rust layer handles HTTP requests, JSON parsing, and the OAuth flow. The
+TypeScript layer handles DOM rendering and user interactions. The bundler
+glues it together into a drop-in script.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-hard-part-oauth&quot;&gt;The Hard Part: OAuth&lt;&#x2F;h2&gt;
+&lt;p&gt;Getting read-only comments working was straightforward. The Discourse API is
+well-documented and predictable. But letting users post comments required
+authentication.&lt;&#x2F;p&gt;
+&lt;p&gt;Discourse supports User API Keys, which are perfect for third-party clients.
+The flow works like this:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;Generate an RSA key pair in the browser&lt;&#x2F;li&gt;
+&lt;li&gt;Redirect to Discourse with the public key&lt;&#x2F;li&gt;
+&lt;li&gt;User approves the app&lt;&#x2F;li&gt;
+&lt;li&gt;Discourse encrypts an API key with the public key&lt;&#x2F;li&gt;
+&lt;li&gt;Redirect back with the encrypted payload&lt;&#x2F;li&gt;
+&lt;li&gt;Decrypt the payload with the private key&lt;&#x2F;li&gt;
+&lt;li&gt;Store the API key for future requests&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;Sounds simple but there were issues.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-base64-whitespace-problem&quot;&gt;The Base64 Whitespace Problem&lt;&#x2F;h3&gt;
+&lt;p&gt;Discourse returns the encrypted payload as base64 in a query parameter. My
+code called &lt;code&gt;atob(payload)&lt;&#x2F;code&gt; to decode it.&lt;&#x2F;p&gt;
+&lt;p&gt;Problem: Discourse includes newlines in the base64 encoding. &lt;code&gt;atob()&lt;&#x2F;code&gt; chokes
+on whitespace.&lt;&#x2F;p&gt;
+&lt;p&gt;Fix: Strip whitespace first: &lt;code&gt;payload.replace(&#x2F;\s&#x2F;g, &#x27;&#x27;)&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-rsa-padding-problem&quot;&gt;The RSA Padding Problem&lt;&#x2F;h3&gt;
+&lt;p&gt;WebCrypto only supports RSA-OAEP for encryption&#x2F;decryption. Discourse
+historically used PKCS1 padding, which WebCrypto can&#x27;t handle.&lt;&#x2F;p&gt;
+&lt;p&gt;Turns out Discourse added OAEP support in December 2025 (PR #36592). You pass
+&lt;code&gt;padding=oaep&lt;&#x2F;code&gt; in the OAuth request and it encrypts with OAEP instead. But if
+your Discourse instance is older than that, you&#x27;re stuck.&lt;&#x2F;p&gt;
+&lt;p&gt;This one cost me hours of debugging before I found the version requirement.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-like-button&quot;&gt;The Like Button&lt;&#x2F;h2&gt;
+&lt;p&gt;Once posting worked, adding likes was straightforward. The Discourse API has
+&lt;code&gt;POST &#x2F;post_actions&lt;&#x2F;code&gt; to like and &lt;code&gt;DELETE &#x2F;post_actions&#x2F;:id&lt;&#x2F;code&gt; to unlike.&lt;&#x2F;p&gt;
+&lt;p&gt;The UI shows a heart icon that toggles between outline (not liked) and filled
+(liked). Clicking it calls the API and updates the count. Nothing fancy, but
+it makes the widget feel more interactive.&lt;&#x2F;p&gt;
+&lt;p&gt;One gotcha: you can&#x27;t like your own posts. Discourse returns 403. I added a
+check to hide the like button on posts where &lt;code&gt;yours: true&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-bundle&quot;&gt;The Bundle&lt;&#x2F;h2&gt;
+&lt;p&gt;Getting this to work as a single script tag required some bundler gymnastics.
+The WASM client needs its binary loaded somehow. Options:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;Fetch it from a URL at runtime (requires hosting the .wasm file)&lt;&#x2F;li&gt;
+&lt;li&gt;Inline it as base64 in the JavaScript bundle&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;I went with option 2. The esbuild plugin intercepts the WASM import, reads the
+binary, base64-encodes it, and injects code that decodes and instantiates it
+at runtime.&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;javascript&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-javascript &quot;&gt;&lt;code class=&quot;language-javascript&quot; data-lang=&quot;javascript&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;const &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;wasmBuffer &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;fs&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;readFileSync&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;wasmPath&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;const &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;wasmBase64 &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;wasmBuffer&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;toString&lt;&#x2F;span&gt;&lt;span&gt;(&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;base64&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;);
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;&#x2F;&#x2F; In the bundle:
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;const &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;bytes &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;Uint8Array&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;from&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;atob&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;wasmBase64&lt;&#x2F;span&gt;&lt;span&gt;), &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;c &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;=&amp;gt; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;c&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;charCodeAt&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span&gt;));
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;await &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;WebAssembly&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;instantiate&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;bytes&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;imports&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This adds ~500KB to the bundle (the WASM binary), but eliminates the need for
+any separate file hosting. One script tag, everything works.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-community-response&quot;&gt;The Community Response&lt;&#x2F;h2&gt;
+&lt;p&gt;I shared this experiment internally. The response was encouraging but also
+clarifying. Some on the core team pushed back on the WASM approach, preferring
+to stay within the existing Ember&#x2F;Rails stack. Ember recently added support for
+rendering components to a DOM without spinning up an entire application
+instance, which could serve the same use case without introducing a new
+runtime.&lt;&#x2F;p&gt;
+&lt;p&gt;I get it. Maintaining a Rust&#x2F;WASM layer alongside an existing codebase adds
+complexity. But an &quot;ever moving API target&quot; concern feels overstated. This is
+a REST API with stable endpoints for fetching topics, creating posts, and
+liking. Compare that to AI integrations that build on LLM APIs from multiple
+vendors with breaking changes every few months.&lt;&#x2F;p&gt;
+&lt;p&gt;The iframe suggestion also came up. That feels like a step backward. We have
+better tools now.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-i-learned&quot;&gt;What I Learned&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;strong&gt;WASM is production-ready.&lt;&#x2F;strong&gt; The toolchain (wasm-pack, wasm-bindgen) just
+works. Cross-compiling Rust to run in browsers isn&#x27;t experimental anymore.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;OAuth in the browser is tricky.&lt;&#x2F;strong&gt; The combination of cross-origin redirects,
+browser storage limitations, and encryption requirements creates a lot of edge
+cases. Test with real redirects, not just mocked flows.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Experiments spark conversations.&lt;&#x2F;strong&gt; Even if the official team goes a
+different direction, building a working prototype moved the discussion
+forward. Sometimes the value of an experiment is proving that a use case
+matters, not necessarily that your implementation is the right one.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;try-it&quot;&gt;Try It&lt;&#x2F;h2&gt;
+&lt;p&gt;The widget works today with any Discourse instance running December 2025 or
+later (for the OAEP OAuth support).&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-comments&quot;&gt;discourse-comments on GitHub&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-api-rs&quot;&gt;discourse-api-rs on GitHub&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;www.npmjs.com&#x2F;package&#x2F;discourse-comments&quot;&gt;npm package&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+      </item>
+      <item>
+          <title>Building Scrob: A Self-Hosted Music Scrobbling Server</title>
+          <pubDate>Fri, 02 Jan 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/building-scrob-self-hosted-scrobbling/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/building-scrob-self-hosted-scrobbling/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/building-scrob-self-hosted-scrobbling/">&lt;p&gt;I wanted to track what music I listen to without sending that data to
+Last.fm. Part privacy preference, part self-hosting habit.&lt;&#x2F;p&gt;
+&lt;p&gt;So I set up &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;scrob&quot;&gt;scrob&lt;&#x2F;a&gt; - a self-hosted
+scrobbling server that tracks my listening history and makes it
+shareable.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;2026&#x2F;scrob-ui&#x2F;1.png&quot; alt=&quot;Scrob UI - Latest Scrobbles&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;2026&#x2F;scrob-ui&#x2F;2.png&quot; alt=&quot;Scrob UI - All Stats&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;how-it-works&quot;&gt;How It Works&lt;&#x2F;h2&gt;
+&lt;p&gt;Scrob is a REST API server with a separate static UI:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;Music Player (shelltrax, etc.)
+&lt;&#x2F;span&gt;&lt;span&gt;    |
+&lt;&#x2F;span&gt;&lt;span&gt;    v
+&lt;&#x2F;span&gt;&lt;span&gt;[POST &#x2F;scrob] with Bearer token
+&lt;&#x2F;span&gt;&lt;span&gt;    |
+&lt;&#x2F;span&gt;&lt;span&gt;    v
+&lt;&#x2F;span&gt;&lt;span&gt;Scrob API (Axum + Rust)
+&lt;&#x2F;span&gt;&lt;span&gt;    |
+&lt;&#x2F;span&gt;&lt;span&gt;    v
+&lt;&#x2F;span&gt;&lt;span&gt;PostgreSQL (scrobbles + users)
+&lt;&#x2F;span&gt;&lt;span&gt;    |
+&lt;&#x2F;span&gt;&lt;span&gt;    v
+&lt;&#x2F;span&gt;&lt;span&gt;Scrob UI (static Svelte site)
+&lt;&#x2F;span&gt;&lt;span&gt;    |
+&lt;&#x2F;span&gt;&lt;span&gt;    v
+&lt;&#x2F;span&gt;&lt;span&gt;Public profile: ui.scrob.example.com&#x2F;username
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The server authenticates clients via Bearer tokens, stores scrobbles in
+Postgres, and serves stats via REST endpoints. The UI is a static site
+that fetches data from the API.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;public-profiles&quot;&gt;Public Profiles&lt;&#x2F;h2&gt;
+&lt;p&gt;The interesting part was adding public user profiles. Like Last.fm, I
+wanted people to be able to share their music taste via a URL:
+&lt;code&gt;ui.scrob.jakegoldsborough.com&#x2F;username&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;This required:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;New public API endpoints (&lt;code&gt;&#x2F;users&#x2F;:username&#x2F;recent&lt;&#x2F;code&gt;,
+&lt;code&gt;&#x2F;users&#x2F;:username&#x2F;top&#x2F;artists&lt;&#x2F;code&gt;, &lt;code&gt;&#x2F;users&#x2F;:username&#x2F;top&#x2F;tracks&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;Privacy controls (users are public by default, can opt-in to private)&lt;&#x2F;li&gt;
+&lt;li&gt;URL-based routing in the Svelte app&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;The privacy model is simple: a boolean &lt;code&gt;is_private&lt;&#x2F;code&gt; column in the users
+table. Public endpoints check the flag and return 403 if private. Users
+can toggle it via &lt;code&gt;&#x2F;settings&#x2F;privacy&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;security-model&quot;&gt;Security Model&lt;&#x2F;h2&gt;
+&lt;p&gt;Scrob uses token-based authentication:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Login with username&#x2F;password to get a Bearer token&lt;&#x2F;li&gt;
+&lt;li&gt;All scrobble submissions require &lt;code&gt;Authorization: Bearer &amp;lt;token&amp;gt;&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Tokens are stored in the database with revocation support&lt;&#x2F;li&gt;
+&lt;li&gt;Passwords are hashed with bcrypt&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;TLS is expected to be handled by a reverse proxy (Caddy, nginx, etc.).
+The server itself runs over HTTP.&lt;&#x2F;p&gt;
+&lt;p&gt;Rate limiting is not currently implemented. Future work.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-stack&quot;&gt;The Stack&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;strong&gt;Backend&lt;&#x2F;strong&gt;: Rust + Axum + PostgreSQL + sqlx&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Frontend&lt;&#x2F;strong&gt;: Svelte 5 + Vite + TypeScript&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Client&lt;&#x2F;strong&gt;: &lt;a href=&quot;https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;introducing-shelltrax&#x2F;&quot;&gt;Shelltrax&lt;&#x2F;a&gt; (my terminal music player)&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Infrastructure&lt;&#x2F;strong&gt;: Systemd services on a VPS, no Docker&lt;&#x2F;p&gt;
+&lt;p&gt;Scrob is straightforward. It&#x27;s an API server that receives scrobble
+data, stores it in Postgres, and serves it back via REST endpoints. The
+UI is a static site that shows your listening history.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;try-it&quot;&gt;Try It&lt;&#x2F;h2&gt;
+&lt;p&gt;If you want to run your own scrob instance:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Prerequisites: Rust 1.82+, PostgreSQL 12+, reverse proxy for TLS&lt;&#x2F;li&gt;
+&lt;li&gt;Clone repo and build: &lt;code&gt;cargo build --release&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Set &lt;code&gt;DATABASE_URL&lt;&#x2F;code&gt; environment variable&lt;&#x2F;li&gt;
+&lt;li&gt;Migrations run automatically on first startup via &lt;code&gt;sqlx::migrate!()&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Create a user with &lt;code&gt;.&#x2F;scripts&#x2F;bootstrap.sh&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Start UI (separate repo: scrob-ui) or use API directly&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;See the &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;scrob&quot;&gt;README&lt;&#x2F;a&gt; for full details.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;sqlx-and-offline-query-caching&quot;&gt;sqlx and Offline Query Caching&lt;&#x2F;h2&gt;
+&lt;p&gt;Scrob uses &lt;code&gt;sqlx&lt;&#x2F;code&gt; for compile-time checked SQL queries. This is great for type safety but annoying for CI: you need a database to compile.&lt;&#x2F;p&gt;
+&lt;p&gt;The solution is &lt;code&gt;cargo sqlx prepare&lt;&#x2F;code&gt; which generates a &lt;code&gt;.sqlx&#x2F;&lt;&#x2F;code&gt; cache of
+query metadata. Then CI can build with &lt;code&gt;SQLX_OFFLINE=true&lt;&#x2F;code&gt; without
+needing Postgres.&lt;&#x2F;p&gt;
+&lt;p&gt;The problem: running &lt;code&gt;cargo sqlx prepare&lt;&#x2F;code&gt; manually is tedious. You need
+to spin up Postgres, run migrations, prepare the cache, tear it down.&lt;&#x2F;p&gt;
+&lt;p&gt;I automated it with a Makefile:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;makefile&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-makefile &quot;&gt;&lt;code class=&quot;language-makefile&quot; data-lang=&quot;makefile&quot;&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;prepare&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;docker&lt;&#x2F;span&gt;&lt;span&gt; run postgres:16-alpine (port 5433)
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;Wait&lt;&#x2F;span&gt;&lt;span&gt; for postgres
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;cargo&lt;&#x2F;span&gt;&lt;span&gt; sqlx migrate run
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;cargo&lt;&#x2F;span&gt;&lt;span&gt; sqlx prepare
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;docker&lt;&#x2F;span&gt;&lt;span&gt; rm postgres
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Now &lt;code&gt;make prepare&lt;&#x2F;code&gt; handles everything. One command, query cache updated.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;dev-tooling&quot;&gt;Dev Tooling&lt;&#x2F;h3&gt;
+&lt;p&gt;The prepare target must be rerun whenever you:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Add or modify SQL queries in the codebase&lt;&#x2F;li&gt;
+&lt;li&gt;Create new migrations&lt;&#x2F;li&gt;
+&lt;li&gt;Change database schema&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Without updating &lt;code&gt;.sqlx&#x2F;&lt;&#x2F;code&gt;, CI builds fail with query verification
+errors. The cache is committed to git, so offline builds work without a
+live database connection.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;deployment&quot;&gt;Deployment&lt;&#x2F;h2&gt;
+&lt;p&gt;The deployment setup is declarative:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Migrations live in the scrob repo&lt;&#x2F;li&gt;
+&lt;li&gt;On startup, scrob automatically detects and runs new migrations via
+&lt;code&gt;sqlx::migrate!()&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;The deploy script checks GitHub releases for new versions and only
+downloads if there&#x27;s an update&lt;&#x2F;li&gt;
+&lt;li&gt;Systemd restarts the service after updating the binary&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;No manual migration management. No separate migration runner. Single
+source of truth.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-works&quot;&gt;What Works&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Scrobbling from Shelltrax to the API&lt;&#x2F;li&gt;
+&lt;li&gt;Public profile pages with recent scrobbles and top stats&lt;&#x2F;li&gt;
+&lt;li&gt;Privacy toggle (public by default, opt-in private)&lt;&#x2F;li&gt;
+&lt;li&gt;Automated migrations on startup&lt;&#x2F;li&gt;
+&lt;li&gt;Version-aware deployment script&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;what-doesn-t&quot;&gt;What Doesn&#x27;t&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;No album stats yet (just artists and tracks)&lt;&#x2F;li&gt;
+&lt;li&gt;No client&#x2F;player tracking (can&#x27;t tell if you scrobbled from Shelltrax
+vs another client)&lt;&#x2F;li&gt;
+&lt;li&gt;Limited metadata (no album art, genre tags, etc.)&lt;&#x2F;li&gt;
+&lt;li&gt;UI is functional but basic&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;reflections&quot;&gt;Reflections&lt;&#x2F;h2&gt;
+&lt;p&gt;The best part of this project was the deployment automation. The &lt;code&gt;make prepare&lt;&#x2F;code&gt; command and the version-checking deploy script make updates
+trivial. Push a tag, wait for CI, run &lt;code&gt;sudo .&#x2F;bin&#x2F;deploy&lt;&#x2F;code&gt;, done.&lt;&#x2F;p&gt;
+&lt;p&gt;Scrob isn&#x27;t trying to compete with Last.fm&#x27;s features... yet. It&#x27;s a simple,
+self-hosted alternative that does one thing: tracks what you listen to
+and makes it shareable.&lt;&#x2F;p&gt;
+&lt;p&gt;That&#x27;s enough for now.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;links&quot;&gt;Links&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;scrob&quot;&gt;scrob (backend)&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;scrob-ui&quot;&gt;scrob-ui (frontend)&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;ui.scrob.jakegoldsborough.com&#x2F;users&#x2F;ducks&quot;&gt;My public profile&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+      </item>
+      <item>
+          <title>JOBL and SRG: Building Resume Tools I Actually Want to Use</title>
+          <pubDate>Sun, 14 Dec 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/jobl-srg-resume-tools/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/jobl-srg-resume-tools/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/jobl-srg-resume-tools/">&lt;p&gt;After getting laid off from my last job, I told myself I would keep my resume
+updated and my options open. Then we had layoffs at Discourse. Nothing like
+watching coworkers lose their jobs to remind you that stability is an illusion
+and preparation matters.&lt;&#x2F;p&gt;
+&lt;p&gt;I have been in a spec and tool building mood lately anyway. Something about the
+uncertainty makes me want to build things I can control. JOBL and SRG fit that
+mood perfectly.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-problem&quot;&gt;The Problem&lt;&#x2F;h2&gt;
+&lt;p&gt;I needed to update my resume. The last version was a LibreOffice doc. It was a
+pain in the ass. The formatting was fragile. One change and the whole thing
+shifted. Exporting to PDF was a gamble. And I could not version control it
+properly because it was a binary blob.&lt;&#x2F;p&gt;
+&lt;p&gt;What I wanted: plain text I can edit in vim, version control in git, and generate
+HTML and PDF programmatically.&lt;&#x2F;p&gt;
+&lt;p&gt;So I built it.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;jobl-a-toml-resume-format&quot;&gt;JOBL: A TOML Resume Format&lt;&#x2F;h2&gt;
+&lt;p&gt;JOBL is a strict TOML-based resume format. The file extension is &lt;code&gt;.jobl&lt;&#x2F;code&gt; and
+the structure is simple:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;toml&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-toml &quot;&gt;&lt;code class=&quot;language-toml&quot; data-lang=&quot;toml&quot;&gt;&lt;span&gt;[person]
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;name &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Jake Goldsborough&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;headline &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Infrastructure Engineer&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;email &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;jake@example.com&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;location &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Portland, OR&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;summary &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Backend systems and deployment automation.&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;[skills]
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;Languages &lt;&#x2F;span&gt;&lt;span&gt;= [&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Ruby&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Rust&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;JavaScript&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;]
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;Infrastructure &lt;&#x2F;span&gt;&lt;span&gt;= [&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Docker&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Kubernetes&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;NixOS&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;]
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;[[experience]]
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;title &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Software Engineer&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;company &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Discourse&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;start &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;2025-06&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;end &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;current&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;summary &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Infrastructure team, backend systems, deployment tooling.&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;highlights &lt;&#x2F;span&gt;&lt;span&gt;= [
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Built postgres-manager HTTP service replacing MessageBus pub&#x2F;sub&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Reduced duplicate operations and improved operational visibility&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;]
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;[[projects]]
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;name &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Transit Tracker&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;url &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-transit-tracker&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;summary &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Live departure board plugin for Discourse showing real-time transit arrivals&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;[[education]]
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;degree &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;BS Computer Science&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;institution &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;State University&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;start &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;2016&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;end &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;2020&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;TOML is human readable. You can edit it in any text editor. Comments are
+supported. Syntax errors fail fast at parse time. Version control works
+perfectly because it is plain text.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;why-toml-instead-of-json-or-yaml&quot;&gt;Why TOML Instead of JSON or YAML&lt;&#x2F;h2&gt;
+&lt;p&gt;JSON is for machines. Writing nested structures by hand is miserable. No
+comments. Trailing commas break everything. It is data interchange format, not
+a human authoring format.&lt;&#x2F;p&gt;
+&lt;p&gt;YAML has too many footguns. Indentation matters. Multiple ways to express the
+same thing. The Norway problem (NO gets parsed as boolean false). Anchors and
+references add complexity I do not need.&lt;&#x2F;p&gt;
+&lt;p&gt;TOML is boring in the best way. One obvious way to express each type. Strict
+validation. Native Rust support via serde. No surprises.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-parser-strict-validation&quot;&gt;The Parser: Strict Validation&lt;&#x2F;h2&gt;
+&lt;p&gt;JOBL uses a two phase validation approach:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;Parse TOML into generic Value to catch unknown keys&lt;&#x2F;li&gt;
+&lt;li&gt;Deserialize into typed structs for field validation&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;This catches typos immediately. If you write &lt;code&gt;titel&lt;&#x2F;code&gt; instead of &lt;code&gt;title&lt;&#x2F;code&gt;, you
+get an error with the exact path: &lt;code&gt;experience[0].titel: unknown field&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;The parser collects multiple errors instead of failing fast. When you have five
+typos, you see all five at once instead of fixing them one at a time.&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;parse_file&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;path&lt;&#x2F;span&gt;&lt;span&gt;: &amp;amp;Path) -&amp;gt; ValidationResult&amp;lt;JoblDocument&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;pub fn parse_str(input: &amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;str&lt;&#x2F;span&gt;&lt;span&gt;) -&amp;gt; ValidationResult&amp;lt;JoblDocument&amp;gt;
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Simple API. File or string in, validated document or errors out.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;no-version-field&quot;&gt;No Version Field&lt;&#x2F;h2&gt;
+&lt;p&gt;I originally included a &lt;code&gt;jobl_version&lt;&#x2F;code&gt; field in documents. Then I removed it.&lt;&#x2F;p&gt;
+&lt;p&gt;Docker recently dropped version fields from their configs. The library version
+determines what spec you support. Simpler for users. They do not maintain a
+version field. The parser handles compatibility.&lt;&#x2F;p&gt;
+&lt;p&gt;You can always add versioning later if you need it. Start simple.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;srg-static-resume-generator&quot;&gt;SRG: Static Resume Generator&lt;&#x2F;h2&gt;
+&lt;p&gt;JOBL handles data. SRG handles rendering.&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;srg --input&lt;&#x2F;span&gt;&lt;span&gt; resume.jobl&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt; --out&lt;&#x2F;span&gt;&lt;span&gt; dist&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt; --template&lt;&#x2F;span&gt;&lt;span&gt; minimal
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Reads your JOBL file, generates &lt;code&gt;dist&#x2F;index.html&lt;&#x2F;code&gt; and &lt;code&gt;dist&#x2F;resume.pdf&lt;&#x2F;code&gt;. Single
+binary. No dependencies except Chrome for PDF generation.&lt;&#x2F;p&gt;
+&lt;p&gt;The HTML is self contained with embedded CSS. Email it. Put it on a static
+host. It just works.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;pdf-generation-headless-chrome&quot;&gt;PDF Generation: Headless Chrome&lt;&#x2F;h2&gt;
+&lt;p&gt;I was skeptical about using headless Chrome for PDF generation. It seemed
+heavy and finicky. I&#x27;ve tried an HTML -&amp;gt; PDF method before with less than ideal
+results. But it works incredibly well.&lt;&#x2F;p&gt;
+&lt;p&gt;The HTML you write is the PDF you get. Print media queries work exactly as
+expected. Local fonts load synchronously. No layout rewriting needed.&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span&gt; pdf_data = tab.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;print_to_pdf&lt;&#x2F;span&gt;&lt;span&gt;(Some(PrintToPdfOptions {
+&lt;&#x2F;span&gt;&lt;span&gt;  landscape: Some(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;false&lt;&#x2F;span&gt;&lt;span&gt;),
+&lt;&#x2F;span&gt;&lt;span&gt;  display_header_footer: Some(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;false&lt;&#x2F;span&gt;&lt;span&gt;),  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;&#x2F;&#x2F; No browser artifacts
+&lt;&#x2F;span&gt;&lt;span&gt;  print_background: Some(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;true&lt;&#x2F;span&gt;&lt;span&gt;),        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;&#x2F;&#x2F; Keep CSS backgrounds
+&lt;&#x2F;span&gt;&lt;span&gt;  scale: Some(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1.0&lt;&#x2F;span&gt;&lt;span&gt;),
+&lt;&#x2F;span&gt;&lt;span&gt;  paper_width: Some(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;8.5&lt;&#x2F;span&gt;&lt;span&gt;),
+&lt;&#x2F;span&gt;&lt;span&gt;  paper_height: Some(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;11.0&lt;&#x2F;span&gt;&lt;span&gt;),
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;&#x2F;&#x2F; ... margins, etc
+&lt;&#x2F;span&gt;&lt;span&gt;}))
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Alternative was native Rust PDF libraries like printpdf. That means manually
+positioning every element. Reimplementing layout logic. Maintaining two
+rendering paths (HTML and PDF).&lt;&#x2F;p&gt;
+&lt;p&gt;Headless Chrome means one rendering path. CSS does the work. The PDF matches
+the HTML perfectly.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;layout-system-structure-without-html&quot;&gt;Layout System: Structure Without HTML&lt;&#x2F;h2&gt;
+&lt;p&gt;Users should not need to write HTML to customize their resume. But they should
+be able to control structure and formatting.&lt;&#x2F;p&gt;
+&lt;p&gt;The layout system is a simple DSL:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;person
+&lt;&#x2F;span&gt;&lt;span&gt;  name
+&lt;&#x2F;span&gt;&lt;span&gt;  headline
+&lt;&#x2F;span&gt;&lt;span&gt;  email
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;experience
+&lt;&#x2F;span&gt;&lt;span&gt;  title
+&lt;&#x2F;span&gt;&lt;span&gt;  company
+&lt;&#x2F;span&gt;&lt;span&gt;  start &amp;quot; - &amp;quot; end
+&lt;&#x2F;span&gt;&lt;span&gt;  highlights
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;education
+&lt;&#x2F;span&gt;&lt;span&gt;  degree
+&lt;&#x2F;span&gt;&lt;span&gt;  institution
+&lt;&#x2F;span&gt;&lt;span&gt;  start &amp;quot; - &amp;quot; end
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Section names at indent level 0. Field names at level 2. Order matters.&lt;&#x2F;p&gt;
+&lt;p&gt;Quoted strings are literals. Unquoted words are field names. Mix them:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;person
+&lt;&#x2F;span&gt;&lt;span&gt;  name &amp;quot;at&amp;quot; email
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;Location:&amp;quot; location
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;experience
+&lt;&#x2F;span&gt;&lt;span&gt;  start &amp;quot; - &amp;quot; end
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Renders as:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;Jake Goldsborough at jake@example.com
+&lt;&#x2F;span&gt;&lt;span&gt;Location: Portland, OR
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;2025-06 - current
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The layout file controls what shows and in what order. The template (minimal,
+professional, etc) controls CSS styling. Separation of concerns.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;why-build-this&quot;&gt;Why Build This&lt;&#x2F;h2&gt;
+&lt;p&gt;Practical answer: I needed to update my resume and existing tools did not fit
+how I work.&lt;&#x2F;p&gt;
+&lt;p&gt;Real answer: building tools gives me a sense of control when everything else
+feels uncertain. Layoffs happen. Companies change. Markets shift. But code I
+write is mine. Specs I design are mine. Tools I build solve problems exactly
+how I want them solved.&lt;&#x2F;p&gt;
+&lt;p&gt;This is not about resume formats. This is about responding to uncertainty by
+building something you own completely.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;current-status&quot;&gt;Current Status&lt;&#x2F;h2&gt;
+&lt;p&gt;Both projects are functional and tested:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;JOBL: 7 unit tests, strict validation, clean error messages&lt;&#x2F;li&gt;
+&lt;li&gt;SRG: layout system with quoted strings, PDF generation working, 15 total
+tests&lt;&#x2F;li&gt;
+&lt;li&gt;Combined: about 1800 lines of Rust, all passing tests&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Documentation sites are up at &lt;a href=&quot;https:&#x2F;&#x2F;jobl.dev&quot;&gt;https:&#x2F;&#x2F;jobl.dev&lt;&#x2F;a&gt; (plain HTML,
+no build step, Gruvbox theme with dark&#x2F;light toggle).&lt;&#x2F;p&gt;
+&lt;p&gt;Source is on GitHub if you want to look:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;jobl&quot;&gt;github.com&#x2F;ducks&#x2F;jobl&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;srg&quot;&gt;github.com&#x2F;ducks&#x2F;srg&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+      </item>
+      <item>
+          <title>Shelltrax Part 2: Footer, Tests, and CI</title>
+          <pubDate>Wed, 29 Oct 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/shelltrax-part-2-footer-tests-ci/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/shelltrax-part-2-footer-tests-ci/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/shelltrax-part-2-footer-tests-ci/">&lt;p&gt;In &lt;a href=&quot;https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;introducing-shelltrax&#x2F;&quot;&gt;Part 1&lt;&#x2F;a&gt;, I built the core of shelltrax&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;a TUI music player in Rust. It had library navigation, file browsing,
+audio playback, and a footer with song info and status. One big problem though,
+the footer would stop updating after the first song and I really wanted to fix
+that.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;This post covers three improvements: implementing a proper footer with
+playback progress, adding unit tests for the tricky bits, and setting up CI
+to keep code quality high.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;running-with-a-limp&quot;&gt;Running With A Limp&lt;&#x2F;h2&gt;
+&lt;p&gt;The footer existed from early on (progress bar, time display, track info), but
+it had a critical bug: when autoplay advanced to the next track, the progress
+bar wouldn&#x27;t reset. It would either keep counting from where the previous song left
+off, showing wrong times and eventually overflowing past 100% or it would just
+reset back to 0 and not progress. Whatever it did, it didn&#x27;t work.&lt;&#x2F;p&gt;
+&lt;p&gt;The bug was in &lt;code&gt;play_next_track()&lt;&#x2F;code&gt;. It would set &lt;code&gt;playback_start&lt;&#x2F;code&gt; and
+&lt;code&gt;current_track&lt;&#x2F;code&gt;, but it wouldn&#x27;t reset &lt;code&gt;paused_duration&lt;&#x2F;code&gt; or &lt;code&gt;paused_at&lt;&#x2F;code&gt;. If
+you paused the first song for 30 seconds, that 30 seconds would carry over to
+every subsequent song, throwing off the footer display completely.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;consolidation-begin-playback&quot;&gt;Consolidation: begin_playback()&lt;&#x2F;h2&gt;
+&lt;p&gt;The solution was extracting the timer reset logic into a dedicated method:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;begin_playback&lt;&#x2F;span&gt;&lt;span&gt;(&amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;mut &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;self&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;track&lt;&#x2F;span&gt;&lt;span&gt;: &amp;amp;LibraryTrack) {
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;self&lt;&#x2F;span&gt;&lt;span&gt;.current_track = Some(track.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;clone&lt;&#x2F;span&gt;&lt;span&gt;());
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;self&lt;&#x2F;span&gt;&lt;span&gt;.playback_start = Some(Instant::now());
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;self&lt;&#x2F;span&gt;&lt;span&gt;.paused_duration = Duration::&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;ZERO&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;self&lt;&#x2F;span&gt;&lt;span&gt;.paused_at = None;
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;self&lt;&#x2F;span&gt;&lt;span&gt;.playback_duration = track.duration.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;unwrap_or&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Now &lt;code&gt;play_next_track()&lt;&#x2F;code&gt; calls &lt;code&gt;begin_playback()&lt;&#x2F;code&gt; instead of manually setting
+fields. This ensures all timing state resets properly when advancing to the
+next song, whether manually or via autoplay.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;implementation-tracking-time-correctly&quot;&gt;Implementation: Tracking Time Correctly&lt;&#x2F;h2&gt;
+&lt;p&gt;The app needs to track multiple timing values:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub struct &lt;&#x2F;span&gt;&lt;span&gt;App {
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;playback_start&lt;&#x2F;span&gt;&lt;span&gt;: Option&amp;lt;Instant&amp;gt;,
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;playback_duration&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;u64&lt;&#x2F;span&gt;&lt;span&gt;,
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;paused_at&lt;&#x2F;span&gt;&lt;span&gt;: Option&amp;lt;Instant&amp;gt;,
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;paused_duration&lt;&#x2F;span&gt;&lt;span&gt;: Duration,
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;&#x2F;&#x2F; ... other fields
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;When a song starts, we record &lt;code&gt;playback_start&lt;&#x2F;code&gt;. When the user pauses, we
+record &lt;code&gt;paused_at&lt;&#x2F;code&gt;. When they unpause, we add the pause duration to
+&lt;code&gt;paused_duration&lt;&#x2F;code&gt; and clear &lt;code&gt;paused_at&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;The footer calculation looks like this:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span&gt; elapsed = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if let &lt;&#x2F;span&gt;&lt;span&gt;Some(paused_at) = app.paused_at {
+&lt;&#x2F;span&gt;&lt;span&gt;    paused_at.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;duration_since&lt;&#x2F;span&gt;&lt;span&gt;(start)
+&lt;&#x2F;span&gt;&lt;span&gt;} &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;else &lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;    now.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;duration_since&lt;&#x2F;span&gt;&lt;span&gt;(start)
+&lt;&#x2F;span&gt;&lt;span&gt;};
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span&gt; adjusted = elapsed.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;saturating_sub&lt;&#x2F;span&gt;&lt;span&gt;(app.paused_duration);
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;If currently paused, elapsed time is frozen at the pause moment. Otherwise,
+it&#x27;s the time since playback started. Then we subtract all the accumulated
+pause time to get the actual playback position.&lt;&#x2F;p&gt;
+&lt;p&gt;The &lt;code&gt;saturating_sub&lt;&#x2F;code&gt; is important. Without it, if &lt;code&gt;paused_duration&lt;&#x2F;code&gt; somehow
+exceeded &lt;code&gt;elapsed&lt;&#x2F;code&gt; (race condition, clock skew, whatever), you&#x27;d get an
+underflow panic. &lt;code&gt;saturating_sub&lt;&#x2F;code&gt; clamps to zero instead.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;layout-three-lines-of-footer&quot;&gt;Layout: Three Lines of Footer&lt;&#x2F;h2&gt;
+&lt;p&gt;The footer uses a vertical layout with three lines:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span&gt; layout = Layout::default()
+&lt;&#x2F;span&gt;&lt;span&gt;    .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;direction&lt;&#x2F;span&gt;&lt;span&gt;(Direction::Vertical)
+&lt;&#x2F;span&gt;&lt;span&gt;    .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;constraints&lt;&#x2F;span&gt;&lt;span&gt;([
+&lt;&#x2F;span&gt;&lt;span&gt;        Constraint::Length(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span&gt;),  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;&#x2F;&#x2F; Progress bar
+&lt;&#x2F;span&gt;&lt;span&gt;        Constraint::Length(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span&gt;),  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;&#x2F;&#x2F; Time display
+&lt;&#x2F;span&gt;&lt;span&gt;        Constraint::Length(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span&gt;),  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;&#x2F;&#x2F; Track info
+&lt;&#x2F;span&gt;&lt;span&gt;    ])
+&lt;&#x2F;span&gt;&lt;span&gt;    .&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;split&lt;&#x2F;span&gt;&lt;span&gt;(inner);
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Line 1 is a &lt;code&gt;Gauge&lt;&#x2F;code&gt; widget showing the ratio of elapsed to total time. Line 2
+shows &lt;code&gt;MM:SS &#x2F; MM:SS&lt;&#x2F;code&gt;. Line 3 shows &lt;code&gt;Artist - Title - Album&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;The progress bar ratio:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span&gt; ratio = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if&lt;&#x2F;span&gt;&lt;span&gt; total.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;as_secs_f64&lt;&#x2F;span&gt;&lt;span&gt;() &amp;gt; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0.0 &lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;    adjusted.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;as_secs_f64&lt;&#x2F;span&gt;&lt;span&gt;() &#x2F; total.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;as_secs_f64&lt;&#x2F;span&gt;&lt;span&gt;()
+&lt;&#x2F;span&gt;&lt;span&gt;} &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;else &lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0.0
+&lt;&#x2F;span&gt;&lt;span&gt;};
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Clamp it to &lt;code&gt;1.0&lt;&#x2F;code&gt; max so the gauge doesn&#x27;t overflow if the elapsed time
+somehow exceeds the track duration (can happen with malformed metadata).&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;testing-what-actually-needs-tests&quot;&gt;Testing: What Actually Needs Tests?&lt;&#x2F;h2&gt;
+&lt;p&gt;I&#x27;m not a fan of testing UI rendering code. It&#x27;s tedious, fragile, and
+doesn&#x27;t catch the bugs that matter. What I do test is the state management
+logic that the UI depends on.&lt;&#x2F;p&gt;
+&lt;p&gt;For shelltrax, the critical logic is:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Playback state transitions (playing, paused, stopped)&lt;&#x2F;li&gt;
+&lt;li&gt;Time tracking during pause&#x2F;unpause cycles&lt;&#x2F;li&gt;
+&lt;li&gt;Library state management (artist&#x2F;album hierarchy)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;I added two test modules: one in &lt;code&gt;app.rs&lt;&#x2F;code&gt; for playback logic, one in
+&lt;code&gt;library.rs&lt;&#x2F;code&gt; for library state.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;testing-playback-state&quot;&gt;Testing Playback State&lt;&#x2F;h3&gt;
+&lt;p&gt;Four tests in &lt;code&gt;app.rs&lt;&#x2F;code&gt;:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;test_begin_playback_resets_timers:&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span&gt;#[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;test&lt;&#x2F;span&gt;&lt;span&gt;]
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;test_begin_playback_resets_timers&lt;&#x2F;span&gt;&lt;span&gt;() {
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let mut&lt;&#x2F;span&gt;&lt;span&gt; app = App::new();
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    app.playback_start = Some(Instant::now());
+&lt;&#x2F;span&gt;&lt;span&gt;    app.paused_duration = Duration::from_secs(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;10&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span&gt;    app.paused_at = Some(Instant::now());
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span&gt; track = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;create_test_track&lt;&#x2F;span&gt;&lt;span&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;test&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;180&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span&gt;    app.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;begin_playback&lt;&#x2F;span&gt;&lt;span&gt;(&amp;amp;track);
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    assert!(app.playback_start.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;is_some&lt;&#x2F;span&gt;&lt;span&gt;());
+&lt;&#x2F;span&gt;&lt;span&gt;    assert_eq!(app.paused_duration, Duration::&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;ZERO&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span&gt;    assert!(app.paused_at.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;is_none&lt;&#x2F;span&gt;&lt;span&gt;());
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;When starting a new track, all the timing state should reset. If it didn&#x27;t,
+the footer would show stale pause data from the previous song.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;test_toggle_pause_accumulates_paused_duration:&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span&gt;#[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;test&lt;&#x2F;span&gt;&lt;span&gt;]
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;test_toggle_pause_accumulates_paused_duration&lt;&#x2F;span&gt;&lt;span&gt;() {
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let mut&lt;&#x2F;span&gt;&lt;span&gt; app = App::new();
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span&gt; start = Instant::now();
+&lt;&#x2F;span&gt;&lt;span&gt;    app.paused_at = Some(start);
+&lt;&#x2F;span&gt;&lt;span&gt;    app.paused_duration = Duration::from_secs(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;5&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    app.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;toggle_pause&lt;&#x2F;span&gt;&lt;span&gt;();  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;&#x2F;&#x2F; Unpause
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    std::thread::sleep(Duration::from_millis(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;100&lt;&#x2F;span&gt;&lt;span&gt;));
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    app.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;toggle_pause&lt;&#x2F;span&gt;&lt;span&gt;();  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;&#x2F;&#x2F; Pause again
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    assert!(app.paused_at.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;is_none&lt;&#x2F;span&gt;&lt;span&gt;());
+&lt;&#x2F;span&gt;&lt;span&gt;    assert!(app.paused_duration &amp;gt; Duration::from_secs(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;5&lt;&#x2F;span&gt;&lt;span&gt;));
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This test verifies that pausing multiple times accumulates the total paused
+duration. The &lt;code&gt;sleep&lt;&#x2F;code&gt; is gross but necessary to test time-based logic without
+mocking the clock (which would require dependency injection, which is
+overkill for a hobby project).&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;testing-library-state&quot;&gt;Testing Library State&lt;&#x2F;h3&gt;
+&lt;p&gt;Six tests in &lt;code&gt;library.rs&lt;&#x2F;code&gt; covering the artist&#x2F;album&#x2F;track hierarchy:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;test_add_tracks_creates_structure:&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span&gt;#[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;test&lt;&#x2F;span&gt;&lt;span&gt;]
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;test_add_tracks_creates_structure&lt;&#x2F;span&gt;&lt;span&gt;() {
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let mut&lt;&#x2F;span&gt;&lt;span&gt; lib = LibraryState::new();
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span&gt; tracks = vec![
+&lt;&#x2F;span&gt;&lt;span&gt;        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;create_test_track&lt;&#x2F;span&gt;&lt;span&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Artist A&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Album 1&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Track 1&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span&gt;),
+&lt;&#x2F;span&gt;&lt;span&gt;        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;create_test_track&lt;&#x2F;span&gt;&lt;span&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Artist A&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Album 1&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Track 2&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;2&lt;&#x2F;span&gt;&lt;span&gt;),
+&lt;&#x2F;span&gt;&lt;span&gt;        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;create_test_track&lt;&#x2F;span&gt;&lt;span&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Artist B&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Album 2&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Track 3&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span&gt;),
+&lt;&#x2F;span&gt;&lt;span&gt;    ];
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    lib.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;add_tracks&lt;&#x2F;span&gt;&lt;span&gt;(tracks);
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    assert_eq!(lib.artists.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;len&lt;&#x2F;span&gt;&lt;span&gt;(), &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;2&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span&gt;    assert_eq!(lib.artists[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span&gt;].name, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Artist A&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;);
+&lt;&#x2F;span&gt;&lt;span&gt;    assert_eq!(lib.artists[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span&gt;].albums.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;len&lt;&#x2F;span&gt;&lt;span&gt;(), &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span&gt;    assert_eq!(lib.artists[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span&gt;].albums[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span&gt;].tracks.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;len&lt;&#x2F;span&gt;&lt;span&gt;(), &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;2&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This validates the library builds the correct tree structure when adding
+tracks. If the grouping logic broke, you&#x27;d end up with duplicate artists or
+albums in the wrong places.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;test_visible_tracks_for_album:&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span&gt;#[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;test&lt;&#x2F;span&gt;&lt;span&gt;]
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;test_visible_tracks_for_album&lt;&#x2F;span&gt;&lt;span&gt;() {
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let mut&lt;&#x2F;span&gt;&lt;span&gt; lib = LibraryState::new();
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    lib.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;add_tracks&lt;&#x2F;span&gt;&lt;span&gt;(vec![
+&lt;&#x2F;span&gt;&lt;span&gt;        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;create_test_track&lt;&#x2F;span&gt;&lt;span&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Artist&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Album 1&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Track 1&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span&gt;),
+&lt;&#x2F;span&gt;&lt;span&gt;        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;create_test_track&lt;&#x2F;span&gt;&lt;span&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Artist&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Album 1&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Track 2&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;2&lt;&#x2F;span&gt;&lt;span&gt;),
+&lt;&#x2F;span&gt;&lt;span&gt;        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;create_test_track&lt;&#x2F;span&gt;&lt;span&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Artist&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Album 2&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Track 3&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span&gt;),
+&lt;&#x2F;span&gt;&lt;span&gt;    ]);
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    lib.selection = Some(LibrarySelection::Album {
+&lt;&#x2F;span&gt;&lt;span&gt;        artist_index: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span&gt;,
+&lt;&#x2F;span&gt;&lt;span&gt;        album_index: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span&gt;,
+&lt;&#x2F;span&gt;&lt;span&gt;    });
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;let&lt;&#x2F;span&gt;&lt;span&gt; tracks = lib.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;visible_tracks&lt;&#x2F;span&gt;&lt;span&gt;();
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    assert_eq!(tracks.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;len&lt;&#x2F;span&gt;&lt;span&gt;(), &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;2&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span&gt;    assert_eq!(tracks[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span&gt;].title, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Track 1&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;);
+&lt;&#x2F;span&gt;&lt;span&gt;    assert_eq!(tracks[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span&gt;].title, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Track 2&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;);
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The &lt;code&gt;visible_tracks&lt;&#x2F;code&gt; method returns different results depending on whether
+an artist or an album is selected. This test ensures album selection filters
+correctly.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;ci-keeping-code-quality-high&quot;&gt;CI: Keeping Code Quality High&lt;&#x2F;h2&gt;
+&lt;p&gt;GitHub Actions makes CI trivial for Rust projects. The workflow file:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;yaml&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-yaml &quot;&gt;&lt;code class=&quot;language-yaml&quot; data-lang=&quot;yaml&quot;&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;name&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;test
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;on&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;push&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;branches&lt;&#x2F;span&gt;&lt;span&gt;: [&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;main&lt;&#x2F;span&gt;&lt;span&gt;]
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;pull_request&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;branches&lt;&#x2F;span&gt;&lt;span&gt;: [&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;main&lt;&#x2F;span&gt;&lt;span&gt;]
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;jobs&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;test&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;runs-on&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;ubuntu-latest
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;steps&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;    - &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;uses&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;actions&#x2F;checkout@v4
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    - &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;name&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;install rust
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;uses&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;dtolnay&#x2F;rust-toolchain@stable
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;with&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;components&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;clippy
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    - &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;name&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;cache dependencies
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;uses&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;actions&#x2F;cache@v4
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;with&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;path&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;|
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;          ~&#x2F;.cargo&#x2F;bin&#x2F;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;          ~&#x2F;.cargo&#x2F;registry&#x2F;index&#x2F;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;          ~&#x2F;.cargo&#x2F;registry&#x2F;cache&#x2F;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;          ~&#x2F;.cargo&#x2F;git&#x2F;db&#x2F;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;          target&#x2F;
+&lt;&#x2F;span&gt;&lt;span&gt;        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;key&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;${{ runner.os }}-cargo-${{ hashFiles(&amp;#39;**&#x2F;Cargo.lock&amp;#39;) }}
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    - &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;name&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;install system dependencies
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;run&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;|
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;        sudo apt-get update
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;        sudo apt-get install -y libasound2-dev
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    - &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;name&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;run tests
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;run&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;cargo test --verbose
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    - &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;name&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;run clippy
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;run&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;cargo clippy -- -D warnings
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The important bits:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Dependency caching:&lt;&#x2F;strong&gt; Without caching, every CI run would download and
+compile all dependencies from scratch. With caching, subsequent runs reuse
+compiled dependencies, dropping build time from several minutes to under 30
+seconds.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;System dependencies:&lt;&#x2F;strong&gt; The audio libraries (cpal, rodio) need ALSA headers
+to compile. &lt;code&gt;libasound2-dev&lt;&#x2F;code&gt; provides those on Ubuntu.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Clippy with &lt;code&gt;-D warnings&lt;&#x2F;code&gt;:&lt;&#x2F;strong&gt; This flag treats all warnings as errors. It&#x27;s
+strict, but it keeps code quality high. If clippy suggests a fix, you either
+apply it or add an explicit &lt;code&gt;#[allow(...)]&lt;&#x2F;code&gt; annotation explaining why you&#x27;re
+ignoring it.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;results&quot;&gt;Results&lt;&#x2F;h2&gt;
+&lt;p&gt;The footer works. Tests pass. CI keeps the codebase clean. Shelltrax now
+feels like a real music player instead of a tech demo.&lt;&#x2F;p&gt;
+&lt;p&gt;Running &lt;code&gt;cargo test&lt;&#x2F;code&gt; shows 10 passing tests:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;running 10 tests
+&lt;&#x2F;span&gt;&lt;span&gt;test app::tests::test_begin_playback_resets_timers ... ok
+&lt;&#x2F;span&gt;&lt;span&gt;test app::tests::test_toggle_pause_accumulates_paused_duration ... ok
+&lt;&#x2F;span&gt;&lt;span&gt;test app::tests::test_toggle_pause_cycles_state ... ok
+&lt;&#x2F;span&gt;&lt;span&gt;test app::tests::test_toggle_pause_sets_paused_at ... ok
+&lt;&#x2F;span&gt;&lt;span&gt;test library::tests::test_add_tracks_creates_structure ... ok
+&lt;&#x2F;span&gt;&lt;span&gt;test library::tests::test_toggle_expanded ... ok
+&lt;&#x2F;span&gt;&lt;span&gt;test library::tests::test_track_by_path_finds_track ... ok
+&lt;&#x2F;span&gt;&lt;span&gt;test library::tests::test_track_by_path_returns_none_for_missing ... ok
+&lt;&#x2F;span&gt;&lt;span&gt;test library::tests::test_visible_tracks_for_album ... ok
+&lt;&#x2F;span&gt;&lt;span&gt;test library::tests::test_visible_tracks_for_artist ... ok
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;And &lt;code&gt;cargo clippy&lt;&#x2F;code&gt; stays green with zero warnings.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-s-next&quot;&gt;What&#x27;s Next?&lt;&#x2F;h2&gt;
+&lt;p&gt;The core functionality is solid, but there are still features I want:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;config system&lt;&#x2F;li&gt;
+&lt;li&gt;seeking&lt;&#x2F;li&gt;
+&lt;li&gt;better metadata handling&lt;&#x2F;li&gt;
+&lt;li&gt;vi keybindings&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;But for now, shelltrax does what I needed it to do: play music in the
+terminal with a proper UI that shows what&#x27;s happening.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Code&lt;&#x2F;strong&gt;: &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;shelltrax&quot;&gt;github.com&#x2F;ducks&#x2F;shelltrax&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>Introducing Shelltrax - Or how I vibe programmed my way to a TUI music player</title>
+          <pubDate>Tue, 24 Jun 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/introducing-shelltrax/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/introducing-shelltrax/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/introducing-shelltrax/">&lt;h3 id=&quot;shelltrax&quot;&gt;Shelltrax&lt;&#x2F;h3&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;shelltrax&quot;&gt;github&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;shelltrax-1.png&quot; alt=&quot;A screenshot showing a libray view of a CLI music player&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;I love the terminal and have dabbled in Rust since the very early days. I&#x27;ve
+been to 5 RustConfs, but my actual knowledge of Rust never really went past the
+basics. I come from a scripted language background, so while I &lt;em&gt;understood&lt;&#x2F;em&gt; the
+ideas, I didn&#x27;t really understand them in practice -- mostly because I hadn&#x27;t
+personally suffered the pain points Rust tries to solve.&lt;&#x2F;p&gt;
+&lt;p&gt;The only way for me to truly understand was to build something real. Not
+another tutorial. Not another toy example. Something I&#x27;d actually use.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;cmus&quot;&gt;cmus&lt;&#x2F;h3&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;cmus.github.io&#x2F;&quot;&gt;cmus&lt;&#x2F;a&gt; is a small, &lt;em&gt;fast&lt;&#x2F;em&gt;, and powerful console
+music player for Unix-like operating systems and it&#x27;s easily one of the apps
+I use most.&lt;&#x2F;p&gt;
+&lt;p&gt;And like I mentioned above, I learn best by writing real tools so
+why not try to recreate one of my daily drivers? It seemed like the perfect mix
+of things to learn: input handling, TUI design, file scanning, metadata parsing,
+and real-time playback.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;stack-and-structure&quot;&gt;Stack and Structure&lt;&#x2F;h3&gt;
+&lt;p&gt;I tried to keep the stack small, modern, and as &quot;Rust-native&quot; as possible:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;ratatui&lt;&#x2F;code&gt; - TUI layout and rendering&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;crossterm&lt;&#x2F;code&gt; - keyboard input handling and terminal backend&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;walkdir&lt;&#x2F;code&gt; - recursive file scanning and directory walking&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;id3v2&lt;&#x2F;code&gt; and &lt;code&gt;symphonia&lt;&#x2F;code&gt; - parsing audio metadata (ID3, Vorbis, FLAC, etc)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;rodio&lt;&#x2F;code&gt; - audio playback&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Together, these gave me a good spread of &quot;real&quot; Rust problems to tackle:
+filesystems, decoding binary formats, audio streaming, real-time UI state, and
+concurrency.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;interface-design&quot;&gt;Interface Design&lt;&#x2F;h3&gt;
+&lt;p&gt;From the start, I wanted it to feel very simple.&lt;&#x2F;p&gt;
+&lt;p&gt;The interface is split into a few key views:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;A &lt;strong&gt;library view&lt;&#x2F;strong&gt;, where I can browse artists, albums, and tracks&lt;&#x2F;li&gt;
+&lt;li&gt;A &lt;strong&gt;file browser&lt;&#x2F;strong&gt;, which lets me scan new folders and import music to the
+library&lt;&#x2F;li&gt;
+&lt;li&gt;A persistent &lt;strong&gt;footer&lt;&#x2F;strong&gt;, showing the current track, album, artist and a
+real-time progress bar while the song plays&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Even building that much required learning how to manage state in a long-running
+TUI app, wire up input handling with &lt;code&gt;crossterm&lt;&#x2F;code&gt;, and keep the UI responsive
+while streaming audio in the background.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;what-s-working&quot;&gt;What&#x27;s Working&lt;&#x2F;h3&gt;
+&lt;p&gt;Despite starting this as mostly an experiment to learn Rust, I now have a music player that:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Scans my local library for FLAC and MP3 files&lt;&#x2F;li&gt;
+&lt;li&gt;Parses metadata (title, album, artist, album artist, etc) correctly using Symphonia&lt;&#x2F;li&gt;
+&lt;li&gt;Sorts and groups tracks by album artist for proper browsing&lt;&#x2F;li&gt;
+&lt;li&gt;Supports autoplay, automatically advancing to the next track&lt;&#x2F;li&gt;
+&lt;li&gt;Displays a footer with current song info and a live progress bar&lt;&#x2F;li&gt;
+&lt;li&gt;Supports pause and resume functionality with synchronized playback state&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;It&#x27;s already become my daily music player, replacing cmus for my listening.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;shelltrax-2.png&quot; alt=&quot;A screenshot showing a libray view of a CLI music player&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;reflections&quot;&gt;Reflections&lt;&#x2F;h3&gt;
+&lt;p&gt;The most valuable part of this project was finally experiencing what Rust is
+really trying to protect you from.&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Shared state&lt;&#x2F;strong&gt;: Coordinating real-time playback state across multiple
+threads (UI thread, playback thread, decode thread) forced me to actually
+deal with ownership, borrowing, and synchronization directly.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Lifetimes&lt;&#x2F;strong&gt;: I finally had to understand where lifetimes mattered when
+dealing with borrowed references and streaming APIs.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Real-world edge cases&lt;&#x2F;strong&gt;: Dealing with weird metadata formats, malformed
+files, and partial decode failures showed me how fragile real-world data can
+be.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;I&#x27;ve read about these things for years, but building Shelltrax forced me to
+feel the problems directly. That&#x27;s what finally made the learning click.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;vibe-programming&quot;&gt;Vibe programming&lt;&#x2F;h3&gt;
+&lt;p&gt;There&#x27;s a lot of discourse around &quot;vibe programming&quot; -- the idea of just writing
+code by intuition, following your gut, and iteratively figuring it out as you
+go. It sometimes gets a bad rap: &quot;You&#x27;re just hacking around without fully
+understanding the language or design.&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;But for me, vibe programming doesn&#x27;t mean ignoring fundamentals. It means
+building something real, fast enough to stay motivated, but being careful
+enough to stop and actually understand why something works (or why it doesn&#x27;t).&lt;&#x2F;p&gt;
+&lt;p&gt;I could have read Rust books or done more exercises, but none of that would
+have taught me what happens when a real audio stream crosses threads and you
+forget to reset a state flag at just the right time. And I&#x27;ll be honest, I
+didn&#x27;t magically learn Rust completely and know how to handle every situation
+but I certainly have a much better idea than a few weeks ago.&lt;&#x2F;p&gt;
+&lt;p&gt;Vibe programming can force you into real problems. If you stay curious and
+careful, those problems become extremely effective teachers.&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>Building a Fully Decentralized Voting System Using Just Git and Pull Requests</title>
+          <pubDate>Mon, 23 Jun 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/building-a-voting-system-with-git/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/building-a-voting-system-with-git/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/building-a-voting-system-with-git/">&lt;h3 id=&quot;the-premise&quot;&gt;The Premise&lt;&#x2F;h3&gt;
+&lt;p&gt;What if we could build a fully transparent, auditable, and tamper-evident
+voting system -- without any servers, centralized backend, or traditional
+databases?&lt;&#x2F;p&gt;
+&lt;p&gt;The result is &lt;strong&gt;GitVote&lt;&#x2F;strong&gt; - a simple but powerful decentralized voting system
+that uses nothing but Git, pull requests, and a little bit of Rust.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;why-git&quot;&gt;Why Git?&lt;&#x2F;h3&gt;
+&lt;p&gt;Git already gives us:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;A fully distributed ledger&lt;&#x2F;li&gt;
+&lt;li&gt;Immutable commit history&lt;&#x2F;li&gt;
+&lt;li&gt;Branching and merging workflows&lt;&#x2F;li&gt;
+&lt;li&gt;Forking for isolated participant actions&lt;&#x2F;li&gt;
+&lt;li&gt;Cryptographic integrity through hashes and signatures&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;With all that, we&#x27;re part of the way to a blockchain.&lt;&#x2F;p&gt;
+&lt;p&gt;I wondered if I could build a voting system where Git itself is the storage
+layer, the consensus layer, and the audit trail.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-design&quot;&gt;The Design&lt;&#x2F;h3&gt;
+&lt;p&gt;At a high level, GitVote works like this:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Proposals&lt;&#x2F;strong&gt; are created as dedicated Git branches&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Votes&lt;&#x2F;strong&gt; are submitted as files inside pull requests.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Voter ID&lt;&#x2F;strong&gt; is tied to each voter&#x27;s Git configuration (name and email)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Duplicate Voting&lt;&#x2F;strong&gt; is automatically prevented via CI checks&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Immutable blocks&lt;&#x2F;strong&gt; are built from merged votes using deterministic hashing&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Tally results&lt;&#x2F;strong&gt; can be generated entirely offline from the final ledger&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;There&#x27;s no central database, API server, or backend. Everything happens inside
+of Git.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-voting-flow&quot;&gt;The Voting Flow&lt;&#x2F;h3&gt;
+&lt;h4 id=&quot;proposal-creation&quot;&gt;Proposal Creation&lt;&#x2F;h4&gt;
+&lt;p&gt;Each new proposal is created as a new Git branch, for example:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;proposal&#x2F;001-color-vote&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;A simple &lt;code&gt;schema.json&lt;&#x2F;code&gt; file defines the allowed choices for that proposal:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;allowed&amp;quot;: [&amp;quot;blue&amp;quot;, &amp;quot;purple&amp;quot;, &amp;quot;green&amp;quot;]
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;h4 id=&quot;voter-submission&quot;&gt;Voter Submission&lt;&#x2F;h4&gt;
+&lt;p&gt;Voters follow this flow:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;Fork the governance repo&lt;&#x2F;li&gt;
+&lt;li&gt;Clone their fork locally&lt;&#x2F;li&gt;
+&lt;li&gt;Checkout the correct proposal branch&lt;&#x2F;li&gt;
+&lt;li&gt;Run GitVote CLI tool to cast their vote:
+&lt;code&gt;gitvote cast --choice purple&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;This will:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Write a new vote file into &lt;code&gt;votes&#x2F;&lt;&#x2F;code&gt; (one file per voter)&lt;&#x2F;li&gt;
+&lt;li&gt;Commits the vote using their Git identity&lt;&#x2F;li&gt;
+&lt;li&gt;Signs the commit (GPG coming soon)&lt;&#x2F;li&gt;
+&lt;li&gt;Prepares the branch for submission&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;ol start=&quot;5&quot;&gt;
+&lt;li&gt;Push their branch back to their fork&lt;&#x2F;li&gt;
+&lt;li&gt;Open a pull request into the upstream proposal branch&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;h4 id=&quot;vote-validation&quot;&gt;Vote Validation&lt;&#x2F;h4&gt;
+&lt;p&gt;Every pull request triggers CI which runs:
+&lt;code&gt;gitvote validate&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;This will validate:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;The vote file format&lt;&#x2F;li&gt;
+&lt;li&gt;Compliance with the allowed schema&lt;&#x2F;li&gt;
+&lt;li&gt;No duplicate voters (one voter, one vote)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Invalid votes fail the CI and will not be merged&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;merging-chain-building&quot;&gt;Merging &amp;amp; Chain Building&lt;&#x2F;h4&gt;
+&lt;p&gt;Once a valid PR is merged, CI will automatically run:
+&lt;code&gt;gitvote build-chain&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;This scans all merged vote files and creates an immutable hash-linked chain
+of blocks stored as plain JSON:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;blocks&#x2F;
+&lt;&#x2F;span&gt;&lt;span&gt;  block-0000.json
+&lt;&#x2F;span&gt;&lt;span&gt;  block-0001.json
+&lt;&#x2F;span&gt;&lt;span&gt;  ...
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Each block includes:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;The vote choice&lt;&#x2F;li&gt;
+&lt;li&gt;The voter identity&lt;&#x2F;li&gt;
+&lt;li&gt;The original timestamp of the vote&lt;&#x2F;li&gt;
+&lt;li&gt;The Cryptographic hash linking it to the previous block&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h4 id=&quot;tallying-votes&quot;&gt;Tallying Votes&lt;&#x2F;h4&gt;
+&lt;p&gt;At any time, anyone can run:
+&lt;code&gt;gitvote tally&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;This reads the &lt;code&gt;blocks&#x2F;&lt;&#x2F;code&gt; directory and generates a full tally of the current vote
+state:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;Vote Tally:
+&lt;&#x2F;span&gt;&lt;span&gt;  purple votes: 3
+&lt;&#x2F;span&gt;&lt;span&gt;  red votes: 2
+&lt;&#x2F;span&gt;&lt;span&gt;Total unique voters: 5
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;No external system is needed to calculate the results — everything lives
+entirely inside Git.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-tech-stack&quot;&gt;The Tech Stack&lt;&#x2F;h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Rust for the core CLI, &lt;code&gt;gitvote&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Github Actions for CI validation and chain building&lt;&#x2F;li&gt;
+&lt;li&gt;Git itself as the distributed backend&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;security&quot;&gt;Security&lt;&#x2F;h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Voter ID is tied to each user&#x27;s Git config (&lt;code&gt;user.name&lt;&#x2F;code&gt; and &lt;code&gt;user.email&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;CI fully enforces schema validation and prevents voter duplication&lt;&#x2F;li&gt;
+&lt;li&gt;All votes are auditable forever via immutable commit history&lt;&#x2F;li&gt;
+&lt;li&gt;The chain is fully deterministic and reproducible offline&lt;&#x2F;li&gt;
+&lt;li&gt;The ledger can be archived back into &lt;code&gt;main&lt;&#x2F;code&gt; for permanent recordkeeping&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;the-benefits&quot;&gt;The Benefits&lt;&#x2F;h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Simplicity:&lt;&#x2F;strong&gt; No central server or complex infrastructure&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Transparency:&lt;&#x2F;strong&gt; Every vote and rule is visible to all voters&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Auditability:&lt;&#x2F;strong&gt; Anyone can verify the ledger at any time&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Offline verifiability:&lt;&#x2F;strong&gt; The full vote chain is just a Git repo&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;future-plans&quot;&gt;Future Plans&lt;&#x2F;h3&gt;
+&lt;p&gt;There are a number of interesting enhancements that could be made here I think:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;GPG signature enforcement&lt;&#x2F;li&gt;
+&lt;li&gt;Anonymous but verifiable voting via zero-knowledge proofs&lt;&#x2F;li&gt;
+&lt;li&gt;Weighted or ranked ballots&lt;&#x2F;li&gt;
+&lt;li&gt;Multi-proposal governance workflow&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;For now, GitVote is a minimal, functioning, fully decentralized voting system.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-code-demo&quot;&gt;The Code&#x2F;Demo&lt;&#x2F;h3&gt;
+&lt;p&gt;You can find the CLI here:
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;gitvote&quot;&gt;GitVote CLI&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;You can find a test governance repo here:
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;gitvote-test&quot;&gt;gitvote-test&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;By going to &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;gitvote-test&#x2F;actions&quot;&gt;actions&lt;&#x2F;a&gt;, you can
+see the various CI workflows that run during the voting process.&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;First, I submit a valid vote for &lt;strong&gt;purple&lt;&#x2F;strong&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Then, I attempt to vote again for &lt;strong&gt;green&lt;&#x2F;strong&gt;, which correctly fails
+due to duplicate voter prevention&lt;&#x2F;li&gt;
+&lt;li&gt;Finally, I simulate a new voter by spoofing a different Git identity (via
+&lt;code&gt;git config&lt;&#x2F;code&gt;), submit a vote for &lt;strong&gt;blue&lt;&#x2F;strong&gt;, and the vote passes validation&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;closing-thoughts&quot;&gt;Closing Thoughts&lt;&#x2F;h3&gt;
+&lt;p&gt;What originally started as an idea for &quot;Gitcoin&quot; and wanting to learn more
+about blockchains turned into a fully functional, fully auditable governance
+platform -- all built entirely on top of Git (and Rust).&lt;&#x2F;p&gt;
+&lt;p&gt;It was pretty satisfying to turn pull requests, branch
+protections, and hash-linked commits into a simple, verifiable voting process.&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>Deploying a Zola static site to a custom domain with Github Actions</title>
+          <pubDate>Sat, 24 May 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/deploying-static-site-zola-github-actions/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/deploying-static-site-zola-github-actions/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/deploying-static-site-zola-github-actions/">&lt;p&gt;As I&#x27;ve been searching for a new gig, I&#x27;ve gotten the urge to write a bit more
+about some of the stuff I&#x27;m up to to help make myself stand out. I really like
+using the fewest tools as needed so I knew a static site generator was what I
+wanted. I also like to use Rust based tools when possible.&lt;&#x2F;p&gt;
+&lt;p&gt;Searching for Rust static site generators lead me to
+&lt;a href=&quot;https:&#x2F;&#x2F;www.getzola.org&#x2F;&quot;&gt;Zola&lt;&#x2F;a&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;Some of the top advertised features are no dependencies, blazingly fast,
+and easy to use. Those sound great to me.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;set-up-zola-site&quot;&gt;Set up Zola site&lt;&#x2F;h3&gt;
+&lt;p&gt;While this isn&#x27;t a few blown Zola tutorial, I did want to include a few things.&lt;&#x2F;p&gt;
+&lt;p&gt;After installing Zola, you can simply run &lt;code&gt;zola init myblog&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;You&#x27;ll be asked a few questions and a base site will be setup for you.&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;├── config.toml
+&lt;&#x2F;span&gt;&lt;span&gt;├── content
+&lt;&#x2F;span&gt;&lt;span&gt;├── sass
+&lt;&#x2F;span&gt;&lt;span&gt;├── static
+&lt;&#x2F;span&gt;&lt;span&gt;├── templates
+&lt;&#x2F;span&gt;&lt;span&gt;└── themes
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Without going too deep, your CommonMark pages will go in &lt;code&gt;content&lt;&#x2F;code&gt;, Tera&#x2F;HTML
+templates in &lt;code&gt;templates&lt;&#x2F;code&gt;, and any css&#x2F;js&#x2F;images or other static content will go
+in &lt;code&gt;static&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;SASS is enabled by default but can be disabled. I am not currently using SASS
+personally.&lt;&#x2F;p&gt;
+&lt;p&gt;Running &lt;code&gt;zola build&lt;&#x2F;code&gt; will build the site and output it a directory called &lt;code&gt;public&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;Here is a link to a complete overview:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;www.getzola.org&#x2F;documentation&#x2F;getting-started&#x2F;overview&#x2F;&quot;&gt;https:&#x2F;&#x2F;www.getzola.org&#x2F;documentation&#x2F;getting-started&#x2F;overview&#x2F;&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;push-to-github-create-github-actions-workflow&quot;&gt;Push to Github &amp;amp; Create Github Actions workflow&lt;&#x2F;h3&gt;
+&lt;p&gt;After getting your content written, site styled, and ready for deployment, it&#x27;s time to
+push to Github. Create a repo and push it to a &lt;code&gt;main&lt;&#x2F;code&gt; branch (exclude the &lt;code&gt;public&lt;&#x2F;code&gt;
+directory).&lt;&#x2F;p&gt;
+&lt;p&gt;Next, we will setup the actual workflow to take our input files, setup zola,
+build the site, and commit it to the correct branch.&lt;&#x2F;p&gt;
+&lt;p&gt;Create a file at &lt;code&gt;.github&#x2F;workflows&#x2F;deploy.yml&lt;&#x2F;code&gt; and insert this:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;name: Deploy Zola to GitHub Pages
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;on:
+&lt;&#x2F;span&gt;&lt;span&gt;  push:
+&lt;&#x2F;span&gt;&lt;span&gt;    branches: [main]
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;jobs:
+&lt;&#x2F;span&gt;&lt;span&gt;  build-deploy:
+&lt;&#x2F;span&gt;&lt;span&gt;    runs-on: ubuntu-latest
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    steps:
+&lt;&#x2F;span&gt;&lt;span&gt;    - name: Check out source
+&lt;&#x2F;span&gt;&lt;span&gt;      uses: actions&#x2F;checkout@v4
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    - name: Install Zola
+&lt;&#x2F;span&gt;&lt;span&gt;      run: |
+&lt;&#x2F;span&gt;&lt;span&gt;        curl -L https:&#x2F;&#x2F;github.com&#x2F;getzola&#x2F;zola&#x2F;releases&#x2F;download&#x2F;v0.20.0&#x2F;zola-v0.20.0-x86_64-unknown-linux-gnu.tar.gz -o zola.tar.gz
+&lt;&#x2F;span&gt;&lt;span&gt;        tar -xzf zola.tar.gz
+&lt;&#x2F;span&gt;&lt;span&gt;        sudo mv zola &#x2F;usr&#x2F;local&#x2F;bin&#x2F;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    - name: Build site
+&lt;&#x2F;span&gt;&lt;span&gt;      run: zola build
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    - name: Deploy to GitHub Pages
+&lt;&#x2F;span&gt;&lt;span&gt;      uses: peaceiris&#x2F;actions-gh-pages@v3
+&lt;&#x2F;span&gt;&lt;span&gt;      with:
+&lt;&#x2F;span&gt;&lt;span&gt;        github_token: ${{ secrets.GITHUB_TOKEN }}
+&lt;&#x2F;span&gt;&lt;span&gt;        publish_dir: .&#x2F;public
+&lt;&#x2F;span&gt;&lt;span&gt;        publish_branch: gh-pages
+&lt;&#x2F;span&gt;&lt;span&gt;        force_orphan: true
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This setups up a workflow that:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;watches for pushes to main branch&lt;&#x2F;li&gt;
+&lt;li&gt;checks out the zola source and installs it&lt;&#x2F;li&gt;
+&lt;li&gt;builds your site using zola build&lt;&#x2F;li&gt;
+&lt;li&gt;uses github pages plugin to push &lt;code&gt;public&lt;&#x2F;code&gt; output dir to a &lt;code&gt;gh-pages&lt;&#x2F;code&gt; branch&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;You will also need to go to your repos settings and look for the actions section
+to enable write permissions.&lt;&#x2F;p&gt;
+&lt;p&gt;Push this up and watch the build by going to your repo and clicking the &quot;Actions&quot;
+tab. You will see a workflow that you can click into and see build and deploy
+jobs.&lt;&#x2F;p&gt;
+&lt;p&gt;If everything goes well, you can now  visit your site by filling in your values:&lt;&#x2F;p&gt;
+&lt;p&gt;https:&#x2F;&#x2F;${username}.github.io&#x2F;${repo}&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;add-custom-domain-optional&quot;&gt;Add Custom Domain (optional)&lt;&#x2F;h3&gt;
+&lt;p&gt;After you have the initial workflow working, you will need to configure some
+Github settings for a custom domain.&lt;&#x2F;p&gt;
+&lt;p&gt;First, run &lt;code&gt;echo &quot;yourdomain.com&quot; &amp;gt; static&#x2F;CNAME&lt;&#x2F;code&gt; and commit this file.
+Next, go to your Github repo&#x27;s &quot;Pages&quot; setting and add the domain name.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;configure-dns-optional&quot;&gt;Configure DNS (optional)&lt;&#x2F;h3&gt;
+&lt;p&gt;If using a custom domain, you will also need to setup DNS. Go to your domain
+settings and add 4 A records for Github pages:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;A	@	185.199.108.153
+&lt;&#x2F;span&gt;&lt;span&gt;A	@	185.199.109.153
+&lt;&#x2F;span&gt;&lt;span&gt;A	@	185.199.110.153
+&lt;&#x2F;span&gt;&lt;span&gt;A	@	185.199.111.153
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Setup any subdirectories you might want.&lt;&#x2F;p&gt;
+&lt;p&gt;You may need to give this step some extra time to update before you can
+see your new site at your custom URL. Other times it&#x27;s nearly instant so your
+results may vary.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;profit&quot;&gt;Profit&lt;&#x2F;h3&gt;
+&lt;p&gt;That&#x27;s basically it for a basic setup. You should now have a static site
+setup at a custom domain that gets automatically built by just pushing a branch.&lt;&#x2F;p&gt;
+&lt;p&gt;While simple, this is a complete setup that let&#x27;s you create and deploy content
+to your own URL with ease.&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>Weekly Summary - 20&#x2F;52</title>
+          <pubDate>Fri, 16 May 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/weekly-summary-20/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/weekly-summary-20/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/weekly-summary-20/">&lt;p&gt;I am starting a weekly summary&#x2F;reflection series that will be a high level
+view of things I have worked on or fixed or just things I want to track or note.&lt;&#x2F;p&gt;
+&lt;p&gt;Things I enjoyed:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;deployed this site&lt;&#x2F;li&gt;
+&lt;li&gt;got an old raspberry pi running again&lt;&#x2F;li&gt;
+&lt;li&gt;started back into some rust learnings with blockchain, TUI, and MQTT hacking
+&lt;sup class=&quot;footnote-reference&quot;&gt;&lt;a href=&quot;#1&quot;&gt;1&lt;&#x2F;a&gt;&lt;&#x2F;sup&gt; &lt;sup class=&quot;footnote-reference&quot;&gt;&lt;a href=&quot;#2&quot;&gt;2&lt;&#x2F;a&gt;&lt;&#x2F;sup&gt; &lt;sup class=&quot;footnote-reference&quot;&gt;&lt;a href=&quot;#3&quot;&gt;3&lt;&#x2F;a&gt;&lt;&#x2F;sup&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;started working on a walnut utensil rest&lt;&#x2F;li&gt;
+&lt;li&gt;applied to 10 jobs&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Things I did not enjoy:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;seemingly bricked my RockPro64 as it won&#x27;t boot past a black screen. ordered
+an adapater to help debug at a lower level.&lt;&#x2F;li&gt;
+&lt;li&gt;rejected from multiple jobs&lt;&#x2F;li&gt;
+&lt;li&gt;felt very confused by some of the rust learnings. makes sense in pieces but
+hard to see as the whole picture just yet&lt;&#x2F;li&gt;
+&lt;li&gt;confirmed old fitbit can&#x27;t be flashed with any open source&#x2F;non-fitbit software&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;div class=&quot;footnote-definition&quot; id=&quot;1&quot;&gt;&lt;sup class=&quot;footnote-definition-label&quot;&gt;1&lt;&#x2F;sup&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;ratatui.rs&#x2F;concepts&#x2F;application-patterns&#x2F;the-elm-architecture&#x2F;&quot;&gt;https:&#x2F;&#x2F;ratatui.rs&#x2F;concepts&#x2F;application-patterns&#x2F;the-elm-architecture&#x2F;&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;&#x2F;div&gt;
+&lt;div class=&quot;footnote-definition&quot; id=&quot;2&quot;&gt;&lt;sup class=&quot;footnote-definition-label&quot;&gt;2&lt;&#x2F;sup&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;veeso&#x2F;tui-realm&#x2F;tree&#x2F;main&quot;&gt;https:&#x2F;&#x2F;github.com&#x2F;veeso&#x2F;tui-realm&#x2F;tree&#x2F;main&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;&#x2F;div&gt;
+&lt;div class=&quot;footnote-definition&quot; id=&quot;3&quot;&gt;&lt;sup class=&quot;footnote-definition-label&quot;&gt;3&lt;&#x2F;sup&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;bytebeamio&#x2F;rumqtt&quot;&gt;https:&#x2F;&#x2F;github.com&#x2F;bytebeamio&#x2F;rumqtt&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;&#x2F;div&gt;
+</description>
+      </item>
+    </channel>
+</rss>

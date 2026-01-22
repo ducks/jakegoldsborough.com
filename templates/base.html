@@ -6,6 +6,9 @@
     <meta name="fediverse:creator" content="@ducks@hachyderm.io">
     <link rel="me" href="https://hachyderm.io/@ducks" />
     <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="{{ get_url(path='fonts/berkeley-mono/BerkeleyMono-Regular.woff2') }}" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="{{ get_url(path='fonts/waika/waika-webfont.woff2') }}" as="font" type="font/woff2" crossorigin>
     {% set page_description = page.description | default(value="A blog about NixOS, self-hosting, Rust projects, and other tech musings. Maybe some meatspace stuff as well.") %}
     <meta name="description" content="{{ page_description }}">
     <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">

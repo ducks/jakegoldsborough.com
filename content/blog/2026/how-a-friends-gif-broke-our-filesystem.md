@@ -1,5 +1,5 @@
 ---
-title: "How Jennifer Aniston and Friends Cost Us 377GB and Broke Linux Hardlinks"
+title: "How Jennifer Aniston and Friends Cost Us 377GB and Broke ext4 Hardlinks"
 date: 2026-01-23
 description: "A backup deduplication fix, filesystem hardlink limits, and the Jennifer Aniston reaction GIF that stress-tested our infrastructure."
 taxonomies:

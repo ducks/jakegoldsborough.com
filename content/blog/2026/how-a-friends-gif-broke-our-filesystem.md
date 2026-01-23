@@ -6,7 +6,7 @@ taxonomies:
   tags:
     - discourse
     - infrastructure
-    - debugging
+    - linux
 ---
 
 ## Intro

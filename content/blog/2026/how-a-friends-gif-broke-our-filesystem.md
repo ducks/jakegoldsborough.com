@@ -15,6 +15,10 @@ It started with backup issues. Sites with hundreds of gigabytes of uploads
 were running out of disk space during backup generation. One site had 600+ GB
 of uploads and the backup process kept dying.
 
+We run backup generation for thousands of Discourse sites, some with multi-TB
+upload directories. Backup storage costs scale with size, and slow generation
+means longer maintenance windows.
+
 Looking into it, we discovered something wild in one of those sites: the actual
 unique content was a fraction of the reported size. They were storing the same
 files over and over again, each with a different filename. The duplication was
@@ -35,6 +39,10 @@ Discourse has a feature called secure uploads. When a file moves between
 security contexts (say, from a private message to a public post), the system
 creates a new copy with a randomized SHA1. The original content is identical,
 but Discourse treats it as a new file.
+
+This happens constantly with reaction GIFs and popular images. Users share them
+across posts, embed them in PMs, repost in different categories. Each context
+creates another copy.
 
 This is mostly fine for normal operation. But for backups, it's a disaster.
 
@@ -61,6 +69,7 @@ def process_upload_group(upload_group)
 
   return if !download_upload_to_file(primary, primary_filename)
 
+  # Create hardlinks for all duplicates in this group
   upload_group.drop(1).each do |duplicate|
     duplicate_filename = upload_path_in_archive(duplicate)
     hardlink_or_download(primary_filename, duplicate, duplicate_filename)
@@ -74,9 +83,10 @@ fails:
 ```ruby
 def hardlink_or_download(source_filename, upload_data, target_filename)
   FileUtils.mkdir_p(File.dirname(target_filename))
-  FileUtils.ln(source_filename, target_filename)
+  FileUtils.ln(source_filename, target_filename)  # Create hardlink
   increment_and_log_progress(:hardlinked)
 rescue StandardError => ex
+  # Fallback: download if hardlink fails
   log "Failed to create hardlink, downloading instead", ex
   download_upload_to_file(upload_data, target_filename)
 end
@@ -148,7 +158,7 @@ can live with that.
 For the rare case where a single file has more than 60,000 duplicates:
 
 ```ruby
-MAX_HARDLINKS_PER_FILE = 60_000
+MAX_HARDLINKS_PER_FILE = 60_000  # Stay under ext4's ~65k limit
 
 def hardlink_or_download(source_filename, upload_data, target_filename)
   @hardlink_counts ||= Hash.new(0)
@@ -161,7 +171,7 @@ def hardlink_or_download(source_filename, upload_data, target_filename)
 
   FileUtils.mkdir_p(File.dirname(target_filename))
   FileUtils.ln(source_filename, target_filename)
-  @hardlink_counts[source_filename] += 1
+  @hardlink_counts[source_filename] += 1  # Track links per source
 rescue StandardError => ex
   download_upload_to_file(upload_data, target_filename)
 end
@@ -182,9 +192,21 @@ have failed entirely. Instead it completed, just slower than optimal.
 Production always finds the edge cases. 246,000 copies of one file is absurd.
 But absurd things happen at scale.
 
+A few concrete takeaways:
+
+- Test for failure modes, not just success paths. The hardlink fallback was
+  built-in from the start, but I never expected to actually need it.
+- Optimizations that reduce work by 16x still need to handle edge cases. A
+  99.998% improvement with graceful degradation beats a 100% improvement that
+  crashes.
+- Track filesystem-level constraints early. Hardlink limits, inode counts, path
+  lengths - these are real operational boundaries, not theoretical concerns.
+
 And now I know Jennifer Aniston can stress-test infrastructure.
 
 ## Links
 
 - [Discourse PR #37261](https://github.com/discourse/discourse/pull/37261) -
   The backup deduplication fix
+- [Discourse PR #37293](https://github.com/discourse/discourse/pull/37293) -
+  The hardlink limit fix

@@ -147,39 +147,38 @@ One GIF broke the hardlink limit.
 
 Without deduplication: 246,173 downloads, 377 GB transferred.
 
-With deduplication (hitting limit): ~5 downloads (one per 60k batch), ~8 MB
-transferred.
+With deduplication (hitting limit): ~4 downloads, ~6.4 MB transferred.
 
-The filesystem limit turned my "download once" into "download five times." I
+The filesystem limit turned my "download once" into "download four times." I
 can live with that.
 
 ## The Fix for the Fix
 
-For the rare case where a single file has more than 60,000 duplicates:
+My first instinct was to track hardlink counts and proactively rotate before
+hitting the limit. But a colleague pointed out the flaw: we have no idea what
+filesystem is being used. ext4 has one limit, XFS another, ZFS another. Picking
+a magic number is fragile.
+
+Better approach: let the filesystem tell us when we've hit the limit.
 
 ```ruby
-MAX_HARDLINKS_PER_FILE = 60_000  # Stay under ext4's ~65k limit
-
-def hardlink_or_download(source_filename, upload_data, target_filename)
-  @hardlink_counts ||= Hash.new(0)
-
-  if @hardlink_counts[source_filename] >= MAX_HARDLINKS_PER_FILE
-    # Start a new primary to avoid filesystem limits
-    download_upload_to_file(upload_data, target_filename)
-    return
-  end
-
+def create_hardlink(source_filename, upload_data, target_filename)
   FileUtils.mkdir_p(File.dirname(target_filename))
   FileUtils.ln(source_filename, target_filename)
-  @hardlink_counts[source_filename] += 1  # Track links per source
+  source_filename
+rescue Errno::EMLINK
+  # Filesystem hardlink limit reached - copy and use as new primary
+  FileUtils.cp(source_filename, target_filename)
+  target_filename
 rescue StandardError => ex
   download_upload_to_file(upload_data, target_filename)
+  source_filename
 end
 ```
 
-Track how many hardlinks each file has. Before hitting the limit, start a new
-"primary" copy. For 246k duplicates: `ceil(246173 / 60000) = 5` downloads
-instead of 1. Still a 99.998% reduction.
+When `Errno::EMLINK` fires, we already have the file locally. No need to
+re-download. Just copy it and use the copy as the new primary for subsequent
+hardlinks. Works on any filesystem, no configuration needed.
 
 ## What I Learned
 

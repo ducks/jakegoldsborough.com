@@ -15,14 +15,14 @@ It started with backup issues. Sites with hundreds of gigabytes of uploads
 were running out of disk space during backup generation. One site had 600+ GB
 of uploads and the backup process kept dying.
 
-We run backup generation for thousands of Discourse sites, some with multi-TB
-upload directories. Backup storage costs scale with size, and slow generation
-means longer maintenance windows.
+We run backup generation for Discourse sites, some with multi-TB upload
+directories. Backup storage costs scale with size, and slow generation means
+longer maintenance windows.
 
-Looking into it, we discovered something wild in one of those sites: the actual
-unique content was a fraction of the reported size. They were storing the same
-files over and over again, each with a different filename. The duplication was
-absurd.
+While looking into reliable large backups, we discovered something wild in one
+of those sites: the actual unique content was a fraction of the reported size.
+They were storing the same files over and over again, each with a different
+filename. The duplication was absurd.
 
 So we shipped an optimization. Detect duplicate files by their content hash, use
 hardlinks instead of downloading each copy. I wrote some new tests, they all

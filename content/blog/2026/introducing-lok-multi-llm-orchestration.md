@@ -33,6 +33,7 @@ lok hunt .          # Bug hunt with smart backend selection
 lok audit .         # Security audit
 lok team "analyze"  # Coordinated multi-model analysis
 lok debate "async?" # Let the models argue
+lok spawn "task"    # Parallel agents on subtasks
 ```
 
 ## Smart Delegation: The Right Tool for the Job
@@ -96,6 +97,36 @@ This gives you both the speed of a model that's good at the task and the rigor
 of peer review. In practice, it feels like having a lead engineer and two
 reviewers that don't get tired.
 
+## Spawn Mode: Parallel Agent Execution
+
+Spawn takes the coordination further. Instead of routing a single task to the
+best backend, it breaks a complex task into parallel subtasks and runs multiple
+agents simultaneously.
+
+```bash
+lok spawn "Build a todo app with frontend and backend"
+```
+
+The flow:
+
+1. **Plan**: An LLM breaks the task into 2-4 independent subtasks
+2. **Delegate**: Each subtask gets assigned to the best available backend
+3. **Execute**: All agents run in parallel with shared context
+4. **Summarize**: Results are collected and aggregated
+
+You can also specify agents manually:
+
+```bash
+lok spawn "Build an app" \
+  --agent "api:Build REST endpoints" \
+  --agent "ui:Build React components" \
+  --agent "db:Design the schema"
+```
+
+This is the conductor pattern in CLI form. A brain that plans, delegates to
+specialized workers, and synthesizes results. The same pattern that makes
+human teams effective, applied to LLM orchestration.
+
 ## The Naming Story
 
 "Lok" has two meanings, both relevant.
@@ -151,9 +182,11 @@ reliability to AI interactions:
    right task
 2. **Built-in skepticism**: Debate and team modes catch errors and broaden
    coverage
-3. **Repeatable workflows**: Tasks like `lok hunt` become part of your
+3. **Parallel execution**: Spawn mode runs multiple agents simultaneously,
+   turning sequential workflows into concurrent ones
+4. **Repeatable workflows**: Tasks like `lok hunt` become part of your
    engineering rhythm
-4. **Local control plane**: No hidden SaaS layer, no opaque routing. You can see
+5. **Local control plane**: No hidden SaaS layer, no opaque routing. You can see
    and customize how it chooses backends
 
 ## Getting Started
@@ -170,6 +203,9 @@ lok debate "Best approach for caching?"
 
 # Smart routing
 lok smart "Find N+1 queries"
+
+# Parallel agents
+lok spawn "Build a REST API with tests"
 ```
 
 Lok doesn't replace your LLMs. It coordinates them. That means you keep the

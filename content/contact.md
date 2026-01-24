@@ -11,7 +11,7 @@ path = "contact"
 
 [ducks](https://github.com/ducks)
 
-### mastodon
+### fediverse
 
 <a rel="me" href="https://hachyderm.io/@ducks">ducks</a>
 

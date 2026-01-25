@@ -36,6 +36,44 @@ lok debate "async?" # Let the models argue
 lok spawn "task"    # Parallel agents on subtasks
 ```
 
+```
+                            ┌─────────────┐
+                            │    USER     │
+                            │   (task)    │
+                            └──────┬──────┘
+                                   │
+                                   ▼
+            ┌──────────────────────────────────────────┐
+            │           CONDUCTOR (BRAIN)              │
+            │                                          │
+            │  • Analyze task complexity               │
+            │  • Break into parallel subtasks          │
+            │  • Assign backends via delegator         │
+            └──────────────────┬───────────────────────┘
+                               │
+      ┌────────────────────────┼────────────────────────┐
+      │                        │                        │
+      ▼                        ▼                        ▼
+┌───────────┐            ┌───────────┐            ┌───────────┐
+│  AGENT 1  │            │  AGENT 2  │            │  AGENT 3  │
+│ "frontend"│            │ "backend" │            │ "database"│
+│  [CODEX]  │            │ [GEMINI]  │            │  [CODEX]  │
+└─────┬─────┘            └─────┬─────┘            └─────┬─────┘
+      │                        │                        │
+      │     ══ PARALLEL EXECUTION ══                    │
+      │                        │                        │
+      └────────────────────────┼────────────────────────┘
+                               │
+                               ▼
+            ┌──────────────────────────────────────────┐
+            │         SUMMARIZATION PHASE              │
+            │                                          │
+            │  • Collect all agent outputs             │
+            │  • Report success/failure per agent      │
+            │  • Aggregate into final summary          │
+            └──────────────────────────────────────────┘
+```
+
 ## Mode Comparison
 
 | Mode    | Backends Used | Execution     | Use Case                          |

@@ -80,6 +80,11 @@ name = "Development Tools"
 description = "Command-line tools and libraries for developers. Automation, infrastructure, and API clients."
 
 [[categories.projects]]
+name = "lok"
+url = "https://github.com/ducks/lok"
+description = "Multi-LLM orchestration CLI. Run prompts across Claude, Codex, Gemini, and Ollama in parallel with built-in tasks for code review, security audits, and N+1 detection."
+
+[[categories.projects]]
 name = "jobl"
 url = "https://github.com/ducks/jobl"
 description = "TOML-based resume format with strict validation. Human-readable, version-controllable, plain text resume data structure."

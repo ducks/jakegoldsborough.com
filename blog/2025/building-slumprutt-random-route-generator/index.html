@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Built a complete random route generator app with TypeScript, Svelte, and OSRM to find new walking and cycling routes in my neighborhood.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Building Slumprutt: A Random Route Generator in Under an Hour">
+    <meta property="og:description" content="Built a complete random route generator app with TypeScript, Svelte, and OSRM to find new walking and cycling routes in my neighborhood.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-slumprutt-random-route-generator&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Building Slumprutt: A Random Route Generator in Under an Hour">
+    <meta name="twitter:description" content="Built a complete random route generator app with TypeScript, Svelte, and OSRM to find new walking and cycling routes in my neighborhood.">
+
+    <title>Building Slumprutt: A Random Route Generator in Under an Hour - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Building Slumprutt: A Random Route Generator in Under an Hour</h1>
+      <div class="meta">
+        
+        <p>Oct 16, 2025</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+
+      <p>I've wanted a random route generator for awhile now. My problem is I walk
+and bike the same routes over and over. My brain goes on autopilot. I wanted
+something that would throw me new routes to explore in my own neighborhood.</p>
+<p>I wanted something simple: "Give me a random 5-mile loop from my house."</p>
+<p>So I built it. With Claude Code's help, we went from idea to working app
+in under an hour.</p>
+<h2 id="the-name">The Name</h2>
+<p>"Slumprutt" comes from Swedish "slumpmässig rutt" (slumpmässig = random or
+by chance, rutt = route), commonly shortened to just "slumprutt". Seemed
+fitting for a random route generator.</p>
+<h2 id="the-stack">The Stack</h2>
+<p><strong>Backend</strong>: TypeScript + Node.js + Express</p>
+<p><strong>Frontend</strong>: Svelte + TypeScript + Leaflet</p>
+<p><strong>Routing</strong>: OSRM (Open Source Routing Machine)</p>
+<p><strong>Maps</strong>: OpenStreetMap</p>
+<p>OSRM deserves special mention. It's a free public API that provides
+road-accurate routing with turn-by-turn directions. Incredibly fast
+(sub-second response times) and requires zero setup. Just hit their public
+endpoint and get back real routes that follow actual roads.</p>
+<h2 id="the-algorithm">The Algorithm</h2>
+<p>The core challenge was generating interesting random loops. Not just random
+waypoints, but routes that actually feel like purposeful walks or bike rides.</p>
+<p>Here's what I landed on:</p>
+<pre data-lang="typescript" style="background-color:#2b303b;color:#c0c5ce;" class="language-typescript "><code class="language-typescript" data-lang="typescript"><span style="color:#b48ead;">export function </span><span style="color:#8fa1b3;">generateLoopWaypoints</span><span>(
+</span><span>  </span><span style="color:#bf616a;">start</span><span>: Coordinate,
+</span><span>  </span><span style="color:#bf616a;">targetDistanceKm</span><span>: number,
+</span><span>  </span><span style="color:#bf616a;">variationIndex</span><span>: number = </span><span style="color:#d08770;">0
+</span><span>): Coordinate[] {
+</span><span>  </span><span style="color:#65737e;">// Use fewer waypoints (3-5) for longer segments
+</span><span>  </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">numWaypoints </span><span>= Math.</span><span style="color:#96b5b4;">max</span><span>(</span><span style="color:#d08770;">3</span><span>, Math.</span><span style="color:#96b5b4;">min</span><span>(</span><span style="color:#d08770;">5</span><span>, </span><span style="color:#d08770;">3 </span><span>+ </span><span style="color:#bf616a;">variationIndex</span><span>));
+</span><span>
+</span><span>  </span><span style="color:#65737e;">// Reduced multiplier to 0.6 to account for road routing overhead
+</span><span>  </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">baseRadius </span><span>= </span><span style="color:#bf616a;">targetDistanceKm </span><span>/ (</span><span style="color:#d08770;">2 </span><span>* Math.PI) * </span><span style="color:#d08770;">0.6</span><span>;
+</span><span>
+</span><span>  </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">waypoints</span><span>: Coordinate[] = [];
+</span><span>  </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">latPerKm </span><span>= </span><span style="color:#d08770;">1 </span><span>/ </span><span style="color:#d08770;">111</span><span>; </span><span style="color:#65737e;">// 1 degree latitude ≈ 111km
+</span><span>  </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">lonPerKm </span><span>= </span><span style="color:#d08770;">1 </span><span>/ (</span><span style="color:#d08770;">111 </span><span>* Math.</span><span style="color:#96b5b4;">cos</span><span>((</span><span style="color:#bf616a;">start</span><span>.</span><span style="color:#bf616a;">lat </span><span>* Math.PI) / </span><span style="color:#d08770;">180</span><span>));
+</span><span>
+</span><span>  </span><span style="color:#65737e;">// Rotate each route by 120° to avoid overlap
+</span><span>  </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">primaryDirection </span><span>= (</span><span style="color:#bf616a;">variationIndex </span><span>* (</span><span style="color:#d08770;">2 </span><span>* Math.PI)) / </span><span style="color:#d08770;">3</span><span>;
+</span><span>
+</span><span>  </span><span style="color:#b48ead;">for </span><span>(</span><span style="color:#b48ead;">let </span><span style="color:#bf616a;">i </span><span>= </span><span style="color:#d08770;">0</span><span>; </span><span style="color:#bf616a;">i </span><span>&lt; </span><span style="color:#bf616a;">numWaypoints</span><span>; </span><span style="color:#bf616a;">i</span><span>++) {
+</span><span>    </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">baseAngle </span><span>= (</span><span style="color:#bf616a;">i </span><span>/ </span><span style="color:#bf616a;">numWaypoints</span><span>) * </span><span style="color:#d08770;">2 </span><span>* Math.PI + </span><span style="color:#bf616a;">primaryDirection</span><span>;
+</span><span>    </span><span style="color:#65737e;">// More randomness for diverse paths
+</span><span>    </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">angleVariation </span><span>= (Math.</span><span style="color:#96b5b4;">random</span><span>() - </span><span style="color:#d08770;">0.5</span><span>) * </span><span style="color:#d08770;">0.8</span><span>;
+</span><span>    </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">angle </span><span>= </span><span style="color:#bf616a;">baseAngle </span><span>+ </span><span style="color:#bf616a;">angleVariation</span><span>;
+</span><span>    </span><span style="color:#65737e;">// More radius variation to explore different distances
+</span><span>    </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">radiusVariation </span><span>= </span><span style="color:#d08770;">0.5 </span><span>+ Math.</span><span style="color:#96b5b4;">random</span><span>() * </span><span style="color:#d08770;">1.0</span><span>;
+</span><span>    </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">radius </span><span>= </span><span style="color:#bf616a;">baseRadius </span><span>* </span><span style="color:#bf616a;">radiusVariation</span><span>;
+</span><span>
+</span><span>    </span><span style="color:#bf616a;">waypoints</span><span>.</span><span style="color:#96b5b4;">push</span><span>({
+</span><span>      lat: </span><span style="color:#bf616a;">start</span><span>.</span><span style="color:#bf616a;">lat </span><span>+ Math.</span><span style="color:#96b5b4;">sin</span><span>(</span><span style="color:#bf616a;">angle</span><span>) * </span><span style="color:#bf616a;">radius </span><span>* </span><span style="color:#bf616a;">latPerKm</span><span>,
+</span><span>      lon: </span><span style="color:#bf616a;">start</span><span>.</span><span style="color:#bf616a;">lon </span><span>+ Math.</span><span style="color:#96b5b4;">cos</span><span>(</span><span style="color:#bf616a;">angle</span><span>) * </span><span style="color:#bf616a;">radius </span><span>* </span><span style="color:#bf616a;">lonPerKm</span><span>,
+</span><span>    });
+</span><span>  }
+</span><span>
+</span><span>  </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">waypoints</span><span>;
+</span><span>}
+</span></code></pre>
+<p>Key design decisions:</p>
+<ol>
+<li>
+<p><strong>Fewer waypoints</strong> (3-5 instead of 8+) means longer road segments and
+more interesting routes. Too many waypoints and you just walk back and
+forth.</p>
+</li>
+<li>
+<p><strong>Smaller radius with overhead adjustment</strong> (0.6x) accounts for the fact
+that road routing adds significant distance compared to straight-line
+waypoints. Initially used 1.5x which resulted in 7-8 mile routes when
+requesting 1 mile.</p>
+</li>
+<li>
+<p><strong>Directional rotation</strong> (120° per route) prevents all routes from
+heading in the same direction. Generate 3 routes and they'll spread out
+into different quadrants.</p>
+</li>
+<li>
+<p><strong>More randomness</strong> (0.8 angle variation, 0.5-1.5 radius variation)
+creates diverse paths that explore different areas. This prevents
+multiple routes from clustering in the same locations.</p>
+</li>
+</ol>
+<p>Then we feed those waypoints to OSRM, which turns them into actual road
+routes with turn-by-turn directions.</p>
+<h2 id="challenges">Challenges</h2>
+<h3 id="distance-input-validation">Distance Input Validation</h3>
+<p>First issue: weird validation errors when changing distance inputs. I had
+<code>step="0.1"</code> on both the miles and kilometers inputs. The problem:
+3.2 miles converts to 5.1494888 km, which rounds to 5.15. The browser
+expected 5.1 or 5.2 (multiples of 0.1) and rejected 5.15.</p>
+<p>Fix: <code>step="any"</code> accepts any decimal value.</p>
+<h3 id="map-not-visible">Map Not Visible</h3>
+<p>Built the whole UI, ran it, and... no map. Just an empty space where the
+map should be.</p>
+<p>The issue: CSS height inheritance. The map div had <code>height: 100%</code> but its
+parent containers didn't have explicit heights. The fix required setting
+height on three elements:</p>
+<pre data-lang="css" style="background-color:#2b303b;color:#c0c5ce;" class="language-css "><code class="language-css" data-lang="css"><span style="color:#8fa1b3;">:</span><span style="color:#b48ead;">global(</span><span style="color:#bf616a;">html</span><span>),
+</span><span style="color:#8fa1b3;">:</span><span style="color:#b48ead;">global(</span><span style="color:#bf616a;">body</span><span>),
+</span><span style="color:#8fa1b3;">:</span><span style="color:#b48ead;">global(</span><span style="color:#8fa1b3;">#app</span><span>) {
+</span><span>  height: </span><span style="color:#d08770;">100%</span><span>;
+</span><span>  width: </span><span style="color:#d08770;">100%</span><span>;
+</span><span>}
+</span></code></pre>
+<p>This is a common Svelte gotcha when you want a full-viewport layout.</p>
+<h3 id="routes-don-t-follow-roads">Routes Don't Follow Roads</h3>
+<p>Initial implementation drew straight lines between waypoints. Routes went
+through buildings, parks, water. Not useful for actual navigation.</p>
+<p>This is where OSRM saved the day. One API call with waypoints, get back
+actual road geometry:</p>
+<pre data-lang="typescript" style="background-color:#2b303b;color:#c0c5ce;" class="language-typescript "><code class="language-typescript" data-lang="typescript"><span style="color:#b48ead;">const </span><span style="color:#bf616a;">coords </span><span>= </span><span style="color:#bf616a;">route</span><span>.</span><span style="color:#bf616a;">points</span><span>.</span><span style="color:#8fa1b3;">map</span><span>(</span><span style="color:#bf616a;">p </span><span style="color:#b48ead;">=&gt; </span><span>`</span><span style="color:#a3be8c;">${</span><span style="color:#bf616a;">p</span><span style="color:#a3be8c;">.</span><span style="color:#bf616a;">lon</span><span style="color:#a3be8c;">},${</span><span style="color:#bf616a;">p</span><span style="color:#a3be8c;">.</span><span style="color:#bf616a;">lat</span><span style="color:#a3be8c;">}</span><span>`).</span><span style="color:#96b5b4;">join</span><span>(&#39;</span><span style="color:#a3be8c;">;</span><span>&#39;);
+</span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">url </span><span>= `</span><span style="color:#a3be8c;">https://router.project-osrm.org/route/v1/${</span><span style="color:#bf616a;">profile</span><span style="color:#a3be8c;">}/${</span><span style="color:#bf616a;">coords</span><span style="color:#a3be8c;">}?overview=full&amp;geometries=geojson&amp;steps=true</span><span>`;
+</span><span>
+</span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">response </span><span>= </span><span style="color:#b48ead;">await </span><span style="color:#8fa1b3;">fetch</span><span>(</span><span style="color:#bf616a;">url</span><span>);
+</span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">data </span><span>= </span><span style="color:#b48ead;">await </span><span style="color:#bf616a;">response</span><span>.</span><span style="color:#8fa1b3;">json</span><span>();
+</span></code></pre>
+<p>The <code>steps=true</code> parameter gives you turn-by-turn directions too, which
+I added to the UI in collapsible sections under each route.</p>
+<h3 id="boring-back-and-forth-routes">Boring Back-and-Forth Routes</h3>
+<p>First test: "Walk this way, turn around, walk back." Technically a loop, but
+boring as hell.</p>
+<p>The issue was too many waypoints creating short segments. The fix was the
+algorithm changes I mentioned earlier: fewer waypoints, larger radius,
+directional rotation. Now routes actually explore different areas instead
+of just oscillating.</p>
+<h2 id="typescript-across-the-stack">TypeScript Across the Stack</h2>
+<p>I initially questioned whether TypeScript was overkill for this project.
+Turns out it was perfect.</p>
+<p>Shared types between frontend and backend caught so many potential bugs:</p>
+<pre data-lang="typescript" style="background-color:#2b303b;color:#c0c5ce;" class="language-typescript "><code class="language-typescript" data-lang="typescript"><span style="color:#b48ead;">export interface </span><span>Coordinate {
+</span><span>  </span><span style="color:#bf616a;">lat</span><span>: number;
+</span><span>  </span><span style="color:#bf616a;">lon</span><span>: number;
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">export interface </span><span>GeneratedRoute {
+</span><span>  </span><span style="color:#bf616a;">id</span><span>: number;
+</span><span>  </span><span style="color:#bf616a;">points</span><span>: Coordinate[];
+</span><span>  </span><span style="color:#bf616a;">waypoints</span><span>: Coordinate[];
+</span><span>  </span><span style="color:#bf616a;">isLoop</span><span>: boolean;
+</span><span>  </span><span style="color:#bf616a;">distance</span><span>?: number;
+</span><span>  </span><span style="color:#bf616a;">duration</span><span>?: number;
+</span><span>  </span><span style="color:#bf616a;">steps</span><span>?: RouteStep[];
+</span><span>}
+</span></code></pre>
+<p>When the backend returns <code>GeneratedRoute[]</code>, the frontend knows exactly
+what shape to expect. No guessing, no runtime surprises.</p>
+<h2 id="development-environment">Development Environment</h2>
+<p>Created a Nix shell for reproducible development:</p>
+<pre data-lang="nix" style="background-color:#2b303b;color:#c0c5ce;" class="language-nix "><code class="language-nix" data-lang="nix"><span style="color:#8fa1b3;">{ </span><span>pkgs ? </span><span style="color:#96b5b4;">import </span><span style="color:#a3be8c;">&lt;nixpkgs&gt; </span><span>{} </span><span style="color:#8fa1b3;">}</span><span>:
+</span><span>
+</span><span style="color:#bf616a;">pkgs</span><span>.</span><span style="color:#bf616a;">mkShell </span><span>{
+</span><span>  </span><span style="color:#d08770;">buildInputs </span><span>= </span><span style="color:#b48ead;">with </span><span style="color:#bf616a;">pkgs</span><span>; [
+</span><span>    </span><span style="color:#bf616a;">nodejs_22
+</span><span>    </span><span style="color:#bf616a;">typescript
+</span><span>    </span><span style="color:#bf616a;">nodePackages</span><span>.</span><span style="color:#bf616a;">tsx
+</span><span>  ];
+</span><span>}
+</span></code></pre>
+<p>Anyone can clone the repo, run <code>nix-shell</code>, and have the exact same
+environment. No "works on my machine" issues.</p>
+<h2 id="result">Result</h2>
+<p>The app works. You enter an address, pick a mode (walk/bike/car), set a
+distance, and hit generate. It shows you multiple random routes on an
+interactive map with turn-by-turn directions.</p>
+<p><img src="/images/slumprutt-1.png" alt="Initial interface with form inputs" /></p>
+<p><img src="/images/slumprutt-2.png" alt="Generated routes displayed on map" /></p>
+<p><img src="/images/slumprutt-3.png" alt="Route highlighting on hover" /></p>
+<p><img src="/images/slumprutt-4.png" alt="Turn-by-turn walking directions" /></p>
+<p>I've already used it to find new walking routes in my neighborhood.</p>
+<p>Is it perfect? No, it's not. You will get routes that go down sketchy roads or
+routes that still go back and forth. But it was fun and it's helpful to me.</p>
+<p><strong>Try it yourself</strong>: <a href="https://github.com/ducks/slumprutt">github.com/ducks/slumprutt</a></p>
+<h2 id="what-i-learned">What I Learned</h2>
+<ol>
+<li>
+<p><strong>OSRM is incredible</strong> - Free, fast, accurate. No API key required. If
+you're building anything with routing, use OSRM.</p>
+</li>
+<li>
+<p><strong>TypeScript prevents so many bugs</strong> - Especially for coordinate/route
+data that flows through multiple layers. Type errors at compile time
+beat runtime errors every time.</p>
+</li>
+<li>
+<p><strong>Fewer waypoints make better routes</strong> - Counterintuitive, but 3-5
+waypoints create more interesting loops than 8-10.</p>
+</li>
+<li>
+<p><strong>Svelte's reactivity is clean</strong> - No useState/useEffect boilerplate.
+Just <code>$: if (condition) { doThing() }</code> and it works.</p>
+</li>
+<li>
+<p><strong>Building with AI is wild</strong> - Went from idea to working app in under
+an hour. Not just scaffolding, but a fully functional app with an
+interesting algorithm, API integration, and polished UI.</p>
+</li>
+</ol>
+
+
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

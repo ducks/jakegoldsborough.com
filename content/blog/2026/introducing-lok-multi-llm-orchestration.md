@@ -302,3 +302,7 @@ determined by the slowest agent, not the sum of all agents.
 
 The source is at [github.com/ducks/lok](https://github.com/ducks/lok). It's
 Rust, it's fast, and it's the brain that makes your AI arms work together.
+
+---
+
+Next: [Part 2: Workflows and Local LLMs](/blog/2026/lok-workflows-and-local-llms)

@@ -119,3 +119,7 @@ Honestly, I'm not 100% sure. I plan to just keep using it and adding/fixing thin
 that I want or need. Stay tuned to see how the project evolves.
 
 Next stop: unknown. But the tracks are laid.
+
+---
+
+Previous: [Part 3: Dogfooding and Code Review](/blog/2026/lok-dogfooding-and-code-review)

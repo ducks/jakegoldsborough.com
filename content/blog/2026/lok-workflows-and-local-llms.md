@@ -326,3 +326,8 @@ But the core loop is solid: define workflows in TOML, run them with one command,
 get multi-model analysis without the manual coordination tax.
 
 The source is at [github.com/ducks/lok](https://github.com/ducks/lok).
+
+---
+
+Previous: [Introducing Lok](/blog/2026/introducing-lok-multi-llm-orchestration) |
+Next: [Part 3: Dogfooding and Code Review](/blog/2026/lok-dogfooding-and-code-review)

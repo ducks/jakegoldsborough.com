@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - versioning</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/versioning/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Sat, 15 Nov 2025 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Date-Ver: A Formal Spec for Date-Based Versioning</title>
+          <pubDate>Sat, 15 Nov 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/introducing-date-ver-date-based-versioning/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/introducing-date-ver-date-based-versioning/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/introducing-date-ver-date-based-versioning/">&lt;p&gt;Yesterday I published &lt;a href=&quot;https:&#x2F;&#x2F;rubygems.org&#x2F;gems&#x2F;yaml-janitor&quot;&gt;yaml-janitor&lt;&#x2F;a&gt;
+using date-based version numbers like &lt;code&gt;20251115&lt;&#x2F;code&gt;. The version number is the
+release date. Automatic, meaningful, no decisions needed.&lt;&#x2F;p&gt;
+&lt;p&gt;Then I realized there&#x27;s no formal specification for this. Semantic versioning
+has &lt;a href=&quot;https:&#x2F;&#x2F;semver.org&#x2F;&quot;&gt;semver.org&lt;&#x2F;a&gt; with strict rules and RFC 2119 language.
+Calendar versioning has &lt;a href=&quot;https:&#x2F;&#x2F;calver.org&#x2F;&quot;&gt;calver.org&lt;&#x2F;a&gt;, but that&#x27;s just a
+pattern guide, not a spec.&lt;&#x2F;p&gt;
+&lt;p&gt;So I built &lt;a href=&quot;https:&#x2F;&#x2F;date-ver.com&#x2F;&quot;&gt;date-ver&lt;&#x2F;a&gt;.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-it-is&quot;&gt;What It Is&lt;&#x2F;h2&gt;
+&lt;p&gt;date-ver is a formal spec for date-based version numbers. Instead of &lt;code&gt;1.2.3&lt;&#x2F;code&gt;
+or &lt;code&gt;2.0.0&lt;&#x2F;code&gt;, you use &lt;code&gt;20251116&lt;&#x2F;code&gt;, &lt;code&gt;202511&lt;&#x2F;code&gt;, or &lt;code&gt;2025&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;The idea is simple: your version number is when you released, not what
+changed. Works great for applications, utilities, and distributions where
+users care about freshness over compatibility.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;why-it-exists&quot;&gt;Why It Exists&lt;&#x2F;h2&gt;
+&lt;p&gt;Projects have been using date-based versions forever. Ubuntu does &lt;code&gt;24.04&lt;&#x2F;code&gt; and
+&lt;code&gt;24.10&lt;&#x2F;code&gt;. yaml-janitor uses &lt;code&gt;20251115&lt;&#x2F;code&gt;. But without a formal spec, everyone
+makes up their own rules.&lt;&#x2F;p&gt;
+&lt;p&gt;Questions that needed answers:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Can you mix formats? (Yes: &lt;code&gt;2024&lt;&#x2F;code&gt; → &lt;code&gt;202505&lt;&#x2F;code&gt; → &lt;code&gt;20250601&lt;&#x2F;code&gt; is valid)&lt;&#x2F;li&gt;
+&lt;li&gt;Multiple releases per day? (Sequence numbers: &lt;code&gt;20251116.1&lt;&#x2F;code&gt;, &lt;code&gt;20251116.2&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;Pre-releases? (Use your separator: &lt;code&gt;20251116.alpha.1&lt;&#x2F;code&gt; or &lt;code&gt;2025-11-15-rc-2&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;Separators allowed? (Yes: &lt;code&gt;20251116&lt;&#x2F;code&gt; = &lt;code&gt;2025.11.16&lt;&#x2F;code&gt; = &lt;code&gt;2025-11-16&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;date-ver answers all of these with proper RFC 2119 language.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-separator-decision&quot;&gt;The Separator Decision&lt;&#x2F;h2&gt;
+&lt;p&gt;Ubuntu uses dots (&lt;code&gt;24.04&lt;&#x2F;code&gt;). yaml-janitor uses nothing (&lt;code&gt;20251115&lt;&#x2F;code&gt;). Some
+projects use hyphens or slashes. Rather than force everyone to change, date-ver
+allows any single-character separator as long as you&#x27;re consistent throughout
+the entire version string similar to regex.&lt;&#x2F;p&gt;
+&lt;p&gt;Valid:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;20251116&lt;&#x2F;code&gt; (no separator)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;2025.11.16&lt;&#x2F;code&gt; (dots throughout)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;2025-11-16&lt;&#x2F;code&gt; (hyphens throughout)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;2025&#x2F;11&#x2F;16&lt;&#x2F;code&gt; (slashes throughout)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;20251116.alpha.1&lt;&#x2F;code&gt; (dots for everything)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;2025-11-15-rc-2&lt;&#x2F;code&gt; (hyphens for everything)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Invalid:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;2025.11-16&lt;&#x2F;code&gt; (mixed separators in date)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;20251116-alpha.1&lt;&#x2F;code&gt; (mixing none with hyphen and dot)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Pick one separator and stick to it. All separator styles are equivalent. To
+compare versions, strip separators and compare digits. Simple.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;pick-your-precision&quot;&gt;Pick Your Precision&lt;&#x2F;h2&gt;
+&lt;p&gt;Projects choose their granularity:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Year: &lt;code&gt;2025&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Year-month: &lt;code&gt;202511&lt;&#x2F;code&gt; or &lt;code&gt;2025.11&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Year-month-day: &lt;code&gt;20251116&lt;&#x2F;code&gt; or &lt;code&gt;2025.11.16&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;More specific = higher precedence: &lt;code&gt;2025 &amp;lt; 202501 &amp;lt; 20250101&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Start with yearly versions and switch to monthly or daily whenever. No
+breaking changes, just more precision when you need it.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;when-to-use-it&quot;&gt;When to Use It&lt;&#x2F;h2&gt;
+&lt;p&gt;Good fit:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Applications with regular releases&lt;&#x2F;li&gt;
+&lt;li&gt;Operating systems and distributions&lt;&#x2F;li&gt;
+&lt;li&gt;Tools where freshness matters&lt;&#x2F;li&gt;
+&lt;li&gt;Internal utilities&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Bad fit:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Libraries where compatibility matters&lt;&#x2F;li&gt;
+&lt;li&gt;APIs with semver expectations&lt;&#x2F;li&gt;
+&lt;li&gt;Projects with strict dependency contracts&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Need to signal breaking changes? Use semver. Need to signal release timing?
+Use date-ver.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;building-it&quot;&gt;Building It&lt;&#x2F;h2&gt;
+&lt;p&gt;Wrote the spec following semver&#x27;s structure:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Summary&lt;&#x2F;li&gt;
+&lt;li&gt;Introduction&lt;&#x2F;li&gt;
+&lt;li&gt;Numbered rules with RFC 2119 language&lt;&#x2F;li&gt;
+&lt;li&gt;FAQ&lt;&#x2F;li&gt;
+&lt;li&gt;Examples&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Built a website with GitHub Pages, Gruvbox colors, and automatic dark mode.
+The spec itself uses date-ver &lt;code&gt;20251115&lt;&#x2F;code&gt; (it originally said &lt;code&gt;1.0.0&lt;&#x2F;code&gt; which was
+pretty ironic).&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;that-s-it&quot;&gt;That&#x27;s It&lt;&#x2F;h2&gt;
+&lt;p&gt;date-ver exists. The spec is done, the domain is live, and the website is up
+at &lt;a href=&quot;https:&#x2F;&#x2F;date-ver.com&#x2F;&quot;&gt;date-ver.com&lt;&#x2F;a&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;Ubuntu is officially valid date-ver. So is yaml-janitor. Any project using
+date-based versions can point to the spec now.&lt;&#x2F;p&gt;
+&lt;p&gt;Maybe it catches on. Maybe it doesn&#x27;t. Either way, there&#x27;s a formal answer
+when someone asks &quot;why are your versions dates?&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;The version is the release date. That&#x27;s date-ver.&lt;&#x2F;p&gt;
+&lt;hr &#x2F;&gt;
+&lt;p&gt;Full spec: &lt;a href=&quot;https:&#x2F;&#x2F;date-ver.com&#x2F;&quot;&gt;date-ver.com&lt;&#x2F;a&gt;
+Source: &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;date-ver&quot;&gt;GitHub&lt;&#x2F;a&gt; (CC BY 4.0)&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

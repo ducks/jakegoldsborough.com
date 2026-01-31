@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Accomplishments in reverse engineering MyFrisbee API, TypeScript module publishing, static site improvements, NixOS blog series, Gitea self-hosting, and reaching 179-day Swedish streak.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Weekly Summary - 23&#x2F;52">
+    <meta property="og:description" content="Accomplishments in reverse engineering MyFrisbee API, TypeScript module publishing, static site improvements, NixOS blog series, Gitea self-hosting, and reaching 179-day Swedish streak.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-23&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Weekly Summary - 23&#x2F;52">
+    <meta name="twitter:description" content="Accomplishments in reverse engineering MyFrisbee API, TypeScript module publishing, static site improvements, NixOS blog series, Gitea self-hosting, and reaching 179-day Swedish streak.">
+
+    <title>Weekly Summary - 23&#x2F;52 - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Weekly Summary - 23&#x2F;52</h1>
+      <div class="meta">
+        
+        <p>Jun 07, 2025</p>
+        
+        <p>2 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+          
+        </div>
+      
+
+      <h3 id="accomplishments">Accomplishments</h3>
+<h4 id="reverse-engineering-udisc-api">Reverse Engineering UDisc API</h4>
+<ul>
+<li>Published Part 3 of blog series on <code>Course</code> and <code>CourseDetails</code> structure.</li>
+<li>Drafted outline for Part 4, focused on <code>smartLayouts</code> and <code>hole</code> info.</li>
+<li>Renamed <code>resolveSchemaMap</code> to a clearer, more specific function name.</li>
+<li>Improved nested hydration using <code>deepHydrate</code> for decoding nested data.</li>
+<li>Considered naming conventions like <code>courseWithDetails</code> for client API.</li>
+<li>Decided to provide a client library first, rather than a full backend.</li>
+</ul>
+<h4 id="typescript-module-and-publishing">TypeScript Module and Publishing</h4>
+<ul>
+<li>Adopted <code>YYYYMMDD</code> format for versioning with semantic meaning.</li>
+<li>Resolved JSON parsing and bundling issues in the TypeScript setup.</li>
+<li>Held off on publishing to npm, but prepared module for later release.</li>
+</ul>
+<h4 id="static-site-and-blogging">Static Site and Blogging</h4>
+<ul>
+<li>Fixed insecure site warning by enabling HTTPS on GitHub Pages.</li>
+<li>Designed favicons and tried different accent colors and sizes.</li>
+<li>Planned a meta-post to tie the blog series together conceptually.</li>
+</ul>
+<h4 id="nixos-daily-driver-series">NixOS Daily Driver Series</h4>
+<ul>
+<li>Published Part 3 of your NixOS daily driver blog series.</li>
+<li>Started exploring ideas for better display managers like Lemurs.</li>
+</ul>
+<h4 id="gitea-self-hosting">Gitea Self-Hosting</h4>
+<ul>
+<li>Setup Gitea as Linux service.</li>
+<li>Resolved SSH cloning issues by switching to internal SSH service.</li>
+<li>Researched CI/CD via Woodpecker</li>
+</ul>
+<h4 id="swedish-language-learning">Swedish Language Learning</h4>
+<ul>
+<li>Reached 179-day streak learning Swedish using Babbel.</li>
+</ul>
+<h3 id="to-do-next-steps">To-Do / Next Steps</h3>
+<h4 id="udisc-blog-series">UDisc Blog Series</h4>
+<ul>
+<li>Write and publish Part 4 about <code>smartLayouts</code>, <code>holes</code>, and <code>tees</code>.</li>
+<li>Create a meta-post summarizing the series with internal references.</li>
+<li>Explore building a schema or data visualizer for reader clarity.</li>
+</ul>
+<h4 id="open-udisc-api-module">open-udisc-api Module</h4>
+<ul>
+<li>Prepare for npm publishing (README, <code>exports</code>, format cleanup).</li>
+<li>Write more Vitest-based tests using mock data to avoid real API calls.</li>
+<li>Add inline documentation and usage examples to client methods.</li>
+</ul>
+<h4 id="nixos-configuration">NixOS Configuration</h4>
+<ul>
+<li>Start Lemurs setup for display management.</li>
+<li>Write Part 4 of the daily driver series covering service setup.</li>
+<li>Explore modularizing <code>environment.systemPackages</code> further.</li>
+</ul>
+<h4 id="gitea-enhancements">Gitea Enhancements</h4>
+<ul>
+<li>Consider automating deployment with Git hooks or CI.</li>
+</ul>
+<h4 id="additional-ideas">Additional Ideas</h4>
+<ul>
+<li>Write a short post explaining UDisc <code>.data</code> format independently.</li>
+<li>Research legality of wrapper libraries for non-public data APIs.</li>
+<li>Consider writing a proxy or wrapper API as a hosted endpoint.</li>
+</ul>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;yearly-summary&#x2F;">2025 - A Review</a></h3>
+                  <div class="meta">
+                    
+                    <p>Dec 31, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">A reflective look back at 2025 as a year of integration: building durable tools, writing in public, and aligning technical work with sustainability, creativity, and a calm, long-term pace.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/gpt">#gpt</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-42&#x2F;">ChatGPT assisted Changelog - 42&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 17, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A week of creative experiments and follow-ups -- from launching a live transit board inside Discourse and polishing your AWS SDK Ruby series, to debugging GoatCounter exports and exploring privacy-friendly tools on GrapheneOS.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/gpt">#gpt</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-41&#x2F;">ChatGPT assisted Changelog - 41&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 10, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A quieter but productive week focused on publishing the Discourse transit tracker post, analyzing GoatCounter data across 37 countries and six continents, and continuing open source contributions to the AWS SDK for Ruby.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/gpt">#gpt</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-40&#x2F;">ChatGPT assisted Changelog - 40&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 03, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">Weekly topics spanning Czechia residency planning, Anki language learning setup, Framework 16 NixOS troubleshooting, Discourse plugin ideas, and practical logistics for international relocation.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/gpt">#gpt</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-36&#x2F;">ChatGPT assisted Changelog - 36-39&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Sep 26, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">A ChatGPT-generated summary covering Prague travel notes, Czech visa preparation, camera research, Discourse experiments, desktop tooling, email deliverability, and personal logistics from weeks 36-39.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/gpt">#gpt</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

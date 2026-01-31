@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - keyboard</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/keyboard/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Thu, 12 Jun 2025 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Typing åäö in Hyprland: A US, Mac-style Keyboard Guide</title>
+          <pubDate>Thu, 12 Jun 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/typing-swedish-us-keyboard/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/typing-swedish-us-keyboard/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/typing-swedish-us-keyboard/">&lt;h3 id=&quot;intro&quot;&gt;Intro&lt;&#x2F;h3&gt;
+&lt;p&gt;As I&#x27;ve mentioned in the previous GPT Changelog nee Weekly Summary, I have been
+learning Swedish for over 6 months now. I&#x27;m getting pretty good at listening and
+reading, but I have been doing very little speaking and typing practice. I would
+like to change that by building muscle memory through proper Swedish typing.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;enabling-in-hyprland&quot;&gt;Enabling in Hyprland&lt;&#x2F;h3&gt;
+&lt;p&gt;Like many things in the Linux world, there is more than one way to do this. The
+easiest way would just be to use the GUI menu and add the keyboard. I would
+prefer to keep this declarative and inside some config files so it&#x27;s more easily
+reproducible.&lt;&#x2F;p&gt;
+&lt;p&gt;Instead, I will add some config to Hyprland to enable this. This config will:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;enable the Swedish &lt;code&gt;kb_layout&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;add the US variant for the Swedish layout&lt;&#x2F;li&gt;
+&lt;li&gt;sets &lt;code&gt;rctrl&lt;&#x2F;code&gt; as the key that toggles between layouts&lt;&#x2F;li&gt;
+&lt;li&gt;sets &lt;code&gt;ralt&lt;&#x2F;code&gt; as the modifier key for Swedish keys&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;input {
+&lt;&#x2F;span&gt;&lt;span&gt;  kb_layout = us,se
+&lt;&#x2F;span&gt;&lt;span&gt;  kb_variant = ,us
+&lt;&#x2F;span&gt;&lt;span&gt;  kb_options = grp:rctrl_toggle,lv3:ralt_switch
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Save the config and reload the hypr config:
+&lt;code&gt;hyprctl reload&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;what-is-the-us-variant&quot;&gt;What is the US variant?&lt;&#x2F;h3&gt;
+&lt;p&gt;Before testing it out, I should explain what the US variant is.&lt;&#x2F;p&gt;
+&lt;p&gt;The &lt;strong&gt;Swedish (US)&lt;&#x2F;strong&gt; layout — sometimes referred to as &quot;Swedish for US keyboards&quot; —
+is a variant of the traditional Swedish keyboard layout that’s specifically
+designed for people using &lt;strong&gt;US physical keyboards&lt;&#x2F;strong&gt;. It allows you to type
+Swedish characters like &lt;code&gt;å&lt;&#x2F;code&gt;, &lt;code&gt;ä&lt;&#x2F;code&gt;, and &lt;code&gt;ö&lt;&#x2F;code&gt; without rearranging the rest of your
+familiar QWERTY key positions.&lt;&#x2F;p&gt;
+&lt;p&gt;This layout keeps the standard &lt;strong&gt;US punctuation and symbol positions intact&lt;&#x2F;strong&gt; —
+like &lt;code&gt;&#x2F;&lt;&#x2F;code&gt;, &lt;code&gt;@&lt;&#x2F;code&gt;, &lt;code&gt;;&lt;&#x2F;code&gt;, and &lt;code&gt;&quot;&lt;&#x2F;code&gt; — while introducing the necessary Swedish characters
+via the &lt;strong&gt;Right Alt key&lt;&#x2F;strong&gt; (also called &lt;code&gt;AltGr&lt;&#x2F;code&gt; in XKB terminology).&lt;&#x2F;p&gt;
+&lt;p&gt;Unlike the default &lt;strong&gt;Swedish layout&lt;&#x2F;strong&gt;, which assumes a physical keyboard with
+keys labeled for Swedish (and repositions many punctuation marks), the
+&lt;strong&gt;Swedish (US)&lt;&#x2F;strong&gt; layout overlays the Swedish characters on a standard US
+keyboard. This makes it ideal for:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Swedish learners or expats using American keyboards&lt;&#x2F;li&gt;
+&lt;li&gt;Developers or typists who need occasional access to &lt;code&gt;å&lt;&#x2F;code&gt;, &lt;code&gt;ä&lt;&#x2F;code&gt;, and &lt;code&gt;ö&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Anyone who doesn’t want to remap common keys like &lt;code&gt;@&lt;&#x2F;code&gt;, &lt;code&gt;|&lt;&#x2F;code&gt;, or &lt;code&gt;&#x2F;&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;In practice, this means you keep your normal US key behavior, and just use
+&lt;strong&gt;Right Alt as a modifier&lt;&#x2F;strong&gt; to access Swedish characters:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;Right Alt + w&lt;&#x2F;code&gt; = å&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;Right Alt + &#x27;&lt;&#x2F;code&gt; = ä&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;Right Alt + ;&lt;&#x2F;code&gt; = ö&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;And uppercase versions with Shift.&lt;&#x2F;p&gt;
+&lt;p&gt;If you’re used to US QWERTY and want to type Swedish without sacrificing
+developer-friendly symbols, &lt;strong&gt;Swedish (US)&lt;&#x2F;strong&gt; is the best option available — and
+it integrates smoothly into Linux environments like Hyprland when configured
+correctly.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;se-swedish-us-layout-character-cheat-sheet&quot;&gt;🇸🇪 Swedish (US) Layout – Character Cheat Sheet&lt;&#x2F;h3&gt;
+&lt;table class=&quot;swedish-keyboard-cheatsheet&quot;&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;Character&lt;&#x2F;th&gt;
+      &lt;th&gt;Key Combo&lt;&#x2F;th&gt;
+      &lt;th&gt;Notes&lt;&#x2F;th&gt;
+    &lt;&#x2F;tr&gt;
+  &lt;&#x2F;thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;å&lt;&#x2F;td&gt;
+      &lt;td&gt;Right Alt + &lt;kbd&gt;w&lt;&#x2F;kbd&gt;&lt;&#x2F;td&gt;
+      &lt;td&gt;Lowercase å&lt;&#x2F;td&gt;
+    &lt;&#x2F;tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Å&lt;&#x2F;td&gt;
+      &lt;td&gt;Right Alt + &lt;kbd&gt;Shift&lt;&#x2F;kbd&gt; + &lt;kbd&gt;w&lt;&#x2F;kbd&gt;&lt;&#x2F;td&gt;
+      &lt;td&gt;Uppercase Å&lt;&#x2F;td&gt;
+    &lt;&#x2F;tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;ä&lt;&#x2F;td&gt;
+      &lt;td&gt;Right Alt + &lt;kbd&gt;&#x27;&lt;&#x2F;kbd&gt;&lt;&#x2F;td&gt;
+      &lt;td&gt;Apostrophe key&lt;&#x2F;td&gt;
+    &lt;&#x2F;tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Ä&lt;&#x2F;td&gt;
+      &lt;td&gt;Right Alt + &lt;kbd&gt;Shift&lt;&#x2F;kbd&gt; + &lt;kbd&gt;&#x27;&lt;&#x2F;kbd&gt;&lt;&#x2F;td&gt;
+      &lt;td&gt;Shift + Apostrophe&lt;&#x2F;td&gt;
+    &lt;&#x2F;tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;ö&lt;&#x2F;td&gt;
+      &lt;td&gt;Right Alt + &lt;kbd&gt;;&lt;&#x2F;kbd&gt;&lt;&#x2F;td&gt;
+      &lt;td&gt;Semicolon key&lt;&#x2F;td&gt;
+    &lt;&#x2F;tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Ö&lt;&#x2F;td&gt;
+      &lt;td&gt;Right Alt + &lt;kbd&gt;Shift&lt;&#x2F;kbd&gt; + &lt;kbd&gt;;&lt;&#x2F;kbd&gt;&lt;&#x2F;td&gt;
+      &lt;td&gt;Shift + Semicolon&lt;&#x2F;td&gt;
+    &lt;&#x2F;tr&gt;
+  &lt;&#x2F;tbody&gt;
+&lt;&#x2F;table&gt;
+&lt;h3 id=&quot;conclusion&quot;&gt;Conclusion&lt;&#x2F;h3&gt;
+&lt;p&gt;You should now have a working Hyprland config that will allow you to type
+Swedish on a Mac-style, US variant keyboard.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Configuring Hyprland to type Swedish characters using a US keyboard layout with Right Alt as a modifier, perfect for learners who want proper typing practice without remapping keys.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Typing åäö in Hyprland: A US, Mac-style Keyboard Guide">
+    <meta property="og:description" content="Configuring Hyprland to type Swedish characters using a US keyboard layout with Right Alt as a modifier, perfect for learners who want proper typing practice without remapping keys.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;typing-swedish-us-keyboard&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Typing åäö in Hyprland: A US, Mac-style Keyboard Guide">
+    <meta name="twitter:description" content="Configuring Hyprland to type Swedish characters using a US keyboard layout with Right Alt as a modifier, perfect for learners who want proper typing practice without remapping keys.">
+
+    <title>Typing åäö in Hyprland: A US, Mac-style Keyboard Guide - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Typing åäö in Hyprland: A US, Mac-style Keyboard Guide</h1>
+      <div class="meta">
+        
+        <p>Jun 12, 2025</p>
+        
+        <p>3 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/swedish">#swedish</a></p>
+          
+          <p><a href="/tags/keyboard">#keyboard</a></p>
+          
+        </div>
+      
+
+      <h3 id="intro">Intro</h3>
+<p>As I've mentioned in the previous GPT Changelog nee Weekly Summary, I have been
+learning Swedish for over 6 months now. I'm getting pretty good at listening and
+reading, but I have been doing very little speaking and typing practice. I would
+like to change that by building muscle memory through proper Swedish typing.</p>
+<h3 id="enabling-in-hyprland">Enabling in Hyprland</h3>
+<p>Like many things in the Linux world, there is more than one way to do this. The
+easiest way would just be to use the GUI menu and add the keyboard. I would
+prefer to keep this declarative and inside some config files so it's more easily
+reproducible.</p>
+<p>Instead, I will add some config to Hyprland to enable this. This config will:</p>
+<ul>
+<li>enable the Swedish <code>kb_layout</code></li>
+<li>add the US variant for the Swedish layout</li>
+<li>sets <code>rctrl</code> as the key that toggles between layouts</li>
+<li>sets <code>ralt</code> as the modifier key for Swedish keys</li>
+</ul>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>input {
+</span><span>  kb_layout = us,se
+</span><span>  kb_variant = ,us
+</span><span>  kb_options = grp:rctrl_toggle,lv3:ralt_switch
+</span><span>}
+</span></code></pre>
+<p>Save the config and reload the hypr config:
+<code>hyprctl reload</code></p>
+<h3 id="what-is-the-us-variant">What is the US variant?</h3>
+<p>Before testing it out, I should explain what the US variant is.</p>
+<p>The <strong>Swedish (US)</strong> layout — sometimes referred to as "Swedish for US keyboards" —
+is a variant of the traditional Swedish keyboard layout that’s specifically
+designed for people using <strong>US physical keyboards</strong>. It allows you to type
+Swedish characters like <code>å</code>, <code>ä</code>, and <code>ö</code> without rearranging the rest of your
+familiar QWERTY key positions.</p>
+<p>This layout keeps the standard <strong>US punctuation and symbol positions intact</strong> —
+like <code>/</code>, <code>@</code>, <code>;</code>, and <code>"</code> — while introducing the necessary Swedish characters
+via the <strong>Right Alt key</strong> (also called <code>AltGr</code> in XKB terminology).</p>
+<p>Unlike the default <strong>Swedish layout</strong>, which assumes a physical keyboard with
+keys labeled for Swedish (and repositions many punctuation marks), the
+<strong>Swedish (US)</strong> layout overlays the Swedish characters on a standard US
+keyboard. This makes it ideal for:</p>
+<ul>
+<li>Swedish learners or expats using American keyboards</li>
+<li>Developers or typists who need occasional access to <code>å</code>, <code>ä</code>, and <code>ö</code></li>
+<li>Anyone who doesn’t want to remap common keys like <code>@</code>, <code>|</code>, or <code>/</code></li>
+</ul>
+<p>In practice, this means you keep your normal US key behavior, and just use
+<strong>Right Alt as a modifier</strong> to access Swedish characters:</p>
+<ul>
+<li><code>Right Alt + w</code> = å</li>
+<li><code>Right Alt + '</code> = ä</li>
+<li><code>Right Alt + ;</code> = ö</li>
+</ul>
+<p>And uppercase versions with Shift.</p>
+<p>If you’re used to US QWERTY and want to type Swedish without sacrificing
+developer-friendly symbols, <strong>Swedish (US)</strong> is the best option available — and
+it integrates smoothly into Linux environments like Hyprland when configured
+correctly.</p>
+<h3 id="se-swedish-us-layout-character-cheat-sheet">🇸🇪 Swedish (US) Layout – Character Cheat Sheet</h3>
+<table class="swedish-keyboard-cheatsheet">
+  <thead>
+    <tr>
+      <th>Character</th>
+      <th>Key Combo</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>å</td>
+      <td>Right Alt + <kbd>w</kbd></td>
+      <td>Lowercase å</td>
+    </tr>
+    <tr>
+      <td>Å</td>
+      <td>Right Alt + <kbd>Shift</kbd> + <kbd>w</kbd></td>
+      <td>Uppercase Å</td>
+    </tr>
+    <tr>
+      <td>ä</td>
+      <td>Right Alt + <kbd>'</kbd></td>
+      <td>Apostrophe key</td>
+    </tr>
+    <tr>
+      <td>Ä</td>
+      <td>Right Alt + <kbd>Shift</kbd> + <kbd>'</kbd></td>
+      <td>Shift + Apostrophe</td>
+    </tr>
+    <tr>
+      <td>ö</td>
+      <td>Right Alt + <kbd>;</kbd></td>
+      <td>Semicolon key</td>
+    </tr>
+    <tr>
+      <td>Ö</td>
+      <td>Right Alt + <kbd>Shift</kbd> + <kbd>;</kbd></td>
+      <td>Shift + Semicolon</td>
+    </tr>
+  </tbody>
+</table>
+<h3 id="conclusion">Conclusion</h3>
+<p>You should now have a working Hyprland config that will allow you to type
+Swedish on a Mac-style, US variant keyboard.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

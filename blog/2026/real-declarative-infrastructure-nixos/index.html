@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Converting a bash script + systemd-based VPS to NixOS for truly declarative infrastructure. No more update scripts or edge cases, just configuration.nix.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="From Bash Scripts to NixOS: Real Declarative Infrastructure on a VPS">
+    <meta property="og:description" content="Converting a bash script + systemd-based VPS to NixOS for truly declarative infrastructure. No more update scripts or edge cases, just configuration.nix.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;real-declarative-infrastructure-nixos&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="From Bash Scripts to NixOS: Real Declarative Infrastructure on a VPS">
+    <meta name="twitter:description" content="Converting a bash script + systemd-based VPS to NixOS for truly declarative infrastructure. No more update scripts or edge cases, just configuration.nix.">
+
+    <title>From Bash Scripts to NixOS: Real Declarative Infrastructure on a VPS - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>From Bash Scripts to NixOS: Real Declarative Infrastructure on a VPS</h1>
+      <div class="meta">
+        
+        <p>Jan 18, 2026</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/nixos">#nixos</a></p>
+          
+          <p><a href="/tags/self-hosting">#self-hosting</a></p>
+          
+          <p><a href="/tags/infrastructure">#infrastructure</a></p>
+          
+        </div>
+      
+
+      <p>In my <a href="/blog/2026/running-infrastructure-with-systemd/">previous post</a>, I
+described running infrastructure with systemd services and bash scripts. It
+worked, but the update script kept growing with edge cases.</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#65737e;"># This kept getting longer
+</span><span style="color:#8fa1b3;">safe_download</span><span>() { </span><span style="color:#bf616a;">... </span><span>}
+</span><span style="color:#8fa1b3;">update_goatcounter</span><span>() {
+</span><span>    </span><span style="color:#65737e;"># Download binary
+</span><span>    </span><span style="color:#65737e;"># Stop service
+</span><span>    </span><span style="color:#65737e;"># Run migrations
+</span><span>    </span><span style="color:#65737e;"># Start service
+</span><span>}
+</span><span style="color:#65737e;"># Repeat for each service...
+</span></code></pre>
+<p>Every service needed special handling. GoatCounter needed database migrations.
+Scrob had "text file busy" errors. Downloads could 404 and block everything.</p>
+<p>Three weeks in, the update script was 300+ lines with <code>|| true</code> scattered
+everywhere.</p>
+<p>I wasn't managing infrastructure declaratively. I was writing imperative bash
+scripts to approximate declarative config.</p>
+<h2 id="the-inevitable-upgrade">The Inevitable Upgrade</h2>
+<p>I already use NixOS for local development. My laptop runs it. My dev
+environments are nix-shell. I know how good it is for reproducibility.</p>
+<p>The bash script approach was always temporary. I knew I'd migrate to NixOS
+eventually - I just wanted to get the services running first, understand what
+they needed, then declare it properly.</p>
+<p>But after three weeks of bash edge cases, "eventually" became "now."</p>
+<h2 id="creating-pond-nix">Creating pond-nix</h2>
+<p>I created a new repo called <code>pond-nix</code> with NixOS configuration for the same
+services:</p>
+<pre data-lang="nix" style="background-color:#2b303b;color:#c0c5ce;" class="language-nix "><code class="language-nix" data-lang="nix"><span style="color:#65737e;"># configuration.nix
+</span><span>{
+</span><span>  </span><span style="color:#d08770;">imports </span><span>= [
+</span><span>    </span><span style="color:#a3be8c;">./services/gitea.nix
+</span><span>    </span><span style="color:#a3be8c;">./services/goatcounter.nix
+</span><span>    </span><span style="color:#a3be8c;">./services/woodpecker.nix
+</span><span>    </span><span style="color:#a3be8c;">./services/scrob.nix
+</span><span>    </span><span style="color:#a3be8c;">./services/caddy.nix
+</span><span>  ];
+</span><span>
+</span><span>  </span><span style="color:#d08770;">networking </span><span>= {
+</span><span>    </span><span style="color:#d08770;">hostName </span><span>= &quot;</span><span style="color:#a3be8c;">pond</span><span>&quot;;
+</span><span>    </span><span style="color:#d08770;">useDHCP </span><span>= </span><span style="color:#d08770;">false</span><span>;
+</span><span>    </span><span style="color:#d08770;">interfaces</span><span>.</span><span style="color:#d08770;">ens3</span><span>.</span><span style="color:#d08770;">ipv4</span><span>.</span><span style="color:#d08770;">addresses </span><span>= [{
+</span><span>      </span><span style="color:#d08770;">address </span><span>= &quot;</span><span style="color:#a3be8c;">199.68.196.244</span><span>&quot;;
+</span><span>      </span><span style="color:#d08770;">prefixLength </span><span>= </span><span style="color:#d08770;">24</span><span>;
+</span><span>    }];
+</span><span>    </span><span style="color:#d08770;">defaultGateway </span><span>= &quot;</span><span style="color:#a3be8c;">199.68.196.1</span><span>&quot;;
+</span><span>    </span><span style="color:#d08770;">nameservers </span><span>= [ &quot;</span><span style="color:#a3be8c;">176.10.124.177</span><span>&quot; &quot;</span><span style="color:#a3be8c;">176.10.124.136</span><span>&quot; ];
+</span><span>    </span><span style="color:#d08770;">firewall</span><span>.</span><span style="color:#d08770;">allowedTCPPorts </span><span>= [ </span><span style="color:#d08770;">22 80 443 </span><span>];
+</span><span>  };
+</span><span>
+</span><span>  </span><span style="color:#d08770;">users</span><span>.</span><span style="color:#d08770;">users</span><span>.</span><span style="color:#d08770;">ducks </span><span>= {
+</span><span>    </span><span style="color:#d08770;">isNormalUser </span><span>= </span><span style="color:#d08770;">true</span><span>;
+</span><span>    </span><span style="color:#d08770;">extraGroups </span><span>= [ &quot;</span><span style="color:#a3be8c;">wheel</span><span>&quot; ];
+</span><span>    </span><span style="color:#d08770;">openssh</span><span>.</span><span style="color:#d08770;">authorizedKeys</span><span>.</span><span style="color:#d08770;">keys </span><span>= [
+</span><span>      &quot;</span><span style="color:#a3be8c;">ssh-ed25519 AAAAC3... ducks@pond</span><span>&quot;
+</span><span>    ];
+</span><span>  };
+</span><span>
+</span><span>  </span><span style="color:#d08770;">security</span><span>.</span><span style="color:#d08770;">sudo</span><span>.</span><span style="color:#d08770;">wheelNeedsPassword </span><span>= </span><span style="color:#d08770;">false</span><span>;
+</span><span>}
+</span></code></pre>
+<p>Each service gets its own module:</p>
+<pre data-lang="nix" style="background-color:#2b303b;color:#c0c5ce;" class="language-nix "><code class="language-nix" data-lang="nix"><span style="color:#65737e;"># services/goatcounter.nix
+</span><span style="color:#8fa1b3;">{ </span><span>config, pkgs, ... </span><span style="color:#8fa1b3;">}</span><span>:
+</span><span>
+</span><span>{
+</span><span>  </span><span style="color:#d08770;">systemd</span><span>.</span><span style="color:#d08770;">services </span><span>= {
+</span><span>    </span><span style="color:#d08770;">goatcounter-jg </span><span>= {
+</span><span>      </span><span style="color:#d08770;">description </span><span>= &quot;</span><span style="color:#a3be8c;">GoatCounter - stats.jakegoldsborough.com</span><span>&quot;;
+</span><span>      </span><span style="color:#d08770;">after </span><span>= [ &quot;</span><span style="color:#a3be8c;">network.target</span><span>&quot; ];
+</span><span>      </span><span style="color:#d08770;">wantedBy </span><span>= [ &quot;</span><span style="color:#a3be8c;">multi-user.target</span><span>&quot; ];
+</span><span>
+</span><span>      </span><span style="color:#d08770;">serviceConfig </span><span>= {
+</span><span>        </span><span style="color:#d08770;">ExecStart </span><span>= &quot;</span><span style="font-style:italic;color:#ab7967;">${</span><span style="font-style:italic;color:#bf616a;">pkgs</span><span style="font-style:italic;color:#c0c5ce;">.</span><span style="font-style:italic;color:#bf616a;">goatcounter</span><span style="font-style:italic;color:#ab7967;">}</span><span style="color:#a3be8c;">/bin/goatcounter serve -listen localhost:8081 -tls none -db sqlite+/var/lib/goatcounter-jg/goatcounter.db</span><span>&quot;;
+</span><span>        </span><span style="color:#d08770;">User </span><span>= &quot;</span><span style="color:#a3be8c;">goatcounter</span><span>&quot;;
+</span><span>        </span><span style="color:#d08770;">WorkingDirectory </span><span>= &quot;</span><span style="color:#a3be8c;">/var/lib/goatcounter-jg</span><span>&quot;;
+</span><span>        </span><span style="color:#d08770;">Restart </span><span>= &quot;</span><span style="color:#a3be8c;">always</span><span>&quot;;
+</span><span>      };
+</span><span>    };
+</span><span>    </span><span style="color:#65737e;"># ... other instances
+</span><span>  };
+</span><span>}
+</span></code></pre>
+<p>No update scripts. No migrations to remember. Nix handles dependencies, service
+ordering, and restarts.</p>
+<h2 id="the-installation-challenge">The Installation Challenge</h2>
+<p>Installing NixOS on a VPS remotely is risky. Get the network config wrong and
+you're locked out.</p>
+<h3 id="the-nixos-infect-trap">The nixos-infect Trap</h3>
+<p>My first thought was <code>nixos-infect</code> - a script that converts an existing Linux
+system to NixOS in-place. Seems clever, right?</p>
+<p>Maybe too clever?</p>
+<p>I tried it on a fresh Arch install. The script started building, then hit an
+error:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>swapon: /tmp/nixos-infect.swp: Invalid argument
+</span></code></pre>
+<p><strong>The problem:</strong> On Linux, <code>/tmp</code> is mounted as tmpfs - a RAM-based filesystem.
+nixos-infect tried to create a 1GB swap file <em>in RAM</em>. That's like trying to
+extend your RAM by using... RAM.</p>
+<p>I patched the script to use <code>/root/tmp</code> instead:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">curl -o</span><span> nixos-infect.sh
+</span><span style="color:#bf616a;">https://raw.githubusercontent.com/elitak/nixos-infect/master/nixos-infect
+</span><span style="color:#bf616a;">sed -i </span><span>&#39;</span><span style="color:#a3be8c;">s|mktemp /tmp/|mktemp /root/tmp/|g</span><span>&#39; nixos-infect.sh
+</span><span style="color:#bf616a;">mkdir -p</span><span> /root/tmp
+</span><span style="color:#bf616a;">NIX_CHANNEL</span><span>=</span><span style="color:#a3be8c;">nixos-24.05 </span><span style="color:#bf616a;">bash</span><span> nixos-infect.sh
+</span></code></pre>
+<p>This time it worked! The build completed, the system rebooted...</p>
+<p>And I was locked out.</p>
+<p>nixos-infect generated a config, but with no console password and broken SSH
+access. I could see the NixOS login screen through the console, but couldn't log
+in. SSH timed out.</p>
+<p><strong>Lesson learned:</strong> In-place conversions are clever until they're not. When
+you're remote, clever is dangerous.</p>
+<h3 id="the-iso-approach">The ISO Approach</h3>
+<p>I wiped the VPS and started over with the NixOS installation ISO.</p>
+<p><strong>Step 1: Mount the ISO</strong></p>
+<p>Downloaded the <a href="https://nixos.org/download/">NixOS 25.11 minimal
+ISO</a> and mounted it through Fornex's control
+panel, then I rebooted the VPS.</p>
+<p><strong>Step 2: Set up networking</strong></p>
+<p>The installer gives you a root shell with no password. But before anything else,
+networking:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#65737e;"># Check interface name (mine was ens3, not eth0!)
+</span><span style="color:#bf616a;">ip</span><span> addr
+</span><span>
+</span><span style="color:#65737e;"># Configure static IP
+</span><span style="color:#bf616a;">ip</span><span> addr add 199.68.196.244/24 dev ens3
+</span><span style="color:#bf616a;">ip</span><span> link set ens3 up
+</span><span style="color:#bf616a;">ip</span><span> route add default via 199.68.196.1
+</span><span style="color:#96b5b4;">echo </span><span>&quot;</span><span style="color:#a3be8c;">nameserver 176.10.124.177</span><span>&quot; &gt; /etc/resolv.conf
+</span><span>
+</span><span style="color:#65737e;"># Test it
+</span><span style="color:#bf616a;">ping -c</span><span> 2 google.com
+</span></code></pre>
+<p><strong>Step 3: Enable SSH</strong></p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">passwd</span><span> root  </span><span style="color:#65737e;"># Set a temporary password
+</span><span style="color:#bf616a;">systemctl</span><span> start sshd
+</span></code></pre>
+<p>Now I could SSH in from my local machine and use a proper terminal instead of
+the janky web console.</p>
+<p><strong>Step 4: Partition the disk</strong></p>
+<p>GPT with GRUB needs a BIOS boot partition:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">parted</span><span> /dev/vda -- mklabel gpt
+</span><span style="color:#bf616a;">parted</span><span> /dev/vda -- mkpart primary 1MB 512MB    </span><span style="color:#65737e;"># BIOS boot
+</span><span style="color:#bf616a;">parted</span><span> /dev/vda -- mkpart primary 512MB 100%   </span><span style="color:#65737e;"># Root filesystem
+</span><span style="color:#bf616a;">parted</span><span> /dev/vda -- set 1 bios_grub on
+</span><span>
+</span><span style="color:#bf616a;">mkfs.ext4</span><span> /dev/vda2
+</span><span style="color:#bf616a;">mount</span><span> /dev/vda2 /mnt
+</span></code></pre>
+<p>The first partition stays unformatted - GRUB just needs it for bootloader code.</p>
+<p><strong>Step 5: Generate and customize config</strong></p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">nixos-generate-config --root</span><span> /mnt
+</span><span style="color:#bf616a;">nano</span><span> /mnt/etc/nixos/configuration.nix
+</span></code></pre>
+<p>Key settings:</p>
+<pre data-lang="nix" style="background-color:#2b303b;color:#c0c5ce;" class="language-nix "><code class="language-nix" data-lang="nix"><span>{
+</span><span>  </span><span style="color:#d08770;">boot</span><span>.</span><span style="color:#d08770;">loader</span><span>.</span><span style="color:#d08770;">grub</span><span>.</span><span style="color:#d08770;">enable </span><span>= </span><span style="color:#d08770;">true</span><span>;
+</span><span>  </span><span style="color:#d08770;">boot</span><span>.</span><span style="color:#d08770;">loader</span><span>.</span><span style="color:#d08770;">grub</span><span>.</span><span style="color:#d08770;">device </span><span>= &quot;</span><span style="color:#a3be8c;">/dev/vda</span><span>&quot;;
+</span><span>
+</span><span>  </span><span style="color:#d08770;">networking </span><span>= {
+</span><span>    </span><span style="color:#d08770;">hostName </span><span>= &quot;</span><span style="color:#a3be8c;">pond</span><span>&quot;;
+</span><span>    </span><span style="color:#d08770;">useDHCP </span><span>= </span><span style="color:#d08770;">false</span><span>;
+</span><span>    </span><span style="color:#d08770;">interfaces</span><span>.</span><span style="color:#d08770;">ens3 </span><span>= {  </span><span style="color:#65737e;"># Not eth0!
+</span><span>      </span><span style="color:#d08770;">ipv4</span><span>.</span><span style="color:#d08770;">addresses </span><span>= [{
+</span><span>        </span><span style="color:#d08770;">address </span><span>= &quot;</span><span style="color:#a3be8c;">199.68.196.244</span><span>&quot;;
+</span><span>        </span><span style="color:#d08770;">prefixLength </span><span>= </span><span style="color:#d08770;">24</span><span>;
+</span><span>      }];
+</span><span>    };
+</span><span>    </span><span style="color:#d08770;">defaultGateway </span><span>= &quot;</span><span style="color:#a3be8c;">199.68.196.1</span><span>&quot;;
+</span><span>    </span><span style="color:#d08770;">nameservers </span><span>= [ &quot;</span><span style="color:#a3be8c;">176.10.124.177</span><span>&quot; &quot;</span><span style="color:#a3be8c;">176.10.124.136</span><span>&quot; ];
+</span><span>    </span><span style="color:#d08770;">firewall</span><span>.</span><span style="color:#d08770;">allowedTCPPorts </span><span>= [ </span><span style="color:#d08770;">22 80 443 </span><span>];
+</span><span>  };
+</span><span>
+</span><span>  </span><span style="color:#d08770;">users</span><span>.</span><span style="color:#d08770;">users</span><span>.</span><span style="color:#d08770;">ducks </span><span>= {
+</span><span>    </span><span style="color:#d08770;">isNormalUser </span><span>= </span><span style="color:#d08770;">true</span><span>;
+</span><span>    </span><span style="color:#d08770;">extraGroups </span><span>= [ &quot;</span><span style="color:#a3be8c;">wheel</span><span>&quot; ];
+</span><span>    </span><span style="color:#d08770;">openssh</span><span>.</span><span style="color:#d08770;">authorizedKeys</span><span>.</span><span style="color:#d08770;">keys </span><span>= [
+</span><span>      &quot;</span><span style="color:#a3be8c;">ssh-ed25519 AAAAC3... ducks@pond</span><span>&quot;
+</span><span>    ];
+</span><span>  };
+</span><span>
+</span><span>  </span><span style="color:#d08770;">security</span><span>.</span><span style="color:#d08770;">sudo</span><span>.</span><span style="color:#d08770;">wheelNeedsPassword </span><span>= </span><span style="color:#d08770;">false</span><span>;
+</span><span>
+</span><span>  </span><span style="color:#d08770;">services</span><span>.</span><span style="color:#d08770;">openssh </span><span>= {
+</span><span>    </span><span style="color:#d08770;">enable </span><span>= </span><span style="color:#d08770;">true</span><span>;
+</span><span>    </span><span style="color:#d08770;">settings </span><span>= {
+</span><span>      </span><span style="color:#d08770;">PasswordAuthentication </span><span>= </span><span style="color:#d08770;">false</span><span>;
+</span><span>      </span><span style="color:#d08770;">PermitRootLogin </span><span>= &quot;</span><span style="color:#a3be8c;">prohibit-password</span><span>&quot;;
+</span><span>    };
+</span><span>  };
+</span><span>}
+</span></code></pre>
+<p><strong>Step 6: Install</strong></p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">nixos-install
+</span><span style="color:#65737e;"># Set root password when prompted
+</span><span style="color:#bf616a;">reboot
+</span></code></pre>
+<p>After reboot, unmount the ISO through the control panel.</p>
+<p><strong>Step 7: SSH in with your user</strong></p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">ssh</span><span> ducks@199.68.196.244
+</span></code></pre>
+<p>It worked. NixOS booted, networking was correct, SSH keys worked. No lockouts.</p>
+<h2 id="deploying-the-real-config">Deploying the Real Config</h2>
+<p>Now that NixOS is installed, time to deploy pond-nix:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#65737e;"># Clone your config
+</span><span style="color:#bf616a;">git</span><span> clone https://git.jakegoldsborough.com/ducks/pond-nix.git
+</span><span style="color:#96b5b4;">cd</span><span> pond-nix
+</span><span>
+</span><span style="color:#65737e;"># Deploy it (automatically fetches hashes, copies files, and builds)
+</span><span style="color:#bf616a;">make</span><span> install
+</span></code></pre>
+<p>The Makefile handles everything: fetching binary hashes for packages, copying
+config files to <code>/etc/nixos/</code>, and running <code>nixos-rebuild</code>. One command builds
+and activates all services: Gitea, GoatCounter, Woodpecker, Scrob, Caddy.
+Everything starts declaratively.</p>
+<p>If something breaks:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">sudo</span><span> nixos-rebuild switch</span><span style="color:#bf616a;"> --rollback
+</span></code></pre>
+<p>One command. Back to the previous working state.</p>
+<h2 id="migrating-the-data">Migrating the Data</h2>
+<p>With NixOS running and services configured, time to migrate data from the old
+server (burrow). I wrote a migration script to handle this:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#65737e;"># scripts/migrate-from-burrow.sh
+</span><span style="color:#65737e;">#!/usr/bin/env bash
+</span><span>
+</span><span style="color:#65737e;"># 1. Stop services on pond (avoid database corruption)
+</span><span style="color:#bf616a;">ssh</span><span> pond &#39;</span><span style="color:#a3be8c;">sudo systemctl stop scrob goatcounter-jg gitea</span><span>&#39;
+</span><span>
+</span><span style="color:#65737e;"># 2. Back up databases from burrow
+</span><span style="color:#bf616a;">ssh</span><span> burrow &#39;</span><span style="color:#a3be8c;">sudo tar czf /tmp/goatcounter-backups.tar.gz /var/lib/goatcounter-*</span><span>&#39;
+</span><span style="color:#bf616a;">ssh</span><span> burrow &#39;</span><span style="color:#a3be8c;">sudo tar czf /tmp/gitea-backup.tar.gz /var/lib/gitea</span><span>&#39;
+</span><span style="color:#bf616a;">ssh</span><span> burrow &#39;</span><span style="color:#a3be8c;">sudo -u postgres pg_dump scrob | gzip &gt; /tmp/scrob-db.sql.gz</span><span>&#39;
+</span><span>
+</span><span style="color:#65737e;"># 3. Copy to local machine (keep backups!)
+</span><span style="color:#bf616a;">scp</span><span> burrow:/tmp/*.tar.gz burrow:/tmp/*.sql.gz /tmp/backups/
+</span><span>
+</span><span style="color:#65737e;"># 4. Copy to pond and restore
+</span><span style="color:#bf616a;">scp</span><span> /tmp/backups/* pond:/tmp/
+</span><span style="color:#bf616a;">ssh</span><span> pond &#39;</span><span style="color:#a3be8c;">cd /tmp &amp;&amp; sudo tar xzf goatcounter-backups.tar.gz -C /</span><span>&#39;
+</span><span style="color:#bf616a;">ssh</span><span> pond &#39;</span><span style="color:#a3be8c;">cd /tmp &amp;&amp; sudo tar xzf gitea-backup.tar.gz -C /</span><span>&#39;
+</span><span style="color:#bf616a;">ssh</span><span> pond &#39;</span><span style="color:#a3be8c;">gunzip &lt; /tmp/scrob-db.sql.gz | sudo -u postgres psql scrob</span><span>&#39;
+</span><span>
+</span><span style="color:#65737e;"># 5. Fix permissions
+</span><span style="color:#bf616a;">ssh</span><span> pond &#39;</span><span style="color:#a3be8c;">sudo chown -R goatcounter:goatcounter /var/lib/goatcounter-*</span><span>&#39;
+</span><span style="color:#bf616a;">ssh</span><span> pond &#39;</span><span style="color:#a3be8c;">sudo chown -R gitea:gitea /var/lib/gitea</span><span>&#39;
+</span><span>
+</span><span style="color:#65737e;"># 6. Start services
+</span><span style="color:#bf616a;">ssh</span><span> pond &#39;</span><span style="color:#a3be8c;">sudo systemctl start goatcounter-jg gitea scrob</span><span>&#39;
+</span></code></pre>
+<p>Run it:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">./scripts/migrate-from-burrow.sh
+</span></code></pre>
+<p>All data migrated: Git repositories, analytics databases, scrobble history.
+Everything preserved.</p>
+<h2 id="updating-dns">Updating DNS</h2>
+<p>Final step: point DNS to the new server. I use name.com's API:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#65737e;"># scripts/update-dns.sh
+</span><span style="color:#b48ead;">export </span><span style="color:#bf616a;">NAMECOM_USERNAME</span><span>=&quot;</span><span style="color:#a3be8c;">your_username</span><span>&quot;
+</span><span style="color:#b48ead;">export </span><span style="color:#bf616a;">NAMECOM_TOKEN</span><span>=&quot;</span><span style="color:#a3be8c;">your_api_token</span><span>&quot;
+</span><span style="color:#bf616a;">./scripts/update-dns.sh
+</span></code></pre>
+<p>The script updates specific service A records to pond's IP (199.68.196.244):</p>
+<ul>
+<li><code>code.jakegoldsborough.com</code> → Gitea</li>
+<li><code>ci.jakegoldsborough.com</code> → Woodpecker</li>
+<li><code>stats.jakegoldsborough.com</code> → GoatCounter</li>
+<li><code>scrob.jakegoldsborough.com</code> → Scrob API</li>
+<li><code>ui.scrob.jakegoldsborough.com</code> → Scrob UI</li>
+<li><code>stats.date-ver.com</code> → GoatCounter</li>
+<li><code>stats.gnarlyvoid.com</code> → GoatCounter</li>
+</ul>
+<p>DNS propagates in a few minutes. Test with <code>dig</code>:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">dig</span><span> code.jakegoldsborough.com +short
+</span><span style="color:#65737e;"># 199.68.196.244
+</span></code></pre>
+<p>Once DNS updates, Caddy automatically provisions Let's Encrypt certificates for
+all domains. No manual cert management needed.</p>
+<h2 id="what-changed">What Changed</h2>
+<p><strong>Before (burrow-systemd):</strong> - 300+ lines of bash scripts - Manual version
+checking - Special migration handling per service - "Text file busy" errors -
+Download failures blocking other updates - <code>|| true</code> everywhere</p>
+<p><strong>After (pond-nix):</strong> - Declarative config in Nix - <code>nixos-rebuild switch --upgrade</code> updates everything - Migrations run automatically (defined in service
+modules) - Atomic updates - One command rollback</p>
+<h2 id="service-updates">Service Updates</h2>
+<p>With systemd + bash:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">sudo</span><span> ./bin/update check        </span><span style="color:#65737e;"># Check for updates
+</span><span style="color:#bf616a;">sudo</span><span> ./bin/update apply        </span><span style="color:#65737e;"># Apply them
+</span><span style="color:#65737e;"># Hope nothing breaks
+</span></code></pre>
+<p>With NixOS:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#96b5b4;">cd</span><span> pond-nix
+</span><span style="color:#bf616a;">git</span><span> pull
+</span><span style="color:#bf616a;">make</span><span> install
+</span></code></pre>
+<p>That's it. Pull the latest config, and the Makefile handles the rest: updating
+hashes, testing the config, and deploying atomically. If anything fails, the old
+generation still works.</p>
+<h2 id="the-tradeoff">The Tradeoff</h2>
+<p>NixOS has a learning curve. Nix expressions are different from bash scripts.</p>
+<p>But once you understand it, everything clicks: - System is reproducible -
+Updates are atomic - Rollbacks are instant - Configuration is versioned in git</p>
+<p>No more "it works on my machine". The configuration <em>is</em> the machine.</p>
+<h2 id="was-it-worth-it">Was It Worth It?</h2>
+<p>My update script was approaching 500 lines with <code>safe_download()</code>, per-service
+migration logic, and error handling for every edge case.</p>
+<p>Now it's ~500 lines of readable Nix across multiple modules. But those lines
+are: - Declarative - Type-checked - Composable - Reproducible</p>
+<p>The difference: With bash, I was writing <em>procedures</em>. With Nix, I'm declaring
+<em>state</em>.</p>
+<p>That's real declarative infrastructure.</p>
+<h2 id="links">Links</h2>
+<ul>
+<li><a href="https://github.com/ducks/pond-nix">pond-nix</a></li>
+<li><a href="https://github.com/elitak/nixos-infect">nixos-infect</a></li>
+<li><a href="https://nixos.org/manual/nixos/stable/">NixOS Manual</a></li>
+<li><a href="/blog/2026/running-infrastructure-with-systemd/">Previous post: Running Infrastructure with Systemd</a></li>
+</ul>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;nix-shells-ssh-claude-code&#x2F;">The Unholy Trinity: Nix Shells, SSH Config, and Claude Code</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 21, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">How proper environment setup turns AI coding assistants from novelty into genuine infrastructure. Nix makes everything reproducible. SSH makes everything reachable. Claude ties it together.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-9&#x2F;">NixOS as a daily driver or Zero to Nixty, part 9&#x2F;? - Enabling Wi-Fi</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 27, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">Troubleshooting and fixing Wi-Fi on a Framework 16 laptop running NixOS by loading the Intel AX210 driver, enabling firmware, and configuring NetworkManager with wpa_supplicant.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/framework">#framework</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-8&#x2F;">NixOS as a daily driver or Zero to Nixty, part 8&#x2F;? - Modular Config</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 20, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Breaking down a NixOS configuration into reusable modules organized by host and common settings, making it easy to deploy consistent environments across multiple machines.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-7-5&#x2F;">NixOS as a daily driver or Zero to Nixty, part 7.5&#x2F;? - Trial by Encrypted Fire</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 13, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">A detailed account of struggling through manual LUKS encryption setup on NixOS, hitting multiple roadblocks, and ultimately succeeding with the graphical installer after three failed attempts.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-6&#x2F;">NixOS as a daily driver or Zero to Nixty, part 6&#x2F;? - Dev environment</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 08, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Introducing NixVim for declarative Neovim configuration and exploring nix-shell for creating reproducible, project-specific development environments without global installs.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

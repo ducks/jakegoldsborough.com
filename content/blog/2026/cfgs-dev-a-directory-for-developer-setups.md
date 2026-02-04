@@ -102,11 +102,11 @@ The data model is flat right now. There's no way to express relationships like "
 
 ## What's Next
 
-More tools. The current list covers the popular stuff but there are gaps. I want to add detection for shell frameworks (Oh-My-Zsh, Prezto), prompt themes (Starship, Powerlevel10k), and multiplexers (tmux, Zellij).
-
 Multi-tool filtering. Right now you can browse by single tool, but "show me users with both Neovim and Kitty" isn't possible yet.
 
 Similar setups. If you use Neovim with these 5 plugins, here are other people with similar configs. This requires some fuzzy matching logic but the data is there.
+
+Better search. Right now it's browse-only. Being able to search by tool combinations, categories, or specific plugins would be useful.
 
 ---
 

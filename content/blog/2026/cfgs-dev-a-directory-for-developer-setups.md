@@ -9,30 +9,23 @@ taxonomies:
     - tools
 ---
 
-There's something useful and interesting about seeing how other developers
-configure their tools. When I'm setting up something new or looking for a
-better workflow, I want to see what people who use the tool every day have
-settled on. What colorscheme? What keybindings? What plugins?
+Every developer eventually builds a setup they are proud of. Not because it is perfect, but because it is earned - shaped by years of work, mistakes, migrations, and small personal decisions.
 
-The problem is discovery. GitHub search is terrible for this. Searching
-"neovim config" returns 500,000 repos, most of which are forks or abandoned.
-Dotfile repos have no standard structure. Some people have `nvim/init.lua`,
-others have `.config/nvim/init.vim`, others have everything in a single
-`dotfiles` monorepo.
+The problem is discovery. These hard-won configurations are scattered across GitHub repos, half-documented READMEs, gists, and blog posts. You can find them if you already know what to search for. But browsing? Exploring what tools people actually use together? That is hard.
 
-So I built [cfgs.dev](https://cfgs.dev).
+[cfgs.dev](https://cfgs.dev) exists to fix that gap.
 
-## What It Does
+It is not a new config system. Not a dotfile manager. Not a package manager. It is a directory - a browsable index of how developers actually work, across tools, operating systems, and philosophies.
 
-cfgs.dev scans GitHub repos and extracts what tools people use. Not just "this
-repo has Neovim" but "this repo uses Neovim with lazy.nvim, gruvbox, lualine,
-telescope, and nvim-cmp."
+Think of it like browsing other developers' desks. You can see what tools they use, how they configure them, and what their workflow looks like. Then follow the link to their actual dotfiles repo to see the details.
 
-You can browse by category (editors, terminals, window managers) or by specific
-tool. Want to see how people configure Hyprland? There's a page for that.
+## What cfgs.dev is
 
-The detection is declarative. Each tool has a JSON config that specifies file
-patterns to match and content to extract:
+cfgs.dev scans GitHub repos and extracts what tools people use. Not just "this repo has Neovim" but "this repo uses Neovim with lazy.nvim, gruvbox, lualine, telescope, and nvim-cmp."
+
+An entry is simple: a username, a link to the dotfiles repo, and a structured breakdown of what the scanner found. Anyone can submit any public repo - the owner can later claim it by logging in. You can browse by category (editors, terminals, window managers) or by specific tool. Want to see how people configure Hyprland? There's a page for that.
+
+The detection is declarative. Each tool has a JSON config that specifies file patterns to match and content to extract:
 
 ```json
 {
@@ -86,43 +79,38 @@ You can embed your setup in your README:
 This returns a shields.io style badge showing your top tools. There are options
 for filtering by category and changing the style.
 
+## What cfgs.dev is not
+
+- Not a dotfile manager (use chezmoi, Stow, dotter, or bare git repos)
+- Not a package manager (use Nix, Homebrew, or your distro's package manager)
+- Not enforcing standards or best practices (your config, your choices)
+- Not replacing existing tools (it points to them, does not replace them)
+
 ## What Works
 
-The declarative detector system is nice. Adding a new tool is just appending to
-a JSON file. No TypeScript, no build step, no tests to write. The refactor from
-code-based detectors to config-based ones removed 455 lines.
+The declarative detector system is nice. Adding a new tool is just appending to a JSON file. No TypeScript, no build step, no tests to write. The refactor from code-based detectors to config-based ones removed 455 lines.
 
-Browse-by-tool is useful for discovery. Instead of searching through random
-repos, you can see "here are 47 people using Helix" and look at their configs.
+Browse-by-tool is useful for discovery. Instead of searching through random repos, you can see "here are 47 people using Helix" and look at their configs.
 
 ## What Doesn't
 
-Scanning requires cloning repos locally, which takes time. A shallow clone of a
-typical dotfiles repo is fast, but large repos or slow connections can timeout.
-I cache scan results so subsequent visits are instant.
+Scanning requires cloning repos locally, which takes time. A shallow clone of a typical dotfiles repo is fast, but large repos or slow connections can timeout. I cache scan results so subsequent visits are instant.
 
-Detection accuracy varies. Simple tools are easy (if `kitty.conf` exists, they
-use Kitty). Complex tools with many config locations are harder. Neovim alone
-has like 6 different places people put their config.
+Detection accuracy varies. Simple tools are easy (if `kitty.conf` exists, they use Kitty). Complex tools with many config locations are harder. Neovim alone has like 6 different places people put their config.
 
-The data model is flat right now. There's no way to express relationships like
-"this person switched from packer to lazy.nvim" or "these configs are forks of
-each other." That might be interesting but it's a lot more complexity.
+The data model is flat right now. There's no way to express relationships like "this person switched from packer to lazy.nvim" or "these configs are forks of each other." That might be interesting but it is a lot more complexity.
 
 ## What's Next
 
-More tools. The current list covers the popular stuff but there are gaps. I
-want to add detection for shell frameworks (Oh-My-Zsh, Prezto), prompt themes
-(Starship, Powerlevel10k), and multiplexers (tmux, Zellij).
+More tools. The current list covers the popular stuff but there are gaps. I want to add detection for shell frameworks (Oh-My-Zsh, Prezto), prompt themes (Starship, Powerlevel10k), and multiplexers (tmux, Zellij).
 
-Multi-tool filtering. Right now you can browse by single tool, but "show me
-users with both Neovim and Kitty" isn't possible yet.
+Multi-tool filtering. Right now you can browse by single tool, but "show me users with both Neovim and Kitty" isn't possible yet.
 
-Similar setups. If you use Neovim with these 5 plugins, here are other people
-with similar configs. This requires some fuzzy matching logic but the data is
-there.
+Similar setups. If you use Neovim with these 5 plugins, here are other people with similar configs. This requires some fuzzy matching logic but the data is there.
 
 ---
+
+If you have a dotfiles repo, add it. Anyone can submit any public dotfile repo - no login required. Paste the URL and the scanner does the rest. If you are the owner, you can log in with GitHub to claim your entry and update it later. The more setups in the index, the more useful it becomes as a living map of real developer workflows.
 
 [cfgs.dev](https://cfgs.dev) |
 [GitHub](https://github.com/ducks/cfgs.dev)

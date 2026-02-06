@@ -19,6 +19,23 @@ thinking through the structure.
 
 That's what `lok spec` solves.
 
+This post describes the shape of the system: how lok structures planning, what
+guarantees the spec format provides, and why separation between planner and
+executor matters. The implementation of the executor (agents actually writing
+code) is not covered here. This is about constraints and contracts.
+
+## What Lok is not
+
+Before going further:
+
+- Not a chatbot framework or conversational interface
+- Not a marketplace or plugin system for third-party agents
+- Not trying to replace developers with automation
+
+Lok is a planner that structures work and an executor that requires explicit
+human approval at every phase boundary. The design assumes humans review specs,
+trigger execution, and validate results.
+
 ## The Problem with "Just Build It"
 
 When you give an LLM a big task like "build a C compiler," it starts coding
@@ -137,6 +154,40 @@ outputs = "Token enum, TokenKind enum, Span struct"
 tests = "Unit tests for token construction and display"
 ```
 
+## Planning to Execution Flow
+
+Here is the minimal end-to-end for a boring but real task: refactoring Rust
+error handling to use `thiserror` crate. Replace manual `impl Display` with
+derive macro. Update all error construction sites.
+
+```bash
+lok spec "Refactor error types to use thiserror crate. Replace manual Display
+  impls with derive macro. Update all error construction sites."
+```
+
+Output:
+```
+.arf/specs/
+  roadmap.arf
+  01-add-dependency/spec.arf
+  02-refactor-errors/spec.arf
+  02-refactor-errors/01-lexer-error.arf
+  02-refactor-errors/02-parser-error.arf
+  03-update-callsites/spec.arf
+```
+
+Review the roadmap and specs. If the plan looks wrong, edit the `.arf` files or
+regenerate. Once satisfied:
+
+```bash
+lok implement .arf/specs/
+```
+
+Agents read each spec and implement the changes directly. Each agent works on
+its assigned file according to the spec. The boundary between planning and
+execution is the review gate - you decide when to run `lok implement` after
+reviewing the specs.
+
 ## Why This Matters
 
 The spec files are [ARF](https://github.com/ducks/arf) format. That means
@@ -152,6 +203,34 @@ stepping on each other because each owns their file.
 The pattern is recursive. `lok spec` on a project gives you steps. Each step
 has subtasks. If a subtask is still too big, you could spec it again. Same
 process, different scale.
+
+The spec format enforces three invariants:
+
+1. **Serializable plans**: Every decision is written down in parseable TOML.
+   You can diff plans, version them, replay them.
+2. **Attributable actions**: Each spec names the file it will modify or create.
+   No agent can touch code without a spec that declares intent.
+3. **Human intervention points**: Spec generation is separate from execution.
+   You review the plan before any code changes happen.
+
+These are not optimizations. They are constraints that prevent the system from
+becoming a black box.
+
+## Human in the Loop by Design
+
+The separation between `lok spec` and execution is not a temporary limitation.
+It is the core design. The system does not "learn" to skip human review or
+"graduate" to autonomous operation.
+
+Every phase boundary requires explicit human approval:
+- Spec generation produces files you review before execution starts
+- Execution runs subtasks but does not merge or deploy results
+- Integration is a separate manual step
+
+This is not because the LLMs are not capable enough. It is because software
+built by delegation requires inspection and veto power at decision boundaries.
+The moment you remove that, you have an agent that makes choices you cannot
+audit until after the damage is done.
 
 ## Single Backend Fallback
 
@@ -187,12 +266,13 @@ must debate or synthesize. Never query N backends just to pick one.
 ## What's Next
 
 The specs exist. The next step is execution: read the specs, assign agents to
-subtasks, run them in parallel, integrate the results. That's a bigger piece of
+subtasks, run them in parallel, integrate the results. That is a bigger piece of
 machinery, but the foundation is here.
 
 For now, `lok spec` gives you a structured plan that multiple models have
 agreed on. Review it, tweak it if needed, then start building with confidence
-that the architecture makes sense.
+that the architecture makes sense. The system does not get smarter by hiding
+decisions from you. It gets more useful by making decisions inspectable.
 
 The source is at [github.com/ducks/lok](https://github.com/ducks/lok).
 

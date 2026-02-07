@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Declarative VPS infrastructure using systemd services. Running Gitea, Woodpecker CI, Scrob, and GoatCounter with automated deployment scripts.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Running VPS Infrastructure with Systemd">
+    <meta property="og:description" content="Declarative VPS infrastructure using systemd services. Running Gitea, Woodpecker CI, Scrob, and GoatCounter with automated deployment scripts.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;running-infrastructure-with-systemd&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Running VPS Infrastructure with Systemd">
+    <meta name="twitter:description" content="Declarative VPS infrastructure using systemd services. Running Gitea, Woodpecker CI, Scrob, and GoatCounter with automated deployment scripts.">
+
+    <title>Running VPS Infrastructure with Systemd - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Running VPS Infrastructure with Systemd</h1>
+      <div class="meta">
+        
+        <p>Jan 10, 2026</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/self-hosting">#self-hosting</a></p>
+          
+          <p><a href="/tags/infrastructure">#infrastructure</a></p>
+          
+          <p><a href="/tags/systemd">#systemd</a></p>
+          
+        </div>
+      
+
+      <p>I run all my personal infrastructure on a single VPS using systemd
+services instead of Docker. No containers, no orchestration, just
+systemd units and bash scripts.</p>
+<h2 id="why-not-docker">Why Not Docker?</h2>
+<p>Docker is fine, but for a single VPS it felt like overhead. I wanted something simpler
+and built-in. I initially started with Docker but was constantly hitting
+networking issues with services communicating.</p>
+<p>Systemd already handles process supervision, logging, and restarts. Why
+add another layer?</p>
+<h2 id="what-s-running">What's Running</h2>
+<p>The VPS hosts:</p>
+<ul>
+<li><strong>Gitea</strong> - Git hosting at code.jakegoldsborough.com</li>
+<li><strong>Woodpecker CI</strong> - Continuous integration (idle for now)</li>
+<li><strong>Scrob</strong> - Music scrobbling server (see <a href="https://jakegoldsborough.com/blog/2026/building-scrob-self-hosted-scrobbling/">previous
+post</a>)</li>
+<li><strong>GoatCounter</strong> (3 instances) - Analytics for multiple sites</li>
+<li><strong>Caddy</strong> - Reverse proxy with automatic HTTPS</li>
+<li><strong>PostgreSQL</strong> - Shared database for Gitea, Woodpecker, and Scrob</li>
+</ul>
+<p>Everything runs as dedicated system users with systemd units managing
+their lifecycle.</p>
+<h2 id="how-it-works">How It Works</h2>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>Caddy (reverse proxy + TLS)
+</span><span>    |
+</span><span>    +-- code.jakegoldsborough.com -&gt; Gitea (port 3000)
+</span><span>    +-- ci.jakegoldsborough.com -&gt; Woodpecker (port 8000)
+</span><span>    +-- scrob.jakegoldsborough.com -&gt; Scrob (port 3002)
+</span><span>    +-- ui.scrob.jakegoldsborough.com -&gt; Scrob UI (static files)
+</span><span>    +-- stats.jakegoldsborough.com -&gt; GoatCounter (port 8081)
+</span><span>    +-- stats.date-ver.com -&gt; GoatCounter (port 8082)
+</span><span>    +-- stats.gnarlyvoid.com -&gt; GoatCounter (port 8083)
+</span></code></pre>
+<p>Each service runs as a systemd unit. Caddy handles TLS termination and
+proxies requests to the appropriate backend.</p>
+<h2 id="the-repository-structure">The Repository Structure</h2>
+<p>The entire setup lives in a git repo called <code>burrow-systemd</code>:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>burrow-systemd/
+</span><span>├── systemd/            # Service unit files
+</span><span>│   ├── gitea.service
+</span><span>│   ├── woodpecker-server.service
+</span><span>│   ├── scrob.service
+</span><span>│   ├── goatcounter-*.service
+</span><span>│   └── caddy.service
+</span><span>├── config/             # Service configurations
+</span><span>│   ├── Caddyfile
+</span><span>│   ├── gitea/app.ini
+</span><span>│   ├── woodpecker/server.env
+</span><span>│   └── scrob/scrob.env
+</span><span>└── bin/                # Deployment scripts
+</span><span>    ├── bootstrap       # Initial setup
+</span><span>    ├── deploy          # Update and restart
+</span><span>    ├── update          # Check and apply updates
+</span><span>    └── backup          # Backup databases
+</span></code></pre>
+<p>Configuration is declarative. Change a config file, commit, push, pull
+on the VPS, run <code>./bin/deploy</code>, done.</p>
+<h2 id="bootstrap-script">Bootstrap Script</h2>
+<p>The bootstrap script sets up everything from scratch:</p>
+<ol>
+<li>Installs packages (Caddy, PostgreSQL)</li>
+<li>Downloads service binaries (Gitea, GoatCounter, Woodpecker)</li>
+<li>Creates system users (<code>gitea</code>, <code>goatcounter</code>, <code>scrob</code>, etc.)</li>
+<li>Initializes PostgreSQL databases</li>
+<li>Generates secure passwords and tokens</li>
+<li>Copies config files from templates</li>
+<li>Installs systemd service files</li>
+</ol>
+<p>Run once on a fresh VPS:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">sudo</span><span> ./bin/bootstrap
+</span></code></pre>
+<p>It generates a <code>.env</code> file with all secrets and database passwords. This
+file is git-ignored and stays on the server.</p>
+<h2 id="deploy-script">Deploy Script</h2>
+<p>The deploy script handles updates and restarts:</p>
+<ol>
+<li>Updates configuration files (substitutes passwords from <code>.env</code>)</li>
+<li>Copies service files to <code>/etc/systemd/system/</code></li>
+<li>Reloads systemd</li>
+<li>Creates databases if they don't exist</li>
+<li>Enables and restarts all services</li>
+<li>Checks service status</li>
+</ol>
+<p>After changing config locally:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">git</span><span> add config/Caddyfile
+</span><span style="color:#bf616a;">git</span><span> commit</span><span style="color:#bf616a;"> -m </span><span>&quot;</span><span style="color:#a3be8c;">Update reverse proxy config</span><span>&quot;
+</span><span style="color:#bf616a;">git</span><span> push
+</span><span>
+</span><span style="color:#65737e;"># On VPS
+</span><span style="color:#96b5b4;">cd </span><span style="color:#bf616a;">~</span><span>/dev/burrow-systemd
+</span><span style="color:#bf616a;">git</span><span> pull
+</span><span style="color:#bf616a;">sudo</span><span> ./bin/deploy
+</span></code></pre>
+<p>The deploy script is idempotent. Run it as many times as you want.</p>
+<h2 id="service-updates">Service Updates</h2>
+<p>Updates are automated via the update script. It checks GitHub releases
+for all services and downloads new binaries when available:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#65737e;"># Check what needs updating
+</span><span style="color:#bf616a;">sudo</span><span> ./bin/update check
+</span><span>
+</span><span style="color:#65737e;"># Apply all updates
+</span><span style="color:#bf616a;">sudo</span><span> ./bin/update apply
+</span><span>
+</span><span style="color:#65737e;"># Update specific service
+</span><span style="color:#bf616a;">sudo</span><span> ./bin/update apply gitea
+</span></code></pre>
+<p>The script compares installed versions against the latest GitHub
+releases. If an update is available, it downloads the new binary, stops
+the service, replaces the binary, and restarts the service.</p>
+<p>Scrob migrations run automatically on startup via <code>sqlx::migrate!()</code>.</p>
+<p>Simple and explicit.</p>
+<h2 id="database-strategy">Database Strategy</h2>
+<p>PostgreSQL is shared across Gitea, Woodpecker, and Scrob. Each service
+gets its own database and user with limited permissions.</p>
+<p>GoatCounter uses SQLite because each instance is independent. Three
+separate SQLite databases, three separate systemd units, three separate
+ports.</p>
+<p>No database clustering, no replication, no complexity. Daily backups via
+cron are enough for my use case.</p>
+<h2 id="what-works">What Works</h2>
+<ul>
+<li>Single command deployment (<code>./bin/deploy</code>)</li>
+<li>Automated binary updates (<code>./bin/update</code>)</li>
+<li>Centralized logging via journalctl</li>
+<li>Automatic HTTPS via Caddy + Let's Encrypt</li>
+<li>Service isolation via systemd users</li>
+<li>Declarative config in git</li>
+<li>Low memory footprint (no container runtime)</li>
+</ul>
+<h2 id="what-doesn-t">What Doesn't</h2>
+<ul>
+<li>Can't easily move to a different host (not portable like containers)</li>
+<li>Service isolation is weaker than containers</li>
+<li>Harder to test locally (no docker-compose equivalent)</li>
+</ul>
+<h2 id="security-model">Security Model</h2>
+<ul>
+<li>Each service runs as a dedicated system user</li>
+<li>PostgreSQL only listens on localhost</li>
+<li>TLS handled by Caddy (reverse proxy)</li>
+<li>Secrets stored in <code>.env</code> (git-ignored, mode 600)</li>
+<li>No rate limiting (future work)</li>
+</ul>
+<p>All services bind to localhost and are only accessible via Caddy's
+reverse proxy. The VPS firewall blocks everything except 80, 443, and
+SSH.</p>
+<h2 id="reflections">Reflections</h2>
+<p>The best part is the simplicity. No Docker networking, no volume mounts,
+no image building. Just systemd units, config files, and bash scripts.</p>
+<p>When something breaks, <code>journalctl -u &lt;service&gt;</code> shows exactly what went
+wrong. No container layers to debug.</p>
+<p>The tradeoff is portability. This setup is tied to the specific VPS and
+filesystem layout. Migrating to a new server means running bootstrap
+again and restoring database backups.</p>
+<p>For my use case, that's fine. I'm not running a multi-tenant SaaS. I'm
+hosting services for myself.</p>
+<p>That's enough.</p>
+<h2 id="links">Links</h2>
+<ul>
+<li><a href="https://github.com/ducks/burrow-systemd">burrow-systemd</a></li>
+<li><a href="https://jakegoldsborough.com/blog/2026/building-scrob-self-hosted-scrobbling/">Scrob blog post</a></li>
+<li><a href="https://about.gitea.com/">Gitea</a></li>
+<li><a href="https://woodpecker-ci.org/">Woodpecker CI</a></li>
+<li><a href="https://www.goatcounter.com/">GoatCounter</a></li>
+<li><a href="https://caddyserver.com/">Caddy</a></li>
+</ul>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;real-declarative-infrastructure-nixos&#x2F;">From Bash Scripts to NixOS: Real Declarative Infrastructure on a VPS</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 18, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Converting a bash script + systemd-based VPS to NixOS for truly declarative infrastructure. No more update scripts or edge cases, just configuration.nix.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/self-hosting">#self-hosting</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-scrob-self-hosted-scrobbling&#x2F;">Building Scrob: A Self-Hosted Music Scrobbling Server</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 02, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Built a self-hosted scrobbling server with Rust and PostgreSQL to track listening history without relying on Last.fm, featuring public profiles and automated deployment.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/self-hosting">#self-hosting</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;how-a-friends-gif-broke-our-filesystem&#x2F;">How Jennifer Aniston and Friends Cost Us 377GB and Broke ext4 Hardlinks</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 23, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A backup deduplication fix, filesystem hardlink limits, and the Jennifer Aniston reaction GIF that stress-tested our infrastructure.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;real-declarative-infrastructure-nixos&#x2F;">From Bash Scripts to NixOS: Real Declarative Infrastructure on a VPS</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 18, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Converting a bash script + systemd-based VPS to NixOS for truly declarative infrastructure. No more update scripts or edge cases, just configuration.nix.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/self-hosting">#self-hosting</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

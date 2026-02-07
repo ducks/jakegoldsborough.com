@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="An introduction to Nix and NixOS, explaining purely functional package management, declarative system configuration, atomic rollbacks, and why this approach makes for a powerful daily driver OS.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="NixOS as a daily driver on a late 2011 Macbook Pro, part 1&#x2F;? - What and why?">
+    <meta property="og:description" content="An introduction to Nix and NixOS, explaining purely functional package management, declarative system configuration, atomic rollbacks, and why this approach makes for a powerful daily driver OS.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-1&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="NixOS as a daily driver on a late 2011 Macbook Pro, part 1&#x2F;? - What and why?">
+    <meta name="twitter:description" content="An introduction to Nix and NixOS, explaining purely functional package management, declarative system configuration, atomic rollbacks, and why this approach makes for a powerful daily driver OS.">
+
+    <title>NixOS as a daily driver on a late 2011 Macbook Pro, part 1&#x2F;? - What and why? - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>NixOS as a daily driver on a late 2011 Macbook Pro, part 1&#x2F;? - What and why?</h1>
+      <div class="meta">
+        
+        <p>May 18, 2025</p>
+        
+        <p>3 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/nixos">#nixos</a></p>
+          
+          <p><a href="/tags/linux">#linux</a></p>
+          
+        </div>
+      
+
+      <p>First, it's worth explaining what NixOS is and why I or anyone would want to
+run it as a daily driver.</p>
+<p>But even before diving into NixOS, we have to talk about Nix.</p>
+<h3 id="nix">Nix</h3>
+<p>Nix is a package manager that is purely functional and creates reproducible
+builds specified in the Nix Expression Language. Nix expressions are functions
+that take dependencies as arguments which creates a <em>derivation</em> that specifies
+a reproducible build environment. Nix then stores the results of the build at
+unique address specified by a hash of the complete dependency tree. This
+is known as the Nix store and it's immutable which allows atomic upgrades,
+rollbacks, and simultaneous installations of packages with different versions.</p>
+<h3 id="nixos">NixOS</h3>
+<p>NixOS is an operating system that is built on top of Nix and the idea of purely
+functional package management. Packages are never overwritten once built. If
+you change the Nix expression for a package, it will be rebuilt, and stored
+under a new address with a new hash, preventing interference with an old version.</p>
+<p>NixOS takes this a step further and applies this to configuration. By building
+your entire system from a Nix expression, NixOS ensures that your old
+configuration is never overwritten which allows for easy rollbacks. One big
+caveat of this is the elimination of "global" directores such as <code>/bin</code>,
+<code>/lib</code>, <code>/usr</code>, etc. All packages are kept in <code>/nix/store</code> under a hashed
+address. (One exception is a symlink <code>/bin/sh</code> to Bash in the Nix store). There
+is a <code>/etc</code> for system-wide config but many of those files are symlinks to files
+in the Nix store.</p>
+<p>Everything in NixOS is built by the Nix package manager. This includes the
+kernel, applications, system packages, and configuration.</p>
+<p>To configure NixOS, you have a file at <code>/etc/nixos/configuration.nix</code>.
+You will setup everything from your boot devices to what services you want
+to run.</p>
+<p>Here is a minimal config that enables sshd:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>{
+</span><span>  boot.loader.grub.device = &quot;/dev/sda&quot;;
+</span><span>  fileSystems.&quot;/&quot;.device = &quot;/dev/sda1&quot;;
+</span><span>  services.sshd.enable = true;
+</span><span>}
+</span></code></pre>
+<p>More on this later though.</p>
+<h3 id="why">Why?</h3>
+<p>Now the whys. I think many of them speak for themselves but here are mine:</p>
+<p><strong>Rollbacks</strong></p>
+<p>This one is very big especially when learning about a new, drastically different
+OS like Nix. Because old config is never overwritten, you can easily cause a
+breaking change without being worried about how to fix it (unless maybe it's
+bootloader related). In fact, old configs are listed in the boot menu.</p>
+<p><strong>Reproducible Build Configurations</strong></p>
+<p>Kind of like a rollback but starting from scratch. You can take the
+<code>configuration.nix</code> file, copy to another machine, rebuild, and you will have
+the same applications, services, and configuration as before.</p>
+<p><strong>Ad-hoc shell environments</strong></p>
+<p>In a "Nix shell", you can use any program that is packaged with Nix without
+needing to install permanently.</p>
+<p>For example, you can run <code>nix-shell -p git neovim node</code> and you will be dropped
+into a shell with those applications installed. This may take some time
+depending on the applications installed.</p>
+<p><strong>It's a new way to think</strong></p>
+<p>Honestly, I just like trying new stuff, especially when it's done in a new way.
+Linux has mostly been the same for a long time now, so it's refreshing to see
+a new way of doing it that also improves on an already solid OS. I also
+have really fallen in love with DevOps/IaC type of work, and NixOS definitely
+scratches that itch.</p>
+<h3 id="next-time">Next time</h3>
+<p>In the next post, I will go over how to install NixOS and maybe a bit of the
+configuration.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;nix-shells-ssh-claude-code&#x2F;">The Unholy Trinity: Nix Shells, SSH Config, and Claude Code</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 21, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">How proper environment setup turns AI coding assistants from novelty into genuine infrastructure. Nix makes everything reproducible. SSH makes everything reachable. Claude ties it together.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;real-declarative-infrastructure-nixos&#x2F;">From Bash Scripts to NixOS: Real Declarative Infrastructure on a VPS</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 18, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Converting a bash script + systemd-based VPS to NixOS for truly declarative infrastructure. No more update scripts or edge cases, just configuration.nix.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/self-hosting">#self-hosting</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-9&#x2F;">NixOS as a daily driver or Zero to Nixty, part 9&#x2F;? - Enabling Wi-Fi</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 27, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">Troubleshooting and fixing Wi-Fi on a Framework 16 laptop running NixOS by loading the Intel AX210 driver, enabling firmware, and configuring NetworkManager with wpa_supplicant.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/framework">#framework</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-8&#x2F;">NixOS as a daily driver or Zero to Nixty, part 8&#x2F;? - Modular Config</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 20, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Breaking down a NixOS configuration into reusable modules organized by host and common settings, making it easy to deploy consistent environments across multiple machines.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-7-5&#x2F;">NixOS as a daily driver or Zero to Nixty, part 7.5&#x2F;? - Trial by Encrypted Fire</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 13, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">A detailed account of struggling through manual LUKS encryption setup on NixOS, hitting multiple roadblocks, and ultimately succeeding with the graphical installer after three failed attempts.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

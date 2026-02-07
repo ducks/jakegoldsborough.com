@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Breaking down a NixOS configuration into reusable modules organized by host and common settings, making it easy to deploy consistent environments across multiple machines.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="NixOS as a daily driver or Zero to Nixty, part 8&#x2F;? - Modular Config">
+    <meta property="og:description" content="Breaking down a NixOS configuration into reusable modules organized by host and common settings, making it easy to deploy consistent environments across multiple machines.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-8&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="NixOS as a daily driver or Zero to Nixty, part 8&#x2F;? - Modular Config">
+    <meta name="twitter:description" content="Breaking down a NixOS configuration into reusable modules organized by host and common settings, making it easy to deploy consistent environments across multiple machines.">
+
+    <title>NixOS as a daily driver or Zero to Nixty, part 8&#x2F;? - Modular Config - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>NixOS as a daily driver or Zero to Nixty, part 8&#x2F;? - Modular Config</h1>
+      <div class="meta">
+        
+        <p>Jul 20, 2025</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/nixos">#nixos</a></p>
+          
+          <p><a href="/tags/linux">#linux</a></p>
+          
+        </div>
+      
+
+      <p>Check out the whole series here:</p>
+<p><a href="/tags/nixos">NixOS as a Daily Driver - Zero to Nixty</a></p>
+<h3 id="intro">Intro</h3>
+<p>Today is all about configuration and setting up our new encrypted machine. As
+I stated at the end of the previous post, this didn't go as smoothly as I was
+hoping.</p>
+<p>My plan was to just use labels when setting up the filesystems so my same exact
+configuration could be copied around. This plan was short-sighted for a number
+of reasons but it was definitely not going to work after seeing what the basic
+configuration looked like after installing with encryption enabled. The LUKS
+device setup is more complex than the normal, unencrypted filesystem
+config. There may be a way to use labels here but I don't really want to mess
+with that right now. I have an encrypted machine that boots so I'm going to
+leave it that way.</p>
+<h3 id="breaking-config-into-modules">Breaking Config Into Modules</h3>
+<p>After some thinking and research, I decided to refactor the way I store the
+config. I had been wanting to modularize it a bit anyway, so what better time
+than now.</p>
+<p>First, I broke my config up into some modules in a <code>common</code> directory.</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>nixos/
+</span><span>├── common
+</span><span>│   ├── base.nix
+</span><span>│   ├── desktop.nix
+</span><span>│   ├── packages.nix
+</span><span>│   ├── services.nix
+</span><span>│   ├── uefi.nix
+</span><span>│   └── users.nix
+</span></code></pre>
+<p>Then, I created a <code>hosts</code> directory that includes a file for each machine.
+That file imports these basic modules and adds anything host specific like
+hostname.</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>nixos/
+</span><span>├── hosts
+</span><span>│   ├── framework-personal.nix
+</span><span>│   ├── framework-work.nix
+</span><span>│   └── macbook.nix
+</span></code></pre>
+<p>One of those files looks like this:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>{ ... }:
+</span><span>
+</span><span>{
+</span><span>  imports = [
+</span><span>    ../common/base.nix
+</span><span>    ../common/users.nix
+</span><span>    ../common/desktop.nix
+</span><span>    ../common/packages.nix
+</span><span>    ../common/services.nix
+</span><span>  ];
+</span><span>
+</span><span>  networking.hostName = &quot;macbook&quot;;
+</span><span>}
+</span></code></pre>
+<p>Then I just update the <code>/etc/nixos/configuration.nix</code> that was created for
+me and import that one module. One of those files looks like this:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>{ config, pkgs, ... }:
+</span><span>
+</span><span>{
+</span><span>  imports = [
+</span><span>    ./hardware-configuration.nix
+</span><span>    ./hosts/macbook.nix
+</span><span>  ];
+</span><span>
+</span><span>  # Replace actual UUID below
+</span><span>  boot.initrd.luks.devices.&quot;$UUID&quot;.device = &quot;/dev/disk/by-uuid/$UUID&quot;;
+</span><span>
+</span><span>  # Do not change this value unless you know what you are doing!
+</span><span>  # This value does *not* affect the Nixpkgs version. It is used to determine
+</span><span>  # whether to enable software and configuration options that require backwards
+</span><span>  # compatibility with older NixOS releases. Changing it may result in a system
+</span><span>  # that cannot be upgraded or has other surprising consequences.
+</span><span>  system.stateVersion = &quot;25.05&quot;;
+</span><span>}
+</span></code></pre>
+<h3 id="complete-new-machine-flow">Complete New Machine Flow</h3>
+<p>Now, my new machine flow looks something like this:</p>
+<ol>
+<li>
+<p>Install NixOS</p>
+</li>
+<li>
+<p>Boot up and open a dev shell:</p>
+<p><code>nix-shell -p git rustup neovim</code></p>
+<p>(We use git to check out config, rustup to install rust/dotter, and neovim
+for easier editing.)</p>
+</li>
+<li>
+<p>Check out my dotfiles through https for now. This way I don't need to create
+an SSH key and add it to Github yet:</p>
+<p><code>git clone https://github.com/ducks/dotfiles.git</code></p>
+</li>
+<li>
+<p>Install latest Rust then dotter:</p>
+<p><code>rustup install stable; cargo install dotter</code></p>
+</li>
+<li>
+<p>Checkout a new branch in my dotfiles dir and add a new host file</p>
+</li>
+<li>
+<p>Add a new local config for Dotter at</p>
+<p><code>dotfiles/.dotter/local.toml</code></p>
+</li>
+<li>
+<p>Use the installed Dotter to deploy my dotfiles:</p>
+<p><code>~/.cargo/bin/dotter deploy</code></p>
+</li>
+<li>
+<p>Rebuild NixOS:</p>
+<p><code>sudo nixos-rebuild switch</code></p>
+</li>
+<li>
+<p>Start Hypr:</p>
+<p><code>Hyprland</code></p>
+</li>
+<li>
+<p>Celebrate! :tada:</p>
+</li>
+</ol>
+<p>If everything went well, I am now sitting behind a duplicate of my other machines.
+This workflow might seem long but it really only takes 10-30 mins to do all
+this. It can obviously vary on your machine and build size. It's far easier than
+any other new machine flow I've tried. I've read about people using ansible
+to do this kind of thing but this just feels so clean and easy once you get
+around the rough edges.</p>
+<p>I have executed this flow on 3 machines now and it's worked well. I had to make
+a few small changes like adding a <code>ref</code> to a branch for NixVim, and I'm
+honestly not sure why that is. I don't think it has anything to do with my
+config as it was building before.</p>
+<h3 id="summary">Summary</h3>
+<p>In this post, I showed how I broke my NixOS config down into modules so they can
+be easily imported per host. I think this is a clean and reproducible way
+to store and share my NixOS config. I have all my base config in easy to use
+modules, then I can simply add any host specific setup to that single file.</p>
+<h3 id="next-time">Next Time</h3>
+<p>At this point, things are feeling pretty good for my setup personally. I keep
+things pretty minimal so as long as I can navigate around with the correct
+keybinds and have basic tools like Nix/Neovim and Librewolf installed and
+setup, I'm mostly good to go. There are definitely some non-NixOS specific
+things I could pivot to to stick with the "Daily Driver" theme.</p>
+<p>If you're reading this and have suggestions or you're curious about something,
+let me know: <a href="mailto:nixos@jakegoldsborough.com">nixos@jakegoldsborough.com</a></p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;nix-shells-ssh-claude-code&#x2F;">The Unholy Trinity: Nix Shells, SSH Config, and Claude Code</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 21, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">How proper environment setup turns AI coding assistants from novelty into genuine infrastructure. Nix makes everything reproducible. SSH makes everything reachable. Claude ties it together.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;real-declarative-infrastructure-nixos&#x2F;">From Bash Scripts to NixOS: Real Declarative Infrastructure on a VPS</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 18, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Converting a bash script + systemd-based VPS to NixOS for truly declarative infrastructure. No more update scripts or edge cases, just configuration.nix.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/self-hosting">#self-hosting</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-9&#x2F;">NixOS as a daily driver or Zero to Nixty, part 9&#x2F;? - Enabling Wi-Fi</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 27, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">Troubleshooting and fixing Wi-Fi on a Framework 16 laptop running NixOS by loading the Intel AX210 driver, enabling firmware, and configuring NetworkManager with wpa_supplicant.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/framework">#framework</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-7-5&#x2F;">NixOS as a daily driver or Zero to Nixty, part 7.5&#x2F;? - Trial by Encrypted Fire</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 13, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">A detailed account of struggling through manual LUKS encryption setup on NixOS, hitting multiple roadblocks, and ultimately succeeding with the graphical installer after three failed attempts.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-6&#x2F;">NixOS as a daily driver or Zero to Nixty, part 6&#x2F;? - Dev environment</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 08, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Introducing NixVim for declarative Neovim configuration and exploring nix-shell for creating reproducible, project-specific development environments without global installs.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

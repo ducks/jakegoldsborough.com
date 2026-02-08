@@ -1,0 +1,18 @@
+pipeline:
+  build:
+    image: ghcr.io/getzola/zola:v0.19.1
+    commands:
+      - zola build
+
+  deploy:
+    image: alpine:latest
+    commands:
+      - apk add --no-cache rsync openssh-client
+      - mkdir -p ~/.ssh
+      - echo "$SSH_KEY" > ~/.ssh/id_ed25519
+      - chmod 600 ~/.ssh/id_ed25519
+      - echo "StrictHostKeyChecking no" >> ~/.ssh/config
+      - rsync -avz --delete public/ pond:/var/www/jakegoldsborough.com/
+    secrets: [ssh_key]
+    when:
+      branch: main

@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Setting up automated deployment for a Zola-based static site using GitHub Actions to build and publish to GitHub Pages with a custom domain and DNS configuration.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Deploying a Zola static site to a custom domain with Github Actions">
+    <meta property="og:description" content="Setting up automated deployment for a Zola-based static site using GitHub Actions to build and publish to GitHub Pages with a custom domain and DNS configuration.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;deploying-static-site-zola-github-actions&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Deploying a Zola static site to a custom domain with Github Actions">
+    <meta name="twitter:description" content="Setting up automated deployment for a Zola-based static site using GitHub Actions to build and publish to GitHub Pages with a custom domain and DNS configuration.">
+
+    <title>Deploying a Zola static site to a custom domain with Github Actions - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Deploying a Zola static site to a custom domain with Github Actions</h1>
+      <div class="meta">
+        
+        <p>May 24, 2025</p>
+        
+        <p>3 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/github">#github</a></p>
+          
+          <p><a href="/tags/devops">#devops</a></p>
+          
+        </div>
+      
+
+      <p>As I've been searching for a new gig, I've gotten the urge to write a bit more
+about some of the stuff I'm up to to help make myself stand out. I really like
+using the fewest tools as needed so I knew a static site generator was what I
+wanted. I also like to use Rust based tools when possible.</p>
+<p>Searching for Rust static site generators lead me to
+<a href="https://www.getzola.org/">Zola</a>.</p>
+<p>Some of the top advertised features are no dependencies, blazingly fast,
+and easy to use. Those sound great to me.</p>
+<h3 id="set-up-zola-site">Set up Zola site</h3>
+<p>While this isn't a few blown Zola tutorial, I did want to include a few things.</p>
+<p>After installing Zola, you can simply run <code>zola init myblog</code>.</p>
+<p>You'll be asked a few questions and a base site will be setup for you.</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>├── config.toml
+</span><span>├── content
+</span><span>├── sass
+</span><span>├── static
+</span><span>├── templates
+</span><span>└── themes
+</span></code></pre>
+<p>Without going too deep, your CommonMark pages will go in <code>content</code>, Tera/HTML
+templates in <code>templates</code>, and any css/js/images or other static content will go
+in <code>static</code>.</p>
+<p>SASS is enabled by default but can be disabled. I am not currently using SASS
+personally.</p>
+<p>Running <code>zola build</code> will build the site and output it a directory called <code>public</code>.</p>
+<p>Here is a link to a complete overview:</p>
+<p><a href="https://www.getzola.org/documentation/getting-started/overview/">https://www.getzola.org/documentation/getting-started/overview/</a></p>
+<h3 id="push-to-github-create-github-actions-workflow">Push to Github &amp; Create Github Actions workflow</h3>
+<p>After getting your content written, site styled, and ready for deployment, it's time to
+push to Github. Create a repo and push it to a <code>main</code> branch (exclude the <code>public</code>
+directory).</p>
+<p>Next, we will setup the actual workflow to take our input files, setup zola,
+build the site, and commit it to the correct branch.</p>
+<p>Create a file at <code>.github/workflows/deploy.yml</code> and insert this:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>name: Deploy Zola to GitHub Pages
+</span><span>
+</span><span>on:
+</span><span>  push:
+</span><span>    branches: [main]
+</span><span>
+</span><span>jobs:
+</span><span>  build-deploy:
+</span><span>    runs-on: ubuntu-latest
+</span><span>
+</span><span>    steps:
+</span><span>    - name: Check out source
+</span><span>      uses: actions/checkout@v4
+</span><span>
+</span><span>    - name: Install Zola
+</span><span>      run: |
+</span><span>        curl -L https://github.com/getzola/zola/releases/download/v0.20.0/zola-v0.20.0-x86_64-unknown-linux-gnu.tar.gz -o zola.tar.gz
+</span><span>        tar -xzf zola.tar.gz
+</span><span>        sudo mv zola /usr/local/bin/
+</span><span>
+</span><span>    - name: Build site
+</span><span>      run: zola build
+</span><span>
+</span><span>    - name: Deploy to GitHub Pages
+</span><span>      uses: peaceiris/actions-gh-pages@v3
+</span><span>      with:
+</span><span>        github_token: ${{ secrets.GITHUB_TOKEN }}
+</span><span>        publish_dir: ./public
+</span><span>        publish_branch: gh-pages
+</span><span>        force_orphan: true
+</span></code></pre>
+<p>This setups up a workflow that:</p>
+<ul>
+<li>watches for pushes to main branch</li>
+<li>checks out the zola source and installs it</li>
+<li>builds your site using zola build</li>
+<li>uses github pages plugin to push <code>public</code> output dir to a <code>gh-pages</code> branch</li>
+</ul>
+<p>You will also need to go to your repos settings and look for the actions section
+to enable write permissions.</p>
+<p>Push this up and watch the build by going to your repo and clicking the "Actions"
+tab. You will see a workflow that you can click into and see build and deploy
+jobs.</p>
+<p>If everything goes well, you can now  visit your site by filling in your values:</p>
+<p>https://${username}.github.io/${repo}</p>
+<h3 id="add-custom-domain-optional">Add Custom Domain (optional)</h3>
+<p>After you have the initial workflow working, you will need to configure some
+Github settings for a custom domain.</p>
+<p>First, run <code>echo "yourdomain.com" &gt; static/CNAME</code> and commit this file.
+Next, go to your Github repo's "Pages" setting and add the domain name.</p>
+<h3 id="configure-dns-optional">Configure DNS (optional)</h3>
+<p>If using a custom domain, you will also need to setup DNS. Go to your domain
+settings and add 4 A records for Github pages:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>A	@	185.199.108.153
+</span><span>A	@	185.199.109.153
+</span><span>A	@	185.199.110.153
+</span><span>A	@	185.199.111.153
+</span></code></pre>
+<p>Setup any subdirectories you might want.</p>
+<p>You may need to give this step some extra time to update before you can
+see your new site at your custom URL. Other times it's nearly instant so your
+results may vary.</p>
+<h3 id="profit">Profit</h3>
+<p>That's basically it for a basic setup. You should now have a static site
+setup at a custom domain that gets automatically built by just pushing a branch.</p>
+<p>While simple, this is a complete setup that let's you create and deploy content
+to your own URL with ease.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;llm-mux-workflow-orchestration&#x2F;">llm-mux: Why I Rebuilt Lok</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 11, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok got 300+ installs, then I rewrote it. The abstractions were wrong. llm-mux has roles, teams, and proper apply&#x2F;verify. Here&#x27;s why.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;finna-multi-model-spec-implement&#x2F;">finna: Multi-Model Debate, Spec, and Implement</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 10, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A standalone tool that takes an idea, debates it across Claude, Codex, and Gemini, creates a roadmap, writes specs, and implements. Planning and execution in one pipeline.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-json-parser-multi-llm&#x2F;">Building a JSON Parser with Multi-LLM Orchestration (Part 1)</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 07, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Using lok to orchestrate four LLMs debating design decisions, then synthesizing specs for a Rust JSON parser. The debate phase surfaced edge cases no single model would have caught.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-spec-multi-agent-planning&#x2F;">Lok Part 5: Multi-Agent Planning with lok spec</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 06, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok gains a spec command that turns task descriptions into structured implementation plans. Multiple LLMs propose, debate, and converge on a roadmap before any code gets written.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;arf-structured-reasoning-for-ai-agents&#x2F;">ARF: Structured Reasoning for AI Agents</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 02, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Moving beyond chat prompts to structured agent communication. Why unstructured data lets LLMs run wild, and how ARF enforces what&#x2F;why&#x2F;how before acting.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

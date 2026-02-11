@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="A journey from regex-powered single-line rewrites to a fully tested Neovim plugin for formatting JavaScript and Rust imports, learning why simpler solutions sometimes beat powerful tools like Treesitter.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="How I accidentally wrote my first Neovim plugin">
+    <meta property="og:description" content="A journey from regex-powered single-line rewrites to a fully tested Neovim plugin for formatting JavaScript and Rust imports, learning why simpler solutions sometimes beat powerful tools like Treesitter.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;releasing-a-neovim-plugin&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="How I accidentally wrote my first Neovim plugin">
+    <meta name="twitter:description" content="A journey from regex-powered single-line rewrites to a fully tested Neovim plugin for formatting JavaScript and Rust imports, learning why simpler solutions sometimes beat powerful tools like Treesitter.">
+
+    <title>How I accidentally wrote my first Neovim plugin - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>How I accidentally wrote my first Neovim plugin</h1>
+      <div class="meta">
+        
+        <p>Jun 25, 2025</p>
+        
+        <p>3 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/neovim">#neovim</a></p>
+          
+          <p><a href="/tags/lua">#lua</a></p>
+          
+        </div>
+      
+
+      <h3 id="just-show-me-the-code">Just Show Me The Code</h3>
+<p><a href="https://github.com/ducks/nvim-vandelay">repo</a></p>
+<h3 id="the-problem">The Problem</h3>
+<p>There is a simple motion I use in Neovim often and I finally decided to do
+something about it.</p>
+<p>That motion is breaking up single line imports into multiline imports.</p>
+<p>Example:</p>
+<p>This:</p>
+<p><code>import { foo, bar, baz } from './utils';</code></p>
+<p>Should become:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>import {
+</span><span>  foo,
+</span><span>  bar,
+</span><span>  baz,
+</span><span>} from &#39;./utils&#39;;
+</span></code></pre>
+<p>It's a tiny thing but something I do all the time in javascript, typescript, and
+rust. Even if it's less than 80 characters wide, I really like breaking multiple
+modules imports down to separate lines.</p>
+<h3 id="the-first-approach-regex-and-why-it-worked">The First Approach: Regex (And Why It Worked)</h3>
+<p>The very first version of Vandelay used simple Lua string matching:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>local pattern = [[import%s*{%s*(.-)%s*}%s*from%s*(.*);]]
+</span><span>local names, from = string.match(line, pattern)
+</span></code></pre>
+<p>This captured two groups:</p>
+<ul>
+<li><code>names</code> - the full list inside <code>{ ... }</code></li>
+<li><code>from</code> - the source string</li>
+</ul>
+<p>After capturing, it simply:</p>
+<ul>
+<li>Split <code>names</code> on commas into a table of individual imports</li>
+<li>Trimmed whitespace</li>
+<li>Reconstructed the formatted import line with newlines and indentation</li>
+</ul>
+<h4 id="why-it-worked">Why It Worked</h4>
+<p>The format of imports I wanted to modify was extremely predictable. I only cared
+about one specific form and I was only operating on one line at a time. Lua
+strings were simple and fast for this very specific case. This worked extremely
+well from the start and passed some simple tests that tests import structure.</p>
+<h3 id="adding-treesitter-and-why-it-didn-t-work">Adding Treesitter (And Why It Didn't Work)</h3>
+<p>I thought using Treesitter would make the plugin more robust. It sounded like a
+perfect fit: parse the full AST, extract imports properly, and avoid relying on
+fragile string patterns.</p>
+<p>In practice, I quickly ran into problems:</p>
+<ul>
+<li>Complex Treesitter queries for what seemed like simple tasks</li>
+<li>Accidental full-line and full-file rewrites when I only wanted to touch one line</li>
+<li>Query capture ordering issues that merged unrelated imports together</li>
+<li>Inconsistent grammar across different Treesitter parser versions</li>
+<li>Parser installation requirements that added more dependencies</li>
+<li>Much more boilerplate code for very minimal benefit</li>
+</ul>
+<p>Treesitter excels for full-file refactors, linters, or analysis tools.
+But for surgical, highly structured, one-line rewrites? It was overkill.</p>
+<h3 id="what-i-learned">What I Learned</h3>
+<p>Treesitter is powerful. But <strong>power doesn’t always equal simplicity</strong> —
+especially for narrowly scoped formatting tasks.</p>
+<p>For this plugin, regex provided:</p>
+<ul>
+<li>Faster iteration</li>
+<li>Predictable behavior</li>
+<li>No parser dependencies</li>
+<li>Simple implementation</li>
+<li>Easier testing</li>
+</ul>
+<p>Sometimes simple string matching really is enough -- especially when your input
+format is highly constrained.</p>
+<h3 id="nvim-vandelay-1-0">nvim-vandelay 1.0</h3>
+<p>The end result became <code>nvim-vandelay</code>.</p>
+<ul>
+<li>A micro-plugin for formatting imports</li>
+<li>Fully manual keybind control</li>
+<li>Regex-powered single-line rewriting</li>
+<li>Rust and JavaScript support out of the box</li>
+<li>Fully tested via Plenary + CI</li>
+</ul>
+<p>Here is another link to the repo:
+<a href="https://github.com/ducks/nvim-vandelay">nvim-vandelay</a></p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;vimdeck-nvim-markdown-presentations&#x2F;">vimdeck.nvim: Markdown Presentations in Neovim</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 07, 2025</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Rewrote vimdeck for Neovim using Treesitter. No Ruby, no temp files, just native Lua and clean slide rendering.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/neovim">#neovim</a></p>
+                      
+                      <p><a href="/tags/lua">#lua</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;vimdeck-nvim-markdown-presentations&#x2F;">vimdeck.nvim: Markdown Presentations in Neovim</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 07, 2025</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Rewrote vimdeck for Neovim using Treesitter. No Ruby, no temp files, just native Lua and clean slide rendering.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/neovim">#neovim</a></p>
+                      
+                      <p><a href="/tags/lua">#lua</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

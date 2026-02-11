@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="A blog about NixOS, self-hosting, Rust projects, and other tech musings. Maybe some meatspace stuff as well.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Wavy Border Demo">
+    <meta property="og:description" content="A blog about NixOS, self-hosting, Rust projects, and other tech musings. Maybe some meatspace stuff as well.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;wavy-border-demo&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Wavy Border Demo">
+    <meta name="twitter:description" content="A blog about NixOS, self-hosting, Rust projects, and other tech musings. Maybe some meatspace stuff as well.">
+
+    <title>Wavy Border Demo - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class=""
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1 id="wavy-border-demo">Wavy Border Demo</h1>
+<p>This page demonstrates the wavy/scalloped border utility available in the site.</p>
+<h2 id="basic-usage">Basic Usage</h2>
+<p>Add the <code>wavy-border</code> class to any element:</p>
+<div class="wavy-border" style="background-color: var(--yellow); color: var(--bg); margin: 2rem 0;">
+  <h2 style="color: var(--bg); margin-top: 0;">Basic Wavy Border</h2>
+  <p style="color: var(--bg);">This box has a scalloped edge all around it. The border automatically scales to any size container.</p>
+</div>
+<pre data-lang="html" style="background-color:#2b303b;color:#c0c5ce;" class="language-html "><code class="language-html" data-lang="html"><span>&lt;</span><span style="color:#bf616a;">div </span><span style="color:#d08770;">class</span><span>=&quot;</span><span style="color:#a3be8c;">wavy-border</span><span>&quot; </span><span style="color:#d08770;">style</span><span>=&quot;background-color: </span><span style="color:#96b5b4;">var</span><span>(--yellow);&quot;&gt;
+</span><span>  &lt;</span><span style="color:#bf616a;">h2</span><span>&gt;Your Title&lt;/</span><span style="color:#bf616a;">h2</span><span>&gt;
+</span><span>  &lt;</span><span style="color:#bf616a;">p</span><span>&gt;Your content here&lt;/</span><span style="color:#bf616a;">p</span><span>&gt;
+</span><span>&lt;/</span><span style="color:#bf616a;">div</span><span>&gt;
+</span></code></pre>
+<h2 id="with-shadow">With Shadow</h2>
+<p>Use <code>wavy-border-shadow</code> for a subtle drop shadow effect:</p>
+<div class="wavy-border-shadow" style="background-color: var(--aqua); color: var(--bg); margin: 2rem 0;">
+  <h2 style="color: var(--bg); margin-top: 0;">With Shadow</h2>
+  <p style="color: var(--bg);">This version includes a subtle shadow for more depth.</p>
+</div>
+<pre data-lang="html" style="background-color:#2b303b;color:#c0c5ce;" class="language-html "><code class="language-html" data-lang="html"><span>&lt;</span><span style="color:#bf616a;">div </span><span style="color:#d08770;">class</span><span>=&quot;</span><span style="color:#a3be8c;">wavy-border-shadow</span><span>&quot; </span><span style="color:#d08770;">style</span><span>=&quot;background-color: </span><span style="color:#96b5b4;">var</span><span>(--aqua);&quot;&gt;
+</span><span>  &lt;</span><span style="color:#bf616a;">h2</span><span>&gt;Your Title&lt;/</span><span style="color:#bf616a;">h2</span><span>&gt;
+</span><span>  &lt;</span><span style="color:#bf616a;">p</span><span>&gt;Your content here&lt;/</span><span style="color:#bf616a;">p</span><span>&gt;
+</span><span>&lt;/</span><span style="color:#bf616a;">div</span><span>&gt;
+</span></code></pre>
+<h2 id="different-colors">Different Colors</h2>
+<p>The border works with any background color:</p>
+<div class="wavy-border" style="background-color: var(--purple); color: var(--fg); margin: 2rem 0;">
+  <h3 style="color: var(--fg); margin-top: 0;">Purple Frame</h3>
+  <p>Using var(--purple) from the theme</p>
+</div>
+<div class="wavy-border" style="background-color: var(--green); color: var(--bg); margin: 2rem 0;">
+  <h3 style="color: var(--bg); margin-top: 0;">Green Frame</h3>
+  <p style="color: var(--bg);">Using var(--green) from the theme</p>
+</div>
+<div class="wavy-border" style="background-color: var(--orange); color: var(--bg); margin: 2rem 0;">
+  <h3 style="color: var(--bg); margin-top: 0;">Orange Frame</h3>
+  <p style="color: var(--bg);">Using var(--orange) from the theme</p>
+</div>
+<pre data-lang="html" style="background-color:#2b303b;color:#c0c5ce;" class="language-html "><code class="language-html" data-lang="html"><span>&lt;</span><span style="color:#bf616a;">div </span><span style="color:#d08770;">class</span><span>=&quot;</span><span style="color:#a3be8c;">wavy-border</span><span>&quot; </span><span style="color:#d08770;">style</span><span>=&quot;background-color: </span><span style="color:#96b5b4;">var</span><span>(--purple);&quot;&gt;
+</span><span>  &lt;</span><span style="color:#bf616a;">h3</span><span>&gt;Purple Frame&lt;/</span><span style="color:#bf616a;">h3</span><span>&gt;
+</span><span>  &lt;</span><span style="color:#bf616a;">p</span><span>&gt;Content&lt;/</span><span style="color:#bf616a;">p</span><span>&gt;
+</span><span>&lt;/</span><span style="color:#bf616a;">div</span><span>&gt;
+</span></code></pre>
+<h2 id="nested-content">Nested Content</h2>
+<p>The wavy border works with any content inside:</p>
+<div class="wavy-border-shadow" style="background-color: var(--blue); color: var(--bg); margin: 2rem 0;">
+  <h3 style="color: var(--bg); margin-top: 0;">Feature List</h3>
+  <ul style="color: var(--bg);">
+    <li>Automatic scaling</li>
+    <li>Works with any background color</li>
+    <li>CSS-only implementation</li>
+    <li>No JavaScript required</li>
+  </ul>
+  <pre style="background-color: var(--bg); color: var(--fg); padding: 1rem; border-radius: 4px;"><code>const example = "code blocks work too";</code></pre>
+</div>
+<h2 id="technical-details">Technical Details</h2>
+<p>The wavy border is implemented using SVG clip paths defined in the base template.
+The path is defined once and reused via CSS for efficiency.</p>
+<p>Available CSS classes:</p>
+<ul>
+<li><code>wavy-border</code> - Basic scalloped border</li>
+<li><code>wavy-border-shadow</code> - Scalloped border with drop shadow</li>
+</ul>
+<p>Both classes include 2rem of padding by default. Adjust in the CSS if needed.</p>
+<h2 id="color-variables">Color Variables</h2>
+<p>Use these theme variables for consistent styling:</p>
+<ul>
+<li><code>var(--bg)</code> - Background color</li>
+<li><code>var(--fg)</code> - Foreground color</li>
+<li><code>var(--red)</code></li>
+<li><code>var(--green)</code></li>
+<li><code>var(--yellow)</code></li>
+<li><code>var(--blue)</code></li>
+<li><code>var(--purple)</code></li>
+<li><code>var(--aqua)</code></li>
+<li><code>var(--orange)</code></li>
+<li><code>var(--gray)</code></li>
+</ul>
+
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

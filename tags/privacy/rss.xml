@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - privacy</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/privacy/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Sun, 22 Jun 2025 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>The Accidental Complexity of Doing The Right Thing or The Pain of Setting Up Privacy-Focused Analytics (2025 Edition)</title>
+          <pubDate>Sun, 22 Jun 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/the-pain-of-privacy-focused-analytics/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/the-pain-of-privacy-focused-analytics/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/the-pain-of-privacy-focused-analytics/">&lt;h3 id=&quot;introduction&quot;&gt;Introduction&lt;&#x2F;h3&gt;
+&lt;p&gt;As I&#x27;ve mentioned in the past, I’ve been writing and blogging more, and I
+became curious if anyone was actually reading my posts.&lt;&#x2F;p&gt;
+&lt;p&gt;Before I go any further, I need to make it clear that I am very
+privacy-focused. I hate logging, tracking, fingerprinting, or any kind of
+unnecessary data collection. A user’s data is theirs -- I have no interest in
+storing anything about them. I just want a basic count of which pages are being
+visited.&lt;&#x2F;p&gt;
+&lt;p&gt;Naturally, I asked ChatGPT for recommendations based on my current setup.&lt;&#x2F;p&gt;
+&lt;p&gt;I&#x27;m already using Caddy as my web server and TLS manager, so the first
+suggestion was straightforward: just enable HTTP access logs and analyze them.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;attempt-1-server-side-access-logs-caddy&quot;&gt;Attempt 1: Server-side access logs (Caddy)&lt;&#x2F;h3&gt;
+&lt;p&gt;The basic flow here would be:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;enable http logs in Caddy&lt;&#x2F;li&gt;
+&lt;li&gt;scrape log file&lt;&#x2F;li&gt;
+&lt;li&gt;count requests as rough pageviews&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;In theory, this sounded perfect. I wasn’t looking for fancy dashboards or
+detailed metrics -- just simple counts of which pages were being hit. Plain log
+files should be more than enough.&lt;&#x2F;p&gt;
+&lt;p&gt;Caddy, by default, doesn&#x27;t actually log HTTP requests unless you configure it
+to. More surprisingly, in many builds of Caddy (especially those provided by
+package managers), the &lt;code&gt;http.handlers.log&lt;&#x2F;code&gt; module isn’t even included.&lt;&#x2F;p&gt;
+&lt;p&gt;At first I thought I was on the wrong version, but after some digging, I
+realized that full HTTP access logging in Caddy requires building your own
+custom binary with &lt;a href=&quot;https:&#x2F;&#x2F;caddyserver.com&#x2F;docs&#x2F;build#xcaddy&quot;&gt;&lt;code&gt;xcaddy&lt;&#x2F;code&gt;&lt;&#x2F;a&gt; to
+enable the logging module. This felt like massive overkill for something as
+basic as HTTP request logging.&lt;&#x2F;p&gt;
+&lt;p&gt;After trying multiple versions, failing to get access logs working, and
+realizing that Caddy’s modular architecture was actively getting in my way, I
+gave up on this approach.&lt;&#x2F;p&gt;
+&lt;p&gt;I asked ChatGPT for other options.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;attempt-2-goatcounter-via-docker&quot;&gt;Attempt 2: Goatcounter via Docker&lt;&#x2F;h3&gt;
+&lt;p&gt;The next recommendation was to use a dedicated privacy-first analytics tool.
+Several good open-source options exist:
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;arp242&#x2F;goatcounter&quot;&gt;GoatCounter&lt;&#x2F;a&gt;, Plausible, and Umami.&lt;&#x2F;p&gt;
+&lt;p&gt;After doing a bit of research, GoatCounter stood out. It’s fully open-source,
+extremely privacy-focused, lightweight, and seems purpose-built for people like
+me who just want simple pageview counts without any tracking nonsense.&lt;&#x2F;p&gt;
+&lt;p&gt;Even better, GoatCounter has Docker images available.&lt;&#x2F;p&gt;
+&lt;p&gt;But of course — the Docker image that used to be hosted on Docker Hub was no
+longer available. The project had moved its images to GitHub Container Registry
+(GHCR), and GHCR was returning permission errors when I tried to pull the image
+anonymously. Apparently GHCR increasingly requires authentication even for
+public images, depending on Docker version, client configuration, and random
+GitHub API mood swings.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;attempt-3-building-my-own-goatcounter-docker-image&quot;&gt;Attempt 3: Building my own Goatcounter Docker image&lt;&#x2F;h3&gt;
+&lt;p&gt;After that, I decided to just build the image myself.&lt;&#x2F;p&gt;
+&lt;p&gt;GoatCounter publishes a Dockerfile in the repo, so this should be
+straightforward:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;git clone https:&#x2F;&#x2F;github.com&#x2F;arp242&#x2F;goatcounter.git
+&lt;&#x2F;span&gt;&lt;span&gt;docker build -t goatcounter:local .
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The Dockerfile requires Docker BuildKit support, and uses newer Dockerfile
+features like &lt;code&gt;--exclude&lt;&#x2F;code&gt;, which aren&#x27;t supported by Docker’s legacy builder. I
+had to enable BuildKit, but enabling BuildKit required &lt;code&gt;docker-buildx&lt;&#x2F;code&gt;, which
+wasn’t installed by default on my Arch system.&lt;&#x2F;p&gt;
+&lt;p&gt;Once I installed &lt;code&gt;docker-buildx&lt;&#x2F;code&gt;, I ran the build again. This time, it started
+pulling Go modules but failed with timeouts halfway through the build.&lt;&#x2F;p&gt;
+&lt;p&gt;I retried. And retried. BuildKit timeouts, network flakiness, CDN rate limiting
+-- you name it. What should have been a 30-second build turned into multiple
+rounds of fighting with Docker’s build system and Go’s module proxy ecosystem.&lt;&#x2F;p&gt;
+&lt;p&gt;At this point, Docker was no longer simplifying anything — it was actively
+making everything worse.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;attempt-4-running-goatcounter-directly&quot;&gt;Attempt 4: Running GoatCounter directly&lt;&#x2F;h3&gt;
+&lt;p&gt;By this point I was fully in &quot;I don’t even care anymore&quot; mode.&lt;&#x2F;p&gt;
+&lt;p&gt;GoatCounter is a Go program that ships prebuilt binaries. I could just download
+the standalone Linux binary and run it behind Caddy directly, without Docker at
+all.&lt;&#x2F;p&gt;
+&lt;p&gt;Except even that wasn&#x27;t as straightforward as it should have been.&lt;&#x2F;p&gt;
+&lt;p&gt;The download URL on GitHub releases points to a gzip-compressed file. I
+accidentally downloaded it and tried running it directly without decompressing
+it first, leading to confusing shell errors (&quot;command not found&quot; as it tried to
+parse the binary as text). Once I properly decompressed it, I finally had a
+functioning ELF binary.&lt;&#x2F;p&gt;
+&lt;p&gt;I ran &lt;code&gt;goatcounter serve&lt;&#x2F;code&gt;, initialized the SQLite database, and got it fully
+running behind Caddy with one reverse proxy entry. TLS worked automatically,
+and finally, my simple analytics system was live.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;observations&quot;&gt;Observations&lt;&#x2F;h3&gt;
+&lt;p&gt;Docker was supposed to make self-hosting trivial. But broken registries,
+permission issues, changing build standards, and fragmented tooling made things
+much harder. Self-hosted projects often don&#x27;t have the resources to maintain
+registry hosting, Docker images, and packaging across multiple platforms.
+The friction involved in doing things ethically discourages people from even
+trying privacy-respecting solutions.&lt;&#x2F;p&gt;
+&lt;p&gt;It&#x27;s no surprise so many people just give up and paste Google Analytics into
+their site -- it&#x27;s not better technology, it&#x27;s easier deployment.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;conclusions&quot;&gt;Conclusions&lt;&#x2F;h3&gt;
+&lt;p&gt;Privacy-first analytics tools absolutely exist — GoatCounter is an excellent
+project, and I’m very happy with it now that it’s running.&lt;&#x2F;p&gt;
+&lt;p&gt;But the tooling friction creates artificial barriers that discourage adoption.
+Ironically, it&#x27;s often easier to deploy privacy-invasive analytics than
+privacy-respecting ones.&lt;&#x2F;p&gt;
+&lt;p&gt;There’s a huge opportunity here to improve the ecosystem:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Smarter build tooling&lt;&#x2F;li&gt;
+&lt;li&gt;Better Docker automation&lt;&#x2F;li&gt;
+&lt;li&gt;Easier packaging of self-hostable apps&lt;&#x2F;li&gt;
+&lt;li&gt;(Maybe even a tool that turns install instructions into Dockerfiles
+automatically — but that’s a post for another day...)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;If we want ethical software to be the default, we need to make it easier, not
+harder.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;edit-20250526&quot;&gt;Edit (20250526)&lt;&#x2F;h3&gt;
+&lt;h4 id=&quot;there-is-a-docker-image&quot;&gt;There &lt;strong&gt;IS&lt;&#x2F;strong&gt; a Docker Image&lt;&#x2F;h4&gt;
+&lt;p&gt;Welp, naturally, after all of this — the registry issues, the broken builds, the
+manual binary install — I found out &lt;em&gt;there is&lt;&#x2F;em&gt; a Docker image for GoatCounter:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;hub.docker.com&#x2F;r&#x2F;arp242&#x2F;goatcounter&quot;&gt;arp242&#x2F;goatcounter&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;em&gt;(Yes, maintained by the actual author.)&lt;&#x2F;em&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Apparently I was just one &lt;code&gt;docker pull&lt;&#x2F;code&gt; away the whole time.&lt;&#x2F;p&gt;
+&lt;p&gt;:facepalm:&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

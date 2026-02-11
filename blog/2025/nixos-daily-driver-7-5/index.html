@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="A detailed account of struggling through manual LUKS encryption setup on NixOS, hitting multiple roadblocks, and ultimately succeeding with the graphical installer after three failed attempts.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="NixOS as a daily driver or Zero to Nixty, part 7.5&#x2F;? - Trial by Encrypted Fire">
+    <meta property="og:description" content="A detailed account of struggling through manual LUKS encryption setup on NixOS, hitting multiple roadblocks, and ultimately succeeding with the graphical installer after three failed attempts.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-7-5&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="NixOS as a daily driver or Zero to Nixty, part 7.5&#x2F;? - Trial by Encrypted Fire">
+    <meta name="twitter:description" content="A detailed account of struggling through manual LUKS encryption setup on NixOS, hitting multiple roadblocks, and ultimately succeeding with the graphical installer after three failed attempts.">
+
+    <title>NixOS as a daily driver or Zero to Nixty, part 7.5&#x2F;? - Trial by Encrypted Fire - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>NixOS as a daily driver or Zero to Nixty, part 7.5&#x2F;? - Trial by Encrypted Fire</h1>
+      <div class="meta">
+        
+        <p>Jul 13, 2025</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/nixos">#nixos</a></p>
+          
+          <p><a href="/tags/linux">#linux</a></p>
+          
+        </div>
+      
+
+      <h3 id="intro">Intro</h3>
+<p>So far in this series, we have:</p>
+<ul>
+<li>installed NixOS</li>
+<li>enabled a desktop environment</li>
+<li>setup a user and some basic daily driving tools</li>
+<li>added our config to version control</li>
+<li>introduced NixVim, a declarative way to configure Neovim</li>
+<li>learned about NixOS dev environments</li>
+</ul>
+<p>Catch up here:
+<a href="/tags/nixos">NixOS Daily Driver series list</a></p>
+<p>This post is a bit of a detour as we'll be completing a fresh reinstall
+to enable disk encryption. We will be getting back to our configuration soon
+though. The next post will show how to take our version controlled config
+and apply it to our new install.</p>
+<h3 id="encryption">Encryption</h3>
+<p>But first, let's talk encryption. So far I have not been installing NixOS with
+the drive encrypted. I recently learned that my new job will require the machine
+used for work to have an encrypted drive. This is a good thing and I should
+have been defaulting to encrypting my drives. Even though it's good, it does
+add some complexity to our NixOS configuration. Because I was doing this for
+the first time, I decided to first test the encrypted installation on an old
+System76 netbook I have.</p>
+<h3 id="manual-attempts-with-luks-and-lvm">Manual Attempts with LUKS and LVM</h3>
+<p>Initially I planned to just do this manually. I have installed NixOS manually
+every time so far, so I was hoping it would just be a few more steps. For the
+most part this was true, but I still ran into some issues.</p>
+<p>To start, I used <code>gparted</code>, <code>mkfs</code>, and <code>cryptsetup</code> to format the disk
+and create some <code>LUKS</code> partitions.</p>
+<h4 id="partitioning-and-luks-encryption">Partitioning and LUKS encryption</h4>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span># Partition disk (example: /dev/sda)
+</span><span>parted /dev/sda mklabel gpt
+</span><span>parted /dev/sda mkpart ESP fat32 1MiB 512MiB
+</span><span>parted /dev/sda set 1 boot on
+</span><span>parted /dev/sda mkpart primary 512MiB 100%
+</span><span>
+</span><span># Format boot partition
+</span><span>mkfs.vfat -F32 /dev/sda1
+</span><span>
+</span><span># Encrypt root partition with LUKS
+</span><span>cryptsetup luksFormat /dev/sda2
+</span><span>cryptsetup open /dev/sda2 cryptroot
+</span><span>
+</span></code></pre>
+<p>This all worked fine and I was able to set a password for the encrypted drive
+and then unlock it right after.</p>
+<h4 id="lvm">LVM</h4>
+<p>Now use LVM to allow flexibility inside the encrypted container:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span># Initialize LVM
+</span><span>pvcreate /dev/mapper/cryptroot
+</span><span>vgcreate vg /dev/mapper/cryptroot
+</span><span>
+</span><span># Create logical volumes
+</span><span>lvcreate -L 16G -n swap vg
+</span><span>lvcreate -l 100%FREE -n root vg
+</span><span>
+</span><span># Format filesystems
+</span><span>mkfs.ext4 /dev/vg/root
+</span><span>mkswap /dev/vg/swap
+</span></code></pre>
+<h4 id="mounting-for-installation">Mounting for Installation</h4>
+<p>Next was to mount our partitions for installation.</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span># Mount the root volume
+</span><span>mount /dev/vg/root /mnt
+</span><span>
+</span><span># Mount the EFI partition
+</span><span>mkdir -p /mnt/boot
+</span><span>mount /dev/sda1 /mnt/boot
+</span><span>
+</span><span># Enable swap
+</span><span>swapon /dev/vg/swap
+</span></code></pre>
+<h4 id="configuration-and-installation">Configuration and Installation</h4>
+<p>The next step was to generate the NixOS configuration for our mounted filesystem:</p>
+<p><code>nixos-generate-config --root /mnt</code></p>
+<p>When running this, NixOS will generate a basic configuration for you based on
+the disks you create and mount. This works well when creating an unencrypted
+drive and the boot, root, and swap partitions are all configured correctly. For
+whatever reason, the <code>LUKS</code> devices do not get picked up by this. This means
+we'll have to manually update our configuration to include the <code>LUKS</code> devices.</p>
+<p>This is fine because from what I read in the docs, this isn't too complex. It
+should look something like this:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span># Attempted configuration
+</span><span>boot.initrd.luks.devices.&quot;cryptroot&quot; = {
+</span><span>  device = &quot;/dev/disk/by-uuid/XXXX&quot;;
+</span><span>};
+</span></code></pre>
+<p>The docs also mention adding a kernel module:
+<code>boot.initrd.kernelModules = [ "cryptd" ];</code></p>
+<p>After that, it was time to rebuild then reboot.</p>
+<p>And, at first, success! During boot, I get asked for a password to open my
+encrypted drive.</p>
+<p>But then... failure! The passphrase will not work. My first instinct was I fat
+fingered it but I tried multiple times and it would just not work.</p>
+<h4 id="recovery">Recovery</h4>
+<p>Welp, time to boot into the live ISO again. I wanted to doublecheck all the
+config and make sure I didn't mess something up.</p>
+<p>First, I needed to open the encrypted root partition:
+<code>cryptsetup open /dev/sda2 cryptroot</code></p>
+<p>This creates <code>/dev/mapper/cryptroot</code> and gives access to what's inside.</p>
+<p>Next, the volume groups needed activated:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>vgscan
+</span><span>vgchange -ay
+</span></code></pre>
+<p>Then we mount some important directories:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>mount /dev/vg/root /mnt
+</span><span>mkdir -p /mnt/boot
+</span><span>mount /dev/sda1 /mnt/boot
+</span></code></pre>
+<p>Now, we'll use <code>nixos-enter</code>. This gave me a shell inside the broken system --
+same environment as if it had booted normally.</p>
+<p>We can check our config files to make sure nothing looks off:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>nano /etc/nixos/configuration.nix
+</span><span>nano /etc/nixos/hardware-configuration.nix
+</span></code></pre>
+<p>Unfortunately for me, I could not find anything wrong. In fact, I tried 3 fresh
+installs and could never get it working manually.</p>
+<h3 id="graphical-installer">Graphical Installer</h3>
+<p>After all that, I decided to just give up on the manual install and try the
+graphical installer. I should have probably started here but I didn't see a
+certain sentence in the wiki in time.</p>
+<blockquote>
+<p>There are a few options for full disk encryption. The easiest way is to use
+the graphical installer and choose "encrypt" while doing the installation.</p>
+</blockquote>
+<p>And ya know what, it was easy. So easy in fact, it worked the first time and I
+could instantly power up, enter my encrypted drive password, and be taken to
+the login console.</p>
+<h3 id="outro">Outro</h3>
+<p>This post was kind of a detour from the normal series as we reinstalled
+so we could encrypt the drive. In the next post, I will be going over how
+we can take the configuration we added to git in the previous posts and apply
+it to our new, freshly installed and encrypted system.</p>
+<p>Spoiler: it does not go as smoothly as I had hoped.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;nix-shells-ssh-claude-code&#x2F;">The Unholy Trinity: Nix Shells, SSH Config, and Claude Code</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 21, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">How proper environment setup turns AI coding assistants from novelty into genuine infrastructure. Nix makes everything reproducible. SSH makes everything reachable. Claude ties it together.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;real-declarative-infrastructure-nixos&#x2F;">From Bash Scripts to NixOS: Real Declarative Infrastructure on a VPS</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 18, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Converting a bash script + systemd-based VPS to NixOS for truly declarative infrastructure. No more update scripts or edge cases, just configuration.nix.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/self-hosting">#self-hosting</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-9&#x2F;">NixOS as a daily driver or Zero to Nixty, part 9&#x2F;? - Enabling Wi-Fi</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 27, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">Troubleshooting and fixing Wi-Fi on a Framework 16 laptop running NixOS by loading the Intel AX210 driver, enabling firmware, and configuring NetworkManager with wpa_supplicant.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/framework">#framework</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-8&#x2F;">NixOS as a daily driver or Zero to Nixty, part 8&#x2F;? - Modular Config</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 20, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Breaking down a NixOS configuration into reusable modules organized by host and common settings, making it easy to deploy consistent environments across multiple machines.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-6&#x2F;">NixOS as a daily driver or Zero to Nixty, part 6&#x2F;? - Dev environment</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 08, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Introducing NixVim for declarative Neovim configuration and exploring nix-shell for creating reproducible, project-specific development environments without global installs.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

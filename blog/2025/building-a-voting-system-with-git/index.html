@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Creating a transparent, auditable voting system where Git commits are the ledger, pull requests are ballots, and CI validates every vote without any centralized servers or databases.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Building a Fully Decentralized Voting System Using Just Git and Pull Requests">
+    <meta property="og:description" content="Creating a transparent, auditable voting system where Git commits are the ledger, pull requests are ballots, and CI validates every vote without any centralized servers or databases.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-a-voting-system-with-git&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Building a Fully Decentralized Voting System Using Just Git and Pull Requests">
+    <meta name="twitter:description" content="Creating a transparent, auditable voting system where Git commits are the ledger, pull requests are ballots, and CI validates every vote without any centralized servers or databases.">
+
+    <title>Building a Fully Decentralized Voting System Using Just Git and Pull Requests - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Building a Fully Decentralized Voting System Using Just Git and Pull Requests</h1>
+      <div class="meta">
+        
+        <p>Jun 23, 2025</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/git">#git</a></p>
+          
+          <p><a href="/tags/devops">#devops</a></p>
+          
+        </div>
+      
+
+      <h3 id="the-premise">The Premise</h3>
+<p>What if we could build a fully transparent, auditable, and tamper-evident
+voting system -- without any servers, centralized backend, or traditional
+databases?</p>
+<p>The result is <strong>GitVote</strong> - a simple but powerful decentralized voting system
+that uses nothing but Git, pull requests, and a little bit of Rust.</p>
+<h3 id="why-git">Why Git?</h3>
+<p>Git already gives us:</p>
+<ul>
+<li>A fully distributed ledger</li>
+<li>Immutable commit history</li>
+<li>Branching and merging workflows</li>
+<li>Forking for isolated participant actions</li>
+<li>Cryptographic integrity through hashes and signatures</li>
+</ul>
+<p>With all that, we're part of the way to a blockchain.</p>
+<p>I wondered if I could build a voting system where Git itself is the storage
+layer, the consensus layer, and the audit trail.</p>
+<h3 id="the-design">The Design</h3>
+<p>At a high level, GitVote works like this:</p>
+<ul>
+<li><strong>Proposals</strong> are created as dedicated Git branches</li>
+<li><strong>Votes</strong> are submitted as files inside pull requests.</li>
+<li><strong>Voter ID</strong> is tied to each voter's Git configuration (name and email)</li>
+<li><strong>Duplicate Voting</strong> is automatically prevented via CI checks</li>
+<li><strong>Immutable blocks</strong> are built from merged votes using deterministic hashing</li>
+<li><strong>Tally results</strong> can be generated entirely offline from the final ledger</li>
+</ul>
+<p>There's no central database, API server, or backend. Everything happens inside
+of Git.</p>
+<h3 id="the-voting-flow">The Voting Flow</h3>
+<h4 id="proposal-creation">Proposal Creation</h4>
+<p>Each new proposal is created as a new Git branch, for example:</p>
+<p><code>proposal/001-color-vote</code></p>
+<p>A simple <code>schema.json</code> file defines the allowed choices for that proposal:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>{
+</span><span>  &quot;allowed&quot;: [&quot;blue&quot;, &quot;purple&quot;, &quot;green&quot;]
+</span><span>}
+</span></code></pre>
+<h4 id="voter-submission">Voter Submission</h4>
+<p>Voters follow this flow:</p>
+<ol>
+<li>Fork the governance repo</li>
+<li>Clone their fork locally</li>
+<li>Checkout the correct proposal branch</li>
+<li>Run GitVote CLI tool to cast their vote:
+<code>gitvote cast --choice purple</code></li>
+</ol>
+<p>This will:</p>
+<ul>
+<li>Write a new vote file into <code>votes/</code> (one file per voter)</li>
+<li>Commits the vote using their Git identity</li>
+<li>Signs the commit (GPG coming soon)</li>
+<li>Prepares the branch for submission</li>
+</ul>
+<ol start="5">
+<li>Push their branch back to their fork</li>
+<li>Open a pull request into the upstream proposal branch</li>
+</ol>
+<h4 id="vote-validation">Vote Validation</h4>
+<p>Every pull request triggers CI which runs:
+<code>gitvote validate</code></p>
+<p>This will validate:</p>
+<ul>
+<li>The vote file format</li>
+<li>Compliance with the allowed schema</li>
+<li>No duplicate voters (one voter, one vote)</li>
+</ul>
+<p>Invalid votes fail the CI and will not be merged</p>
+<h4 id="merging-chain-building">Merging &amp; Chain Building</h4>
+<p>Once a valid PR is merged, CI will automatically run:
+<code>gitvote build-chain</code></p>
+<p>This scans all merged vote files and creates an immutable hash-linked chain
+of blocks stored as plain JSON:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>blocks/
+</span><span>  block-0000.json
+</span><span>  block-0001.json
+</span><span>  ...
+</span></code></pre>
+<p>Each block includes:</p>
+<ul>
+<li>The vote choice</li>
+<li>The voter identity</li>
+<li>The original timestamp of the vote</li>
+<li>The Cryptographic hash linking it to the previous block</li>
+</ul>
+<h4 id="tallying-votes">Tallying Votes</h4>
+<p>At any time, anyone can run:
+<code>gitvote tally</code></p>
+<p>This reads the <code>blocks/</code> directory and generates a full tally of the current vote
+state:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>Vote Tally:
+</span><span>  purple votes: 3
+</span><span>  red votes: 2
+</span><span>Total unique voters: 5
+</span></code></pre>
+<p>No external system is needed to calculate the results — everything lives
+entirely inside Git.</p>
+<h3 id="the-tech-stack">The Tech Stack</h3>
+<ul>
+<li>Rust for the core CLI, <code>gitvote</code></li>
+<li>Github Actions for CI validation and chain building</li>
+<li>Git itself as the distributed backend</li>
+</ul>
+<h3 id="security">Security</h3>
+<ul>
+<li>Voter ID is tied to each user's Git config (<code>user.name</code> and <code>user.email</code>)</li>
+<li>CI fully enforces schema validation and prevents voter duplication</li>
+<li>All votes are auditable forever via immutable commit history</li>
+<li>The chain is fully deterministic and reproducible offline</li>
+<li>The ledger can be archived back into <code>main</code> for permanent recordkeeping</li>
+</ul>
+<h3 id="the-benefits">The Benefits</h3>
+<ul>
+<li><strong>Simplicity:</strong> No central server or complex infrastructure</li>
+<li><strong>Transparency:</strong> Every vote and rule is visible to all voters</li>
+<li><strong>Auditability:</strong> Anyone can verify the ledger at any time</li>
+<li><strong>Offline verifiability:</strong> The full vote chain is just a Git repo</li>
+</ul>
+<h3 id="future-plans">Future Plans</h3>
+<p>There are a number of interesting enhancements that could be made here I think:</p>
+<ul>
+<li>GPG signature enforcement</li>
+<li>Anonymous but verifiable voting via zero-knowledge proofs</li>
+<li>Weighted or ranked ballots</li>
+<li>Multi-proposal governance workflow</li>
+</ul>
+<p>For now, GitVote is a minimal, functioning, fully decentralized voting system.</p>
+<h3 id="the-code-demo">The Code/Demo</h3>
+<p>You can find the CLI here:
+<a href="https://github.com/ducks/gitvote">GitVote CLI</a></p>
+<p>You can find a test governance repo here:
+<a href="https://github.com/ducks/gitvote-test">gitvote-test</a></p>
+<p>By going to <a href="https://github.com/ducks/gitvote-test/actions">actions</a>, you can
+see the various CI workflows that run during the voting process.</p>
+<ul>
+<li>First, I submit a valid vote for <strong>purple</strong></li>
+<li>Then, I attempt to vote again for <strong>green</strong>, which correctly fails
+due to duplicate voter prevention</li>
+<li>Finally, I simulate a new voter by spoofing a different Git identity (via
+<code>git config</code>), submit a vote for <strong>blue</strong>, and the vote passes validation</li>
+</ul>
+<h3 id="closing-thoughts">Closing Thoughts</h3>
+<p>What originally started as an idea for "Gitcoin" and wanting to learn more
+about blockchains turned into a fully functional, fully auditable governance
+platform -- all built entirely on top of Git (and Rust).</p>
+<p>It was pretty satisfying to turn pull requests, branch
+protections, and hash-linked commits into a simple, verifiable voting process.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;llm-mux-workflow-orchestration&#x2F;">llm-mux: Why I Rebuilt Lok</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 11, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok got 300+ installs, then I rewrote it. The abstractions were wrong. llm-mux has roles, teams, and proper apply&#x2F;verify. Here&#x27;s why.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;finna-multi-model-spec-implement&#x2F;">finna: Multi-Model Debate, Spec, and Implement</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 10, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A standalone tool that takes an idea, debates it across Claude, Codex, and Gemini, creates a roadmap, writes specs, and implements. Planning and execution in one pipeline.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-json-parser-multi-llm&#x2F;">Building a JSON Parser with Multi-LLM Orchestration (Part 1)</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 07, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Using lok to orchestrate four LLMs debating design decisions, then synthesizing specs for a Rust JSON parser. The debate phase surfaced edge cases no single model would have caught.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-spec-multi-agent-planning&#x2F;">Lok Part 5: Multi-Agent Planning with lok spec</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 06, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok gains a spec command that turns task descriptions into structured implementation plans. Multiple LLMs propose, debate, and converge on a roadmap before any code gets written.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;arf-structured-reasoning-for-ai-agents&#x2F;">ARF: Structured Reasoning for AI Agents</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 02, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Moving beyond chat prompts to structured agent communication. Why unstructured data lets LLMs run wild, and how ARF enforces what&#x2F;why&#x2F;how before acting.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

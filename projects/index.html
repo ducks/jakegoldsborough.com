@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="A blog about NixOS, self-hosting, Rust projects, and other tech musings. Maybe some meatspace stuff as well.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Projects">
+    <meta property="og:description" content="A blog about NixOS, self-hosting, Rust projects, and other tech musings. Maybe some meatspace stuff as well.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;projects&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Projects">
+    <meta name="twitter:description" content="A blog about NixOS, self-hosting, Rust projects, and other tech musings. Maybe some meatspace stuff as well.">
+
+    <title>Projects - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class=""
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class="active"
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <p>A collection of tools, plugins, and experiments I've built and maintain. Most
+are open source and actively developed.</p>
+
+
+
+<h2>Rust TUI Applications</h2>
+
+<p>Terminal user interfaces built with Ratatui. I prefer keyboard-driven, minimal interfaces for daily workflows.</p>
+
+
+<h3>shellcast</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;shellcast">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;shellcast</a></p>
+
+<p>A minimal TUI podcast player for the terminal. Subscribe to feeds, download episodes, and play audio without leaving the command line.</p>
+
+
+  
+<div class="squiqqle-line"></div>
+  
+
+
+
+<h3>shelltrax</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;shelltrax">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;shelltrax</a></p>
+
+<p>A cmus-inspired terminal music player written in Rust. Lightweight, keyboard-driven playback with playlist management.</p>
+
+
+  
+<div class="squiqqle-line alt3"></div>
+  
+
+
+
+<h3>llm-tui</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;llm-tui">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;llm-tui</a></p>
+
+<p>TUI for Ollama chat with vim bindings and project-based session management. Local LLM conversations organized by context.</p>
+
+
+  
+<div class="squiqqle-line alt1"></div>
+  
+
+
+
+<h3>discourse-tui</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-tui">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-tui</a></p>
+
+<p>Browse Discourse forums from the terminal. Navigate categories, read topics, and browse posts with vim-style keybindings.</p>
+
+
+  
+<div class="squiqqle-line alt3"></div>
+  
+
+
+
+<h3>vim-navigator-rs</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;vim-navigator-rs">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;vim-navigator-rs</a></p>
+
+<p>Vim-style modal editing and navigation for Ratatui TUIs. Reusable component for building vim-like interfaces in terminal applications.</p>
+
+
+  
+<div class="squiqqle-line"></div>
+  
+
+
+
+
+<h2>Discourse Plugins</h2>
+
+<p>Extensions for Discourse forums. Built during my work at Discourse and for personal experimentation.</p>
+
+
+<h3>discourse-yaks</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-yaks">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-yaks</a></p>
+
+<p>Virtual currency system for Discourse. Users earn and spend &quot;Yaks&quot; to unlock premium post features like colored highlights, pins, and boosts. Includes wallet management and transaction history.</p>
+
+
+  
+<div class="squiqqle-line"></div>
+  
+
+
+
+<h3>discourse-guest-spot</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-guest-spot">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-guest-spot</a></p>
+
+<p>Transforms Discourse into a dual-purpose platform for tattoo artists: public Instagram-style showcase combined with a private, invite-only community.</p>
+
+
+  
+<div class="squiqqle-line alt3"></div>
+  
+
+
+
+<h3>discourse-transit-tracker</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-transit-tracker">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-transit-tracker</a></p>
+
+<p>Split-flap departure board plugin for Discourse. Display real-time transit information with retro airport aesthetic.</p>
+
+
+  
+<div class="squiqqle-line alt1"></div>
+  
+
+
+
+<h3>discourse-invite-stats</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-invite-stats">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-invite-stats</a></p>
+
+<p>Visualizes invite relationships as an ASCII tree, showing how users invited each other to join the community.</p>
+
+
+  
+<div class="squiqqle-line alt3"></div>
+  
+
+
+
+<h3>discourse-frndr</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-frndr">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-frndr</a></p>
+
+<p>Friend finding app built on Discourse. Match people based on interests and compatibility.</p>
+
+
+  
+<div class="squiqqle-line"></div>
+  
+
+
+
+
+<h2>Neovim Plugins</h2>
+
+<p>Plugins for Neovim written in Lua. Focus on markdown workflows and presentation tools.</p>
+
+
+<h3>vimdeck.nvim</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;vimdeck.nvim">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;vimdeck.nvim</a></p>
+
+<p>Modern Neovim presentation plugin for markdown files. ASCII art headers, clean rendering, Treesitter parsing.</p>
+
+
+  
+<div class="squiqqle-line"></div>
+  
+
+
+
+<h3>mdpreview.nvim</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;mdpreview.nvim">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;mdpreview.nvim</a></p>
+
+<p>Live markdown preview in Neovim split window. Treesitter parsing, synced scrolling, styled headers.</p>
+
+
+  
+<div class="squiqqle-line alt3"></div>
+  
+
+
+
+<h3>nvim-vandelay</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;nvim-vandelay">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;nvim-vandelay</a></p>
+
+<p>Import management for JavaScript and TypeScript. Automatically organize and insert import statements.</p>
+
+
+  
+<div class="squiqqle-line alt1"></div>
+  
+
+
+
+
+<h2>Development Tools</h2>
+
+<p>Command-line tools and libraries for developers. Automation, infrastructure, and API clients.</p>
+
+
+<h3>lok</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;lok">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;lok</a></p>
+
+<p>Multi-LLM orchestration CLI. Run prompts across Claude, Codex, Gemini, and Ollama in parallel with built-in tasks for code review, security audits, and N+1 detection.</p>
+
+
+  
+<div class="squiqqle-line"></div>
+  
+
+
+
+<h3>jobl</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;jobl">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;jobl</a></p>
+
+<p>TOML-based resume format with strict validation. Human-readable, version-controllable, plain text resume data structure.</p>
+
+
+  
+<div class="squiqqle-line alt3"></div>
+  
+
+
+
+<h3>srg</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;srg">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;srg</a></p>
+
+<p>Static Resume Generator. Converts JOBL files to HTML and PDF using headless Chrome. Includes customizable layout system with quoted string support.</p>
+
+
+  
+<div class="squiqqle-line alt1"></div>
+  
+
+
+
+<h3>date-ver</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;date-ver">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;date-ver</a></p>
+
+<p>Date-based versioning specification. Use YYYYMMDD, YYYYMM, or YYYY for releases where timing matters more than compatibility signals.</p>
+
+
+  
+<div class="squiqqle-line alt3"></div>
+  
+
+
+
+<h3>denver</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;denver">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;denver</a></p>
+
+<p>Discourse ENV managER. CLI tool for managing multiple isolated Discourse development environments. Create, switch between, and test different plugin combinations without breaking your main setup.</p>
+
+
+  
+<div class="squiqqle-line"></div>
+  
+
+
+
+<h3>yaml-janitor</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;yaml-janitor">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;yaml-janitor</a></p>
+
+<p>YAML linter that preserves comments using psych-pure. Detects issues and fixes formatting without destroying documentation.</p>
+
+
+  
+<div class="squiqqle-line alt3"></div>
+  
+
+
+
+<h3>discourse-api-rs</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-api-rs">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-api-rs</a></p>
+
+<p>Async Rust client for the Discourse forum API. Fetch topics, posts, categories, and more.</p>
+
+
+  
+<div class="squiqqle-line alt1"></div>
+  
+
+
+
+<h3>discourse-comments</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-comments">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-comments</a></p>
+
+<p>Drop-in embedded comment widget for static sites. Uses discourse-api-rs compiled to WASM, bundled as a single script tag with no iframe required.</p>
+
+
+  
+<div class="squiqqle-line alt3"></div>
+  
+
+
+
+<h3>node-postgres-exporter</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;node-postgres-exporter">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;node-postgres-exporter</a></p>
+
+<p>A lightweight, configurable Prometheus exporter for PostgreSQL written in Node.js.</p>
+
+
+  
+<div class="squiqqle-line"></div>
+  
+
+
+
+
+<h2>Self-Hosted Services</h2>
+
+<p>Services and infrastructure I run myself. Music tracking, analytics, and personal data ownership.</p>
+
+
+<h3>scrob</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;scrob">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;scrob</a></p>
+
+<p>Self-hosted music scrobbling server with Rust and PostgreSQL. Track listening history, share public profiles, and own your music data without relying on Last.fm.</p>
+
+
+  
+<div class="squiqqle-line"></div>
+  
+
+
+
+
+<h2>Web Applications</h2>
+
+<p>Browser-based tools and services. Mapping and route generation.</p>
+
+
+<h3>slumprutt</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;slumprutt">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;slumprutt</a></p>
+
+<p>Generate random walking, cycling, or driving routes for your next adventure. Built with Svelte.</p>
+
+
+  
+<div class="squiqqle-line"></div>
+  
+
+
+
+
+<h2>Experiments</h2>
+
+<p>Older projects and experiments.</p>
+
+
+<h3>gitvote</h3>
+<p><a href="https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;gitvote">https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;gitvote</a></p>
+
+<p>Git-based cryptographically verifiable voting system using signed commits, pull requests, and fully auditable blockchain-style block generation.</p>
+
+
+  
+<div class="squiqqle-line"></div>
+  
+
+
+
+
+
+<p>All repositories are available on <a href="https://github.com/ducks">GitHub</a>.</p>
+
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

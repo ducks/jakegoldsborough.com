@@ -1,0 +1,1298 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - linux</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/linux/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Fri, 23 Jan 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>How Jennifer Aniston and Friends Cost Us 377GB and Broke ext4 Hardlinks</title>
+          <pubDate>Fri, 23 Jan 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/how-a-friends-gif-broke-our-filesystem/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/how-a-friends-gif-broke-our-filesystem/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/how-a-friends-gif-broke-our-filesystem/">&lt;h2 id=&quot;intro&quot;&gt;Intro&lt;&#x2F;h2&gt;
+&lt;p&gt;It started with backup issues. Sites with hundreds of gigabytes of uploads
+were running out of disk space during backup generation. One site had 600+ GB
+of uploads and the backup process kept dying.&lt;&#x2F;p&gt;
+&lt;p&gt;While looking into reliable large backups, we discovered something wild in one
+of those sites: the actual unique content was a fraction of the reported size.
+They were storing the same files over and over again, each with a different
+filename. The duplication was absurd.&lt;&#x2F;p&gt;
+&lt;p&gt;So we shipped an optimization. Detect duplicate files by their content hash, use
+hardlinks instead of downloading each copy. I wrote some new tests, they all
+passed, it got approved and merged. But unfortunately, a fix like this is kind
+of hard to actually fully test.&lt;&#x2F;p&gt;
+&lt;p&gt;Then someone ran it on a real production backup and hit a filesystem limit I
+didn&#x27;t know existed. The culprit? A single reaction GIF, duplicated 246,173
+times.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-problem&quot;&gt;The Problem&lt;&#x2F;h2&gt;
+&lt;p&gt;Discourse has a feature called secure uploads. When a file moves between
+security contexts (say, from a private message to a public post), the system
+creates a new copy with a randomized SHA1. The original content is identical,
+but Discourse treats it as a new file.&lt;&#x2F;p&gt;
+&lt;p&gt;This happens constantly with reaction GIFs and popular images. Users share them
+across posts, embed them in PMs, repost in different categories. Each context
+creates another copy.&lt;&#x2F;p&gt;
+&lt;p&gt;This is mostly fine for normal operation. But for backups, it&#x27;s a disaster.&lt;&#x2F;p&gt;
+&lt;p&gt;One customer had 432 GB of uploads. Unique content? 26 GB. The rest was
+duplicates. A 16x inflation factor, all going into the backup archive.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-fix&quot;&gt;The Fix&lt;&#x2F;h2&gt;
+&lt;p&gt;The fix seemed straightforward. Discourse tracks the original content hash in
+&lt;code&gt;original_sha1&lt;&#x2F;code&gt;. During backup:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;Group uploads by &lt;code&gt;original_sha1&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Download the first file in each group&lt;&#x2F;li&gt;
+&lt;li&gt;Create hardlinks for the duplicates&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;Hardlinks point multiple filenames to the same data on disk. GNU tar preserves
+them, so the archive stores the data once. Download 26 GB, archive 26 GB,
+everyone wins.&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;ruby&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-ruby &quot;&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;def &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;process_upload_group&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;upload_group&lt;&#x2F;span&gt;&lt;span&gt;)
+&lt;&#x2F;span&gt;&lt;span&gt;  primary = upload_group.first
+&lt;&#x2F;span&gt;&lt;span&gt;  primary_filename = upload_path_in_archive(primary)
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;return if &lt;&#x2F;span&gt;&lt;span&gt;!download_upload_to_file(primary, primary_filename)
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Create hardlinks for all duplicates in this group
+&lt;&#x2F;span&gt;&lt;span&gt;  upload_group.drop(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span&gt;).each &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;do &lt;&#x2F;span&gt;&lt;span&gt;|&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;duplicate&lt;&#x2F;span&gt;&lt;span&gt;|
+&lt;&#x2F;span&gt;&lt;span&gt;    duplicate_filename = upload_path_in_archive(duplicate)
+&lt;&#x2F;span&gt;&lt;span&gt;    hardlink_or_download(primary_filename, duplicate, duplicate_filename)
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;end
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;end
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The &lt;code&gt;hardlink_or_download&lt;&#x2F;code&gt; method falls back to downloading if the hardlink
+fails:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;ruby&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-ruby &quot;&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;def &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;hardlink_or_download&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;source_filename&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;upload_data&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;target_filename&lt;&#x2F;span&gt;&lt;span&gt;)
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;FileUtils&lt;&#x2F;span&gt;&lt;span&gt;.mkdir_p(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;File&lt;&#x2F;span&gt;&lt;span&gt;.dirname(target_filename))
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;FileUtils&lt;&#x2F;span&gt;&lt;span&gt;.ln(source_filename, target_filename)  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Create hardlink
+&lt;&#x2F;span&gt;&lt;span&gt;  increment_and_log_progress(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;:hardlinked&lt;&#x2F;span&gt;&lt;span&gt;)
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;rescue &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;StandardError &lt;&#x2F;span&gt;&lt;span&gt;=&amp;gt; ex
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Fallback: download if hardlink fails
+&lt;&#x2F;span&gt;&lt;span&gt;  log &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Failed to create hardlink, downloading instead&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, ex
+&lt;&#x2F;span&gt;&lt;span&gt;  download_upload_to_file(upload_data, target_filename)
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;end
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Shipped it and got positive feedback.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-limit&quot;&gt;The Limit&lt;&#x2F;h2&gt;
+&lt;p&gt;A colleague then used the new version to run a backup on a large site. The logs looked great:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;53000 files processed (25 downloaded, 52975 hardlinked). Still processing...
+&lt;&#x2F;span&gt;&lt;span&gt;54000 files processed (25 downloaded, 53975 hardlinked). Still processing...
+&lt;&#x2F;span&gt;&lt;span&gt;...
+&lt;&#x2F;span&gt;&lt;span&gt;64000 files processed (25 downloaded, 63975 hardlinked). Still processing...
+&lt;&#x2F;span&gt;&lt;span&gt;65000 files processed (25 downloaded, 64975 hardlinked). Still processing...
+&lt;&#x2F;span&gt;&lt;span&gt;Failed to create hardlink for upload ID 482897, downloading instead
+&lt;&#x2F;span&gt;&lt;span&gt;Failed to create hardlink for upload ID 457497, downloading instead
+&lt;&#x2F;span&gt;&lt;span&gt;Failed to create hardlink for upload ID 867574, downloading instead
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;At 65,000 hardlinks, it started failing. Turns out ext4 has a limit: roughly
+65,000 hardlinks per inode. One file can only have 65,000 names pointing to it.&lt;&#x2F;p&gt;
+&lt;p&gt;The fallback worked and it didn&#x27;t fail completely. The backup finished. But
+instead of one download for all 246,173 duplicates, we got one download plus
+~181,000 fallback downloads after hitting the limit.&lt;&#x2F;p&gt;
+&lt;p&gt;Still better than 246,173 downloads. But not the win I expected.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-gif&quot;&gt;The GIF&lt;&#x2F;h2&gt;
+&lt;p&gt;So what file had 246,173 copies?&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;ruby&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-ruby &quot;&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;Upload&lt;&#x2F;span&gt;&lt;span&gt;.where(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;original_sha1: &lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;27b7a62e34...&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;).count
+&lt;&#x2F;span&gt;&lt;span&gt;=&amp;gt; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;246173
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;Upload&lt;&#x2F;span&gt;&lt;span&gt;.where(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;original_sha1: &lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;27b7a62e34...&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;).first.filesize
+&lt;&#x2F;span&gt;&lt;span&gt;=&amp;gt; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1643869
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;1.6 MB. Duplicated a quarter million times. That&#x27;s 377 GB of backup bloat from
+a single image.&lt;&#x2F;p&gt;
+&lt;p&gt;And then I saw what it was...&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;jennifer-aniston.gif&quot; alt=&quot;Jennifer Aniston dancing from Friends&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;A reaction GIF. Used constantly in posts, PMs, everywhere. Each use in a
+different security context creates a new copy. 246,173 copies of Rachel from
+Friends doing a happy dance.&lt;&#x2F;p&gt;
+&lt;p&gt;One GIF broke the hardlink limit.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-math&quot;&gt;The Math&lt;&#x2F;h2&gt;
+&lt;p&gt;Without deduplication: 246,173 downloads, 377 GB transferred.&lt;&#x2F;p&gt;
+&lt;p&gt;With deduplication (hitting limit): ~4 downloads, ~6.4 MB transferred.&lt;&#x2F;p&gt;
+&lt;p&gt;The filesystem limit turned my &quot;download once&quot; into &quot;download four times.&quot; I
+can live with that.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-fix-for-the-fix&quot;&gt;The Fix for the Fix&lt;&#x2F;h2&gt;
+&lt;p&gt;My first instinct was to track hardlink counts and proactively rotate before
+hitting the limit. But a colleague pointed out the flaw: we have no idea what
+filesystem is being used. ext4 has one limit, XFS another, ZFS another. Picking
+a magic number is fragile.&lt;&#x2F;p&gt;
+&lt;p&gt;Better approach: let the filesystem tell us when we&#x27;ve hit the limit.&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;ruby&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-ruby &quot;&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;def &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;create_hardlink&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;source_filename&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;upload_data&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;target_filename&lt;&#x2F;span&gt;&lt;span&gt;)
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;FileUtils&lt;&#x2F;span&gt;&lt;span&gt;.mkdir_p(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;File&lt;&#x2F;span&gt;&lt;span&gt;.dirname(target_filename))
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;FileUtils&lt;&#x2F;span&gt;&lt;span&gt;.ln(source_filename, target_filename)
+&lt;&#x2F;span&gt;&lt;span&gt;  source_filename
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;rescue &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;Errno&lt;&#x2F;span&gt;&lt;span&gt;::EMLINK
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Filesystem hardlink limit reached - copy and use as new primary
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;FileUtils&lt;&#x2F;span&gt;&lt;span&gt;.cp(source_filename, target_filename)
+&lt;&#x2F;span&gt;&lt;span&gt;  target_filename
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;rescue &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;StandardError &lt;&#x2F;span&gt;&lt;span&gt;=&amp;gt; ex
+&lt;&#x2F;span&gt;&lt;span&gt;  download_upload_to_file(upload_data, target_filename)
+&lt;&#x2F;span&gt;&lt;span&gt;  source_filename
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;end
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;When &lt;code&gt;Errno::EMLINK&lt;&#x2F;code&gt; fires, we already have the file locally. No need to
+re-download. Just copy it and use the copy as the new primary for subsequent
+hardlinks. Works on any filesystem, no configuration needed.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-i-learned&quot;&gt;What I Learned&lt;&#x2F;h2&gt;
+&lt;p&gt;Filesystems have opinions. ext4&#x27;s hardlink limit exists to prevent certain
+classes of bugs and attacks. It&#x27;s not arbitrary.&lt;&#x2F;p&gt;
+&lt;p&gt;The fallback saved the feature. Without graceful degradation, that backup would
+have failed entirely. Instead it completed, just slower than optimal.&lt;&#x2F;p&gt;
+&lt;p&gt;Production always finds the edge cases. 246,000 copies of one file is absurd.
+But absurd things happen at scale.&lt;&#x2F;p&gt;
+&lt;p&gt;A few concrete takeaways:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Test for failure modes, not just success paths. The hardlink fallback was
+built-in from the start, but I never expected to actually need it.&lt;&#x2F;li&gt;
+&lt;li&gt;Optimizations that reduce work by 16x still need to handle edge cases. A
+99.998% improvement with graceful degradation beats a 100% improvement that
+crashes.&lt;&#x2F;li&gt;
+&lt;li&gt;Track filesystem-level constraints early. Hardlink limits, inode counts, path
+lengths - these are real operational boundaries, not theoretical concerns.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;And now I know Jennifer Aniston can stress-test infrastructure.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;links&quot;&gt;Links&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;discourse&#x2F;discourse&#x2F;pull&#x2F;37261&quot;&gt;Discourse PR #37261&lt;&#x2F;a&gt; -
+The backup deduplication fix&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;discourse&#x2F;discourse&#x2F;pull&#x2F;37293&quot;&gt;Discourse PR #37293&lt;&#x2F;a&gt; -
+The hardlink limit fix&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+      </item>
+      <item>
+          <title>NixOS as a daily driver or Zero to Nixty, part 8&#x2F;? - Modular Config</title>
+          <pubDate>Sun, 20 Jul 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/nixos-daily-driver-8/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/nixos-daily-driver-8/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-8/">&lt;p&gt;Check out the whole series here:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;a href=&quot;&#x2F;tags&#x2F;nixos&quot;&gt;NixOS as a Daily Driver - Zero to Nixty&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;intro&quot;&gt;Intro&lt;&#x2F;h3&gt;
+&lt;p&gt;Today is all about configuration and setting up our new encrypted machine. As
+I stated at the end of the previous post, this didn&#x27;t go as smoothly as I was
+hoping.&lt;&#x2F;p&gt;
+&lt;p&gt;My plan was to just use labels when setting up the filesystems so my same exact
+configuration could be copied around. This plan was short-sighted for a number
+of reasons but it was definitely not going to work after seeing what the basic
+configuration looked like after installing with encryption enabled. The LUKS
+device setup is more complex than the normal, unencrypted filesystem
+config. There may be a way to use labels here but I don&#x27;t really want to mess
+with that right now. I have an encrypted machine that boots so I&#x27;m going to
+leave it that way.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;breaking-config-into-modules&quot;&gt;Breaking Config Into Modules&lt;&#x2F;h3&gt;
+&lt;p&gt;After some thinking and research, I decided to refactor the way I store the
+config. I had been wanting to modularize it a bit anyway, so what better time
+than now.&lt;&#x2F;p&gt;
+&lt;p&gt;First, I broke my config up into some modules in a &lt;code&gt;common&lt;&#x2F;code&gt; directory.&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;nixos&#x2F;
+&lt;&#x2F;span&gt;&lt;span&gt;├── common
+&lt;&#x2F;span&gt;&lt;span&gt;│   ├── base.nix
+&lt;&#x2F;span&gt;&lt;span&gt;│   ├── desktop.nix
+&lt;&#x2F;span&gt;&lt;span&gt;│   ├── packages.nix
+&lt;&#x2F;span&gt;&lt;span&gt;│   ├── services.nix
+&lt;&#x2F;span&gt;&lt;span&gt;│   ├── uefi.nix
+&lt;&#x2F;span&gt;&lt;span&gt;│   └── users.nix
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Then, I created a &lt;code&gt;hosts&lt;&#x2F;code&gt; directory that includes a file for each machine.
+That file imports these basic modules and adds anything host specific like
+hostname.&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;nixos&#x2F;
+&lt;&#x2F;span&gt;&lt;span&gt;├── hosts
+&lt;&#x2F;span&gt;&lt;span&gt;│   ├── framework-personal.nix
+&lt;&#x2F;span&gt;&lt;span&gt;│   ├── framework-work.nix
+&lt;&#x2F;span&gt;&lt;span&gt;│   └── macbook.nix
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;One of those files looks like this:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;{ ... }:
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;  imports = [
+&lt;&#x2F;span&gt;&lt;span&gt;    ..&#x2F;common&#x2F;base.nix
+&lt;&#x2F;span&gt;&lt;span&gt;    ..&#x2F;common&#x2F;users.nix
+&lt;&#x2F;span&gt;&lt;span&gt;    ..&#x2F;common&#x2F;desktop.nix
+&lt;&#x2F;span&gt;&lt;span&gt;    ..&#x2F;common&#x2F;packages.nix
+&lt;&#x2F;span&gt;&lt;span&gt;    ..&#x2F;common&#x2F;services.nix
+&lt;&#x2F;span&gt;&lt;span&gt;  ];
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  networking.hostName = &amp;quot;macbook&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Then I just update the &lt;code&gt;&#x2F;etc&#x2F;nixos&#x2F;configuration.nix&lt;&#x2F;code&gt; that was created for
+me and import that one module. One of those files looks like this:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;{ config, pkgs, ... }:
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;  imports = [
+&lt;&#x2F;span&gt;&lt;span&gt;    .&#x2F;hardware-configuration.nix
+&lt;&#x2F;span&gt;&lt;span&gt;    .&#x2F;hosts&#x2F;macbook.nix
+&lt;&#x2F;span&gt;&lt;span&gt;  ];
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  # Replace actual UUID below
+&lt;&#x2F;span&gt;&lt;span&gt;  boot.initrd.luks.devices.&amp;quot;$UUID&amp;quot;.device = &amp;quot;&#x2F;dev&#x2F;disk&#x2F;by-uuid&#x2F;$UUID&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  # Do not change this value unless you know what you are doing!
+&lt;&#x2F;span&gt;&lt;span&gt;  # This value does *not* affect the Nixpkgs version. It is used to determine
+&lt;&#x2F;span&gt;&lt;span&gt;  # whether to enable software and configuration options that require backwards
+&lt;&#x2F;span&gt;&lt;span&gt;  # compatibility with older NixOS releases. Changing it may result in a system
+&lt;&#x2F;span&gt;&lt;span&gt;  # that cannot be upgraded or has other surprising consequences.
+&lt;&#x2F;span&gt;&lt;span&gt;  system.stateVersion = &amp;quot;25.05&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;h3 id=&quot;complete-new-machine-flow&quot;&gt;Complete New Machine Flow&lt;&#x2F;h3&gt;
+&lt;p&gt;Now, my new machine flow looks something like this:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;Install NixOS&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Boot up and open a dev shell:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;nix-shell -p git rustup neovim&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;(We use git to check out config, rustup to install rust&#x2F;dotter, and neovim
+for easier editing.)&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Check out my dotfiles through https for now. This way I don&#x27;t need to create
+an SSH key and add it to Github yet:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;git clone https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;dotfiles.git&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Install latest Rust then dotter:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;rustup install stable; cargo install dotter&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Checkout a new branch in my dotfiles dir and add a new host file&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Add a new local config for Dotter at&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;dotfiles&#x2F;.dotter&#x2F;local.toml&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Use the installed Dotter to deploy my dotfiles:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;~&#x2F;.cargo&#x2F;bin&#x2F;dotter deploy&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Rebuild NixOS:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;sudo nixos-rebuild switch&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Start Hypr:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;Hyprland&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;Celebrate! :tada:&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;If everything went well, I am now sitting behind a duplicate of my other machines.
+This workflow might seem long but it really only takes 10-30 mins to do all
+this. It can obviously vary on your machine and build size. It&#x27;s far easier than
+any other new machine flow I&#x27;ve tried. I&#x27;ve read about people using ansible
+to do this kind of thing but this just feels so clean and easy once you get
+around the rough edges.&lt;&#x2F;p&gt;
+&lt;p&gt;I have executed this flow on 3 machines now and it&#x27;s worked well. I had to make
+a few small changes like adding a &lt;code&gt;ref&lt;&#x2F;code&gt; to a branch for NixVim, and I&#x27;m
+honestly not sure why that is. I don&#x27;t think it has anything to do with my
+config as it was building before.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;summary&quot;&gt;Summary&lt;&#x2F;h3&gt;
+&lt;p&gt;In this post, I showed how I broke my NixOS config down into modules so they can
+be easily imported per host. I think this is a clean and reproducible way
+to store and share my NixOS config. I have all my base config in easy to use
+modules, then I can simply add any host specific setup to that single file.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;next-time&quot;&gt;Next Time&lt;&#x2F;h3&gt;
+&lt;p&gt;At this point, things are feeling pretty good for my setup personally. I keep
+things pretty minimal so as long as I can navigate around with the correct
+keybinds and have basic tools like Nix&#x2F;Neovim and Librewolf installed and
+setup, I&#x27;m mostly good to go. There are definitely some non-NixOS specific
+things I could pivot to to stick with the &quot;Daily Driver&quot; theme.&lt;&#x2F;p&gt;
+&lt;p&gt;If you&#x27;re reading this and have suggestions or you&#x27;re curious about something,
+let me know: &lt;a href=&quot;mailto:nixos@jakegoldsborough.com&quot;&gt;nixos@jakegoldsborough.com&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>NixOS as a daily driver or Zero to Nixty, part 7.5&#x2F;? - Trial by Encrypted Fire</title>
+          <pubDate>Sun, 13 Jul 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/nixos-daily-driver-7-5/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/nixos-daily-driver-7-5/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-7-5/">&lt;h3 id=&quot;intro&quot;&gt;Intro&lt;&#x2F;h3&gt;
+&lt;p&gt;So far in this series, we have:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;installed NixOS&lt;&#x2F;li&gt;
+&lt;li&gt;enabled a desktop environment&lt;&#x2F;li&gt;
+&lt;li&gt;setup a user and some basic daily driving tools&lt;&#x2F;li&gt;
+&lt;li&gt;added our config to version control&lt;&#x2F;li&gt;
+&lt;li&gt;introduced NixVim, a declarative way to configure Neovim&lt;&#x2F;li&gt;
+&lt;li&gt;learned about NixOS dev environments&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Catch up here:
+&lt;a href=&quot;&#x2F;tags&#x2F;nixos&quot;&gt;NixOS Daily Driver series list&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;This post is a bit of a detour as we&#x27;ll be completing a fresh reinstall
+to enable disk encryption. We will be getting back to our configuration soon
+though. The next post will show how to take our version controlled config
+and apply it to our new install.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;encryption&quot;&gt;Encryption&lt;&#x2F;h3&gt;
+&lt;p&gt;But first, let&#x27;s talk encryption. So far I have not been installing NixOS with
+the drive encrypted. I recently learned that my new job will require the machine
+used for work to have an encrypted drive. This is a good thing and I should
+have been defaulting to encrypting my drives. Even though it&#x27;s good, it does
+add some complexity to our NixOS configuration. Because I was doing this for
+the first time, I decided to first test the encrypted installation on an old
+System76 netbook I have.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;manual-attempts-with-luks-and-lvm&quot;&gt;Manual Attempts with LUKS and LVM&lt;&#x2F;h3&gt;
+&lt;p&gt;Initially I planned to just do this manually. I have installed NixOS manually
+every time so far, so I was hoping it would just be a few more steps. For the
+most part this was true, but I still ran into some issues.&lt;&#x2F;p&gt;
+&lt;p&gt;To start, I used &lt;code&gt;gparted&lt;&#x2F;code&gt;, &lt;code&gt;mkfs&lt;&#x2F;code&gt;, and &lt;code&gt;cryptsetup&lt;&#x2F;code&gt; to format the disk
+and create some &lt;code&gt;LUKS&lt;&#x2F;code&gt; partitions.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;partitioning-and-luks-encryption&quot;&gt;Partitioning and LUKS encryption&lt;&#x2F;h4&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;# Partition disk (example: &#x2F;dev&#x2F;sda)
+&lt;&#x2F;span&gt;&lt;span&gt;parted &#x2F;dev&#x2F;sda mklabel gpt
+&lt;&#x2F;span&gt;&lt;span&gt;parted &#x2F;dev&#x2F;sda mkpart ESP fat32 1MiB 512MiB
+&lt;&#x2F;span&gt;&lt;span&gt;parted &#x2F;dev&#x2F;sda set 1 boot on
+&lt;&#x2F;span&gt;&lt;span&gt;parted &#x2F;dev&#x2F;sda mkpart primary 512MiB 100%
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;# Format boot partition
+&lt;&#x2F;span&gt;&lt;span&gt;mkfs.vfat -F32 &#x2F;dev&#x2F;sda1
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;# Encrypt root partition with LUKS
+&lt;&#x2F;span&gt;&lt;span&gt;cryptsetup luksFormat &#x2F;dev&#x2F;sda2
+&lt;&#x2F;span&gt;&lt;span&gt;cryptsetup open &#x2F;dev&#x2F;sda2 cryptroot
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This all worked fine and I was able to set a password for the encrypted drive
+and then unlock it right after.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;lvm&quot;&gt;LVM&lt;&#x2F;h4&gt;
+&lt;p&gt;Now use LVM to allow flexibility inside the encrypted container:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;# Initialize LVM
+&lt;&#x2F;span&gt;&lt;span&gt;pvcreate &#x2F;dev&#x2F;mapper&#x2F;cryptroot
+&lt;&#x2F;span&gt;&lt;span&gt;vgcreate vg &#x2F;dev&#x2F;mapper&#x2F;cryptroot
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;# Create logical volumes
+&lt;&#x2F;span&gt;&lt;span&gt;lvcreate -L 16G -n swap vg
+&lt;&#x2F;span&gt;&lt;span&gt;lvcreate -l 100%FREE -n root vg
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;# Format filesystems
+&lt;&#x2F;span&gt;&lt;span&gt;mkfs.ext4 &#x2F;dev&#x2F;vg&#x2F;root
+&lt;&#x2F;span&gt;&lt;span&gt;mkswap &#x2F;dev&#x2F;vg&#x2F;swap
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;h4 id=&quot;mounting-for-installation&quot;&gt;Mounting for Installation&lt;&#x2F;h4&gt;
+&lt;p&gt;Next was to mount our partitions for installation.&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;# Mount the root volume
+&lt;&#x2F;span&gt;&lt;span&gt;mount &#x2F;dev&#x2F;vg&#x2F;root &#x2F;mnt
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;# Mount the EFI partition
+&lt;&#x2F;span&gt;&lt;span&gt;mkdir -p &#x2F;mnt&#x2F;boot
+&lt;&#x2F;span&gt;&lt;span&gt;mount &#x2F;dev&#x2F;sda1 &#x2F;mnt&#x2F;boot
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;# Enable swap
+&lt;&#x2F;span&gt;&lt;span&gt;swapon &#x2F;dev&#x2F;vg&#x2F;swap
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;h4 id=&quot;configuration-and-installation&quot;&gt;Configuration and Installation&lt;&#x2F;h4&gt;
+&lt;p&gt;The next step was to generate the NixOS configuration for our mounted filesystem:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;nixos-generate-config --root &#x2F;mnt&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;When running this, NixOS will generate a basic configuration for you based on
+the disks you create and mount. This works well when creating an unencrypted
+drive and the boot, root, and swap partitions are all configured correctly. For
+whatever reason, the &lt;code&gt;LUKS&lt;&#x2F;code&gt; devices do not get picked up by this. This means
+we&#x27;ll have to manually update our configuration to include the &lt;code&gt;LUKS&lt;&#x2F;code&gt; devices.&lt;&#x2F;p&gt;
+&lt;p&gt;This is fine because from what I read in the docs, this isn&#x27;t too complex. It
+should look something like this:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;# Attempted configuration
+&lt;&#x2F;span&gt;&lt;span&gt;boot.initrd.luks.devices.&amp;quot;cryptroot&amp;quot; = {
+&lt;&#x2F;span&gt;&lt;span&gt;  device = &amp;quot;&#x2F;dev&#x2F;disk&#x2F;by-uuid&#x2F;XXXX&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;};
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The docs also mention adding a kernel module:
+&lt;code&gt;boot.initrd.kernelModules = [ &quot;cryptd&quot; ];&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;After that, it was time to rebuild then reboot.&lt;&#x2F;p&gt;
+&lt;p&gt;And, at first, success! During boot, I get asked for a password to open my
+encrypted drive.&lt;&#x2F;p&gt;
+&lt;p&gt;But then... failure! The passphrase will not work. My first instinct was I fat
+fingered it but I tried multiple times and it would just not work.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;recovery&quot;&gt;Recovery&lt;&#x2F;h4&gt;
+&lt;p&gt;Welp, time to boot into the live ISO again. I wanted to doublecheck all the
+config and make sure I didn&#x27;t mess something up.&lt;&#x2F;p&gt;
+&lt;p&gt;First, I needed to open the encrypted root partition:
+&lt;code&gt;cryptsetup open &#x2F;dev&#x2F;sda2 cryptroot&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;This creates &lt;code&gt;&#x2F;dev&#x2F;mapper&#x2F;cryptroot&lt;&#x2F;code&gt; and gives access to what&#x27;s inside.&lt;&#x2F;p&gt;
+&lt;p&gt;Next, the volume groups needed activated:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;vgscan
+&lt;&#x2F;span&gt;&lt;span&gt;vgchange -ay
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Then we mount some important directories:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;mount &#x2F;dev&#x2F;vg&#x2F;root &#x2F;mnt
+&lt;&#x2F;span&gt;&lt;span&gt;mkdir -p &#x2F;mnt&#x2F;boot
+&lt;&#x2F;span&gt;&lt;span&gt;mount &#x2F;dev&#x2F;sda1 &#x2F;mnt&#x2F;boot
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Now, we&#x27;ll use &lt;code&gt;nixos-enter&lt;&#x2F;code&gt;. This gave me a shell inside the broken system --
+same environment as if it had booted normally.&lt;&#x2F;p&gt;
+&lt;p&gt;We can check our config files to make sure nothing looks off:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;nano &#x2F;etc&#x2F;nixos&#x2F;configuration.nix
+&lt;&#x2F;span&gt;&lt;span&gt;nano &#x2F;etc&#x2F;nixos&#x2F;hardware-configuration.nix
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Unfortunately for me, I could not find anything wrong. In fact, I tried 3 fresh
+installs and could never get it working manually.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;graphical-installer&quot;&gt;Graphical Installer&lt;&#x2F;h3&gt;
+&lt;p&gt;After all that, I decided to just give up on the manual install and try the
+graphical installer. I should have probably started here but I didn&#x27;t see a
+certain sentence in the wiki in time.&lt;&#x2F;p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;There are a few options for full disk encryption. The easiest way is to use
+the graphical installer and choose &quot;encrypt&quot; while doing the installation.&lt;&#x2F;p&gt;
+&lt;&#x2F;blockquote&gt;
+&lt;p&gt;And ya know what, it was easy. So easy in fact, it worked the first time and I
+could instantly power up, enter my encrypted drive password, and be taken to
+the login console.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;outro&quot;&gt;Outro&lt;&#x2F;h3&gt;
+&lt;p&gt;This post was kind of a detour from the normal series as we reinstalled
+so we could encrypt the drive. In the next post, I will be going over how
+we can take the configuration we added to git in the previous posts and apply
+it to our new, freshly installed and encrypted system.&lt;&#x2F;p&gt;
+&lt;p&gt;Spoiler: it does not go as smoothly as I had hoped.&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>NixOS as a daily driver or Zero to Nixty, part 6&#x2F;? - Dev environment</title>
+          <pubDate>Tue, 08 Jul 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/nixos-daily-driver-6/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/nixos-daily-driver-6/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-6/">&lt;h3 id=&quot;recap&quot;&gt;Recap&lt;&#x2F;h3&gt;
+&lt;p&gt;In the last post, we added some quality of life enhancements. This included
+key remapping and getting hypridle and hyprlock set up.&lt;&#x2F;p&gt;
+&lt;p&gt;See that post &lt;a href=&quot;&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-5&quot;&gt;here&lt;&#x2F;a&gt;.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;intro&quot;&gt;Intro&lt;&#x2F;h3&gt;
+&lt;p&gt;Today, I will be introducing &lt;code&gt;NixVim&lt;&#x2F;code&gt; and show you how to set up some
+per-project development shells. The latter is a very powerful part of NixOS as
+you&#x27;ll see.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;nixvim&quot;&gt;NixVim&lt;&#x2F;h3&gt;
+&lt;p&gt;NixVim is a project that lets you declaratively configure Neovim in Nix. No
+&lt;code&gt;init.lua&lt;&#x2F;code&gt;, &lt;code&gt;vimrc&lt;&#x2F;code&gt;, or plugin managers like Lazy or Packer.&lt;&#x2F;p&gt;
+&lt;p&gt;It&#x27;s part of a broader Nix-native ecosystem where tools, config, and
+dependencies are defined in one declarative, reproducible system.&lt;&#x2F;p&gt;
+&lt;p&gt;I use and suggest this for a few reasons:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;Fully Declarative Neovim Config&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;This means all your plugins, keymaps, etc
+are explicity defined. This will allow you to easily version it, share it, and
+reproduce it on another system.&lt;&#x2F;p&gt;
+&lt;ol start=&quot;2&quot;&gt;
+&lt;li&gt;Automatic Plugin Management&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;No need to install anything with a plugin manager or run &lt;code&gt;:PackerInstall&lt;&#x2F;code&gt;,
+&lt;code&gt;:LazySync&lt;&#x2F;code&gt; etc. When you build Nix, NixVim builds Neovim with all your plugins
+downloaded and ready.&lt;&#x2F;p&gt;
+&lt;ol start=&quot;3&quot;&gt;
+&lt;li&gt;Tight Integration with Nix packages&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;You can inherit pkgs to bring in dependencies like &lt;code&gt;ripgrep&lt;&#x2F;code&gt;,
+&lt;code&gt;lua-language-server&lt;&#x2F;code&gt;, or &lt;code&gt;stylua&lt;&#x2F;code&gt; directly. No external &lt;code&gt;npm&lt;&#x2F;code&gt;, &lt;code&gt;cargo&lt;&#x2F;code&gt;, &lt;code&gt;pip&lt;&#x2F;code&gt;,
+or language-specific managers needed.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;initial-config&quot;&gt;Initial Config&lt;&#x2F;h4&gt;
+&lt;p&gt;We are going to start small with our config and extend it further later.&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;{ pkgs, ... }: {
+&lt;&#x2F;span&gt;&lt;span&gt;  programs.nixvim = {
+&lt;&#x2F;span&gt;&lt;span&gt;    enable = true;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    # Enable basic plugins
+&lt;&#x2F;span&gt;&lt;span&gt;    plugins = {
+&lt;&#x2F;span&gt;&lt;span&gt;      lualine.enable = true;           # Statusline
+&lt;&#x2F;span&gt;&lt;span&gt;      telescope.enable = true;         # Fuzzy finder
+&lt;&#x2F;span&gt;&lt;span&gt;      treesitter.enable = true;        # Better syntax highlighting
+&lt;&#x2F;span&gt;&lt;span&gt;    };
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    # Use a Gruvbox theme (optional)
+&lt;&#x2F;span&gt;&lt;span&gt;    colorschemes.gruvbox.enable = true;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    # LSP support
+&lt;&#x2F;span&gt;&lt;span&gt;    plugins.lsp = {
+&lt;&#x2F;span&gt;&lt;span&gt;      enable = true;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;      # Example LSP: Lua
+&lt;&#x2F;span&gt;&lt;span&gt;      servers = {
+&lt;&#x2F;span&gt;&lt;span&gt;        lua-ls.enable = true;
+&lt;&#x2F;span&gt;&lt;span&gt;      }
+&lt;&#x2F;span&gt;&lt;span&gt;    }
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    # Keymap example
+&lt;&#x2F;span&gt;&lt;span&gt;    keymaps = [
+&lt;&#x2F;span&gt;&lt;span&gt;      {
+&lt;&#x2F;span&gt;&lt;span&gt;        mode = &amp;quot;n&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;        key = &amp;quot;&amp;lt;leader&amp;gt;ff&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;        action = &amp;quot;&amp;lt;cmd&amp;gt;Telescope find_files&amp;lt;CR&amp;gt;&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;        options = {
+&lt;&#x2F;span&gt;&lt;span&gt;          desc = &amp;quot;Find files&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;        };
+&lt;&#x2F;span&gt;&lt;span&gt;      }
+&lt;&#x2F;span&gt;&lt;span&gt;    ];
+&lt;&#x2F;span&gt;&lt;span&gt;  };
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Let&#x27;s break this config down.&lt;&#x2F;p&gt;
+&lt;p&gt;First, and most importantly, we enable Nixvim by setting
+&lt;code&gt;programs.nixvim.enable&lt;&#x2F;code&gt; to &lt;code&gt;true&lt;&#x2F;code&gt;. Then, we enable a few basic plugins through
+&lt;code&gt;programs.nixvim.plugins&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;After that we enable the &lt;code&gt;gruvbox&lt;&#x2F;code&gt; color scheme and setup some basic LSP support.&lt;&#x2F;p&gt;
+&lt;p&gt;Finally, we setup a keymap for &lt;code&gt;&amp;lt;leader&amp;gt;ff&lt;&#x2F;code&gt; that uses &lt;code&gt;telescope&lt;&#x2F;code&gt; to find files.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;nix-shell-what-is-it&quot;&gt;&lt;code&gt;nix-shell&lt;&#x2F;code&gt; - What is it?&lt;&#x2F;h3&gt;
+&lt;p&gt;Now onto &lt;code&gt;nix-shell&lt;&#x2F;code&gt;. &lt;code&gt;nix-shell&lt;&#x2F;code&gt; is a tool that lets you temporarily enter a
+development environment defined by a Nix expression. Think of it as a
+lightweight, project-specific sandbox with all the tools and dependencies you
+need -- and nothing you don&#x27;t. They are like Python virtual environments, but
+for any tool or language.&lt;&#x2F;p&gt;
+&lt;p&gt;You can use &lt;code&gt;nix-shell&lt;&#x2F;code&gt; to:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Spin up a shell with specific packages available&lt;&#x2F;li&gt;
+&lt;li&gt;Test tools or languages without installing them system-wide&lt;&#x2F;li&gt;
+&lt;li&gt;Set up consistent dev environments across machines or teams&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h4 id=&quot;why-use-it&quot;&gt;Why Use It?&lt;&#x2F;h4&gt;
+&lt;p&gt;If you&#x27;ve ever run into &quot;works on my machine&quot; issues, &lt;code&gt;nix-shell&lt;&#x2F;code&gt; is the
+antidote. By declaring your environment as code, you get repeatable,
+deterministic setups every time -- no more dependency drift or missing tools.&lt;&#x2F;p&gt;
+&lt;p&gt;It&#x27;s also fantastic for trying out a new language or toolchain. Want to test
+something in Ruby, Rust, or Go? You can be up and running with just a few
+lines.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;example&quot;&gt;Example&lt;&#x2F;h4&gt;
+&lt;p&gt;Here’s what a simple &lt;code&gt;shell.nix&lt;&#x2F;code&gt; might look like for Rust development:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;nix&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-nix &quot;&gt;&lt;code class=&quot;language-nix&quot; data-lang=&quot;nix&quot;&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;{ &lt;&#x2F;span&gt;&lt;span&gt;pkgs ? &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;import &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;&amp;lt;nixpkgs&amp;gt; &lt;&#x2F;span&gt;&lt;span&gt;{} &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;}&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;pkgs&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;mkShell &lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;buildInputs &lt;&#x2F;span&gt;&lt;span&gt;= [
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;pkgs&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;rustc
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;pkgs&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;cargo
+&lt;&#x2F;span&gt;&lt;span&gt;  ];
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Run &lt;code&gt;nix-shell&lt;&#x2F;code&gt; in that directory, and boom, you&#x27;ll be dropped into a shell
+environment with &lt;code&gt;rustc&lt;&#x2F;code&gt; and &lt;code&gt;cargo&lt;&#x2F;code&gt; available but without being installed
+globally.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;one-off-shells&quot;&gt;One-Off Shells&lt;&#x2F;h4&gt;
+&lt;p&gt;In fact, you don&#x27;t even need a &lt;code&gt;shell.nix&lt;&#x2F;code&gt; file. You could run
+&lt;code&gt;nix-shell -p nodejs&lt;&#x2F;code&gt; and you would be dropped into a shell with &lt;code&gt;nodejs&lt;&#x2F;code&gt;
+installed locally, meaning it&#x27;s not installed globally.&lt;&#x2F;p&gt;
+&lt;p&gt;Overall, &lt;code&gt;nix-shell&lt;&#x2F;code&gt; is one of the most powerful parts of Nix&#x2F;NixOS.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;summary&quot;&gt;Summary&lt;&#x2F;h3&gt;
+&lt;p&gt;In this post, we have:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Enabled NixVim and set up a simple, usable Neovim config&lt;&#x2F;li&gt;
+&lt;li&gt;Introduced &lt;code&gt;nix-shell&lt;&#x2F;code&gt; and showed how it can be used to create temporary,
+repeatable dev environments&lt;&#x2F;li&gt;
+&lt;li&gt;Explained how to launch one-off shells and why &lt;code&gt;nix-shell&lt;&#x2F;code&gt; is so useful for
+development workflows&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+      </item>
+      <item>
+          <title>NixOS as a daily driver or Zero to Nixty, part 5&#x2F;? - QoL enhancements</title>
+          <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/nixos-daily-driver-5/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/nixos-daily-driver-5/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-5/">&lt;h3 id=&quot;recap&quot;&gt;Recap&lt;&#x2F;h3&gt;
+&lt;p&gt;In the last post, we successfully got our configuration stored in version control.
+This will make it very simple to pass our config around if needed. We also
+learned about Dotter, a dotfile configuration management tool, which we will
+be using again today.&lt;&#x2F;p&gt;
+&lt;p&gt;See that post &lt;a href=&quot;&#x2F;blog&#x2F;content&#x2F;nixos-daily-driver-4&quot;&gt;here&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;intro&quot;&gt;Intro&lt;&#x2F;h3&gt;
+&lt;p&gt;Today, we will be covering a few quality of life enhancements. Those will
+include keyboard remapping and locking our screen after a certain amount of
+idle time.&lt;&#x2F;p&gt;
+&lt;p&gt;Quality of life enhancements are things that while not strictly necessary,
+they make life much better.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;keyboard-remapping&quot;&gt;Keyboard Remapping&lt;&#x2F;h3&gt;
+&lt;p&gt;First, I&#x27;ll show you how to remap keys. For me personally, this will include:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Caps Lock -&amp;gt; Esc when pressed&lt;&#x2F;li&gt;
+&lt;li&gt;Caps Lock -&amp;gt; Control when held (and another key is pressed)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Caps Lock as Control when being held is a new change for me but I&#x27;m really
+enjoying it. It has opened up many more keybind options for me.&lt;&#x2F;p&gt;
+&lt;p&gt;This remapping will be done using &quot;Interception Tools&quot;&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;interception-tools&quot;&gt;Interception Tools&lt;&#x2F;h4&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;wiki.archlinux.org&#x2F;title&#x2F;Interception-tools&quot;&gt;Interception Tools&lt;&#x2F;a&gt; is a
+set of utilities to control and customize the behavior of keyboard input
+mappings.&lt;&#x2F;p&gt;
+&lt;p&gt;It works at a lower level than tools like &lt;code&gt;xcape&lt;&#x2F;code&gt; or &lt;code&gt;xmodmap&lt;&#x2F;code&gt; which makes it
+one of the only options available for customizing keyboard behavior across
+X11, Wayland, and the Linux console.&lt;&#x2F;p&gt;
+&lt;p&gt;Below is an example of mine. It&#x27;s stored in
+&lt;code&gt;~&#x2F;dotfiles&#x2F;nixos&#x2F;modules&#x2F;interception-caps.nix&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;This config:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;enables the &lt;code&gt;services.interception-tools&lt;&#x2F;code&gt; module&lt;&#x2F;li&gt;
+&lt;li&gt;adds a plugin called caps2esc&lt;&#x2F;li&gt;
+&lt;li&gt;adds a &lt;code&gt;udevmonConfig&lt;&#x2F;code&gt; file&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;{ config, pkgs, ...}:
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;let
+&lt;&#x2F;span&gt;&lt;span&gt;  intercept = &amp;quot;${pkgs.interception-tools}&#x2F;bin&#x2F;intercept&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;  uinput = &amp;quot;${pkgs.interception-tools}&#x2F;bin&#x2F;uinput&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;in {
+&lt;&#x2F;span&gt;&lt;span&gt;  services.interception-tools = {
+&lt;&#x2F;span&gt;&lt;span&gt;    enable = true;
+&lt;&#x2F;span&gt;&lt;span&gt;    plugins = with pkgs; [
+&lt;&#x2F;span&gt;&lt;span&gt;      interception-tools-plugins.caps2esc
+&lt;&#x2F;span&gt;&lt;span&gt;    ];
+&lt;&#x2F;span&gt;&lt;span&gt;    udevmonConfig = &amp;#39;&amp;#39;
+&lt;&#x2F;span&gt;&lt;span&gt;      - JOB: &amp;quot;${intercept} -g $DEVNODE |
+&lt;&#x2F;span&gt;&lt;span&gt;              ${pkgs.interception-tools-plugins.caps2esc}&#x2F;bin&#x2F;caps2esc -m 1 |
+&lt;&#x2F;span&gt;&lt;span&gt;              ${uinput} -d $DEVNODE&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;        DEVICE:
+&lt;&#x2F;span&gt;&lt;span&gt;          EVENTS:
+&lt;&#x2F;span&gt;&lt;span&gt;            EV_KEY: [KEY_CAPSLOCK, KEY_ESC]
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;#39;&amp;#39;;
+&lt;&#x2F;span&gt;&lt;span&gt;  };
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Let&#x27;s breakdown what&#x27;s happening here.&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;JOB&lt;&#x2F;code&gt; defines a processing pipeline for input events. Each matching device runs
+this chain of commands.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;${intercept} -g $DEVNODE&lt;&#x2F;code&gt; reads events from the input device&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;intercept&lt;&#x2F;code&gt; is the main input capture tool&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;-g&lt;&#x2F;code&gt; ensures the device stays grabbed&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;caps2esc -m 1&lt;&#x2F;code&gt; is what actually transform the Caps Lock input into our dual
+behavior&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Tap&#x2F;Press = Escape&lt;&#x2F;li&gt;
+&lt;li&gt;Hold = Control&lt;&#x2F;li&gt;
+&lt;li&gt;Note - Control is only emitted if another key is pressed. holding Caps Lock
+will not simply emit Control&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;${input} -d $DEVNODE&lt;&#x2F;code&gt; writes the transformed input back into the system using
+&lt;code&gt;uinput&lt;&#x2F;code&gt; kernel device&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;DEVICE&lt;&#x2F;code&gt; block filters which devices this pipelines applies to.&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;EV_KEY: [KEY_CAPSLOCK, KEY_ESC]&lt;&#x2F;code&gt; means this only runs for devices that emit
+Caps Locks or Escape key events&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;In short, this config captures raw key events for Caps Lock and Escape,
+transforms them using the caps2esc plugin, and injects the new behavior back
+into the system -- all at a low level that works across Wayland, X11, and even
+TTYs.&lt;&#x2F;p&gt;
+&lt;p&gt;The above is stored in a separate NixOS module and then imported in my main
+configuration:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;imports =
+&lt;&#x2F;span&gt;&lt;span&gt;  [ # Include the results of the hardware scan.
+&lt;&#x2F;span&gt;&lt;span&gt;    &#x2F;etc&#x2F;nixos&#x2F;hardware-configuration.nix
+&lt;&#x2F;span&gt;&lt;span&gt;    &#x2F;etc&#x2F;nixos&#x2F;modules&#x2F;interception-caps.nix
+&lt;&#x2F;span&gt;&lt;span&gt;  ];
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;h3 id=&quot;idle-and-lock&quot;&gt;Idle and Lock&lt;&#x2F;h3&gt;
+&lt;p&gt;Next, we will set our machine up to first lock, then power the screen down after
+a certain amount of idle time.&lt;&#x2F;p&gt;
+&lt;p&gt;This is done using Hyprland companion packages, &lt;code&gt;hyprlock&lt;&#x2F;code&gt; and &lt;code&gt;hypridle&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;You can install those by adding them to your package list:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;environment.systemPackages = with pkgs; [
+&lt;&#x2F;span&gt;&lt;span&gt;  hypridle
+&lt;&#x2F;span&gt;&lt;span&gt;  hyprlock
+&lt;&#x2F;span&gt;&lt;span&gt;];
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;h4 id=&quot;hyperidle&quot;&gt;Hyperidle&lt;&#x2F;h4&gt;
+&lt;p&gt;Save this config as:
+&lt;code&gt;~&#x2F;dotfiles&#x2F;hypr&#x2F;hypridle.conf&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Here is my current setup:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;general {
+&lt;&#x2F;span&gt;&lt;span&gt;    lock_cmd = hyprlock
+&lt;&#x2F;span&gt;&lt;span&gt;    before_sleep_cmd = hyprlock
+&lt;&#x2F;span&gt;&lt;span&gt;    after_sleep_cmd = hyprctl dispatch dpms on
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;listener {
+&lt;&#x2F;span&gt;&lt;span&gt;    timeout = 300
+&lt;&#x2F;span&gt;&lt;span&gt;    on-timeout = hyprlock
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;listener {
+&lt;&#x2F;span&gt;&lt;span&gt;    timeout = 330
+&lt;&#x2F;span&gt;&lt;span&gt;    on-timeout = hyprctl dispatch dpms off
+&lt;&#x2F;span&gt;&lt;span&gt;    on-resume = hyprctl dispatch dpms on
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This is telling &lt;code&gt;hypridle&lt;&#x2F;code&gt; to run &lt;code&gt;hyprlock&lt;&#x2F;code&gt; as the lock_cmd and right before sleep.
+Then after we wake, use hyprctl to turn the monitor back on.&lt;&#x2F;p&gt;
+&lt;p&gt;Then we set up a few simple listeners. The first one is for 300 seconds (5
+minutes) and simply runs &lt;code&gt;hyprlock&lt;&#x2F;code&gt; on-timeout. Then, I have another for 330
+seconds (5 minutes 30 seconds) that will shut my monitor off on-timeout, and turn
+it back on after resuming.&lt;&#x2F;p&gt;
+&lt;p&gt;Reload hypr conf with &lt;code&gt;hyprctl reload&lt;&#x2F;code&gt; and you should now have a functioning
+idle and lock screen.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;hyperlock&quot;&gt;Hyperlock&lt;&#x2F;h4&gt;
+&lt;p&gt;Note: Hyprlock does not automatically create a config, and without one,
+&lt;code&gt;hyprlock&lt;&#x2F;code&gt; will not render anything, meaning you will just see your screen, but
+it will be locked -- you will not be able to interact with it again until you
+enter your password and hit Enter.&lt;&#x2F;p&gt;
+&lt;p&gt;We are also able to customize our lock screen some. This config will also
+live in the same directory as the other hyprland config files.
+&lt;code&gt;~&#x2F;dotfiles&#x2F;hypr&#x2F;hyprlock.conf&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Below is an example of mine. It looks similar to css styling but not exactly.&lt;&#x2F;p&gt;
+&lt;p&gt;Here, I&#x27;m setting up a simple background color, an input field with a border,
+and a label that just outputs the time. I like to keep mine simple but you can
+add a background image, move the input box around, and do a lot more than I am.&lt;&#x2F;p&gt;
+&lt;p&gt;You can find more in the docs
+&lt;a href=&quot;https:&#x2F;&#x2F;wiki.hypr.land&#x2F;Hypr-Ecosystem&#x2F;hyprlock&#x2F;&quot;&gt;here&lt;&#x2F;a&gt;. It covers all the
+available elements you can use to style your Hyprlock screen.&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;background {
+&lt;&#x2F;span&gt;&lt;span&gt;    color = rgb(282828)  # Gruvbox dark background
+&lt;&#x2F;span&gt;&lt;span&gt;    blur_passes = 0
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;input-field {
+&lt;&#x2F;span&gt;&lt;span&gt;    font_color = rgb(ebdbb2)
+&lt;&#x2F;span&gt;&lt;span&gt;    inner_color = rgb(282828) # Slightly lighter than background
+&lt;&#x2F;span&gt;&lt;span&gt;    outer_color = rgb(928374)
+&lt;&#x2F;span&gt;&lt;span&gt;    outline_thickness = 3
+&lt;&#x2F;span&gt;&lt;span&gt;    size = 500, 50
+&lt;&#x2F;span&gt;&lt;span&gt;    position = 0, -33%
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;label {
+&lt;&#x2F;span&gt;&lt;span&gt;    text = cmd[update:1000] echo &amp;quot;&amp;lt;b&amp;gt;&amp;lt;big&amp;gt; $(date +&amp;quot;%H:%M:%S&amp;quot;) &amp;lt;&#x2F;big&amp;gt;&amp;lt;&#x2F;b&amp;gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;    color = rgb(ebdbb2)
+&lt;&#x2F;span&gt;&lt;span&gt;    font_size = 32
+&lt;&#x2F;span&gt;&lt;span&gt;    position = 0, 0
+&lt;&#x2F;span&gt;&lt;span&gt;    valign = center
+&lt;&#x2F;span&gt;&lt;span&gt;    halign = center
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;After adding both files, remember to run &lt;code&gt;dotter deploy&lt;&#x2F;code&gt;. This will add symlinks
+for our newly added files to our correct Hyprland config directory by default
+based on our Dotter config.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;fun-fact&quot;&gt;Fun Fact&lt;&#x2F;h3&gt;
+&lt;p&gt;This post was written from NixOS!&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;summary&quot;&gt;Summary&lt;&#x2F;h3&gt;
+&lt;p&gt;In this post, we have:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Configured some muscle memory engraved key remappings including:
+&lt;ul&gt;
+&lt;li&gt;Caps Lock -&amp;gt; Esc when pressed&lt;&#x2F;li&gt;
+&lt;li&gt;Caps Lock -&amp;gt; Control when held (and another key is pressed)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;Setup &lt;code&gt;hypridle&lt;&#x2F;code&gt; to lock out computer after 5 minutes then turn the screen off
+30 seconds after that.&lt;&#x2F;li&gt;
+&lt;li&gt;Styled a simple &lt;code&gt;hyprlock&lt;&#x2F;code&gt; screen that shows the time and an input box for our
+password&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;next-time&quot;&gt;Next Time&lt;&#x2F;h3&gt;
+&lt;p&gt;Next time will be all about development work. We will introduce Nixvim and
+&lt;code&gt;nix shell&lt;&#x2F;code&gt;. Nix shells are development environments you can set up via config.
+They are very powerful and make developing on NixOS much easier.&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>NixOS as a daily driver or Zero to Nixty, part 4&#x2F;? - dotfile&#x2F;config management</title>
+          <pubDate>Fri, 27 Jun 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/nixos-daily-driver-4/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/nixos-daily-driver-4/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-4/">&lt;h3 id=&quot;from-tty-to-tiling&quot;&gt;From TTY to Tiling&lt;&#x2F;h3&gt;
+&lt;p&gt;In the last post, we enabled Hyprland and set it to run by default on login.&lt;&#x2F;p&gt;
+&lt;p&gt;In this post, we will be taking a slight detour and will be going over how to
+manage your NixOS config in version control. This step might be overkill for
+some but it makes it so we can easily checkout our config on any machine and
+have a working NixOS install fairly quickly.&lt;&#x2F;p&gt;
+&lt;p&gt;We will also cover a little Hyprland config at the end.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;introducing-dotter&quot;&gt;Introducing Dotter&lt;&#x2F;h3&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;SuperCuber&#x2F;dotter&quot;&gt;Dotter&lt;&#x2F;a&gt; is a dotfile manager and templater.&lt;&#x2F;p&gt;
+&lt;p&gt;You have a repo of dotfiles and two main config files:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;.dotter&#x2F;global.toml&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;global config where you define &quot;modules&quot; and tell Dotter how to handle
+copying config.&lt;&#x2F;li&gt;
+&lt;li&gt;commit to version control&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;&lt;code&gt;.dotter&#x2F;local.toml&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Per machine file that tells dotter which config to load. The idea being
+you may have different config needs for linux, macos, or windows.&lt;&#x2F;li&gt;
+&lt;li&gt;This file is not committed to git because local lets you switch configs
+per machine without affecting version control&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Add a &lt;code&gt;.gitignore&lt;&#x2F;code&gt; if not already present.
+Add a new line:
+&lt;code&gt;.dotter&#x2F;local.toml&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;After configuring everything, you simply run &lt;code&gt;dotter deploy&lt;&#x2F;code&gt; and the config
+files are copied to the locations set in &lt;code&gt;global.toml&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;It&#x27;s a great project and I highly recommend it.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;moving-nixos-config-to-dotfiles-repo&quot;&gt;Moving NixOS Config to Dotfiles Repo&lt;&#x2F;h3&gt;
+&lt;p&gt;The first thing we&#x27;ll do is add a new directory in our dotfile repo. Then
+we&#x27;ll need to open up our &lt;code&gt;.dotter&#x2F;global.toml&lt;&#x2F;code&gt; file and add our NixOS config
+paths. That looks like this for me:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;[nixos.files]
+&lt;&#x2F;span&gt;&lt;span&gt;nixos = &amp;#39;&#x2F;etc&#x2F;nixos&amp;#39;
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;In Dotter talk, this is setting up a &quot;module&quot; named &lt;code&gt;nixos&lt;&#x2F;code&gt;. We are telling Dotter
+that this module&#x27;s files will be located in the &lt;code&gt;nixos&lt;&#x2F;code&gt; folder and need to be
+copied to &lt;code&gt;&#x2F;etc&#x2F;nixos&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;Now you will need to move the current NixOS config from
+&lt;code&gt;&#x2F;etc&#x2F;nixos&#x2F;configuration.nix&lt;&#x2F;code&gt; to your new &lt;code&gt;nixos&lt;&#x2F;code&gt; folder.&lt;&#x2F;p&gt;
+&lt;p&gt;One other step will be to allow writes to your &lt;code&gt;&#x2F;etc&#x2F;nixos&lt;&#x2F;code&gt; dir by running
+&lt;code&gt;sudo chmod o+w &#x2F;etc&#x2F;nixos&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;One important configuration option to mention for Dotter is the
+&lt;code&gt;default_target_type&lt;&#x2F;code&gt;. Because of the template functionality of Dotter,
+it can either physically copy your config, or simply create a symlink.&lt;&#x2F;p&gt;
+&lt;p&gt;I prefer symlinks by default so I use this config option. In &lt;code&gt;global.toml&lt;&#x2F;code&gt;, I
+set the following:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;[settings]
+&lt;&#x2F;span&gt;&lt;span&gt;default_target_type = &amp;#39;symbolic&amp;#39;
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;More info about that can be found in the &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;SuperCuber&#x2F;dotter&#x2F;wiki&#x2F;5.-Built%E2%80%90ins,-Helpers,-and-Settings#settings&quot;&gt;Dotter wiki&lt;&#x2F;a&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;If you plan to use symlinks with Dotter, you will need to open up
+&lt;code&gt;nixos&#x2F;configuration.nix&lt;&#x2F;code&gt; and make the &lt;code&gt;hardware-configuration.nix&lt;&#x2F;code&gt; import
+an absolute path instead of relative path.&lt;&#x2F;p&gt;
+&lt;p&gt;Example:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;# nixos&#x2F;configuration.nix
+&lt;&#x2F;span&gt;&lt;span&gt;{ config, pkgs, ... }:
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;  imports =
+&lt;&#x2F;span&gt;&lt;span&gt;    [ &#x2F;etc&#x2F;nixos&#x2F;hardware-configuration.nix ];
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;You will also need to add your &lt;code&gt;.dotter&#x2F;local.toml&lt;&#x2F;code&gt; file.&lt;&#x2F;p&gt;
+&lt;p&gt;That will look something like this:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;packages = [
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;#39;cmus&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;#39;git&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;#39;hypr&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;#39;nvim&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;#39;nushell&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;#39;starship&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;#39;waybar&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;#39;wezterm&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;#39;wofi&amp;#39;
+&lt;&#x2F;span&gt;&lt;span&gt;]
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This is telling Dotter which of the &quot;packages&quot; in your &lt;code&gt;global.toml&lt;&#x2F;code&gt; should be
+copied. This helps allow us to define our complete config in one repo even if
+every host doesn&#x27;t use every package. Each host will have a &lt;code&gt;local.toml&lt;&#x2F;code&gt; that
+copies specific packages.&lt;&#x2F;p&gt;
+&lt;p&gt;Now it&#x27;s finally time to run &lt;code&gt;dotter deploy&lt;&#x2F;code&gt;. This will do the important step
+of taking our local dotfiles and copying (or symlinking) to the dirs we
+specified. After running that command, you will see
+&lt;code&gt;&#x2F;etc&#x2F;nixos&#x2F;configuration.nix&lt;&#x2F;code&gt; is present again.&lt;&#x2F;p&gt;
+&lt;p&gt;The moment of truth, time to rebuild. You can start by doing a dry run
+&lt;code&gt;sudo nixos-rebuild dry-activate&lt;&#x2F;code&gt;. This will build the system and tell you what
+would happen. If that goes well, run &lt;code&gt;sudo nixos-rebuild switch&lt;&#x2F;code&gt;. NixOS gives a lot
+of protection around broken config so it&#x27;s unlikely anything should break here
+and if it does, there will be an error that tells you why.&lt;&#x2F;p&gt;
+&lt;p&gt;Commit your configuration file and merge your branch back to &lt;code&gt;main&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;adding-hyprland-config-to-dotfiles-repo&quot;&gt;Adding Hyprland Config to Dotfiles Repo&lt;&#x2F;h3&gt;
+&lt;p&gt;We are now going to do the same with our &lt;code&gt;Hyprland&lt;&#x2F;code&gt; config. The steps are pretty
+much the same minus some &lt;code&gt;chmod&lt;&#x2F;code&gt; and file path updates.&lt;&#x2F;p&gt;
+&lt;p&gt;First, create a new branch and check it out. Then we create a new directory that
+I simply called &lt;code&gt;hypr&lt;&#x2F;code&gt;. Next, copy the current &lt;code&gt;Hyprland&lt;&#x2F;code&gt; config from
+&lt;code&gt;~&#x2F;.config&#x2F;hypr&lt;&#x2F;code&gt; into this new dir.&lt;&#x2F;p&gt;
+&lt;p&gt;Now we will need to add a little Dotter config:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;[hypr.files]
+&lt;&#x2F;span&gt;&lt;span&gt;hypr = &amp;#39;~&#x2F;.config&#x2F;hypr&amp;#39;
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Again, in Dotter talk, we are creating a &lt;code&gt;hypr&lt;&#x2F;code&gt; module. Then we tell Dotter that
+any files in our local &lt;code&gt;hypr&lt;&#x2F;code&gt; dir need to be copied to &lt;code&gt;~&#x2F;.config&#x2F;hypr&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;Now it&#x27;s time to run &lt;code&gt;dotter deploy&lt;&#x2F;code&gt;. This will do the step of copying our
+local config to the correct path in &lt;code&gt;~&#x2F;.config&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;Confirm that file got copied and then run &lt;code&gt;hyprctl reload&lt;&#x2F;code&gt; to reload the &lt;code&gt;hypr&lt;&#x2F;code&gt;
+config.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;congrats-on-version-controlled-config&quot;&gt;Congrats On Version Controlled Config&lt;&#x2F;h3&gt;
+&lt;p&gt;Your dotfile repo should now look something like this:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;dotfiles&#x2F;
+&lt;&#x2F;span&gt;&lt;span&gt;├── .dotter&#x2F;
+&lt;&#x2F;span&gt;&lt;span&gt;│   ├── global.toml
+&lt;&#x2F;span&gt;&lt;span&gt;│   └── local.toml
+&lt;&#x2F;span&gt;&lt;span&gt;├── hypr&#x2F;
+&lt;&#x2F;span&gt;&lt;span&gt;│   └── hyprland.conf
+&lt;&#x2F;span&gt;&lt;span&gt;└── nixos&#x2F;
+&lt;&#x2F;span&gt;&lt;span&gt;    └── configuration.nix
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;We have now added two sets of our config into version control. This will allow
+us to easily pass around our config to a new machine if needed, especially with
+NixOS and it&#x27;s declarative config.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;next-time&quot;&gt;Next Time&lt;&#x2F;h3&gt;
+&lt;p&gt;In the next post, I plan to get back to actually setting up NixOS for daily driver
+use. This will probably include some &lt;code&gt;hypr&lt;&#x2F;code&gt; config and introducing Nixvim. Nixvim
+is a way to manage your neovim plugins in a NixOS-y way.&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>NixOS as a daily driver on a late 2011 Macbook Pro, part 3&#x2F;? - user, WM, tools</title>
+          <pubDate>Thu, 05 Jun 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/nixos-daily-driver-3/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/nixos-daily-driver-3/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-3/">&lt;h4 id=&quot;recap&quot;&gt;Recap&lt;&#x2F;h4&gt;
+&lt;p&gt;See &lt;a href=&quot;&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-2&quot;&gt;Part 2&lt;&#x2F;a&gt; where I cover installation and
+basic configuration.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;outline&quot;&gt;Outline&lt;&#x2F;h4&gt;
+&lt;p&gt;Things we will be covering in this post:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;adding a non-root user with sudo access&lt;&#x2F;li&gt;
+&lt;li&gt;installing a window manager - Hyprland&lt;&#x2F;li&gt;
+&lt;li&gt;installing some tools - neovim, git, waybar, wezterm&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h4 id=&quot;install-a-text-editor&quot;&gt;Install a Text Editor&lt;&#x2F;h4&gt;
+&lt;p&gt;First things first, let&#x27;s install a better text editor to make our configuration
+updating easier.&lt;&#x2F;p&gt;
+&lt;p&gt;You will have to use &lt;code&gt;nano&lt;&#x2F;code&gt; for this. Open &lt;code&gt;&#x2F;etc&#x2F;nixos&#x2F;configuration.nix&lt;&#x2F;code&gt;
+and add the following:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;programs.neovim = {
+&lt;&#x2F;span&gt;&lt;span&gt;  enable = true;
+&lt;&#x2F;span&gt;&lt;span&gt;  defaultEditor = true;
+&lt;&#x2F;span&gt;&lt;span&gt;};
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Use &lt;code&gt;ctrl+o&lt;&#x2F;code&gt; then &lt;code&gt;ctrl+x&lt;&#x2F;code&gt; to write and exit nano.&lt;&#x2F;p&gt;
+&lt;p&gt;Then run &lt;code&gt;nixos-rebuild switch&lt;&#x2F;code&gt;. NixOS will rebuild your config and return you
+to a terminal. You should now be able to start neovim by running &lt;code&gt;nvim&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;adding-a-user&quot;&gt;Adding a User&lt;&#x2F;h4&gt;
+&lt;p&gt;Now that we can edit files easier, let&#x27;s add a non-root user.&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;users.users.disco = {
+&lt;&#x2F;span&gt;&lt;span&gt; isNormalUser = true;
+&lt;&#x2F;span&gt;&lt;span&gt; extraGroups = [
+&lt;&#x2F;span&gt;&lt;span&gt;   &amp;quot;wheel&amp;quot;             # Allows sudo access
+&lt;&#x2F;span&gt;&lt;span&gt;   &amp;quot;networkmanager&amp;quot;    # Allows controlling network
+&lt;&#x2F;span&gt;&lt;span&gt;   &amp;quot;audio&amp;quot;             # Audio device access
+&lt;&#x2F;span&gt;&lt;span&gt;   &amp;quot;video&amp;quot;             # Video devices (e.g. backlight, GPU)
+&lt;&#x2F;span&gt;&lt;span&gt;   &amp;quot;input&amp;quot;             # For input devices like keyboard&#x2F;mouse config
+&lt;&#x2F;span&gt;&lt;span&gt; ];
+&lt;&#x2F;span&gt;&lt;span&gt;};
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Again, save and exit and then rebuild:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;nixos-rebuild switch&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;After successfully rebuilding, you will need to set a password for the new user.
+For me that&#x27;s:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;passwd disco&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Then you can &lt;code&gt;exit&lt;&#x2F;code&gt; and login as your new sudo accessible user.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;enable-network-tools&quot;&gt;Enable Network Tools&lt;&#x2F;h4&gt;
+&lt;p&gt;This will enable tools like &lt;code&gt;nmtui&lt;&#x2F;code&gt; to allow for easier network setup.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;networking.networkmanager.enable = true;&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;install-a-window-manager-and-daily-driver-tools&quot;&gt;Install a Window Manager and Daily Driver Tools&lt;&#x2F;h4&gt;
+&lt;p&gt;I am using &lt;a href=&quot;https:&#x2F;&#x2F;hyprland.org&#x2F;&quot;&gt;Hyprland&lt;&#x2F;a&gt;. Hyprland is a dynamic Wayland
+compositor that supports tiling, floating, and hybrid layouts.&lt;&#x2F;p&gt;
+&lt;p&gt;Add the following to your &lt;code&gt;&#x2F;etc&#x2F;nixos&#x2F;configuration.nix&lt;&#x2F;code&gt;. This enables Hyprland
+along with XDG portals, which are required for features like file pickers,
+screen sharing, and communication between sandboxed apps (especially Flatpaks
+and browsers).&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;programs.hyprland.enable = true;
+&lt;&#x2F;span&gt;&lt;span&gt;xdg.portal = {
+&lt;&#x2F;span&gt;&lt;span&gt;  enable = true;
+&lt;&#x2F;span&gt;&lt;span&gt;  wlr.enable = true;
+&lt;&#x2F;span&gt;&lt;span&gt;  extraPortals = [ pkgs.xdg-desktop-portal-hyprland ];
+&lt;&#x2F;span&gt;&lt;span&gt;};
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Before rebuilding this time though, we will also install some daily driver tools.&lt;&#x2F;p&gt;
+&lt;p&gt;One reason for this is that &lt;code&gt;Hyprland&lt;&#x2F;code&gt; uses the &lt;code&gt;kitty&lt;&#x2F;code&gt; terminal by default.&lt;&#x2F;p&gt;
+&lt;p&gt;Look for this line in your &lt;code&gt;&#x2F;etc&#x2F;nixos&#x2F;configuration.nix&lt;&#x2F;code&gt; file:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;environment.systemPackages = with pkgs; [
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;You will likely find this commented out with &lt;code&gt;wget&lt;&#x2F;code&gt; listed as a package.&lt;&#x2F;p&gt;
+&lt;p&gt;Expand on that section so it becomes:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;environment.systemPackages = with pkgs; [
+&lt;&#x2F;span&gt;&lt;span&gt;  kitty # needed by Hyprland by default
+&lt;&#x2F;span&gt;&lt;span&gt;  wget
+&lt;&#x2F;span&gt;&lt;span&gt;  hyprpaper # background utility for Hyprland
+&lt;&#x2F;span&gt;&lt;span&gt;  hyprlock # screen lock utility for Hyprland
+&lt;&#x2F;span&gt;&lt;span&gt;  librewolf # privacy focused browser based on firefox
+&lt;&#x2F;span&gt;&lt;span&gt;  wofi # needed by Hyprland by default
+&lt;&#x2F;span&gt;&lt;span&gt;  git
+&lt;&#x2F;span&gt;&lt;span&gt;  waybar # status bar for Hyprland
+&lt;&#x2F;span&gt;&lt;span&gt;  wezterm
+&lt;&#x2F;span&gt;&lt;span&gt;];
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Some tools like &lt;code&gt;neovim&lt;&#x2F;code&gt; and &lt;code&gt;hyprland&lt;&#x2F;code&gt; have official NixOS modules, which let you
+enable them declaratively using &lt;code&gt;enable = true;&lt;&#x2F;code&gt;. Other tools (like &lt;code&gt;git&lt;&#x2F;code&gt; or
+&lt;code&gt;librewolf&lt;&#x2F;code&gt;) don’t have modules and should be added directly to
+&lt;code&gt;environment.systemPackages&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;Now it&#x27;s time to rebuild. Again, this is done by:
+&lt;code&gt;sudo nixos-rebuild switch&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;You can now manually start &lt;code&gt;Hyprland&lt;&#x2F;code&gt; by running:
+&lt;code&gt;exec Hyprland&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;You will be greeted with nothing but a random wallpaper supplied by Hyprland.&lt;&#x2F;p&gt;
+&lt;p&gt;A couple important default keybinds are:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;SUPER + q - opens terminal&lt;&#x2F;li&gt;
+&lt;li&gt;SUPER + r - opens wofi app runner&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h4 id=&quot;starting-hyprland-on-login&quot;&gt;Starting Hyprland on Login&lt;&#x2F;h4&gt;
+&lt;p&gt;Let&#x27;s make &lt;code&gt;Hyprland&lt;&#x2F;code&gt; start on login. Create a &lt;code&gt;~&#x2F;.bash_profile&lt;&#x2F;code&gt; file if it
+doesn&#x27;t exist and add this:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;if [ -z &amp;quot;$DISPLAY&amp;quot; ] &amp;amp;&amp;amp; [ &amp;quot;$(tty)&amp;quot; = &amp;quot;&#x2F;dev&#x2F;tty1&amp;quot; ]; then
+&lt;&#x2F;span&gt;&lt;span&gt;  exec Hyprland
+&lt;&#x2F;span&gt;&lt;span&gt;fi
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;h4 id=&quot;summary&quot;&gt;Summary&lt;&#x2F;h4&gt;
+&lt;p&gt;In this post, we have:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;added a non-root user and set their password&lt;&#x2F;li&gt;
+&lt;li&gt;installed a window manager, &lt;code&gt;Hyprland&lt;&#x2F;code&gt;, and set it to start on login&lt;&#x2F;li&gt;
+&lt;li&gt;installed multiple important daily driver tools like git and librewolf&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h4 id=&quot;next-time&quot;&gt;Next Time&lt;&#x2F;h4&gt;
+&lt;p&gt;In Part 4, we&#x27;ll continue to configure &lt;code&gt;Hyprland&lt;&#x2F;code&gt;: adding keybindings,
+wallpapers, waybar, and maybe even a lockscreen.&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>NixOS as a daily driver on a late 2011 Macbook Pro, part 2&#x2F;? - Installation, Basic Configuration</title>
+          <pubDate>Wed, 04 Jun 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/nixos-daily-driver-2/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/nixos-daily-driver-2/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-2/">&lt;p&gt;See &lt;a href=&quot;&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-1&quot;&gt;Part 1&lt;&#x2F;a&gt; where I cover why you would want
+to run NixOS as a daily driver.&lt;&#x2F;p&gt;
+&lt;p&gt;In this post, we will cover installation on a personal machine and setting up
+a basic configuration file.&lt;&#x2F;p&gt;
+&lt;p&gt;Just as a note, for this specific post I am using:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;efi&lt;&#x2F;li&gt;
+&lt;li&gt;minimal ISO&lt;&#x2F;li&gt;
+&lt;li&gt;dd (tool to write ISO)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;See &lt;a href=&quot;https:&#x2F;&#x2F;nixos.org&#x2F;manual&#x2F;nixos&#x2F;stable&#x2F;#ch-installation&quot;&gt;https:&#x2F;&#x2F;nixos.org&#x2F;manual&#x2F;nixos&#x2F;stable&#x2F;#ch-installation&lt;&#x2F;a&gt;
+for a full installation guide.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;installation&quot;&gt;Installation&lt;&#x2F;h4&gt;
+&lt;p&gt;Because Nix and Nixpkgs can be installed on almost any Linux distro, it&#x27;s possible
+to install NixOS from inside an existing Linux install. You can even install
+it in place on the same partition.
+&lt;a href=&quot;https:&#x2F;&#x2F;nixos.org&#x2F;manual&#x2F;nixos&#x2F;stable&#x2F;#sec-installing-from-other-distro&quot;&gt;https:&#x2F;&#x2F;nixos.org&#x2F;manual&#x2F;nixos&#x2F;stable&#x2F;#sec-installing-from-other-distro&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;We will keep it simple and focus on using an ISO on a USB drive.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;iso&quot;&gt;ISO&lt;&#x2F;h4&gt;
+&lt;p&gt;Go to &lt;a href=&quot;https:&#x2F;&#x2F;nixos.org&#x2F;download&#x2F;#nixos-iso&quot;&gt;https:&#x2F;&#x2F;nixos.org&#x2F;download&#x2F;#nixos-iso&lt;&#x2F;a&gt;
+to download the ISO of your choice. If you are a newer user, you should probably
+pick graphical as it will help guide you along. I have Linux experience so I
+will be using the minimal version.&lt;&#x2F;p&gt;
+&lt;p&gt;Next, insert your USB drive and look for it using &lt;code&gt;lsblk&lt;&#x2F;code&gt;.
+Make sure it&#x27;s not mounted: &lt;code&gt;sudo umount &#x2F;dev&#x2F;sdX*&lt;&#x2F;code&gt;.
+Then use &lt;code&gt;dd&lt;&#x2F;code&gt; to write the ISO to your drive:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;sudo dd bs=4M conv=fsync oflag=direct status=progress if=&amp;lt;path-to-image&amp;gt; of=&#x2F;dev&#x2F;sdX&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Now it&#x27;s time to boot.&lt;&#x2F;p&gt;
+&lt;p&gt;You will be greeted with nothing but a terminal. You will be automatically
+logged in as the &lt;code&gt;nixos&lt;&#x2F;code&gt; user and have sudo access without a password.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;networking&quot;&gt;Networking&lt;&#x2F;h4&gt;
+&lt;p&gt;You will need a connection to the internet to download various things needed
+for the install. The easiest way is to just use a wired connection if possible.
+If you need wireless, it takes a little setup. The minimal installer does not
+ship with the correct firmware for my wireless card so I&#x27;m forced to use a wired
+connection. The wireless setup doesn&#x27;t look difficult and instructions can be
+found here:
+&lt;a href=&quot;https:&#x2F;&#x2F;nixos.org&#x2F;manual&#x2F;nixos&#x2F;stable&#x2F;#sec-installation-manual-networking&quot;&gt;https:&#x2F;&#x2F;nixos.org&#x2F;manual&#x2F;nixos&#x2F;stable&#x2F;#sec-installation-manual-networking&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;partitioning-and-formatting&quot;&gt;Partitioning and formatting&lt;&#x2F;h4&gt;
+&lt;p&gt;The minimal NixOS install doesn&#x27;t do any partitioning or formatting so that
+needs to be done manually.&lt;&#x2F;p&gt;
+&lt;p&gt;First, you will need to partition:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;Create a GPT partition table&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;&lt;code&gt;parted &#x2F;dev&#x2F;sda -- mklabel gpt&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;ol start=&quot;2&quot;&gt;
+&lt;li&gt;Add the root partition. This will fill the disk except for the end part,
+where the swap will live, and the space left in front (512MiB) which will be
+used by the boot partition.&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;&lt;code&gt;parted &#x2F;dev&#x2F;sda -- mkpart root ext4 512MB -8GB&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;ol start=&quot;3&quot;&gt;
+&lt;li&gt;Next, add a swap partition. The size required will vary according to needs, here a 8GB one is created.&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;&lt;code&gt;parted &#x2F;dev&#x2F;sda -- mkpart swap linux-swap -8GB 100%&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;ol start=&quot;4&quot;&gt;
+&lt;li&gt;Finally, the boot partition. NixOS by default uses the ESP (EFI system
+partition) as its &lt;code&gt;&#x2F;boot&lt;&#x2F;code&gt; partition. It uses the initially reserved 512MiB at
+the start of the disk.&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;parted &#x2F;dev&#x2F;sda -- mkpart ESP fat32 1MB 512MB
+&lt;&#x2F;span&gt;&lt;span&gt;parted &#x2F;dev&#x2F;sda -- set 3 esp on
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Now, you need to format those partitions:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;For initialising &lt;code&gt;Ext4&lt;&#x2F;code&gt; partitions: &lt;code&gt;mkfs.ext4&lt;&#x2F;code&gt;. It is recommended that you
+assign a unique symbolic label to the file system using the option &lt;code&gt;-L label&lt;&#x2F;code&gt;,
+since this makes the file system configuration independent from device changes.
+For example:&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;&lt;code&gt;mkfs.ext4 -L nixos &#x2F;dev&#x2F;sda1&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;ol start=&quot;2&quot;&gt;
+&lt;li&gt;For creating swap partitions: mkswap. Again it’s recommended to assign a
+label to the swap partition: &lt;code&gt;-L label&lt;&#x2F;code&gt;. For example:&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;&lt;code&gt;mkswap -L swap &#x2F;dev&#x2F;sda2&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;ol start=&quot;3&quot;&gt;
+&lt;li&gt;For creating boot partitions: &lt;code&gt;mkfs.fat&lt;&#x2F;code&gt;. Again it’s recommended to assign a
+label to the boot partition: &lt;code&gt;-n label&lt;&#x2F;code&gt;. For example:&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;&lt;code&gt;mkfs.fat -F 32 -n boot &#x2F;dev&#x2F;sda3&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;installation-1&quot;&gt;Installation&lt;&#x2F;h4&gt;
+&lt;ol&gt;
+&lt;li&gt;Mount the target file system on which NixOS should be installed on &lt;code&gt;&#x2F;mnt&lt;&#x2F;code&gt;,
+e.g.&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;&lt;code&gt;mount &#x2F;dev&#x2F;disk&#x2F;by-label&#x2F;nixos &#x2F;mnt&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;ol start=&quot;2&quot;&gt;
+&lt;li&gt;Mount the boot file system on &#x2F;mnt&#x2F;boot, e.g.&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;mkdir -p &#x2F;mnt&#x2F;boot
+&lt;&#x2F;span&gt;&lt;span&gt;mount -o umask=077 &#x2F;dev&#x2F;disk&#x2F;by-label&#x2F;boot &#x2F;mnt&#x2F;boot
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;ol start=&quot;3&quot;&gt;
+&lt;li&gt;(optional) If your machine has a limited amount of memory, you may want to
+activate swap devices now (swapon device). The installer (or rather, the
+build actions that it may spawn) may need quite a bit of RAM, depending on
+your configuration.&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;&lt;code&gt;swapon &#x2F;dev&#x2F;sda2&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;ol start=&quot;3&quot;&gt;
+&lt;li&gt;
+&lt;p&gt;You now need to create a file &lt;code&gt;&#x2F;mnt&#x2F;etc&#x2F;nixos&#x2F;configuration.nix&lt;&#x2F;code&gt; that
+specifies the intended configuration of the system. This is because NixOS
+has a declarative configuration model: you create or edit a description of
+the desired configuration of your system, and then NixOS takes care of
+making it happen.&lt;&#x2F;p&gt;
+&lt;p&gt;The command &lt;code&gt;nixos-generate-config&lt;&#x2F;code&gt; can generate an initial configuration
+file for you:&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;&lt;code&gt;nixos-generate-config --root &#x2F;mnt&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;This command will also create a file at &lt;code&gt;&#x2F;mnt&#x2F;etc&#x2F;nixos&#x2F;hardware-configuration.nix&lt;&#x2F;code&gt;.
+This includes important config for your filesystems among other things. While
+NixOS should handle this, it can&#x27;t hurt to double check just to make sure
+things are defined correctly.&lt;&#x2F;p&gt;
+&lt;p&gt;Most of the default config will be commented out, but a basic
+&lt;code&gt;configuration.nix&lt;&#x2F;code&gt; file will look something like this:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;{ config, pkgs, ... }:
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;  imports = [ .&#x2F;hardware-configuration.nix ];
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  boot.loader.systemd-boot.enable = true;
+&lt;&#x2F;span&gt;&lt;span&gt;  boot.loader.efi.canTouchEfiVariables = true;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  # Macbook Pro wireless firmware
+&lt;&#x2F;span&gt;&lt;span&gt;  nixpkgs.config = {
+&lt;&#x2F;span&gt;&lt;span&gt;    allowUnfree = true;
+&lt;&#x2F;span&gt;&lt;span&gt;  };
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  services.openssh.enable = true;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  system.stateVersion = &amp;quot;25.05&amp;quot;; # Adjust to match your NixOS version
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Note for UEFI users: You must select a boot-loader, either systemd-boot or
+GRUB. The recommended option is systemd-boot: set the option
+&lt;code&gt;boot.loader.systemd-boot.enable&lt;&#x2F;code&gt; to true. &lt;code&gt;nixos-generate-config&lt;&#x2F;code&gt; should do
+this automatically for new configurations when booted in UEFI mode.&lt;&#x2F;p&gt;
+&lt;ol start=&quot;4&quot;&gt;
+&lt;li&gt;Install! This step can take some time depending on your machine.&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;&lt;code&gt;nixos-install&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;ol start=&quot;5&quot;&gt;
+&lt;li&gt;As the last step, nixos-install will ask you to set the password for the
+root user, e.g.&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;setting root password...
+&lt;&#x2F;span&gt;&lt;span&gt;New password: ***
+&lt;&#x2F;span&gt;&lt;span&gt;Retype new password: ***
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;ol start=&quot;6&quot;&gt;
+&lt;li&gt;If everything went well, it&#x27;s time to &lt;code&gt;reboot&lt;&#x2F;code&gt;.&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;h4 id=&quot;summary&quot;&gt;Summary&lt;&#x2F;h4&gt;
+&lt;p&gt;That&#x27;s it for this post and the installation and basic configuration of NixOS.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;next-time&quot;&gt;Next Time&lt;&#x2F;h4&gt;
+&lt;p&gt;In the next installment, we&#x27;ll create a non-root user, configure the Hyprland
+window manager, and install some key daily-driver tools including Neovim, Git,
+and LibreWolf.&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>NixOS as a daily driver on a late 2011 Macbook Pro, part 1&#x2F;? - What and why?</title>
+          <pubDate>Sun, 18 May 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/nixos-daily-driver-1/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/nixos-daily-driver-1/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-1/">&lt;p&gt;First, it&#x27;s worth explaining what NixOS is and why I or anyone would want to
+run it as a daily driver.&lt;&#x2F;p&gt;
+&lt;p&gt;But even before diving into NixOS, we have to talk about Nix.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;nix&quot;&gt;Nix&lt;&#x2F;h3&gt;
+&lt;p&gt;Nix is a package manager that is purely functional and creates reproducible
+builds specified in the Nix Expression Language. Nix expressions are functions
+that take dependencies as arguments which creates a &lt;em&gt;derivation&lt;&#x2F;em&gt; that specifies
+a reproducible build environment. Nix then stores the results of the build at
+unique address specified by a hash of the complete dependency tree. This
+is known as the Nix store and it&#x27;s immutable which allows atomic upgrades,
+rollbacks, and simultaneous installations of packages with different versions.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;nixos&quot;&gt;NixOS&lt;&#x2F;h3&gt;
+&lt;p&gt;NixOS is an operating system that is built on top of Nix and the idea of purely
+functional package management. Packages are never overwritten once built. If
+you change the Nix expression for a package, it will be rebuilt, and stored
+under a new address with a new hash, preventing interference with an old version.&lt;&#x2F;p&gt;
+&lt;p&gt;NixOS takes this a step further and applies this to configuration. By building
+your entire system from a Nix expression, NixOS ensures that your old
+configuration is never overwritten which allows for easy rollbacks. One big
+caveat of this is the elimination of &quot;global&quot; directores such as &lt;code&gt;&#x2F;bin&lt;&#x2F;code&gt;,
+&lt;code&gt;&#x2F;lib&lt;&#x2F;code&gt;, &lt;code&gt;&#x2F;usr&lt;&#x2F;code&gt;, etc. All packages are kept in &lt;code&gt;&#x2F;nix&#x2F;store&lt;&#x2F;code&gt; under a hashed
+address. (One exception is a symlink &lt;code&gt;&#x2F;bin&#x2F;sh&lt;&#x2F;code&gt; to Bash in the Nix store). There
+is a &lt;code&gt;&#x2F;etc&lt;&#x2F;code&gt; for system-wide config but many of those files are symlinks to files
+in the Nix store.&lt;&#x2F;p&gt;
+&lt;p&gt;Everything in NixOS is built by the Nix package manager. This includes the
+kernel, applications, system packages, and configuration.&lt;&#x2F;p&gt;
+&lt;p&gt;To configure NixOS, you have a file at &lt;code&gt;&#x2F;etc&#x2F;nixos&#x2F;configuration.nix&lt;&#x2F;code&gt;.
+You will setup everything from your boot devices to what services you want
+to run.&lt;&#x2F;p&gt;
+&lt;p&gt;Here is a minimal config that enables sshd:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;  boot.loader.grub.device = &amp;quot;&#x2F;dev&#x2F;sda&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;  fileSystems.&amp;quot;&#x2F;&amp;quot;.device = &amp;quot;&#x2F;dev&#x2F;sda1&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;  services.sshd.enable = true;
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;More on this later though.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;why&quot;&gt;Why?&lt;&#x2F;h3&gt;
+&lt;p&gt;Now the whys. I think many of them speak for themselves but here are mine:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Rollbacks&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;This one is very big especially when learning about a new, drastically different
+OS like Nix. Because old config is never overwritten, you can easily cause a
+breaking change without being worried about how to fix it (unless maybe it&#x27;s
+bootloader related). In fact, old configs are listed in the boot menu.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Reproducible Build Configurations&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Kind of like a rollback but starting from scratch. You can take the
+&lt;code&gt;configuration.nix&lt;&#x2F;code&gt; file, copy to another machine, rebuild, and you will have
+the same applications, services, and configuration as before.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Ad-hoc shell environments&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;In a &quot;Nix shell&quot;, you can use any program that is packaged with Nix without
+needing to install permanently.&lt;&#x2F;p&gt;
+&lt;p&gt;For example, you can run &lt;code&gt;nix-shell -p git neovim node&lt;&#x2F;code&gt; and you will be dropped
+into a shell with those applications installed. This may take some time
+depending on the applications installed.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;It&#x27;s a new way to think&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Honestly, I just like trying new stuff, especially when it&#x27;s done in a new way.
+Linux has mostly been the same for a long time now, so it&#x27;s refreshing to see
+a new way of doing it that also improves on an already solid OS. I also
+have really fallen in love with DevOps&#x2F;IaC type of work, and NixOS definitely
+scratches that itch.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;next-time&quot;&gt;Next time&lt;&#x2F;h3&gt;
+&lt;p&gt;In the next post, I will go over how to install NixOS and maybe a bit of the
+configuration.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

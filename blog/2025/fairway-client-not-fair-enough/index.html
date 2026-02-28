@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="The story of building an open source library to access public MyFrisbee data endpoints, receiving a takedown request despite working with user-submitted information, and the disappointment that followed.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Fairway Client Not Fair Enough for MyFrisbee">
+    <meta property="og:description" content="The story of building an open source library to access public MyFrisbee data endpoints, receiving a takedown request despite working with user-submitted information, and the disappointment that followed.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;fairway-client-not-fair-enough&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Fairway Client Not Fair Enough for MyFrisbee">
+    <meta name="twitter:description" content="The story of building an open source library to access public MyFrisbee data endpoints, receiving a takedown request despite working with user-submitted information, and the disappointment that followed.">
+
+    <title>Fairway Client Not Fair Enough for MyFrisbee - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Fairway Client Not Fair Enough for MyFrisbee</h1>
+      <div class="meta">
+        
+        <p>Jul 06, 2025</p>
+        
+        <p>2 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+          <p><a href="/tags/apis">#APIs</a></p>
+          
+        </div>
+      
+
+      <h3 id="takedown-request">Takedown Request</h3>
+<p>Recently, I've been writing about reverse engineering a unique data
+structure I found while investigating the UDisc web app. I also created
+a free and open source library called Fairway Client. It's a fair way for
+accessing UDisc's <code>.data</code> endpoints - the same ones their own web app uses.
+These are public, unauthenticated endpoints available to any browser.</p>
+<p>The only intent was curiosity and a belief in open, user-accessible data
+and software. People have asked for this kind of access before, and
+UDisc has repeatedly said no. So I decided to see for myself. The data
+was right there - how hard could it be?</p>
+<p>Turns out, not very.</p>
+<p>Much of this data is <strong>user-submitted</strong>, and in some cases, <strong>user-paid</strong>.
+UDisc does offer a CSV export, but come on - programming is about
+automation, not downloading spreadsheets.</p>
+<p>I posted about my findings and tools on the UDisc forum. That didn't go
+well. First, I didn't realize posts were moderated so my comment never got
+posted and that's on me. Second, they weren't pleased. I received a sternly
+worded email asking me to remove both the blog series and the codebase.</p>
+<p>I wasn't sure what to expect - but I was still disappointed.
+I was hoping for curiosity, maybe even appreciation.
+Instead, I got a takedown request.</p>
+<p>They cited their ToS, but if offering a clean, read-only interface to user-owned
+public data violates the ToS, maybe it's the ToS that is wrong.</p>
+<p>The the code is down. I will be obscuring the posts to not reveal details but I
+have spent time and effort on them so they will be staying up in some form.</p>
+<p>It might be time to give disc golf metrix a shot:
+<a href="https://discgolfmetrix.com/">https://discgolfmetrix.com/</a></p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-discourse-comments-in-typescript&#x2F;">Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 27, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">I rewrote the Discourse embedded comments API client from Rust&#x2F;WASM to pure TypeScript. The bundle went from 742 KB to 18 KB.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;cfgs-dev-a-directory-for-developer-setups&#x2F;">cfgs.dev: A Directory for Developer Setups</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 03, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Building a browsable index of dotfiles and development environments.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;arf-structured-reasoning-for-ai-agents&#x2F;">ARF: Structured Reasoning for AI Agents</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 02, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Moving beyond chat prompts to structured agent communication. Why unstructured data lets LLMs run wild, and how ARF enforces what&#x2F;why&#x2F;how before acting.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;letting-ai-pick-the-project&#x2F;">Letting AI Pick the Project</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 19, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">An experiment in creative delegation: I asked Claude to build whatever it wanted. It chose to build a tool it wished existed.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                      <p><a href="/tags/experiment">#experiment</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-discourse-embedded-comments&#x2F;">Building Embedded Discourse Comments with Rust and WASM</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 14, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">An experiment in creating a drop-in comment widget for static sites using Rust compiled to WebAssembly, talking to Discourse&#x27;s REST API.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/wasm">#wasm</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

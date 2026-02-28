@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Lok gains a spec command that turns task descriptions into structured implementation plans. Multiple LLMs propose, debate, and converge on a roadmap before any code gets written.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Lok Part 5: Multi-Agent Planning with lok spec">
+    <meta property="og:description" content="Lok gains a spec command that turns task descriptions into structured implementation plans. Multiple LLMs propose, debate, and converge on a roadmap before any code gets written.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-spec-multi-agent-planning&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Lok Part 5: Multi-Agent Planning with lok spec">
+    <meta name="twitter:description" content="Lok gains a spec command that turns task descriptions into structured implementation plans. Multiple LLMs propose, debate, and converge on a roadmap before any code gets written.">
+
+    <title>Lok Part 5: Multi-Agent Planning with lok spec - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Lok Part 5: Multi-Agent Planning with lok spec</h1>
+      <div class="meta">
+        
+        <p>Feb 06, 2026</p>
+        
+        <p>6 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+        </div>
+      
+
+      <p>The hardest part of building software isn't writing code. It's figuring out what
+to build and in what order. LLMs are great at generating code, but they're also
+great at generating the wrong code because they started implementing before
+thinking through the structure.</p>
+<p>That's what <code>lok spec</code> solves.</p>
+<p>This post describes the shape of the system: how lok structures planning, what
+guarantees the spec format provides, and why separation between planner and
+executor matters. The implementation of the executor (agents actually writing
+code) is not covered here. This is about constraints and contracts.</p>
+<h2 id="what-lok-is-not">What Lok is not</h2>
+<p>Before going further:</p>
+<ul>
+<li>Not a chatbot framework or conversational interface</li>
+<li>Not a marketplace or plugin system for third-party agents</li>
+<li>Not trying to replace developers with automation</li>
+</ul>
+<p>Lok is a planner that structures work and an executor that requires explicit
+human approval at every phase boundary. The design assumes humans review specs,
+trigger execution, and validate results.</p>
+<h2 id="the-problem-with-just-build-it">The Problem with "Just Build It"</h2>
+<p>When you give an LLM a big task like "build a C compiler," it starts coding
+immediately. Maybe it picks the lexer first, maybe the parser. Maybe it designs
+types that won't work for later phases. By the time you realize the architecture
+is wrong, you've burned tokens and time.</p>
+<p>The fix is obvious in retrospect: plan before you build. But not just any plan.
+A plan that multiple models have debated and converged on.</p>
+<h2 id="propose-refine-pick">Propose, Refine, Pick</h2>
+<p><code>lok spec</code> uses a three-step process:</p>
+<ol>
+<li><strong>Propose</strong>: All backends generate roadmaps in parallel</li>
+<li><strong>Refine</strong>: Synthesize roadmaps into a consensus plan</li>
+<li><strong>Pick</strong>: Generate detailed specs from the consensus</li>
+</ol>
+<p>This is the same pattern as debate mode, but applied to planning instead of
+analysis. Each backend proposes how they'd structure the project. Then we
+synthesize the best ideas and resolve contradictions. Finally, we generate
+specs that capture the agreed approach.</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">lok</span><span> spec &quot;</span><span style="color:#a3be8c;">Build a C compiler in Rust. Take C source as input, produce x86-64
+</span><span style="color:#a3be8c;">  assembly output. Include lexer, parser, semantic analysis, and code
+</span><span style="color:#a3be8c;">  generation. Focus on correctness over optimization.</span><span>&quot;
+</span></code></pre>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>spec: Planning: Build a C compiler in Rust...
+</span><span>
+</span><span>spec: Step 1/3: Getting roadmaps from 4 backends...
+</span><span>  ✓ 4/4 backends responded
+</span><span>spec: Step 2/3: Synthesizing consensus roadmap...
+</span><span>  ✓ Consensus reached
+</span><span>spec: Step 3/3: Generating detailed specs...
+</span><span>spec: Step 4/4: Breaking specs into subtasks...
+</span><span>  ✓ lexer → 4 subtasks
+</span><span>  ✓ ast → 5 subtasks
+</span><span>  ✓ parser → 5 subtasks
+</span><span>  ✓ semantic → 5 subtasks
+</span><span>  ✓ ir → 5 subtasks
+</span><span>  ✓ codegen → 5 subtasks
+</span><span>  ✓ driver → 4 subtasks
+</span><span>
+</span><span>==================================================
+</span><span>spec: Generated 7 specs in .arf/specs/:
+</span><span>
+</span><span>  + roadmap.arf
+</span><span>  + 01-lexer/spec.arf
+</span><span>  + 01-lexer/01-token.arf
+</span><span>  + 01-lexer/02-cursor.arf
+</span><span>  + 01-lexer/03-scanner.arf
+</span><span>  + 01-lexer/04-keywords.arf
+</span><span>  + 02-ast/spec.arf
+</span><span>  ...
+</span></code></pre>
+<p>Four backends looked at "build a C compiler" and each proposed a roadmap. Claude
+synthesized them into a unified plan. Then we generated specs for each step, and
+broke each step into subtasks (individual files).</p>
+<h2 id="the-output-structure">The Output Structure</h2>
+<p>Specs land in <code>.arf/specs/</code> with a nested structure:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>.arf/specs/
+</span><span>  roadmap.arf
+</span><span>  01-lexer/
+</span><span>    spec.arf
+</span><span>    01-token.arf
+</span><span>    02-cursor.arf
+</span><span>    03-scanner.arf
+</span><span>    04-keywords.arf
+</span><span>  02-ast/
+</span><span>    spec.arf
+</span><span>    01-types.arf
+</span><span>    02-expr.arf
+</span><span>    ...
+</span></code></pre>
+<p>The roadmap is the high-level plan. Each numbered directory is a step. Inside
+each step is a <code>spec.arf</code> with the overall component spec, plus subtask files
+for individual pieces.</p>
+<p>A spec file looks like this:</p>
+<pre data-lang="toml" style="background-color:#2b303b;color:#c0c5ce;" class="language-toml "><code class="language-toml" data-lang="toml"><span style="color:#bf616a;">order </span><span>= </span><span style="color:#d08770;">1
+</span><span style="color:#bf616a;">what </span><span>= &quot;</span><span style="color:#a3be8c;">Build the lexer to tokenize C source code</span><span>&quot;
+</span><span style="color:#bf616a;">why </span><span>= &quot;</span><span style="color:#a3be8c;">Parser needs a stream of tokens, not raw characters</span><span>&quot;
+</span><span style="color:#bf616a;">how </span><span>= &quot;</span><span style="color:#a3be8c;">Hand-written scanner with keyword trie, handles preprocessor directives</span><span>&quot;
+</span><span style="color:#bf616a;">backup </span><span>= &quot;</span><span style="color:#a3be8c;">Fall back to regex-based tokenizer if performance is acceptable</span><span>&quot;
+</span><span>
+</span><span>[context]
+</span><span style="color:#bf616a;">inputs </span><span>= &quot;</span><span style="color:#a3be8c;">C source code as string or file path</span><span>&quot;
+</span><span style="color:#bf616a;">outputs </span><span>= &quot;</span><span style="color:#a3be8c;">Iterator of Token structs with location info</span><span>&quot;
+</span><span style="color:#bf616a;">dependencies </span><span>= []
+</span><span style="color:#bf616a;">tests </span><span>= &quot;</span><span style="color:#a3be8c;">Tokenize test files, compare against expected token sequences</span><span>&quot;
+</span></code></pre>
+<p>A subtask file adds a <code>file</code> field:</p>
+<pre data-lang="toml" style="background-color:#2b303b;color:#c0c5ce;" class="language-toml "><code class="language-toml" data-lang="toml"><span style="color:#bf616a;">order </span><span>= </span><span style="color:#d08770;">1
+</span><span style="color:#bf616a;">what </span><span>= &quot;</span><span style="color:#a3be8c;">Define token types and structures</span><span>&quot;
+</span><span style="color:#bf616a;">file </span><span>= &quot;</span><span style="color:#a3be8c;">src/lexer/token.rs</span><span>&quot;
+</span><span style="color:#bf616a;">why </span><span>= &quot;</span><span style="color:#a3be8c;">All other lexer components depend on token definitions</span><span>&quot;
+</span><span style="color:#bf616a;">how </span><span>= &quot;</span><span style="color:#a3be8c;">Enum for token kinds, struct for token with span and value</span><span>&quot;
+</span><span>
+</span><span>[context]
+</span><span style="color:#bf616a;">inputs </span><span>= &quot;</span><span style="color:#a3be8c;">None - foundational types</span><span>&quot;
+</span><span style="color:#bf616a;">outputs </span><span>= &quot;</span><span style="color:#a3be8c;">Token enum, TokenKind enum, Span struct</span><span>&quot;
+</span><span style="color:#bf616a;">tests </span><span>= &quot;</span><span style="color:#a3be8c;">Unit tests for token construction and display</span><span>&quot;
+</span></code></pre>
+<h2 id="planning-to-execution-flow">Planning to Execution Flow</h2>
+<p>Here is the minimal end-to-end for a boring but real task: refactoring Rust
+error handling to use <code>thiserror</code> crate. Replace manual <code>impl Display</code> with
+derive macro. Update all error construction sites.</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">lok</span><span> spec &quot;</span><span style="color:#a3be8c;">Refactor error types to use thiserror crate. Replace manual Display
+</span><span style="color:#a3be8c;">  impls with derive macro. Update all error construction sites.</span><span>&quot;
+</span></code></pre>
+<p>Output:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>.arf/specs/
+</span><span>  roadmap.arf
+</span><span>  01-add-dependency/spec.arf
+</span><span>  02-refactor-errors/spec.arf
+</span><span>  02-refactor-errors/01-lexer-error.arf
+</span><span>  02-refactor-errors/02-parser-error.arf
+</span><span>  03-update-callsites/spec.arf
+</span></code></pre>
+<p>Review the roadmap and specs. If the plan looks wrong, edit the <code>.arf</code> files or
+regenerate. Once satisfied:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">lok</span><span> implement .arf/specs/
+</span></code></pre>
+<p>Agents read each spec and implement the changes directly. Each agent works on
+its assigned file according to the spec. The boundary between planning and
+execution is the review gate - you decide when to run <code>lok implement</code> after
+reviewing the specs.</p>
+<h2 id="why-this-matters">Why This Matters</h2>
+<p>The spec files are <a href="https://github.com/ducks/arf">ARF</a> format. That means
+they're structured, parseable, and auditable. When you review a spec, you're
+reviewing the plan before any code exists. If the approach is wrong, you catch
+it here, not after 10,000 lines of generated code.</p>
+<p>The subtask breakdown is what enables parallel execution. Once you have specs
+for <code>01-token.arf</code>, <code>02-cursor.arf</code>, <code>03-scanner.arf</code>, and <code>04-keywords.arf</code>,
+different agents can work on different files simultaneously. They're not
+stepping on each other because each owns their file.</p>
+<p>The pattern is recursive. <code>lok spec</code> on a project gives you steps. Each step
+has subtasks. If a subtask is still too big, you could spec it again. Same
+process, different scale.</p>
+<p>The spec format enforces three invariants:</p>
+<ol>
+<li><strong>Serializable plans</strong>: Every decision is written down in parseable TOML.
+You can diff plans, version them, replay them.</li>
+<li><strong>Attributable actions</strong>: Each spec names the file it will modify or create.
+No agent can touch code without a spec that declares intent.</li>
+<li><strong>Human intervention points</strong>: Spec generation is separate from execution.
+You review the plan before any code changes happen.</li>
+</ol>
+<p>These are not optimizations. They are constraints that prevent the system from
+becoming a black box.</p>
+<h2 id="human-in-the-loop-by-design">Human in the Loop by Design</h2>
+<p>The separation between <code>lok spec</code> and execution is not a temporary limitation.
+It is the core design. The system does not "learn" to skip human review or
+"graduate" to autonomous operation.</p>
+<p>Every phase boundary requires explicit human approval:</p>
+<ul>
+<li>Spec generation produces files you review before execution starts</li>
+<li>Execution runs subtasks but does not merge or deploy results</li>
+<li>Integration is a separate manual step</li>
+</ul>
+<p>This is not because the LLMs are not capable enough. It is because software
+built by delegation requires inspection and veto power at decision boundaries.
+The moment you remove that, you have an agent that makes choices you cannot
+audit until after the damage is done.</p>
+<h2 id="single-backend-fallback">Single Backend Fallback</h2>
+<p>If you only have one backend configured, <code>lok spec</code> skips the multi-model
+consensus and just asks that backend to plan and spec directly. You still get
+the structured output, just without the debate.</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">lok</span><span> spec</span><span style="color:#bf616a;"> --backend</span><span> claude &quot;</span><span style="color:#a3be8c;">Build a REST API</span><span>&quot;
+</span></code></pre>
+<p>The value of multi-backend consensus is catching blind spots. One model might
+over-engineer the auth system while another keeps it simple. Synthesis finds
+the middle ground. But if you're just exploring or don't have multiple backends
+set up, single-model works fine.</p>
+<h2 id="token-conservation">Token Conservation</h2>
+<p>The multi-agent pattern has a cost: API calls. Four backends generating roadmaps
+is four API calls. Synthesis is another. Spec generation is another. Subtask
+generation is one per step.</p>
+<p>For a 7-step project, that's roughly: 4 (roadmaps) + 1 (synthesize) + 1 (specs)</p>
+<ul>
+<li>7 (subtasks) = 13 API calls. Not cheap if you're using expensive models.</li>
+</ul>
+<p>But here's the key: every backend's contribution gets used. We're not querying
+four models and throwing away three responses. We're synthesizing all four into
+something better than any single response.</p>
+<p>This is the rule I've been following: if you fire off multiple agents, they
+must debate or synthesize. Never query N backends just to pick one.</p>
+<h2 id="what-s-next">What's Next</h2>
+<p>The specs exist. The next step is execution: read the specs, assign agents to
+subtasks, run them in parallel, integrate the results. That is a bigger piece of
+machinery, but the foundation is here.</p>
+<p>For now, <code>lok spec</code> gives you a structured plan that multiple models have
+agreed on. Review it, tweak it if needed, then start building with confidence
+that the architecture makes sense. The system does not get smarter by hiding
+decisions from you. It gets more useful by making decisions inspectable.</p>
+<p>The source is at <a href="https://github.com/ducks/lok">github.com/ducks/lok</a>.</p>
+<hr />
+<p>Previous: <a href="/blog/2026/lok-the-self-healing-loop">Part 4: The Self-Healing Loop</a></p>
+
+
+      
+        
+        
+
+        
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;ai-problems-are-human-problems&#x2F;">AI Problems Are Just Human Problems Amplified</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 23, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">AI fatigue, perfectionism vs non-determinism, and garbage in&#x2F;garbage out. These are not new problems. AI just makes them obvious faster.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;llm-mux-workflow-orchestration&#x2F;">llm-mux: Why I Rebuilt Lok</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 11, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok got 300+ installs, then I rewrote it. The abstractions were wrong. llm-mux has roles, teams, and proper apply&#x2F;verify. Here&#x27;s why.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;finna-multi-model-spec-implement&#x2F;">finna: Multi-Model Debate, Spec, and Implement</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 10, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A standalone tool that takes an idea, debates it across Claude, Codex, and Gemini, creates a roadmap, writes specs, and implements. Planning and execution in one pipeline.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-json-parser-multi-llm&#x2F;">Building a JSON Parser with Multi-LLM Orchestration (Part 1)</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 07, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Using lok to orchestrate four LLMs debating design decisions, then synthesizing specs for a Rust JSON parser. The debate phase surfaced edge cases no single model would have caught.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;arf-structured-reasoning-for-ai-agents&#x2F;">ARF: Structured Reasoning for AI Agents</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 02, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Moving beyond chat prompts to structured agent communication. Why unstructured data lets LLMs run wild, and how ARF enforces what&#x2F;why&#x2F;how before acting.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

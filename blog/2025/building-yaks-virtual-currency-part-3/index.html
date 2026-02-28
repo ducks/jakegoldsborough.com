@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Implementing topic-level features and user customization in the Yaks virtual currency plugin. This post covers topic boosting with global pinning and custom avatar flair.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Building Yaks: A Virtual Currency System for Discourse (Part 3: Advanced Features)">
+    <meta property="og:description" content="Implementing topic-level features and user customization in the Yaks virtual currency plugin. This post covers topic boosting with global pinning and custom avatar flair.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-yaks-virtual-currency-part-3&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Building Yaks: A Virtual Currency System for Discourse (Part 3: Advanced Features)">
+    <meta name="twitter:description" content="Implementing topic-level features and user customization in the Yaks virtual currency plugin. This post covers topic boosting with global pinning and custom avatar flair.">
+
+    <title>Building Yaks: A Virtual Currency System for Discourse (Part 3: Advanced Features) - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Building Yaks: A Virtual Currency System for Discourse (Part 3: Advanced Features)</h1>
+      <div class="meta">
+        
+        <p>Oct 18, 2025</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/discourse">#discourse</a></p>
+          
+          <p><a href="/tags/ruby">#ruby</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <p><a href="/blog/2025/building-yaks-virtual-currency-part-1/">Part 1</a> covered the
+backend architecture and <a href="/blog/2025/building-yaks-virtual-currency-part-2/">Part 2</a>
+covered topic pinning and the expiration system. This post covers two more
+complex features: topic boosting (pinning topics globally with visual
+highlighting) and custom avatar flair (letting users customize their forum
+identity).</p>
+<h2 id="topic-pin-vs-topic-boost">Topic Pin vs Topic Boost</h2>
+<p>The plugin has two topic pinning features with different scopes:</p>
+<p><strong>Topic Pin</strong>: Pins a topic to the top of its category only. The topic stays
+at the top of the category page but doesn't appear across other categories.
+No visual highlighting.</p>
+<p><strong>Topic Boost</strong>: Pins a topic globally across all categories AND adds a
+colored border to make it stand out in topic lists. Much more visibility,
+costs more Yaks.</p>
+<p>This post focuses on topic boost, the more powerful and visually striking
+feature.</p>
+<h2 id="topic-boost-making-threads-stand-out">Topic Boost: Making Threads Stand Out</h2>
+<p>Topic boost is a premium feature that pins a topic globally (across all
+categories) and adds a colored border to make it stand out in topic lists.</p>
+<p><img src="/images/yaks-topic-boosting-1.png" alt="Topic boosting in action - a green-bordered topic stands out at the top of the topic list" /></p>
+<h3 id="backend-leveraging-discourse-apis">Backend: Leveraging Discourse APIs</h3>
+<p>Discourse has native topic pinning built in. The API is straightforward:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span>topic.update_pinned(status, global, pinned_until)
+</span></code></pre>
+<p>Parameters:</p>
+<ul>
+<li><code>status</code>: true to pin, false to unpin</li>
+<li><code>global</code>: true for global pin (all categories), false for category only</li>
+<li><code>pinned_until</code>: timestamp as string (not Time object)</li>
+</ul>
+<p>The service implementation for topic boost:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#b48ead;">when </span><span>&quot;</span><span style="color:#a3be8c;">topic_boost</span><span>&quot;
+</span><span>  duration = feature.settings[&quot;</span><span style="color:#a3be8c;">duration_hours</span><span>&quot;]&amp;.hours || </span><span style="color:#d08770;">72</span><span>.hours
+</span><span>  related_topic.update_pinned(</span><span style="color:#d08770;">true</span><span>, </span><span style="color:#d08770;">true</span><span>, duration.from_now.</span><span style="color:#96b5b4;">to_s</span><span>)
+</span><span>
+</span><span>  current_features = related_topic.custom_fields[&quot;</span><span style="color:#a3be8c;">yak_features</span><span>&quot;] || {}
+</span><span>  current_features[&quot;</span><span style="color:#a3be8c;">boosted</span><span>&quot;] = {
+</span><span>    </span><span style="color:#a3be8c;">enabled: </span><span style="color:#d08770;">true</span><span>,
+</span><span>    </span><span style="color:#a3be8c;">color:</span><span> feature_data[</span><span style="color:#a3be8c;">:color</span><span>] || &quot;</span><span style="color:#a3be8c;">gold</span><span>&quot;,
+</span><span>    </span><span style="color:#a3be8c;">applied_at: </span><span style="color:#ebcb8b;">Time</span><span>.zone.now.</span><span style="color:#96b5b4;">to_i</span><span>,
+</span><span>  }
+</span><span>  related_topic.custom_fields[&quot;</span><span style="color:#a3be8c;">yak_features</span><span>&quot;] = current_features
+</span><span>  related_topic.save_custom_fields
+</span></code></pre>
+<p>This does two things:</p>
+<ol>
+<li>Pins the topic globally for 72 hours using Discourse's native pinning</li>
+<li>Stores visual customization data (color choice) in topic custom fields</li>
+</ol>
+<h3 id="frontend-value-transformers">Frontend: Value Transformers</h3>
+<p>To apply CSS classes to boosted topics in topic lists, we use Discourse's
+value transformer API. This is the modern replacement for the deprecated
+widget decorators.</p>
+<pre data-lang="javascript" style="background-color:#2b303b;color:#c0c5ce;" class="language-javascript "><code class="language-javascript" data-lang="javascript"><span style="color:#bf616a;">api</span><span>.</span><span style="color:#8fa1b3;">registerValueTransformer</span><span>(&quot;</span><span style="color:#a3be8c;">topic-list-item-class</span><span>&quot;, ({ </span><span style="color:#bf616a;">value</span><span>, </span><span style="color:#bf616a;">context </span><span>}) </span><span style="color:#b48ead;">=&gt; </span><span>{
+</span><span>  </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">topic </span><span>= </span><span style="color:#bf616a;">context</span><span>?.</span><span style="color:#bf616a;">topic</span><span>;
+</span><span>  </span><span style="color:#b48ead;">if </span><span>(</span><span style="color:#bf616a;">topic</span><span>?.</span><span style="color:#bf616a;">yak_features</span><span>?.</span><span style="color:#bf616a;">boosted</span><span>?.</span><span style="color:#bf616a;">enabled</span><span>) {
+</span><span>    </span><span style="color:#bf616a;">value</span><span>.</span><span style="color:#96b5b4;">push</span><span>(&quot;</span><span style="color:#a3be8c;">yak-boosted-topic</span><span>&quot;);
+</span><span>    </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">color </span><span>= </span><span style="color:#bf616a;">topic</span><span>.</span><span style="color:#bf616a;">yak_features</span><span>.</span><span style="color:#bf616a;">boosted</span><span>.color || &quot;</span><span style="color:#a3be8c;">gold</span><span>&quot;;
+</span><span>    </span><span style="color:#bf616a;">value</span><span>.</span><span style="color:#96b5b4;">push</span><span>(`</span><span style="color:#a3be8c;">yak-color-${</span><span style="color:#bf616a;">color</span><span style="color:#a3be8c;">}</span><span>`);
+</span><span>  }
+</span><span>  </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">value</span><span>;
+</span><span>});
+</span></code></pre>
+<p>The transformer receives a <code>value</code> array and adds CSS classes based on the
+topic's custom fields. Optional chaining (<code>?.</code>) prevents errors if the data
+is missing.</p>
+<p>We also apply styling to the first post in boosted topics:</p>
+<pre data-lang="javascript" style="background-color:#2b303b;color:#c0c5ce;" class="language-javascript "><code class="language-javascript" data-lang="javascript"><span style="color:#b48ead;">const </span><span style="color:#bf616a;">topic </span><span>= </span><span style="color:#bf616a;">helper</span><span>.</span><span style="color:#8fa1b3;">getModel</span><span>().</span><span style="color:#bf616a;">topic</span><span>;
+</span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">topicYakFeatures </span><span>= </span><span style="color:#bf616a;">topic</span><span>?.</span><span style="color:#bf616a;">yak_features</span><span>;
+</span><span>
+</span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">isFirstPostInBoostedTopic </span><span>=
+</span><span>  </span><span style="color:#bf616a;">post</span><span>.</span><span style="color:#bf616a;">post_number </span><span>=== </span><span style="color:#d08770;">1 </span><span>&amp;&amp; </span><span style="color:#bf616a;">topicYakFeatures</span><span>?.</span><span style="color:#bf616a;">boosted</span><span>?.</span><span style="color:#bf616a;">enabled</span><span>;
+</span><span>
+</span><span style="color:#b48ead;">if </span><span>(</span><span style="color:#bf616a;">isFirstPostInBoostedTopic</span><span>) {
+</span><span>  </span><span style="color:#bf616a;">article</span><span>.</span><span style="color:#bf616a;">classList</span><span>.</span><span style="color:#96b5b4;">add</span><span>(&quot;</span><span style="color:#a3be8c;">yak-boosted-topic-post</span><span>&quot;);
+</span><span>  </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">color </span><span>= </span><span style="color:#bf616a;">topicYakFeatures</span><span>.</span><span style="color:#bf616a;">boosted</span><span>.color || &quot;</span><span style="color:#a3be8c;">gold</span><span>&quot;;
+</span><span>  </span><span style="color:#bf616a;">article</span><span>.</span><span style="color:#bf616a;">classList</span><span>.</span><span style="color:#96b5b4;">add</span><span>(`</span><span style="color:#a3be8c;">yak-color-${</span><span style="color:#bf616a;">color</span><span style="color:#a3be8c;">}</span><span>`);
+</span><span>}
+</span></code></pre>
+<p>This gives visual consistency. The colored border appears both in topic lists
+and on the opening post.</p>
+<h3 id="avoiding-n-1-queries">Avoiding N+1 Queries</h3>
+<p>When adding custom field serialization, you must tell Discourse to preload
+the data to avoid N+1 query warnings:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#ebcb8b;">TopicList</span><span>.preloaded_custom_fields &lt;&lt; &quot;</span><span style="color:#a3be8c;">yak_features</span><span>&quot; </span><span style="color:#b48ead;">if </span><span style="color:#ebcb8b;">TopicList</span><span>.</span><span style="color:#96b5b4;">respond_to?</span><span>(</span><span style="color:#a3be8c;">:preloaded_custom_fields</span><span>)
+</span></code></pre>
+<p>Without this, accessing <code>topic.custom_fields["yak_features"]</code> in serializers
+triggers a database query for every topic in the list. With preloading, all
+custom fields load in a single query.</p>
+<h3 id="pin-auto-dismiss-behavior">Pin Auto-Dismiss Behavior</h3>
+<p>Discourse has built-in pin dismissal behavior. When a user visits a pinned
+topic, Discourse creates a <code>TopicUser</code> record with <code>cleared_pinned_at</code>
+timestamp. For that user, the topic shows as unpinned.</p>
+<p>This is intentional design to prevent banner blindness. The topic stays
+pinned for everyone else, but individual users can dismiss it after viewing.
+The colored border remains visible to all users regardless of pin state.</p>
+<h3 id="css-variables-for-theme-customization">CSS Variables for Theme Customization</h3>
+<p>Originally, colors were hardcoded:</p>
+<pre data-lang="scss" style="background-color:#2b303b;color:#c0c5ce;" class="language-scss "><code class="language-scss" data-lang="scss"><span style="color:#8fa1b3;">.</span><span style="color:#d08770;">yak-boosted-topic</span><span style="color:#8fa1b3;">.</span><span style="color:#d08770;">yak-color-gold </span><span>{
+</span><span>  border-color: </span><span style="color:#96b5b4;">#ffd700</span><span>;
+</span><span>  background: </span><span style="color:#96b5b4;">rgba</span><span>(</span><span style="color:#d08770;">255</span><span>, </span><span style="color:#d08770;">215</span><span>, </span><span style="color:#d08770;">0</span><span>, </span><span style="color:#d08770;">0.1</span><span>);
+</span><span>}
+</span></code></pre>
+<p>This made it difficult for theme authors to customize colors. The fix was CSS
+variables:</p>
+<pre data-lang="scss" style="background-color:#2b303b;color:#c0c5ce;" class="language-scss "><code class="language-scss" data-lang="scss"><span style="color:#8fa1b3;">:</span><span style="color:#b48ead;">root </span><span>{
+</span><span>  --yak-color-gold: </span><span style="color:#96b5b4;">#ffd700</span><span>;
+</span><span>  --yak-color-gold-bg: </span><span style="color:#96b5b4;">rgba</span><span>(</span><span style="color:#d08770;">255</span><span>, </span><span style="color:#d08770;">215</span><span>, </span><span style="color:#d08770;">0</span><span>, </span><span style="color:#d08770;">0.1</span><span>);
+</span><span>  --yak-color-blue: </span><span style="color:#96b5b4;">#4169e1</span><span>;
+</span><span>  --yak-color-blue-bg: </span><span style="color:#96b5b4;">rgba</span><span>(</span><span style="color:#d08770;">65</span><span>, </span><span style="color:#d08770;">105</span><span>, </span><span style="color:#d08770;">225</span><span>, </span><span style="color:#d08770;">0.1</span><span>);
+</span><span>  </span><span style="color:#65737e;">// ...
+</span><span>}
+</span><span>
+</span><span style="color:#8fa1b3;">.</span><span style="color:#d08770;">yak-boosted-topic</span><span style="color:#8fa1b3;">.</span><span style="color:#d08770;">yak-color-gold </span><span>{
+</span><span>  border-color: </span><span style="color:#96b5b4;">var</span><span>(--yak-color-gold);
+</span><span>  background: </span><span style="color:#96b5b4;">var</span><span>(--yak-color-gold-bg);
+</span><span>}
+</span></code></pre>
+<p>Now theme authors can override colors without modifying plugin code:</p>
+<pre data-lang="scss" style="background-color:#2b303b;color:#c0c5ce;" class="language-scss "><code class="language-scss" data-lang="scss"><span style="color:#8fa1b3;">:</span><span style="color:#b48ead;">root </span><span>{
+</span><span>  --yak-color-gold: </span><span style="color:#96b5b4;">#ff9900</span><span>;
+</span><span>  --yak-color-gold-bg: </span><span style="color:#96b5b4;">rgba</span><span>(</span><span style="color:#d08770;">255</span><span>, </span><span style="color:#d08770;">153</span><span>, </span><span style="color:#d08770;">0</span><span>, </span><span style="color:#d08770;">0.15</span><span>);
+</span><span>}
+</span></code></pre>
+<h2 id="custom-avatar-flair-user-identity">Custom Avatar Flair: User Identity</h2>
+<p>Avatar flair is the small badge that appears next to a user's avatar.
+Normally it's set at the group level (moderators get one badge, admins get
+another). The custom flair feature lets individual users choose their own
+icon and color scheme for 30 days.</p>
+<p><img src="/images/yaks-avatar-flair.png" alt="Custom avatar flair with a purple crown icon next to the user&#39;s avatar" /></p>
+<h3 id="the-challenge-integrating-with-existing-components">The Challenge: Integrating with Existing Components</h3>
+<p>Discourse has an existing <code>UserAvatarFlair</code> component that reads flair data
+from serializers. The component expects certain fields (<code>flair_group_id</code>,
+<code>flair_url</code>, <code>flair_bg_color</code>, etc.) and renders accordingly.</p>
+<p>Initially, I tried using widget decorators to inject custom data. This hit
+deprecation warnings. The modern pattern is overriding serializer fields
+directly.</p>
+<h3 id="serializer-override-pattern">Serializer Override Pattern</h3>
+<p>Instead of decorating components, we override the serializer methods:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span>[</span><span style="color:#a3be8c;">:post</span><span>, </span><span style="color:#a3be8c;">:user_card</span><span>, </span><span style="color:#a3be8c;">:post_action_user</span><span>].each </span><span style="color:#b48ead;">do </span><span>|</span><span style="color:#bf616a;">serializer_name</span><span>|
+</span><span>  add_to_serializer(serializer_name, </span><span style="color:#a3be8c;">:flair_url</span><span>) </span><span style="color:#b48ead;">do
+</span><span>    user = serializer_name == </span><span style="color:#a3be8c;">:post </span><span>? object.user : object
+</span><span>    flair = user.custom_fields[&quot;</span><span style="color:#a3be8c;">yak_features</span><span>&quot;]&amp;.dig(&quot;</span><span style="color:#a3be8c;">flair</span><span>&quot;)
+</span><span>    </span><span style="color:#b48ead;">if</span><span> flair &amp;&amp; flair[&quot;</span><span style="color:#a3be8c;">enabled</span><span>&quot;]
+</span><span>      flair[&quot;</span><span style="color:#a3be8c;">icon</span><span>&quot;]  </span><span style="color:#65737e;"># Return icon name like &quot;rocket&quot; or &quot;crown&quot;
+</span><span>    </span><span style="color:#b48ead;">else
+</span><span>      user.flair_group&amp;.flair_icon || user.flair_group&amp;.flair_upload&amp;.url
+</span><span>    </span><span style="color:#b48ead;">end
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>This checks user custom fields first. If yak custom flair is present, return
+that data. Otherwise, fall back to group flair.</p>
+<p>Similar overrides for <code>flair_bg_color</code>, <code>flair_color</code>, and <code>flair_name</code>.
+This pattern works across all serializers (post, user card, action user)
+without touching the component.</p>
+<h3 id="the-flair-group-id-problem">The flair_group_id Problem</h3>
+<p>The <code>UserAvatarFlair</code> component has an early return:</p>
+<pre data-lang="javascript" style="background-color:#2b303b;color:#c0c5ce;" class="language-javascript "><code class="language-javascript" data-lang="javascript"><span style="color:#b48ead;">if </span><span>(!</span><span style="color:#bf616a;">user </span><span>|| !</span><span style="color:#bf616a;">user</span><span>.</span><span style="color:#bf616a;">flair_group_id</span><span>) {
+</span><span>  </span><span style="color:#b48ead;">return</span><span>; </span><span style="color:#65737e;">// No flair rendered
+</span><span>}
+</span></code></pre>
+<p>Users with custom flair but no group flair would fail this check. The
+component would exit early and never render anything.</p>
+<p>The fix was setting a dummy marker value:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span>add_to_serializer(serializer_name, </span><span style="color:#a3be8c;">:flair_group_id</span><span>) </span><span style="color:#b48ead;">do
+</span><span>  user = serializer_name == </span><span style="color:#a3be8c;">:post </span><span>? object.user : object
+</span><span>  flair = user.custom_fields[&quot;</span><span style="color:#a3be8c;">yak_features</span><span>&quot;]&amp;.dig(&quot;</span><span style="color:#a3be8c;">flair</span><span>&quot;)
+</span><span>  </span><span style="color:#b48ead;">if</span><span> flair &amp;&amp; flair[&quot;</span><span style="color:#a3be8c;">enabled</span><span>&quot;]
+</span><span>    -</span><span style="color:#d08770;">1  </span><span style="color:#65737e;"># Dummy value to pass existence check
+</span><span>  </span><span style="color:#b48ead;">else
+</span><span>    user.flair_group_id
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>With <code>flair_group_id</code> set to <code>-1</code>, the component passes the existence check.
+It then finds <code>flair_url</code> is set (to the icon name) and renders the custom
+flair.</p>
+<h3 id="frontend-icon-and-color-picker">Frontend: Icon and Color Picker</h3>
+<p><img src="/images/yaks-flair-picker.png" alt="Custom avatar flair picker modal showing red fire being selected" /></p>
+<p>The flair modal presents three selection grids:</p>
+<pre data-lang="javascript" style="background-color:#2b303b;color:#c0c5ce;" class="language-javascript "><code class="language-javascript" data-lang="javascript"><span style="color:#b48ead;">const </span><span style="color:#bf616a;">ICONS </span><span>= [&quot;</span><span style="color:#a3be8c;">star</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">heart</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">fire</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">bolt</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">gem</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">crown</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">rocket</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">trophy</span><span>&quot;];
+</span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">BG_COLORS </span><span>= [&quot;</span><span style="color:#a3be8c;">#ffd700</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">#4169e1</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">#dc143c</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">#32cd32</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">#9370db</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">#ff8c00</span><span>&quot;];
+</span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">TEXT_COLORS </span><span>= [&quot;</span><span style="color:#a3be8c;">#ffffff</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">#000000</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">#ffd700</span><span>&quot;];
+</span></code></pre>
+<p>Users click icons to select one, then choose background and text colors. A
+live preview shows the combination:</p>
+<pre data-lang="javascript" style="background-color:#2b303b;color:#c0c5ce;" class="language-javascript "><code class="language-javascript" data-lang="javascript"><span>&lt;</span><span style="color:#bf616a;">div class</span><span>=&quot;</span><span style="color:#a3be8c;">flair-preview</span><span>&quot;&gt;
+</span><span>  &lt;</span><span style="color:#bf616a;">span class</span><span>=&quot;</span><span style="color:#a3be8c;">user-flair</span><span>&quot; </span><span style="color:#bf616a;">style</span><span>={{this.</span><span style="color:#bf616a;">previewStyle</span><span>}}&gt;
+</span><span>    {{</span><span style="color:#bf616a;">d</span><span>-</span><span style="color:#bf616a;">icon this</span><span>.</span><span style="color:#bf616a;">selectedIcon</span><span>}}
+</span><span>  &lt;/</span><span style="color:#bf616a;">span</span><span>&gt;
+</span><span>&lt;/</span><span style="color:#bf616a;">div</span><span>&gt;
+</span></code></pre>
+<p>The preview updates reactively as selections change. Once the user confirms,
+the modal sends the choices to the backend, which stores them in user custom
+fields.</p>
+<h3 id="making-feature-cards-clickable">Making Feature Cards Clickable</h3>
+<p>On the wallet page, custom flair is the only feature that needs a modal
+(icon/color picker). Other features just need a color picker, which is
+handled inline.</p>
+<p>To make the custom flair card clickable, we split the template:</p>
+<pre data-lang="javascript" style="background-color:#2b303b;color:#c0c5ce;" class="language-javascript "><code class="language-javascript" data-lang="javascript"><span>{{#</span><span style="color:#b48ead;">if </span><span>(</span><span style="color:#bf616a;">eq feature</span><span>.id &quot;</span><span style="color:#a3be8c;">custom_flair</span><span>&quot;)}}
+</span><span>  &lt;</span><span style="color:#bf616a;">div class</span><span>=&quot;</span><span style="color:#a3be8c;">feature-card clickable</span><span>&quot; {{</span><span style="color:#bf616a;">on </span><span>&quot;</span><span style="color:#a3be8c;">click</span><span>&quot; </span><span style="color:#bf616a;">this</span><span>.</span><span style="color:#bf616a;">openFlairModal</span><span>}}&gt;
+</span><span>    {{! </span><span style="color:#bf616a;">card content </span><span>}}
+</span><span>  &lt;/</span><span style="color:#bf616a;">div</span><span>&gt;
+</span><span>{{</span><span style="color:#b48ead;">else</span><span>}}
+</span><span>  &lt;</span><span style="color:#bf616a;">div class</span><span>=&quot;</span><span style="color:#a3be8c;">feature-card</span><span>&quot;&gt;
+</span><span>    {{! </span><span style="color:#bf616a;">card content </span><span>}}
+</span><span>  &lt;/</span><span style="color:#bf616a;">div</span><span>&gt;
+</span><span>{{/</span><span style="color:#b48ead;">if</span><span>}}
+</span></code></pre>
+<p>Only the custom flair card gets the click handler. Other cards remain static.
+This avoids passing <code>undefined</code> callbacks to the <code>{{on}}</code> helper.</p>
+<h2 id="what-s-next">What's Next</h2>
+<p>The plugin now has:</p>
+<ul>
+<li>Post highlighting (colored borders)</li>
+<li>Topic pinning (category-only)</li>
+<li>Topic boosting (global pin + highlight)</li>
+<li>Custom avatar flair (user identity)</li>
+</ul>
+<p>Still to implement:</p>
+<ul>
+<li>Post pinning (pin individual post to top of topic)</li>
+<li>Post boosting (increase visibility in feeds)</li>
+<li>Earning system (auto-reward quality posts)</li>
+<li>Guardian authorization (permission checks)</li>
+<li>Admin dashboard improvements</li>
+</ul>
+<p>The earning system is the next major piece. Right now, users can only spend
+Yaks. They need ways to earn them through quality contributions, not just
+purchases.</p>
+<p>Code is on GitHub: <a href="https://github.com/ducks/discourse-yaks">ducks/discourse-yaks</a></p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-discourse-comments-in-typescript&#x2F;">Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 27, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">I rewrote the Discourse embedded comments API client from Rust&#x2F;WASM to pure TypeScript. The bundle went from 742 KB to 18 KB.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;how-a-friends-gif-broke-our-filesystem&#x2F;">How Jennifer Aniston and Friends Cost Us 377GB and Broke ext4 Hardlinks</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 23, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A backup deduplication fix, filesystem hardlink limits, and the Jennifer Aniston reaction GIF that stress-tested our infrastructure.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-discourse-embedded-comments&#x2F;">Building Embedded Discourse Comments with Rust and WASM</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 14, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">An experiment in creating a drop-in comment widget for static sites using Rust compiled to WebAssembly, talking to Discourse&#x27;s REST API.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/wasm">#wasm</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-stats-evolution&#x2F;">Invite Tree to Invite Stats - How A Simple Tree Flourished Into A Full Moderation Plugin</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 05, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">How a simple visualization plugin evolved into a moderation tool.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-tree&#x2F;">Visualizing Discourse Invite Trees</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 03, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A simple Discourse plugin that visualizes who invited whom as an ASCII tree, inspired by Lobsters.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

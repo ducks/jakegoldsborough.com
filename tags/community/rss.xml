@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - community</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/community/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Sat, 25 Oct 2025 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Building The Guest Spot: Part 1 - My First Community</title>
+          <pubDate>Sat, 25 Oct 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/building-the-guest-spot-part-1/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/building-the-guest-spot-part-1/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/building-the-guest-spot-part-1/">&lt;p&gt;I&#x27;m not exactly a social butterfly. I can enjoy small groups of like minded people
+talking about our interests but small talk really drains me. I&#x27;m much happier
+with a computer, book, or just sitting out in the woods.&lt;&#x2F;p&gt;
+&lt;p&gt;Since joining Discourse a few months ago, I&#x27;ve been learning the platform by
+building weird experiments. A transit departure board. A virtual currency
+system. Tools that push Discourse in directions it wasn&#x27;t designed for. But
+they&#x27;ve all been technical exercises. Solo projects. Learning by doing, but
+doing alone.&lt;&#x2F;p&gt;
+&lt;p&gt;The Guest Spot is different. This is my first time helping build something for
+an actual community of people. Real artists who will (hopefully) use this
+thing. Not just me poking at APIs and seeing what breaks.&lt;&#x2F;p&gt;
+&lt;p&gt;It&#x27;s exciting. And a little terrifying.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;how-the-idea-evolved&quot;&gt;How The Idea Evolved&lt;&#x2F;h2&gt;
+&lt;p&gt;The original concept was simple: a private forum for tattoo artists. A place
+where people in the industry could talk shop, share techniques, discuss
+challenges. No clients. No tourists. Just professionals.&lt;&#x2F;p&gt;
+&lt;p&gt;But then I started thinking about how artists actually share their work.
+Instagram. Almost every tattoo artist is on Instagram. It&#x27;s where they build
+their portfolio, attract clients, establish their style. But they don&#x27;t own any
+of it. The algorithm decides who sees their posts. Instagram decides what gets
+buried or promoted. If Instagram changes the rules or shuts down tomorrow, years
+of work disappears.&lt;&#x2F;p&gt;
+&lt;p&gt;What if artists could have both? A professional forum for discussion and a
+public showcase for their work. Same platform, same data, but they own it all.
+No algorithm deciding what gets seen. No corporate platform that could pull the
+rug out.&lt;&#x2F;p&gt;
+&lt;p&gt;That&#x27;s when the concept clicked: build the Instagram-style feed as the front
+door, with the private forum as the main room. Artists get a beautiful public
+portfolio plus a real community space. All on infrastructure they control.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-is-the-guest-spot&quot;&gt;What Is The Guest Spot?&lt;&#x2F;h2&gt;
+&lt;p&gt;The result: an Instagram-style public showcase for tattoo artists, powered by
+Discourse.&lt;&#x2F;p&gt;
+&lt;p&gt;Artists can post photos of their work in a clean, visual feed. Pinned posts
+appear in a horizontal carousel at the top. Recent work flows down below in a
+responsive grid. Click any image and you get a full detail page with all the
+context.&lt;&#x2F;p&gt;
+&lt;p&gt;And if you&#x27;ve been vetted, behind the public feed is a private, invite-only
+Discourse forum. The showcase is the front door. The forum is where the real
+community happens. Artists can discuss techniques, share experiences, ask
+questions. It&#x27;s gated access because tattoo culture values quality and trust.&lt;&#x2F;p&gt;
+&lt;p&gt;Think of it as Instagram&#x27;s visual presentation meets forum depth, with Discourse
+handling both sides.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;why-discourse-makes-sense-here&quot;&gt;Why Discourse Makes Sense Here&lt;&#x2F;h2&gt;
+&lt;p&gt;Discourse isn&#x27;t Instagram. It&#x27;s not designed to be a photo showcase. But it has
+everything we need to build one:&lt;&#x2F;p&gt;
+&lt;p&gt;Custom fields store image URLs and captions. Categories and tags organize
+content. The permission system handles public showcase vs private forum.&lt;&#x2F;p&gt;
+&lt;p&gt;Most importantly, Discourse is built for communities. The forum infrastructure
+is already there. We&#x27;re just adding a pretty front door.&lt;&#x2F;p&gt;
+&lt;p&gt;And unlike Instagram, artists own everything. The database, the images, the
+content. They can export it all. No algorithm. No corporate overlord. Just their
+work, on their terms.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-i-ve-built-so-far&quot;&gt;What I&#x27;ve Built So Far&lt;&#x2F;h2&gt;
+&lt;p&gt;Backend is straightforward Rails stuff:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;GuestSpotPost&lt;&#x2F;code&gt; model with image URLs (stored as arrays), captions, and
+pinned status&lt;&#x2F;li&gt;
+&lt;li&gt;Migrations for the database schema&lt;&#x2F;li&gt;
+&lt;li&gt;Controllers that handle CRUD operations and serve JSON to the frontend&lt;&#x2F;li&gt;
+&lt;li&gt;Serializers that package post data with user info&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Frontend is where it gets interesting. Modern Discourse uses Glimmer components,
+which are Ember&#x27;s latest component format. Template and logic live in the same
+&lt;code&gt;.gjs&lt;&#x2F;code&gt; file:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;javascript&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-javascript &quot;&gt;&lt;code class=&quot;language-javascript&quot; data-lang=&quot;javascript&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;export default class &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;GuestSpotPostCard &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;extends &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Component &lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;{
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;get &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;firstImage&lt;&#x2F;span&gt;&lt;span&gt;() &lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;{
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;return &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;this&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;args&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;post&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;image_urls&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;?.[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;];
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;  }
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;  &amp;lt;template&amp;gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;    &lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;LinkTo &lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;route&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;guest-spot-post&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;model&lt;&#x2F;span&gt;&lt;span&gt;=&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;{{@post.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;id&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;}} &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;class&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;guest-spot-post-card&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;      {{#&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;this&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;firstImage&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;}}
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;        &lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;img src&lt;&#x2F;span&gt;&lt;span&gt;=&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;{{this.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;firstImage&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;}} &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;alt&lt;&#x2F;span&gt;&lt;span&gt;={{@post.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;caption&lt;&#x2F;span&gt;&lt;span&gt;}} &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;class&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;post-image&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot; &#x2F;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;      {{&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;      &amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;div class&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;post-meta&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;        &amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;div class&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;post-author&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;          {{&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;avatar &lt;&#x2F;span&gt;&lt;span&gt;@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;post&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;user imageSize&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;small&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;}}
+&lt;&#x2F;span&gt;&lt;span&gt;          &amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;span class&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;username&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&amp;gt;{{@post.user.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;username&lt;&#x2F;span&gt;&lt;span&gt;}}&amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;span&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;        &amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;div&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;        {{#&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if &lt;&#x2F;span&gt;&lt;span&gt;@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;post&lt;&#x2F;span&gt;&lt;span&gt;.caption}}
+&lt;&#x2F;span&gt;&lt;span&gt;          &amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;p class&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;post-caption&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&amp;gt;{{@post.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;caption&lt;&#x2F;span&gt;&lt;span&gt;}}&amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;p&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;        {{&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if&lt;&#x2F;span&gt;&lt;span&gt;}}
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;        {{#&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if &lt;&#x2F;span&gt;&lt;span&gt;@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;post&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;pinned&lt;&#x2F;span&gt;&lt;span&gt;}}
+&lt;&#x2F;span&gt;&lt;span&gt;          &amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;span class&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;pinned-badge&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&amp;gt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;Featured&lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;span&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;        {{&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if&lt;&#x2F;span&gt;&lt;span&gt;}}
+&lt;&#x2F;span&gt;&lt;span&gt;      &amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;div&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;LinkTo&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;template&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The card is a link. Click it, you go to the full post page. The whole thing is
+wrapped in a &lt;code&gt;LinkTo&lt;&#x2F;code&gt; component so the entire card is interactive.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-feed-page&quot;&gt;The Feed Page&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;guest-spot-mobile-1.png&quot; alt=&quot;A mobile friendly layout of feed with tattoo posts from artists&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Two sections: pinned posts in a horizontal carousel, recent posts in a
+responsive grid.&lt;&#x2F;p&gt;
+&lt;p&gt;The carousel uses CSS flexbox with &lt;code&gt;scroll-snap-type: x mandatory&lt;&#x2F;code&gt; so it feels
+smooth on mobile. On phones, each card takes up 80% of the viewport width. On
+tablets, 250px. On desktop, 300px. Pure CSS, no JavaScript.&lt;&#x2F;p&gt;
+&lt;p&gt;The grid uses CSS Grid with &lt;code&gt;auto-fill&lt;&#x2F;code&gt; and &lt;code&gt;minmax()&lt;&#x2F;code&gt;:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;scss&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-scss &quot;&gt;&lt;code class=&quot;language-scss&quot; data-lang=&quot;scss&quot;&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;posts-grid &lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;  display: grid;
+&lt;&#x2F;span&gt;&lt;span&gt;  grid-template-columns: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;repeat&lt;&#x2F;span&gt;&lt;span&gt;(auto-fill, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;minmax&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;250px&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1fr&lt;&#x2F;span&gt;&lt;span&gt;));
+&lt;&#x2F;span&gt;&lt;span&gt;  gap: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1.5rem&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;@media &lt;&#x2F;span&gt;&lt;span&gt;(max-width: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;768px&lt;&#x2F;span&gt;&lt;span&gt;) {
+&lt;&#x2F;span&gt;&lt;span&gt;    grid-template-columns: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;repeat&lt;&#x2F;span&gt;&lt;span&gt;(auto-fill, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;minmax&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;150px&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1fr&lt;&#x2F;span&gt;&lt;span&gt;));
+&lt;&#x2F;span&gt;&lt;span&gt;    gap: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1rem&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;  }
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;@media &lt;&#x2F;span&gt;&lt;span&gt;(max-width: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;480px&lt;&#x2F;span&gt;&lt;span&gt;) {
+&lt;&#x2F;span&gt;&lt;span&gt;    grid-template-columns: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1fr&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;    gap: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0.75rem&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;  }
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;On phones, we force a single column so cards stay large enough to see the artwork clearly. On tablets and desktops, it flows naturally based on available space.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-post-page&quot;&gt;The Post Page&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;guest-spot-mobile-2.png&quot; alt=&quot;A single page post of a tattoo showing cool birds&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Click any card and you get the full post view. It&#x27;s designed to let the artwork breathe while keeping all the important context visible.&lt;&#x2F;p&gt;
+&lt;p&gt;The layout is simple:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Back link at the top (returns to feed)&lt;&#x2F;li&gt;
+&lt;li&gt;Full-size image(s) with &lt;code&gt;object-fit: contain&lt;&#x2F;code&gt; so nothing gets cropped&lt;&#x2F;li&gt;
+&lt;li&gt;Artist info (avatar + username)&lt;&#x2F;li&gt;
+&lt;li&gt;Full caption with preserved line breaks&lt;&#x2F;li&gt;
+&lt;li&gt;Pinned badge if applicable&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Images are wrapped in a card design with rounded corners and subtle shadow. On mobile, padding reduces and max image height adjusts so everything fits nicely on smaller screens. The whole page uses the same responsive breakpoints as the feed (768px for tablets, 480px for phones).&lt;&#x2F;p&gt;
+&lt;p&gt;All contained in a centered column with max-width of 900px. Clean, focused, lets the work be the star.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;hiding-the-sidebar&quot;&gt;Hiding the Sidebar&lt;&#x2F;h2&gt;
+&lt;p&gt;Guest Spot has its own route at &lt;code&gt;&#x2F;guest-spot&lt;&#x2F;code&gt;. But Discourse has a persistent
+sidebar. For a public showcase, that doesn&#x27;t make sense. Artists posting work
+shouldn&#x27;t see forum navigation.&lt;&#x2F;p&gt;
+&lt;p&gt;First attempt: route lifecycle hooks.&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;javascript&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-javascript &quot;&gt;&lt;code class=&quot;language-javascript&quot; data-lang=&quot;javascript&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;export default class &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;GuestSpotFeedRoute &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;extends &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;DiscourseRoute &lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;{
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;activate&lt;&#x2F;span&gt;&lt;span&gt;() &lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;{
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;super&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;activate&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span&gt;...&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;arguments&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;);
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;const &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;appController &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;this&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;controllerFor&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;application&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;);
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;appController&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;set&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;showSidebar&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;false&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;);
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;    document.body.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;classList&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;add&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;guest-spot-page&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;);
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;  }
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;deactivate&lt;&#x2F;span&gt;&lt;span&gt;() &lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;{
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;const &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;appController &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;this&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;controllerFor&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;application&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;);
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;appController&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;set&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;showSidebar&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;true&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;);
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;    document.body.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;classList&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;remove&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;guest-spot-page&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;);
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;super&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;deactivate&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span&gt;...&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;arguments&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;);
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;  }
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This hides the sidebar. But the hamburger button (&lt;code&gt;.header-sidebar-toggle&lt;&#x2F;code&gt;)
+stays visible. Users can toggle it back. Not ideal.&lt;&#x2F;p&gt;
+&lt;p&gt;CSS didn&#x27;t work. Setting controller properties didn&#x27;t work. So I got pragmatic:
+DOM manipulation via an initializer.&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;javascript&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-javascript &quot;&gt;&lt;code class=&quot;language-javascript&quot; data-lang=&quot;javascript&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;export default &lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;  name: &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;hide-sidebar-toggle-on-guest-spot&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;initialize&lt;&#x2F;span&gt;&lt;span&gt;() {
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;withPluginApi&lt;&#x2F;span&gt;&lt;span&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;0.8&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;, (&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;api&lt;&#x2F;span&gt;&lt;span&gt;) &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;=&amp;gt; &lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;api&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;onPageChange&lt;&#x2F;span&gt;&lt;span&gt;((&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;url&lt;&#x2F;span&gt;&lt;span&gt;) &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;=&amp;gt; &lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;const &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;toggle &lt;&#x2F;span&gt;&lt;span&gt;= document.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;querySelector&lt;&#x2F;span&gt;&lt;span&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;.header-sidebar-toggle&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;);
+&lt;&#x2F;span&gt;&lt;span&gt;        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if &lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;toggle&lt;&#x2F;span&gt;&lt;span&gt;) {
+&lt;&#x2F;span&gt;&lt;span&gt;          &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if &lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;url&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;startsWith&lt;&#x2F;span&gt;&lt;span&gt;(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;&#x2F;guest-spot&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;)) {
+&lt;&#x2F;span&gt;&lt;span&gt;            &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;toggle&lt;&#x2F;span&gt;&lt;span&gt;.style.display = &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;none&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;          } &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;else &lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;            &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;toggle&lt;&#x2F;span&gt;&lt;span&gt;.style.display = &amp;quot;&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;          }
+&lt;&#x2F;span&gt;&lt;span&gt;        }
+&lt;&#x2F;span&gt;&lt;span&gt;      });
+&lt;&#x2F;span&gt;&lt;span&gt;    });
+&lt;&#x2F;span&gt;&lt;span&gt;  },
+&lt;&#x2F;span&gt;&lt;span&gt;};
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Is it hacky? Yes. Does it work? Also yes. Sometimes pragmatic beats perfect.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;mobile-responsive&quot;&gt;Mobile Responsive&lt;&#x2F;h2&gt;
+&lt;p&gt;Mobile-first isn&#x27;t just a buzzword here. It&#x27;s critical. Tattoo artists live on their phones. They&#x27;re checking Instagram between clients, browsing artist portfolios while waiting for appointments, posting fresh work right after finishing a piece. If this doesn&#x27;t work perfectly on a phone, it doesn&#x27;t work at all.&lt;&#x2F;p&gt;
+&lt;p&gt;The entire layout is mobile-first. Every component has media queries for tablet and phone breakpoints.&lt;&#x2F;p&gt;
+&lt;p&gt;Carousel cards shrink to 80% viewport width on phones so you can see part of the next card (scroll hint). Grid forces a single column on small screens so cards don&#x27;t get comically tiny. Post detail pages reduce padding and image heights so everything fits nicely without excessive scrolling.&lt;&#x2F;p&gt;
+&lt;p&gt;All CSS. No JavaScript calculating widths or handling resize events. The browser does the work, which means it&#x27;s fast and doesn&#x27;t drain battery with constant calculations.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-s-next&quot;&gt;What&#x27;s Next&lt;&#x2F;h2&gt;
+&lt;p&gt;This is Part 1. We&#x27;ve got the public showcase working. But there&#x27;s more to
+build:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Post creation UI (artists need to upload images and write captions)&lt;&#x2F;li&gt;
+&lt;li&gt;Admin controls (pin&#x2F;unpin posts from the feed)&lt;&#x2F;li&gt;
+&lt;li&gt;User profile pages (view all posts by a specific artist)&lt;&#x2F;li&gt;
+&lt;li&gt;Comments system integration (if we want interaction on posts)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;But most importantly: actually launching this for a real community. Getting
+feedback from artists. Seeing if this makes sense to people who aren&#x27;t me.&lt;&#x2F;p&gt;
+&lt;p&gt;That&#x27;s the scary part. Building code is easy. Building for people? That&#x27;s where
+it gets real.&lt;&#x2F;p&gt;
+&lt;p&gt;Part 2 will cover the creation flow and admin tools. Stay tuned.&lt;&#x2F;p&gt;
+&lt;p&gt;If you want to see the code, it&#x27;s on GitHub:
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-guest-spot&quot;&gt;discourse-guest-spot&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

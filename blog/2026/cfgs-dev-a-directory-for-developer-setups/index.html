@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Building a browsable index of dotfiles and development environments.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="cfgs.dev: A Directory for Developer Setups">
+    <meta property="og:description" content="Building a browsable index of dotfiles and development environments.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;cfgs-dev-a-directory-for-developer-setups&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="cfgs.dev: A Directory for Developer Setups">
+    <meta name="twitter:description" content="Building a browsable index of dotfiles and development environments.">
+
+    <title>cfgs.dev: A Directory for Developer Setups - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>cfgs.dev: A Directory for Developer Setups</h1>
+      <div class="meta">
+        
+        <p>Feb 03, 2026</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+        </div>
+      
+
+      <p>Every developer eventually builds a setup they are proud of. Not because it is perfect, but because it is earned - shaped by years of work, mistakes, migrations, and small personal decisions.</p>
+<p>The problem is discovery. These hard-won configurations are scattered across GitHub repos, half-documented READMEs, gists, and blog posts. You can find them if you already know what to search for. But browsing? Exploring what tools people actually use together? That is hard.</p>
+<p><a href="https://cfgs.dev">cfgs.dev</a> exists to fix that gap.</p>
+<p>It is not a new config system. Not a dotfile manager. Not a package manager. It is a directory - a browsable index of how developers actually work, across tools, operating systems, and philosophies.</p>
+<p>Think of it like browsing other developers' desks. You can see what tools they use, how they configure them, and what their workflow looks like. Then follow the link to their actual dotfiles repo to see the details.</p>
+<h2 id="what-cfgs-dev-is">What cfgs.dev is</h2>
+<p>cfgs.dev scans GitHub repos and extracts what tools people use. Not just "this repo has Neovim" but "this repo uses Neovim with lazy.nvim, gruvbox, lualine, telescope, and nvim-cmp."</p>
+<p>An entry is simple: a username, a link to the dotfiles repo, and a structured breakdown of what the scanner found. Anyone can submit any public repo - the owner can later claim it by logging in. You can browse by category (editors, terminals, window managers) or by specific tool. Want to see how people configure Hyprland? There's a page for that.</p>
+<p>The detection is declarative. Each tool has a JSON config that specifies file patterns to match and content to extract:</p>
+<pre data-lang="json" style="background-color:#2b303b;color:#c0c5ce;" class="language-json "><code class="language-json" data-lang="json"><span>{
+</span><span>  &quot;</span><span style="color:#a3be8c;">name</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">Neovim</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">patterns</span><span>&quot;: [&quot;</span><span style="color:#a3be8c;">nvim/init.lua</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">.config/nvim/**/*.lua</span><span>&quot;],
+</span><span>  &quot;</span><span style="color:#a3be8c;">contentFlags</span><span>&quot;: {
+</span><span>    &quot;</span><span style="color:#a3be8c;">pluginManager</span><span>&quot;: {
+</span><span>      &quot;</span><span style="color:#a3be8c;">lazy.nvim</span><span>&quot;: [&quot;</span><span style="color:#a3be8c;">lazy.nvim</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">folke/lazy</span><span>&quot;],
+</span><span>      &quot;</span><span style="color:#a3be8c;">packer</span><span>&quot;: [&quot;</span><span style="color:#a3be8c;">packer.nvim</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">wbthomason/packer</span><span>&quot;]
+</span><span>    },
+</span><span>    &quot;</span><span style="color:#a3be8c;">theme</span><span>&quot;: {
+</span><span>      &quot;</span><span style="color:#a3be8c;">gruvbox</span><span>&quot;: [&quot;</span><span style="color:#a3be8c;">gruvbox</span><span>&quot;],
+</span><span>      &quot;</span><span style="color:#a3be8c;">tokyonight</span><span>&quot;: [&quot;</span><span style="color:#a3be8c;">tokyonight</span><span>&quot;]
+</span><span>    }
+</span><span>  }
+</span><span>}
+</span></code></pre>
+<p>When the scanner finds a matching file, it checks the content for these
+patterns. First match wins per category. The result is a structured view of
+what the config actually contains.</p>
+<h2 id="deep-detection">Deep Detection</h2>
+<p>The latest version goes deeper on Neovim specifically. It now detects 14
+categories of config details:</p>
+<ul>
+<li>Distribution (LazyVim, AstroNvim, NvChad)</li>
+<li>Plugin manager (lazy.nvim, packer, vim-plug)</li>
+<li>LSP setup (nvim-lspconfig, coc.nvim)</li>
+<li>Completion (nvim-cmp, coq, deoplete)</li>
+<li>Statusline (lualine, lightline, airline)</li>
+<li>File explorer (nvim-tree, neo-tree, oil.nvim)</li>
+<li>Fuzzy finder (telescope, fzf-lua)</li>
+<li>Theme (gruvbox, tokyonight, catppuccin, etc.)</li>
+<li>And more</li>
+</ul>
+<p>The tricky part was handling multi-file configs. A typical Neovim setup has
+<code>init.lua</code> that just requires other files, with the actual plugin configs in
+<code>lua/plugins/*.lua</code>. The scanner now merges details from all matching files
+instead of stopping at the first match.</p>
+<h2 id="badges">Badges</h2>
+<p>You can embed your setup in your README:</p>
+<pre data-lang="markdown" style="background-color:#2b303b;color:#c0c5ce;" class="language-markdown "><code class="language-markdown" data-lang="markdown"><span>![setup](https://cfgs.dev/api/badge/yourusername)
+</span></code></pre>
+<p>This returns a shields.io style badge showing your top tools. There are options
+for filtering by category and changing the style.</p>
+<h2 id="what-cfgs-dev-is-not">What cfgs.dev is not</h2>
+<ul>
+<li>Not a dotfile manager (use chezmoi, Stow, dotter, or bare git repos)</li>
+<li>Not a package manager (use Nix, Homebrew, or your distro's package manager)</li>
+<li>Not enforcing standards or best practices (your config, your choices)</li>
+<li>Not replacing existing tools (it points to them, does not replace them)</li>
+</ul>
+<h2 id="what-works">What Works</h2>
+<p>The declarative detector system is nice. Adding a new tool is just appending to a JSON file. No TypeScript, no build step, no tests to write. The refactor from code-based detectors to config-based ones removed 455 lines.</p>
+<p>Browse-by-tool is useful for discovery. Instead of searching through random repos, you can see "here are 47 people using Helix" and look at their configs.</p>
+<h2 id="what-doesn-t">What Doesn't</h2>
+<p>Scanning requires cloning repos locally, which takes time. A shallow clone of a typical dotfiles repo is fast, but large repos or slow connections can timeout. I cache scan results so subsequent visits are instant.</p>
+<p>Detection accuracy varies. Simple tools are easy (if <code>kitty.conf</code> exists, they use Kitty). Complex tools with many config locations are harder. Neovim alone has like 6 different places people put their config.</p>
+<p>The data model is flat right now. There's no way to express relationships like "this person switched from packer to lazy.nvim" or "these configs are forks of each other." That might be interesting but it is a lot more complexity.</p>
+<h2 id="what-s-next">What's Next</h2>
+<p>Multi-tool filtering. Right now you can browse by single tool, but "show me users with both Neovim and Kitty" isn't possible yet.</p>
+<p>Similar setups. If you use Neovim with these 5 plugins, here are other people with similar configs. This requires some fuzzy matching logic but the data is there.</p>
+<p>Better search. Right now it's browse-only. Being able to search by tool combinations, categories, or specific plugins would be useful.</p>
+<hr />
+<p>If you have a dotfiles repo, add it. Anyone can submit any public dotfile repo - no login required. Paste the URL and the scanner does the rest. If you are the owner, you can log in with GitHub to claim your entry and update it later. The more setups in the index, the more useful it becomes as a living map of real developer workflows.</p>
+<p><a href="https://cfgs.dev">cfgs.dev</a> |
+<a href="https://github.com/ducks/cfgs.dev">GitHub</a></p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;ai-problems-are-human-problems&#x2F;">AI Problems Are Just Human Problems Amplified</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 23, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">AI fatigue, perfectionism vs non-determinism, and garbage in&#x2F;garbage out. These are not new problems. AI just makes them obvious faster.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;llm-mux-workflow-orchestration&#x2F;">llm-mux: Why I Rebuilt Lok</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 11, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok got 300+ installs, then I rewrote it. The abstractions were wrong. llm-mux has roles, teams, and proper apply&#x2F;verify. Here&#x27;s why.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;finna-multi-model-spec-implement&#x2F;">finna: Multi-Model Debate, Spec, and Implement</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 10, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A standalone tool that takes an idea, debates it across Claude, Codex, and Gemini, creates a roadmap, writes specs, and implements. Planning and execution in one pipeline.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-json-parser-multi-llm&#x2F;">Building a JSON Parser with Multi-LLM Orchestration (Part 1)</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 07, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Using lok to orchestrate four LLMs debating design decisions, then synthesizing specs for a Rust JSON parser. The debate phase surfaced edge cases no single model would have caught.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-spec-multi-agent-planning&#x2F;">Lok Part 5: Multi-Agent Planning with lok spec</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 06, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok gains a spec command that turns task descriptions into structured implementation plans. Multiple LLMs propose, debate, and converge on a roadmap before any code gets written.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

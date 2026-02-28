@@ -1,0 +1,724 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - devops</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/devops/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Fri, 14 Nov 2025 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Building yaml-janitor: Solving the Comment Preservation Problem</title>
+          <pubDate>Fri, 14 Nov 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/yaml-janitor-comment-preservation/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/yaml-janitor-comment-preservation/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/yaml-janitor-comment-preservation/">&lt;p&gt;For the past five years, there&#x27;s been an intermittent problem at work:
+sometimes, when editing YAML configuration files with automated tools, comments
+get destroyed. The comments contain critical context like why certain values
+exist or what not to change, so losing them causes real problems when trying to
+maintain infrastructure configuration.&lt;&#x2F;p&gt;
+&lt;p&gt;A coworker tried to solve this in 2021 by building tooling around
+psych-pure, a pure Ruby YAML parser that can preserve comments. But
+psych-pure wasn&#x27;t stable enough at the time, so the project stalled.&lt;&#x2F;p&gt;
+&lt;p&gt;Fast forward to 2025, and I happened to be looking through devops topics and
+stumbled upon this one. This seemed like the perfect opportunity to revisit the
+comment preservation problem.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-initial-validation&quot;&gt;The Initial Validation&lt;&#x2F;h2&gt;
+&lt;p&gt;I started by writing a simple validation script using psych-pure to check
+if our production YAML files could survive a round-trip: load the file,
+dump it back out, and verify the semantics stayed the same.&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;ruby&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-ruby &quot;&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;require &lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;psych&#x2F;pure&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;yaml_content = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;File&lt;&#x2F;span&gt;&lt;span&gt;.read(&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;config.yml&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;)
+&lt;&#x2F;span&gt;&lt;span&gt;loaded = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;Psych&lt;&#x2F;span&gt;&lt;span&gt;::&lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;Pure&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;load&lt;&#x2F;span&gt;&lt;span&gt;(yaml_content, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;comments: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;true&lt;&#x2F;span&gt;&lt;span&gt;)
+&lt;&#x2F;span&gt;&lt;span&gt;dumped = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;Psych&lt;&#x2F;span&gt;&lt;span&gt;::&lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;Pure&lt;&#x2F;span&gt;&lt;span&gt;.dump(loaded)
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Verify semantics match
+&lt;&#x2F;span&gt;&lt;span&gt;original_data = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;Psych&lt;&#x2F;span&gt;&lt;span&gt;::&lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;Pure&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;load&lt;&#x2F;span&gt;&lt;span&gt;(yaml_content)
+&lt;&#x2F;span&gt;&lt;span&gt;dumped_data = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;Psych&lt;&#x2F;span&gt;&lt;span&gt;::&lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;Pure&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;load&lt;&#x2F;span&gt;&lt;span&gt;(dumped)
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if&lt;&#x2F;span&gt;&lt;span&gt; original_data == dumped_data
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;puts &lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;✅ Semantics preserved&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;else
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;puts &lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;❌ MISMATCH&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;end
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;I ran this against 1,736 production YAML files across two repositories.
+The good news: no corrupt YAML! Most files validated successfully, with
+only a handful failing due to using patterns that are technically invalid
+per the YAML spec (though the C implementation of Psych accepts them
+anyway).&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;building-yaml-janitor&quot;&gt;Building yaml-janitor&lt;&#x2F;h2&gt;
+&lt;p&gt;With validation working, I built a proper linter around psych-pure. The
+key challenge was that while psych-pure preserves comments when loading,
+its built-in dump function doesn&#x27;t give enough control over formatting.
+I needed custom formatting rules like consistent indentation and compact
+array notation.&lt;&#x2F;p&gt;
+&lt;p&gt;Here&#x27;s what yaml-janitor fixes:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;yaml&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-yaml &quot;&gt;&lt;code class=&quot;language-yaml&quot; data-lang=&quot;yaml&quot;&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Before: mixed indentation, explicit array format
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;config&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Database settings
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;database&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;host&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;localhost
+&lt;&#x2F;span&gt;&lt;span&gt;        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;port&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;5432
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;features&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;      -
+&lt;&#x2F;span&gt;&lt;span&gt;        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;name&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;caching
+&lt;&#x2F;span&gt;&lt;span&gt;        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;enabled&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;true
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# After: consistent indentation, compact arrays
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;config&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Database settings
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;database&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;host&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;localhost
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;port&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;5432
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;features&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;    - &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;name&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;caching
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;enabled&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;true
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The solution was to build a custom emitter that walks the loaded data
+structure and outputs formatted YAML while preserving all comments:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;ruby&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-ruby &quot;&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;class &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;Emitter
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;def &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;initialize&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;node&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;config&lt;&#x2F;span&gt;&lt;span&gt;)
+&lt;&#x2F;span&gt;&lt;span&gt;    @&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;node &lt;&#x2F;span&gt;&lt;span&gt;= node
+&lt;&#x2F;span&gt;&lt;span&gt;    @&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;config &lt;&#x2F;span&gt;&lt;span&gt;= config
+&lt;&#x2F;span&gt;&lt;span&gt;    @&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;output &lt;&#x2F;span&gt;&lt;span&gt;= []
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;end
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;def &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;emit
+&lt;&#x2F;span&gt;&lt;span&gt;    emit_comments(get_comments(@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;node&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;:leading&lt;&#x2F;span&gt;&lt;span&gt;), &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span&gt;)
+&lt;&#x2F;span&gt;&lt;span&gt;    emit_document(@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;node&lt;&#x2F;span&gt;&lt;span&gt;)
+&lt;&#x2F;span&gt;&lt;span&gt;    @&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;output&lt;&#x2F;span&gt;&lt;span&gt;.join(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;\n&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;) + &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;\n&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;end
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;def &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;emit_mapping&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;hash&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;indent&lt;&#x2F;span&gt;&lt;span&gt;)
+&lt;&#x2F;span&gt;&lt;span&gt;    entries = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;hash&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;respond_to?&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;:psych_keys&lt;&#x2F;span&gt;&lt;span&gt;) ?
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;hash&lt;&#x2F;span&gt;&lt;span&gt;.psych_keys.map { |&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;pk&lt;&#x2F;span&gt;&lt;span&gt;| [pk.key_node, pk.value_node] } :
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;hash&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;to_a
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    entries.each_with_index &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;do &lt;&#x2F;span&gt;&lt;span&gt;|(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;key&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;value&lt;&#x2F;span&gt;&lt;span&gt;), &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;index&lt;&#x2F;span&gt;&lt;span&gt;|
+&lt;&#x2F;span&gt;&lt;span&gt;      emit_comments(get_comments(key, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;:leading&lt;&#x2F;span&gt;&lt;span&gt;), indent)
+&lt;&#x2F;span&gt;&lt;span&gt;      key_str = scalar_to_string(key)
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;case&lt;&#x2F;span&gt;&lt;span&gt; value
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;when &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;Hash&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;Array
+&lt;&#x2F;span&gt;&lt;span&gt;        @&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;output &lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&amp;lt; &amp;quot;#{&amp;#39; &amp;#39; * indent}#{key_str}&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;:&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;        emit_node(value, indent + indentation)
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;else
+&lt;&#x2F;span&gt;&lt;span&gt;        value_str = scalar_to_string(value)
+&lt;&#x2F;span&gt;&lt;span&gt;        @&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;output &lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&amp;lt; &amp;quot;#{&amp;#39; &amp;#39; * indent}#{key_str}&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;: &lt;&#x2F;span&gt;&lt;span&gt;#{value_str}&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;end
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;      emit_comments(get_comments(key, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;:trailing&lt;&#x2F;span&gt;&lt;span&gt;), indent)
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;end
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;end
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;end
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This gave me complete control over formatting while preserving every
+comment. The emitter handles:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Consistent indentation (2 or 4 spaces)&lt;&#x2F;li&gt;
+&lt;li&gt;Compact array format (dash on same line as first key)&lt;&#x2F;li&gt;
+&lt;li&gt;Comment placement (leading and trailing)&lt;&#x2F;li&gt;
+&lt;li&gt;Blank lines between top-level sections&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;production-testing&quot;&gt;Production Testing&lt;&#x2F;h2&gt;
+&lt;p&gt;I tested yaml-janitor on a production file with mixed 2-space and 4-space
+indentation:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Backup original
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;cp&lt;&#x2F;span&gt;&lt;span&gt; pipeline.yaml &#x2F;tmp&#x2F;pipeline_backup.yaml
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Fix with yaml-janitor
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;yaml-janitor --fix --indentation&lt;&#x2F;span&gt;&lt;span&gt; 2 pipeline.yaml
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Verify semantics preserved
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;ruby -ryaml -e &lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;  orig = YAML.load_file(&amp;#39;&#x2F;tmp&#x2F;pipeline_backup.yaml&amp;#39;)
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;  fixed = YAML.load_file(&amp;#39;pipeline.yaml&amp;#39;)
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;  puts orig == fixed ? &amp;#39;✅ Semantics preserved&amp;#39; : &amp;#39;❌ MISMATCH&amp;#39;
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Output: ✅ Semantics preserved
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The fix worked perfectly. Consistent indentation, all comments preserved,
+and semantics verified to be identical.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;configuration-system&quot;&gt;Configuration System&lt;&#x2F;h2&gt;
+&lt;p&gt;I added a configuration file system so teams can standardize their YAML
+formatting:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;yaml&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-yaml &quot;&gt;&lt;code class=&quot;language-yaml&quot; data-lang=&quot;yaml&quot;&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# .yaml-janitor.yml
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;indentation&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;2
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;line_width&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;80
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;sequence_indent&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;false
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;rules&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;consistent_indentation&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;enabled&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;true
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;multiline_certificate&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;enabled&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;true
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The CLI supports both config files and command-line overrides:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;yaml-janitor --config&lt;&#x2F;span&gt;&lt;span&gt; .yaml-janitor.yml files&#x2F;*.yml
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;yaml-janitor --fix --indentation&lt;&#x2F;span&gt;&lt;span&gt; 2 config.yml
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;h2 id=&quot;publishing-to-rubygems&quot;&gt;Publishing to RubyGems&lt;&#x2F;h2&gt;
+&lt;p&gt;Once the linter was working, I published it to RubyGems so anyone could
+use it. I set up automated publishing with GitHub Actions and RubyGems
+trusted publishing (no API keys needed):&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;yaml&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-yaml &quot;&gt;&lt;code class=&quot;language-yaml&quot; data-lang=&quot;yaml&quot;&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;name&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Publish to RubyGems
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;on&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;push&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;tags&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;      - &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;v*&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;jobs&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;publish&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;runs-on&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;ubuntu-latest
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;permissions&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;contents&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;read
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;id-token&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;write
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;steps&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;      - &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;uses&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;actions&#x2F;checkout@v4
+&lt;&#x2F;span&gt;&lt;span&gt;      - &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;uses&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;ruby&#x2F;setup-ruby@v1
+&lt;&#x2F;span&gt;&lt;span&gt;        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;with&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;          &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;ruby-version&lt;&#x2F;span&gt;&lt;span&gt;: &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;3.3&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;
+&lt;&#x2F;span&gt;&lt;span&gt;          &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;bundler-cache&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;true
+&lt;&#x2F;span&gt;&lt;span&gt;      - &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;uses&lt;&#x2F;span&gt;&lt;span&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;rubygems&#x2F;release-gem@v1
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The release process is now fully automated:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;Update version number (date-based: YYYYMMDD)&lt;&#x2F;li&gt;
+&lt;li&gt;Run &lt;code&gt;bundle install&lt;&#x2F;code&gt; to update lockfile&lt;&#x2F;li&gt;
+&lt;li&gt;Commit and push to main&lt;&#x2F;li&gt;
+&lt;li&gt;Create and push tag: &lt;code&gt;git tag v20251113 &amp;amp;&amp;amp; git push origin v20251113&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;GitHub Actions automatically publishes to RubyGems&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;h2 id=&quot;results&quot;&gt;Results&lt;&#x2F;h2&gt;
+&lt;p&gt;yaml-janitor is now published and available on RubyGems:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;gem&lt;&#x2F;span&gt;&lt;span&gt; install yaml-janitor
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;yaml-janitor --help
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Production validation results:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Scanned 1,736 YAML files&lt;&#x2F;li&gt;
+&lt;li&gt;Found 0 corrupt files&lt;&#x2F;li&gt;
+&lt;li&gt;Fixed widespread formatting inconsistencies&lt;&#x2F;li&gt;
+&lt;li&gt;Preserved all comments during fixes&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;People are already using it to lint their YAML configurations.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-five-year-solution&quot;&gt;The Five-Year Solution&lt;&#x2F;h2&gt;
+&lt;p&gt;The problem my coworker identified in 2021 is finally solved. Teams can
+now safely automate YAML editing without losing critical context in
+comments. The infrastructure was already there, it just needed psych-pure
+to stabilize and someone to finish building the tooling.&lt;&#x2F;p&gt;
+&lt;p&gt;yaml-janitor is open source and available on
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;yaml-janitor&quot;&gt;GitHub&lt;&#x2F;a&gt; and
+&lt;a href=&quot;https:&#x2F;&#x2F;rubygems.org&#x2F;gems&#x2F;yaml-janitor&quot;&gt;RubyGems&lt;&#x2F;a&gt;. If you&#x27;ve ever had
+to choose between manual YAML editing and losing your comments, check
+it out.&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>Building a Fully Decentralized Voting System Using Just Git and Pull Requests</title>
+          <pubDate>Mon, 23 Jun 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/building-a-voting-system-with-git/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/building-a-voting-system-with-git/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/building-a-voting-system-with-git/">&lt;h3 id=&quot;the-premise&quot;&gt;The Premise&lt;&#x2F;h3&gt;
+&lt;p&gt;What if we could build a fully transparent, auditable, and tamper-evident
+voting system -- without any servers, centralized backend, or traditional
+databases?&lt;&#x2F;p&gt;
+&lt;p&gt;The result is &lt;strong&gt;GitVote&lt;&#x2F;strong&gt; - a simple but powerful decentralized voting system
+that uses nothing but Git, pull requests, and a little bit of Rust.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;why-git&quot;&gt;Why Git?&lt;&#x2F;h3&gt;
+&lt;p&gt;Git already gives us:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;A fully distributed ledger&lt;&#x2F;li&gt;
+&lt;li&gt;Immutable commit history&lt;&#x2F;li&gt;
+&lt;li&gt;Branching and merging workflows&lt;&#x2F;li&gt;
+&lt;li&gt;Forking for isolated participant actions&lt;&#x2F;li&gt;
+&lt;li&gt;Cryptographic integrity through hashes and signatures&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;With all that, we&#x27;re part of the way to a blockchain.&lt;&#x2F;p&gt;
+&lt;p&gt;I wondered if I could build a voting system where Git itself is the storage
+layer, the consensus layer, and the audit trail.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-design&quot;&gt;The Design&lt;&#x2F;h3&gt;
+&lt;p&gt;At a high level, GitVote works like this:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Proposals&lt;&#x2F;strong&gt; are created as dedicated Git branches&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Votes&lt;&#x2F;strong&gt; are submitted as files inside pull requests.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Voter ID&lt;&#x2F;strong&gt; is tied to each voter&#x27;s Git configuration (name and email)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Duplicate Voting&lt;&#x2F;strong&gt; is automatically prevented via CI checks&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Immutable blocks&lt;&#x2F;strong&gt; are built from merged votes using deterministic hashing&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Tally results&lt;&#x2F;strong&gt; can be generated entirely offline from the final ledger&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;There&#x27;s no central database, API server, or backend. Everything happens inside
+of Git.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-voting-flow&quot;&gt;The Voting Flow&lt;&#x2F;h3&gt;
+&lt;h4 id=&quot;proposal-creation&quot;&gt;Proposal Creation&lt;&#x2F;h4&gt;
+&lt;p&gt;Each new proposal is created as a new Git branch, for example:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;proposal&#x2F;001-color-vote&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;A simple &lt;code&gt;schema.json&lt;&#x2F;code&gt; file defines the allowed choices for that proposal:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;allowed&amp;quot;: [&amp;quot;blue&amp;quot;, &amp;quot;purple&amp;quot;, &amp;quot;green&amp;quot;]
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;h4 id=&quot;voter-submission&quot;&gt;Voter Submission&lt;&#x2F;h4&gt;
+&lt;p&gt;Voters follow this flow:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;Fork the governance repo&lt;&#x2F;li&gt;
+&lt;li&gt;Clone their fork locally&lt;&#x2F;li&gt;
+&lt;li&gt;Checkout the correct proposal branch&lt;&#x2F;li&gt;
+&lt;li&gt;Run GitVote CLI tool to cast their vote:
+&lt;code&gt;gitvote cast --choice purple&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;This will:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Write a new vote file into &lt;code&gt;votes&#x2F;&lt;&#x2F;code&gt; (one file per voter)&lt;&#x2F;li&gt;
+&lt;li&gt;Commits the vote using their Git identity&lt;&#x2F;li&gt;
+&lt;li&gt;Signs the commit (GPG coming soon)&lt;&#x2F;li&gt;
+&lt;li&gt;Prepares the branch for submission&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;ol start=&quot;5&quot;&gt;
+&lt;li&gt;Push their branch back to their fork&lt;&#x2F;li&gt;
+&lt;li&gt;Open a pull request into the upstream proposal branch&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;h4 id=&quot;vote-validation&quot;&gt;Vote Validation&lt;&#x2F;h4&gt;
+&lt;p&gt;Every pull request triggers CI which runs:
+&lt;code&gt;gitvote validate&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;This will validate:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;The vote file format&lt;&#x2F;li&gt;
+&lt;li&gt;Compliance with the allowed schema&lt;&#x2F;li&gt;
+&lt;li&gt;No duplicate voters (one voter, one vote)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Invalid votes fail the CI and will not be merged&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;merging-chain-building&quot;&gt;Merging &amp;amp; Chain Building&lt;&#x2F;h4&gt;
+&lt;p&gt;Once a valid PR is merged, CI will automatically run:
+&lt;code&gt;gitvote build-chain&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;This scans all merged vote files and creates an immutable hash-linked chain
+of blocks stored as plain JSON:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;blocks&#x2F;
+&lt;&#x2F;span&gt;&lt;span&gt;  block-0000.json
+&lt;&#x2F;span&gt;&lt;span&gt;  block-0001.json
+&lt;&#x2F;span&gt;&lt;span&gt;  ...
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Each block includes:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;The vote choice&lt;&#x2F;li&gt;
+&lt;li&gt;The voter identity&lt;&#x2F;li&gt;
+&lt;li&gt;The original timestamp of the vote&lt;&#x2F;li&gt;
+&lt;li&gt;The Cryptographic hash linking it to the previous block&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h4 id=&quot;tallying-votes&quot;&gt;Tallying Votes&lt;&#x2F;h4&gt;
+&lt;p&gt;At any time, anyone can run:
+&lt;code&gt;gitvote tally&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;This reads the &lt;code&gt;blocks&#x2F;&lt;&#x2F;code&gt; directory and generates a full tally of the current vote
+state:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;Vote Tally:
+&lt;&#x2F;span&gt;&lt;span&gt;  purple votes: 3
+&lt;&#x2F;span&gt;&lt;span&gt;  red votes: 2
+&lt;&#x2F;span&gt;&lt;span&gt;Total unique voters: 5
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;No external system is needed to calculate the results — everything lives
+entirely inside Git.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-tech-stack&quot;&gt;The Tech Stack&lt;&#x2F;h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Rust for the core CLI, &lt;code&gt;gitvote&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Github Actions for CI validation and chain building&lt;&#x2F;li&gt;
+&lt;li&gt;Git itself as the distributed backend&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;security&quot;&gt;Security&lt;&#x2F;h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Voter ID is tied to each user&#x27;s Git config (&lt;code&gt;user.name&lt;&#x2F;code&gt; and &lt;code&gt;user.email&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;CI fully enforces schema validation and prevents voter duplication&lt;&#x2F;li&gt;
+&lt;li&gt;All votes are auditable forever via immutable commit history&lt;&#x2F;li&gt;
+&lt;li&gt;The chain is fully deterministic and reproducible offline&lt;&#x2F;li&gt;
+&lt;li&gt;The ledger can be archived back into &lt;code&gt;main&lt;&#x2F;code&gt; for permanent recordkeeping&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;the-benefits&quot;&gt;The Benefits&lt;&#x2F;h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Simplicity:&lt;&#x2F;strong&gt; No central server or complex infrastructure&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Transparency:&lt;&#x2F;strong&gt; Every vote and rule is visible to all voters&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Auditability:&lt;&#x2F;strong&gt; Anyone can verify the ledger at any time&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Offline verifiability:&lt;&#x2F;strong&gt; The full vote chain is just a Git repo&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;future-plans&quot;&gt;Future Plans&lt;&#x2F;h3&gt;
+&lt;p&gt;There are a number of interesting enhancements that could be made here I think:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;GPG signature enforcement&lt;&#x2F;li&gt;
+&lt;li&gt;Anonymous but verifiable voting via zero-knowledge proofs&lt;&#x2F;li&gt;
+&lt;li&gt;Weighted or ranked ballots&lt;&#x2F;li&gt;
+&lt;li&gt;Multi-proposal governance workflow&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;For now, GitVote is a minimal, functioning, fully decentralized voting system.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-code-demo&quot;&gt;The Code&#x2F;Demo&lt;&#x2F;h3&gt;
+&lt;p&gt;You can find the CLI here:
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;gitvote&quot;&gt;GitVote CLI&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;You can find a test governance repo here:
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;gitvote-test&quot;&gt;gitvote-test&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;By going to &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;gitvote-test&#x2F;actions&quot;&gt;actions&lt;&#x2F;a&gt;, you can
+see the various CI workflows that run during the voting process.&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;First, I submit a valid vote for &lt;strong&gt;purple&lt;&#x2F;strong&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Then, I attempt to vote again for &lt;strong&gt;green&lt;&#x2F;strong&gt;, which correctly fails
+due to duplicate voter prevention&lt;&#x2F;li&gt;
+&lt;li&gt;Finally, I simulate a new voter by spoofing a different Git identity (via
+&lt;code&gt;git config&lt;&#x2F;code&gt;), submit a vote for &lt;strong&gt;blue&lt;&#x2F;strong&gt;, and the vote passes validation&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;closing-thoughts&quot;&gt;Closing Thoughts&lt;&#x2F;h3&gt;
+&lt;p&gt;What originally started as an idea for &quot;Gitcoin&quot; and wanting to learn more
+about blockchains turned into a fully functional, fully auditable governance
+platform -- all built entirely on top of Git (and Rust).&lt;&#x2F;p&gt;
+&lt;p&gt;It was pretty satisfying to turn pull requests, branch
+protections, and hash-linked commits into a simple, verifiable voting process.&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>The Accidental Complexity of Doing The Right Thing or The Pain of Setting Up Privacy-Focused Analytics (2025 Edition)</title>
+          <pubDate>Sun, 22 Jun 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/the-pain-of-privacy-focused-analytics/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/the-pain-of-privacy-focused-analytics/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/the-pain-of-privacy-focused-analytics/">&lt;h3 id=&quot;introduction&quot;&gt;Introduction&lt;&#x2F;h3&gt;
+&lt;p&gt;As I&#x27;ve mentioned in the past, I’ve been writing and blogging more, and I
+became curious if anyone was actually reading my posts.&lt;&#x2F;p&gt;
+&lt;p&gt;Before I go any further, I need to make it clear that I am very
+privacy-focused. I hate logging, tracking, fingerprinting, or any kind of
+unnecessary data collection. A user’s data is theirs -- I have no interest in
+storing anything about them. I just want a basic count of which pages are being
+visited.&lt;&#x2F;p&gt;
+&lt;p&gt;Naturally, I asked ChatGPT for recommendations based on my current setup.&lt;&#x2F;p&gt;
+&lt;p&gt;I&#x27;m already using Caddy as my web server and TLS manager, so the first
+suggestion was straightforward: just enable HTTP access logs and analyze them.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;attempt-1-server-side-access-logs-caddy&quot;&gt;Attempt 1: Server-side access logs (Caddy)&lt;&#x2F;h3&gt;
+&lt;p&gt;The basic flow here would be:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;enable http logs in Caddy&lt;&#x2F;li&gt;
+&lt;li&gt;scrape log file&lt;&#x2F;li&gt;
+&lt;li&gt;count requests as rough pageviews&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;In theory, this sounded perfect. I wasn’t looking for fancy dashboards or
+detailed metrics -- just simple counts of which pages were being hit. Plain log
+files should be more than enough.&lt;&#x2F;p&gt;
+&lt;p&gt;Caddy, by default, doesn&#x27;t actually log HTTP requests unless you configure it
+to. More surprisingly, in many builds of Caddy (especially those provided by
+package managers), the &lt;code&gt;http.handlers.log&lt;&#x2F;code&gt; module isn’t even included.&lt;&#x2F;p&gt;
+&lt;p&gt;At first I thought I was on the wrong version, but after some digging, I
+realized that full HTTP access logging in Caddy requires building your own
+custom binary with &lt;a href=&quot;https:&#x2F;&#x2F;caddyserver.com&#x2F;docs&#x2F;build#xcaddy&quot;&gt;&lt;code&gt;xcaddy&lt;&#x2F;code&gt;&lt;&#x2F;a&gt; to
+enable the logging module. This felt like massive overkill for something as
+basic as HTTP request logging.&lt;&#x2F;p&gt;
+&lt;p&gt;After trying multiple versions, failing to get access logs working, and
+realizing that Caddy’s modular architecture was actively getting in my way, I
+gave up on this approach.&lt;&#x2F;p&gt;
+&lt;p&gt;I asked ChatGPT for other options.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;attempt-2-goatcounter-via-docker&quot;&gt;Attempt 2: Goatcounter via Docker&lt;&#x2F;h3&gt;
+&lt;p&gt;The next recommendation was to use a dedicated privacy-first analytics tool.
+Several good open-source options exist:
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;arp242&#x2F;goatcounter&quot;&gt;GoatCounter&lt;&#x2F;a&gt;, Plausible, and Umami.&lt;&#x2F;p&gt;
+&lt;p&gt;After doing a bit of research, GoatCounter stood out. It’s fully open-source,
+extremely privacy-focused, lightweight, and seems purpose-built for people like
+me who just want simple pageview counts without any tracking nonsense.&lt;&#x2F;p&gt;
+&lt;p&gt;Even better, GoatCounter has Docker images available.&lt;&#x2F;p&gt;
+&lt;p&gt;But of course — the Docker image that used to be hosted on Docker Hub was no
+longer available. The project had moved its images to GitHub Container Registry
+(GHCR), and GHCR was returning permission errors when I tried to pull the image
+anonymously. Apparently GHCR increasingly requires authentication even for
+public images, depending on Docker version, client configuration, and random
+GitHub API mood swings.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;attempt-3-building-my-own-goatcounter-docker-image&quot;&gt;Attempt 3: Building my own Goatcounter Docker image&lt;&#x2F;h3&gt;
+&lt;p&gt;After that, I decided to just build the image myself.&lt;&#x2F;p&gt;
+&lt;p&gt;GoatCounter publishes a Dockerfile in the repo, so this should be
+straightforward:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;git clone https:&#x2F;&#x2F;github.com&#x2F;arp242&#x2F;goatcounter.git
+&lt;&#x2F;span&gt;&lt;span&gt;docker build -t goatcounter:local .
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The Dockerfile requires Docker BuildKit support, and uses newer Dockerfile
+features like &lt;code&gt;--exclude&lt;&#x2F;code&gt;, which aren&#x27;t supported by Docker’s legacy builder. I
+had to enable BuildKit, but enabling BuildKit required &lt;code&gt;docker-buildx&lt;&#x2F;code&gt;, which
+wasn’t installed by default on my Arch system.&lt;&#x2F;p&gt;
+&lt;p&gt;Once I installed &lt;code&gt;docker-buildx&lt;&#x2F;code&gt;, I ran the build again. This time, it started
+pulling Go modules but failed with timeouts halfway through the build.&lt;&#x2F;p&gt;
+&lt;p&gt;I retried. And retried. BuildKit timeouts, network flakiness, CDN rate limiting
+-- you name it. What should have been a 30-second build turned into multiple
+rounds of fighting with Docker’s build system and Go’s module proxy ecosystem.&lt;&#x2F;p&gt;
+&lt;p&gt;At this point, Docker was no longer simplifying anything — it was actively
+making everything worse.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;attempt-4-running-goatcounter-directly&quot;&gt;Attempt 4: Running GoatCounter directly&lt;&#x2F;h3&gt;
+&lt;p&gt;By this point I was fully in &quot;I don’t even care anymore&quot; mode.&lt;&#x2F;p&gt;
+&lt;p&gt;GoatCounter is a Go program that ships prebuilt binaries. I could just download
+the standalone Linux binary and run it behind Caddy directly, without Docker at
+all.&lt;&#x2F;p&gt;
+&lt;p&gt;Except even that wasn&#x27;t as straightforward as it should have been.&lt;&#x2F;p&gt;
+&lt;p&gt;The download URL on GitHub releases points to a gzip-compressed file. I
+accidentally downloaded it and tried running it directly without decompressing
+it first, leading to confusing shell errors (&quot;command not found&quot; as it tried to
+parse the binary as text). Once I properly decompressed it, I finally had a
+functioning ELF binary.&lt;&#x2F;p&gt;
+&lt;p&gt;I ran &lt;code&gt;goatcounter serve&lt;&#x2F;code&gt;, initialized the SQLite database, and got it fully
+running behind Caddy with one reverse proxy entry. TLS worked automatically,
+and finally, my simple analytics system was live.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;observations&quot;&gt;Observations&lt;&#x2F;h3&gt;
+&lt;p&gt;Docker was supposed to make self-hosting trivial. But broken registries,
+permission issues, changing build standards, and fragmented tooling made things
+much harder. Self-hosted projects often don&#x27;t have the resources to maintain
+registry hosting, Docker images, and packaging across multiple platforms.
+The friction involved in doing things ethically discourages people from even
+trying privacy-respecting solutions.&lt;&#x2F;p&gt;
+&lt;p&gt;It&#x27;s no surprise so many people just give up and paste Google Analytics into
+their site -- it&#x27;s not better technology, it&#x27;s easier deployment.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;conclusions&quot;&gt;Conclusions&lt;&#x2F;h3&gt;
+&lt;p&gt;Privacy-first analytics tools absolutely exist — GoatCounter is an excellent
+project, and I’m very happy with it now that it’s running.&lt;&#x2F;p&gt;
+&lt;p&gt;But the tooling friction creates artificial barriers that discourage adoption.
+Ironically, it&#x27;s often easier to deploy privacy-invasive analytics than
+privacy-respecting ones.&lt;&#x2F;p&gt;
+&lt;p&gt;There’s a huge opportunity here to improve the ecosystem:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Smarter build tooling&lt;&#x2F;li&gt;
+&lt;li&gt;Better Docker automation&lt;&#x2F;li&gt;
+&lt;li&gt;Easier packaging of self-hostable apps&lt;&#x2F;li&gt;
+&lt;li&gt;(Maybe even a tool that turns install instructions into Dockerfiles
+automatically — but that’s a post for another day...)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;If we want ethical software to be the default, we need to make it easier, not
+harder.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;edit-20250526&quot;&gt;Edit (20250526)&lt;&#x2F;h3&gt;
+&lt;h4 id=&quot;there-is-a-docker-image&quot;&gt;There &lt;strong&gt;IS&lt;&#x2F;strong&gt; a Docker Image&lt;&#x2F;h4&gt;
+&lt;p&gt;Welp, naturally, after all of this — the registry issues, the broken builds, the
+manual binary install — I found out &lt;em&gt;there is&lt;&#x2F;em&gt; a Docker image for GoatCounter:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;hub.docker.com&#x2F;r&#x2F;arp242&#x2F;goatcounter&quot;&gt;arp242&#x2F;goatcounter&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;em&gt;(Yes, maintained by the actual author.)&lt;&#x2F;em&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Apparently I was just one &lt;code&gt;docker pull&lt;&#x2F;code&gt; away the whole time.&lt;&#x2F;p&gt;
+&lt;p&gt;:facepalm:&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>node-postgres-exporter — A Lightweight, Configurable PostgreSQL Prometheus Exporter</title>
+          <pubDate>Fri, 20 Jun 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/building-node-postgres-exporter/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/building-node-postgres-exporter/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/building-node-postgres-exporter/">&lt;p&gt;I’m releasing a small project I’ve been building:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;node-postgres-exporter&lt;&#x2F;code&gt;, is a lightweight Prometheus exporter for PostgreSQL,
+written in Node.js.&lt;&#x2F;p&gt;
+&lt;p&gt;The goal: build a fully configurable exporter that supports multiple databases,
+dynamic custom metrics, and solid production fault tolerance — while keeping
+the design modular and simple to operate.&lt;&#x2F;p&gt;
+&lt;p&gt;There are excellent existing exporters in the ecosystem — but many of them
+require full privilege access, tightly coupled SQL views, or lack flexible
+multi-database support.&lt;&#x2F;p&gt;
+&lt;p&gt;This exporter aims to solve a more targeted problem:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Support multiple independent PostgreSQL instances&lt;&#x2F;li&gt;
+&lt;li&gt;Expose core database metrics (connections, size, etc.)&lt;&#x2F;li&gt;
+&lt;li&gt;Allow fully configurable, per-database custom metrics via JSON&lt;&#x2F;li&gt;
+&lt;li&gt;Provide basic fault isolation so partial database failures don&#x27;t block full scrapes&lt;&#x2F;li&gt;
+&lt;li&gt;Expose Prometheus-friendly endpoints with modern HTTP APIs&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;key-features&quot;&gt;Key Features&lt;&#x2F;h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Node.js + Express based architecture&lt;&#x2F;li&gt;
+&lt;li&gt;Uses &lt;a href=&quot;https:&#x2F;&#x2F;node-postgres.com&#x2F;&quot;&gt;&lt;code&gt;pg&lt;&#x2F;code&gt;&lt;&#x2F;a&gt; for database access via dedicated connection pools per database&lt;&#x2F;li&gt;
+&lt;li&gt;Uses &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;siimon&#x2F;prom-client&quot;&gt;&lt;code&gt;prom-client&lt;&#x2F;code&gt;&lt;&#x2F;a&gt; for full Prometheus metric management&lt;&#x2F;li&gt;
+&lt;li&gt;Simple configuration via JSON files (&lt;code&gt;databases.json&lt;&#x2F;code&gt; and &lt;code&gt;queries.json&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;API key authentication (Bearer token) for securing metrics endpoint&lt;&#x2F;li&gt;
+&lt;li&gt;Graceful shutdown handling for safe database pool cleanup&lt;&#x2F;li&gt;
+&lt;li&gt;Fully Dockerized with ready-to-run &lt;code&gt;docker-compose&lt;&#x2F;code&gt; setup for local testing&lt;&#x2F;li&gt;
+&lt;li&gt;Includes health endpoints: &lt;code&gt;&#x2F;healthz&lt;&#x2F;code&gt;, &lt;code&gt;&#x2F;readyz&lt;&#x2F;code&gt;, &lt;code&gt;&#x2F;livez&lt;&#x2F;code&gt;, &lt;code&gt;&#x2F;configz&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;metric-types-supported&quot;&gt;Metric Types Supported&lt;&#x2F;h3&gt;
+&lt;ul&gt;
+&lt;li&gt;PostgreSQL connection counts&lt;&#x2F;li&gt;
+&lt;li&gt;Per-database size metrics&lt;&#x2F;li&gt;
+&lt;li&gt;Custom query metrics with support for &lt;code&gt;Gauge&lt;&#x2F;code&gt; and &lt;code&gt;Counter&lt;&#x2F;code&gt; types&lt;&#x2F;li&gt;
+&lt;li&gt;Exporter self-metrics: scrape duration, error tracking, scrape lockouts, etc.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;dynamic-query-configuration&quot;&gt;Dynamic Query Configuration&lt;&#x2F;h3&gt;
+&lt;p&gt;One of the core design goals for &lt;code&gt;node-postgres-exporter&lt;&#x2F;code&gt; was flexibility
+without requiring code changes. To achieve this, all custom metric definitions
+are fully externalized via configuration files.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;queries.json&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Custom metrics are defined in a simple &lt;code&gt;queries.json&lt;&#x2F;code&gt; file, allowing operators
+to add new metrics by writing plain SQL queries without modifying or
+redeploying the exporter. Each query entry includes:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;name&lt;&#x2F;code&gt; – the Prometheus metric name&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;help&lt;&#x2F;code&gt; – description for the metric&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;type&lt;&#x2F;code&gt; – gauge or counter&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;labels&lt;&#x2F;code&gt; – array of columns to extract as metric labels&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;query&lt;&#x2F;code&gt; – the raw SQL statement to run against the target database&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;[
+&lt;&#x2F;span&gt;&lt;span&gt;  {
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;name&amp;quot;: &amp;quot;active_users&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;help&amp;quot;: &amp;quot;Number of active users&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;type&amp;quot;: &amp;quot;gauge&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;labels&amp;quot;: [&amp;quot;status&amp;quot;],
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;query&amp;quot;: &amp;quot;SELECT status, COUNT(*)::int FROM users GROUP BY status&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;  }
+&lt;&#x2F;span&gt;&lt;span&gt;]
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;On each scrape, the exporter executes the configured queries, extracts label
+values from the row fields, and populates the Prometheus metric accordingly.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;fault-tolerance-and-isolation&quot;&gt;Fault Tolerance and Isolation&lt;&#x2F;h3&gt;
+&lt;p&gt;Another design goal was to handle database failures gracefully. If one database
+becomes unavailable (network issue, restart, maintenance), the exporter:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Continues scraping all healthy databases&lt;&#x2F;li&gt;
+&lt;li&gt;Exposes scrape success&#x2F;failure per database as dedicated metrics
+(&lt;code&gt;pg_scrape_success&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;Never fails the entire scrape due to single database issues&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Internally, this is implemented using:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;Promise.allSettled()&lt;&#x2F;code&gt; to concurrently scrape databases while isolating
+failures&lt;&#x2F;li&gt;
+&lt;li&gt;Explicit error metric tracking&lt;&#x2F;li&gt;
+&lt;li&gt;Per-database scrape duration timing&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;example-use-case&quot;&gt;Example Use Case&lt;&#x2F;h3&gt;
+&lt;p&gt;This design fits environments where:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;You manage multiple distinct PostgreSQL instances&lt;&#x2F;li&gt;
+&lt;li&gt;You have limited privilege access on some databases&lt;&#x2F;li&gt;
+&lt;li&gt;You want metrics to be purely driven by SQL queries without deeper system
+integration&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;what-it-s-not-trying-to-be&quot;&gt;What it’s not trying to be&lt;&#x2F;h3&gt;
+&lt;ul&gt;
+&lt;li&gt;A full replacement for highly privileged exporters like the canonical
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;prometheus-community&#x2F;postgres_exporter&quot;&gt;&lt;code&gt;postgres_exporter&lt;&#x2F;code&gt;&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;A deep SQL monitoring agent requiring superuser roles or heavy introspection&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;This exporter is intentionally &lt;strong&gt;simple, safe, and scoped&lt;&#x2F;strong&gt; — easy to audit and
+deploy.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;roadmap-future-ideas&quot;&gt;Roadmap &#x2F; Future Ideas&lt;&#x2F;h3&gt;
+&lt;p&gt;There’s plenty of room for future enhancement:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Hot-reload support for queries and DB configs&lt;&#x2F;li&gt;
+&lt;li&gt;JSON schema validation on configuration files&lt;&#x2F;li&gt;
+&lt;li&gt;Cardinality protection on dynamic label sets&lt;&#x2F;li&gt;
+&lt;li&gt;Additional metric types (&lt;code&gt;Histogram&lt;&#x2F;code&gt;, &lt;code&gt;Summary&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;Publish Docker images to container registries&lt;&#x2F;li&gt;
+&lt;li&gt;Integration with secret management for DB credentials&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;source-code&quot;&gt;Source Code&lt;&#x2F;h3&gt;
+&lt;p&gt;Repo available here:
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;node-postgres-exporter&quot;&gt;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;node-postgres-exporter&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;a-side-benefit&quot;&gt;A Side Benefit&lt;&#x2F;h3&gt;
+&lt;p&gt;Although this started as part of an audition project, I ended up building
+something I’d absolutely consider productionizing for real-world use cases —
+and more importantly, something I can showcase as a clean systems-level
+engineering project.&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>Deploying a Zola static site to a custom domain with Github Actions</title>
+          <pubDate>Sat, 24 May 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/deploying-static-site-zola-github-actions/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/deploying-static-site-zola-github-actions/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/deploying-static-site-zola-github-actions/">&lt;p&gt;As I&#x27;ve been searching for a new gig, I&#x27;ve gotten the urge to write a bit more
+about some of the stuff I&#x27;m up to to help make myself stand out. I really like
+using the fewest tools as needed so I knew a static site generator was what I
+wanted. I also like to use Rust based tools when possible.&lt;&#x2F;p&gt;
+&lt;p&gt;Searching for Rust static site generators lead me to
+&lt;a href=&quot;https:&#x2F;&#x2F;www.getzola.org&#x2F;&quot;&gt;Zola&lt;&#x2F;a&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;Some of the top advertised features are no dependencies, blazingly fast,
+and easy to use. Those sound great to me.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;set-up-zola-site&quot;&gt;Set up Zola site&lt;&#x2F;h3&gt;
+&lt;p&gt;While this isn&#x27;t a few blown Zola tutorial, I did want to include a few things.&lt;&#x2F;p&gt;
+&lt;p&gt;After installing Zola, you can simply run &lt;code&gt;zola init myblog&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;You&#x27;ll be asked a few questions and a base site will be setup for you.&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;├── config.toml
+&lt;&#x2F;span&gt;&lt;span&gt;├── content
+&lt;&#x2F;span&gt;&lt;span&gt;├── sass
+&lt;&#x2F;span&gt;&lt;span&gt;├── static
+&lt;&#x2F;span&gt;&lt;span&gt;├── templates
+&lt;&#x2F;span&gt;&lt;span&gt;└── themes
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Without going too deep, your CommonMark pages will go in &lt;code&gt;content&lt;&#x2F;code&gt;, Tera&#x2F;HTML
+templates in &lt;code&gt;templates&lt;&#x2F;code&gt;, and any css&#x2F;js&#x2F;images or other static content will go
+in &lt;code&gt;static&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;SASS is enabled by default but can be disabled. I am not currently using SASS
+personally.&lt;&#x2F;p&gt;
+&lt;p&gt;Running &lt;code&gt;zola build&lt;&#x2F;code&gt; will build the site and output it a directory called &lt;code&gt;public&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;Here is a link to a complete overview:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;www.getzola.org&#x2F;documentation&#x2F;getting-started&#x2F;overview&#x2F;&quot;&gt;https:&#x2F;&#x2F;www.getzola.org&#x2F;documentation&#x2F;getting-started&#x2F;overview&#x2F;&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;push-to-github-create-github-actions-workflow&quot;&gt;Push to Github &amp;amp; Create Github Actions workflow&lt;&#x2F;h3&gt;
+&lt;p&gt;After getting your content written, site styled, and ready for deployment, it&#x27;s time to
+push to Github. Create a repo and push it to a &lt;code&gt;main&lt;&#x2F;code&gt; branch (exclude the &lt;code&gt;public&lt;&#x2F;code&gt;
+directory).&lt;&#x2F;p&gt;
+&lt;p&gt;Next, we will setup the actual workflow to take our input files, setup zola,
+build the site, and commit it to the correct branch.&lt;&#x2F;p&gt;
+&lt;p&gt;Create a file at &lt;code&gt;.github&#x2F;workflows&#x2F;deploy.yml&lt;&#x2F;code&gt; and insert this:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;name: Deploy Zola to GitHub Pages
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;on:
+&lt;&#x2F;span&gt;&lt;span&gt;  push:
+&lt;&#x2F;span&gt;&lt;span&gt;    branches: [main]
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;jobs:
+&lt;&#x2F;span&gt;&lt;span&gt;  build-deploy:
+&lt;&#x2F;span&gt;&lt;span&gt;    runs-on: ubuntu-latest
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    steps:
+&lt;&#x2F;span&gt;&lt;span&gt;    - name: Check out source
+&lt;&#x2F;span&gt;&lt;span&gt;      uses: actions&#x2F;checkout@v4
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    - name: Install Zola
+&lt;&#x2F;span&gt;&lt;span&gt;      run: |
+&lt;&#x2F;span&gt;&lt;span&gt;        curl -L https:&#x2F;&#x2F;github.com&#x2F;getzola&#x2F;zola&#x2F;releases&#x2F;download&#x2F;v0.20.0&#x2F;zola-v0.20.0-x86_64-unknown-linux-gnu.tar.gz -o zola.tar.gz
+&lt;&#x2F;span&gt;&lt;span&gt;        tar -xzf zola.tar.gz
+&lt;&#x2F;span&gt;&lt;span&gt;        sudo mv zola &#x2F;usr&#x2F;local&#x2F;bin&#x2F;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    - name: Build site
+&lt;&#x2F;span&gt;&lt;span&gt;      run: zola build
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    - name: Deploy to GitHub Pages
+&lt;&#x2F;span&gt;&lt;span&gt;      uses: peaceiris&#x2F;actions-gh-pages@v3
+&lt;&#x2F;span&gt;&lt;span&gt;      with:
+&lt;&#x2F;span&gt;&lt;span&gt;        github_token: ${{ secrets.GITHUB_TOKEN }}
+&lt;&#x2F;span&gt;&lt;span&gt;        publish_dir: .&#x2F;public
+&lt;&#x2F;span&gt;&lt;span&gt;        publish_branch: gh-pages
+&lt;&#x2F;span&gt;&lt;span&gt;        force_orphan: true
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This setups up a workflow that:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;watches for pushes to main branch&lt;&#x2F;li&gt;
+&lt;li&gt;checks out the zola source and installs it&lt;&#x2F;li&gt;
+&lt;li&gt;builds your site using zola build&lt;&#x2F;li&gt;
+&lt;li&gt;uses github pages plugin to push &lt;code&gt;public&lt;&#x2F;code&gt; output dir to a &lt;code&gt;gh-pages&lt;&#x2F;code&gt; branch&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;You will also need to go to your repos settings and look for the actions section
+to enable write permissions.&lt;&#x2F;p&gt;
+&lt;p&gt;Push this up and watch the build by going to your repo and clicking the &quot;Actions&quot;
+tab. You will see a workflow that you can click into and see build and deploy
+jobs.&lt;&#x2F;p&gt;
+&lt;p&gt;If everything goes well, you can now  visit your site by filling in your values:&lt;&#x2F;p&gt;
+&lt;p&gt;https:&#x2F;&#x2F;${username}.github.io&#x2F;${repo}&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;add-custom-domain-optional&quot;&gt;Add Custom Domain (optional)&lt;&#x2F;h3&gt;
+&lt;p&gt;After you have the initial workflow working, you will need to configure some
+Github settings for a custom domain.&lt;&#x2F;p&gt;
+&lt;p&gt;First, run &lt;code&gt;echo &quot;yourdomain.com&quot; &amp;gt; static&#x2F;CNAME&lt;&#x2F;code&gt; and commit this file.
+Next, go to your Github repo&#x27;s &quot;Pages&quot; setting and add the domain name.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;configure-dns-optional&quot;&gt;Configure DNS (optional)&lt;&#x2F;h3&gt;
+&lt;p&gt;If using a custom domain, you will also need to setup DNS. Go to your domain
+settings and add 4 A records for Github pages:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;A	@	185.199.108.153
+&lt;&#x2F;span&gt;&lt;span&gt;A	@	185.199.109.153
+&lt;&#x2F;span&gt;&lt;span&gt;A	@	185.199.110.153
+&lt;&#x2F;span&gt;&lt;span&gt;A	@	185.199.111.153
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Setup any subdirectories you might want.&lt;&#x2F;p&gt;
+&lt;p&gt;You may need to give this step some extra time to update before you can
+see your new site at your custom URL. Other times it&#x27;s nearly instant so your
+results may vary.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;profit&quot;&gt;Profit&lt;&#x2F;h3&gt;
+&lt;p&gt;That&#x27;s basically it for a basic setup. You should now have a static site
+setup at a custom domain that gets automatically built by just pushing a branch.&lt;&#x2F;p&gt;
+&lt;p&gt;While simple, this is a complete setup that let&#x27;s you create and deploy content
+to your own URL with ease.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

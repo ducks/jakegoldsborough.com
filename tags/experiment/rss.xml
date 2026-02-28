@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - experiment</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/experiment/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Mon, 19 Jan 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Letting AI Pick the Project</title>
+          <pubDate>Mon, 19 Jan 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/letting-ai-pick-the-project/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/letting-ai-pick-the-project/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/letting-ai-pick-the-project/">&lt;p&gt;With the rise of AI and LLMs, a common theme has been &quot;don&#x27;t let the machine do
+the thinking&quot;. The argument is we simply become expensive copy and pasters. And
+while I mostly agree, I was curious.&lt;&#x2F;p&gt;
+&lt;p&gt;Well, I tried an experiment today. Instead of coming to Claude Code with a
+specific task, I asked: &quot;Based on everything you know, what would you build?
+Create a repo, use whatever language you want, document it along the way.&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;No constraints. No requirements. Just: build something.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-it-chose&quot;&gt;What It Chose&lt;&#x2F;h2&gt;
+&lt;p&gt;Claude chose to build &lt;code&gt;why&lt;&#x2F;code&gt;, a CLI tool for code archaeology. The pitch:&lt;&#x2F;p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;I spend so much of my time helping people understand codebases, and the
+hardest question is always &quot;why was this decision made?&quot; The answer is
+scattered across git blame, old PRs, commit messages, issue trackers, maybe
+a Slack thread somewhere that&#x27;s now lost.&lt;&#x2F;p&gt;
+&lt;&#x2F;blockquote&gt;
+&lt;p&gt;The tool points at a file or line range and synthesizes a narrative: who
+introduced this code, when, what commits modified it, what issues and PRs are
+referenced, what type of changes they were (bug fix, feature, security patch).&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;why&lt;&#x2F;span&gt;&lt;span&gt; app&#x2F;models&#x2F;user.rb&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt; --range&lt;&#x2F;span&gt;&lt;span&gt; 100-150
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;The Story
+&lt;&#x2F;span&gt;&lt;span&gt;=========
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;This code was first introduced by Jeff Atwood on 2020-05-22.
+&lt;&#x2F;span&gt;&lt;span&gt;The initial commit said: &amp;quot;Revert &amp;#39;Merge branch master&amp;#39;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;Since then, it has been modified 5 time(s):
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  * FIX: do not send rejection emails to auto-deleted users (#12160)
+&lt;&#x2F;span&gt;&lt;span&gt;    by Arpit Jalan
+&lt;&#x2F;span&gt;&lt;span&gt;    Type: Bug fix
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  * SECURITY: Limit name field length of TOTP authenticators
+&lt;&#x2F;span&gt;&lt;span&gt;    by OsamaSayegh
+&lt;&#x2F;span&gt;&lt;span&gt;    Type: Security
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;h2 id=&quot;the-process&quot;&gt;The Process&lt;&#x2F;h2&gt;
+&lt;p&gt;What struck me was how Claude approached it. It started by reasoning about
+what problems it encounters repeatedly. Not what would be cool to build, but
+what it genuinely wished existed.&lt;&#x2F;p&gt;
+&lt;p&gt;Then it moved fast. Within minutes: Rust project scaffolded, git blame
+parsing working, commit categorization logic, GitHub API integration. It
+tested on its own source code, then on Discourse (a large real-world
+codebase I work on).&lt;&#x2F;p&gt;
+&lt;p&gt;When I suggested adding Discourse as a context source (we use it for work
+discussions), it designed a pluggable trait system:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;&lt;span&gt;#[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;async_trait&lt;&#x2F;span&gt;&lt;span&gt;]
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;pub trait &lt;&#x2F;span&gt;&lt;span&gt;ContextSource: Send + Sync {
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;name&lt;&#x2F;span&gt;&lt;span&gt;(&amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;self&lt;&#x2F;span&gt;&lt;span&gt;) -&amp;gt; &amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;str&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;detect_references&lt;&#x2F;span&gt;&lt;span&gt;(&amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;self&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;text&lt;&#x2F;span&gt;&lt;span&gt;: &amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;str&lt;&#x2F;span&gt;&lt;span&gt;) -&amp;gt; Vec&amp;lt;Reference&amp;gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;    async &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;fetch_reference&lt;&#x2F;span&gt;&lt;span&gt;(&amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;self&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;reference&lt;&#x2F;span&gt;&lt;span&gt;: &amp;amp;Reference) -&amp;gt; Result&amp;lt;Option&amp;lt;ContextItem&amp;gt;&amp;gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;    async &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;search&lt;&#x2F;span&gt;&lt;span&gt;(&amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;self&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;query&lt;&#x2F;span&gt;&lt;span&gt;: &amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;str&lt;&#x2F;span&gt;&lt;span&gt;) -&amp;gt; Result&amp;lt;Vec&amp;lt;ContextItem&amp;gt;&amp;gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;is_available&lt;&#x2F;span&gt;&lt;span&gt;(&amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;self&lt;&#x2F;span&gt;&lt;span&gt;) -&amp;gt; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;bool&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;GitHub and Discourse implementations, easy to add more. The architecture
+emerged naturally from the feature request.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-tangents&quot;&gt;The Tangents&lt;&#x2F;h2&gt;
+&lt;p&gt;We went down a few rabbit holes. I mentioned that real context often lives in
+Slack threads that never got linked to the code. Claude immediately saw the
+harder problem: semantic search across communication history, not just
+following explicit links.&lt;&#x2F;p&gt;
+&lt;p&gt;It outlined what that would require: embeddings, RAG pipelines, LLM synthesis.
+Then it asked the right question: &quot;Worth building? Or is this scope creep from
+a useful simple tool into a research project?&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;We also briefly explored turning it into an MCP server so Claude could call it
+during conversations. Another good idea, but another scope expansion.&lt;&#x2F;p&gt;
+&lt;p&gt;I kept pulling back to &quot;what&#x27;s actually useful now&quot; and Claude adjusted. No
+ego about its ideas. Just: &quot;Good call. Let me clean up and commit.&quot;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-i-learned&quot;&gt;What I Learned&lt;&#x2F;h2&gt;
+&lt;p&gt;A few observations from this experiment:&lt;&#x2F;p&gt;
+&lt;p&gt;First, the AI had genuine preferences. It didn&#x27;t pick something random or
+impressive-sounding. It picked a tool that would help it do its job better.
+There&#x27;s something interesting about that.&lt;&#x2F;p&gt;
+&lt;p&gt;Second, the iteration loop was fast. Feature idea to working code in minutes.
+Not because the code was simple, but because there was no translation layer.
+Claude understood what it wanted and knew how to build it.&lt;&#x2F;p&gt;
+&lt;p&gt;Third, scope management mattered. Left unchecked, we could have spent hours
+on semantic search and MCP servers. The human role was less about technical
+direction and more about &quot;is this the thing we&#x27;re building right now?&quot;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-tool&quot;&gt;The Tool&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;code&gt;why&lt;&#x2F;code&gt; is at &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;why&quot;&gt;github.com&#x2F;ducks&#x2F;why&lt;&#x2F;a&gt;. Rust, MIT
+licensed, about 900 lines. It actually works.&lt;&#x2F;p&gt;
+&lt;p&gt;Whether I&#x27;ll use it daily, I don&#x27;t know. But it exists because I asked an AI
+what it would build if it could build anything, and it had an answer.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

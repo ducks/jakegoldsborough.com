@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Lok gains agentic workflows, fixes its own bugs, and finds a real bug in Discourse that I just pushed upstream.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Lok Part 4: The Self-Healing Loop">
+    <meta property="og:description" content="Lok gains agentic workflows, fixes its own bugs, and finds a real bug in Discourse that I just pushed upstream.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-the-self-healing-loop&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Lok Part 4: The Self-Healing Loop">
+    <meta name="twitter:description" content="Lok gains agentic workflows, fixes its own bugs, and finds a real bug in Discourse that I just pushed upstream.">
+
+    <title>Lok Part 4: The Self-Healing Loop - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Lok Part 4: The Self-Healing Loop</h1>
+      <div class="meta">
+        
+        <p>Jan 28, 2026</p>
+        
+        <p>3 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+        </div>
+      
+
+      <p>Last time I showed lok finding 25 bugs in itself and creating GitHub issues
+automatically. Today it fixed one of those bugs, submitted a PR, and then
+found a real bug in Discourse that I just pushed upstream.</p>
+<h2 id="agentic-workflows">Agentic Workflows</h2>
+<p>The missing piece was letting lok actually do things, not just talk about them.
+I added a few fields to the workflow TOML:</p>
+<pre data-lang="toml" style="background-color:#2b303b;color:#c0c5ce;" class="language-toml "><code class="language-toml" data-lang="toml"><span>[[steps]]
+</span><span style="color:#bf616a;">name </span><span>= &quot;</span><span style="color:#a3be8c;">fix</span><span>&quot;
+</span><span style="color:#bf616a;">backend </span><span>= &quot;</span><span style="color:#a3be8c;">claude</span><span>&quot;
+</span><span style="color:#bf616a;">apply_edits </span><span>= </span><span style="color:#d08770;">true
+</span><span style="color:#bf616a;">verify </span><span>= &quot;</span><span style="color:#a3be8c;">cargo build</span><span>&quot;
+</span><span style="color:#bf616a;">prompt </span><span>= &quot;&quot;&quot;
+</span><span style="color:#a3be8c;">Fix this issue. Output JSON:
+</span><span style="color:#a3be8c;">{&quot;edits&quot;: [{&quot;file&quot;: &quot;src/main.rs&quot;, &quot;old&quot;: &quot;...&quot;, &quot;new&quot;: &quot;...&quot;}], &quot;summary&quot;: &quot;...&quot;}
+</span><span>&quot;&quot;&quot;
+</span><span>
+</span><span>[[steps]]
+</span><span style="color:#bf616a;">name </span><span>= &quot;</span><span style="color:#a3be8c;">commit</span><span>&quot;
+</span><span style="color:#bf616a;">shell </span><span>= &quot;</span><span style="color:#a3be8c;">git add -A &amp;&amp; git commit -m &#39;{{ steps.fix.summary }}&#39;</span><span>&quot;
+</span><span style="color:#bf616a;">depends_on </span><span>= [&quot;</span><span style="color:#a3be8c;">fix</span><span>&quot;]
+</span></code></pre>
+<p>Three new things:</p>
+<ol>
+<li><code>shell</code> runs a command instead of querying an LLM</li>
+<li><code>apply_edits</code> parses JSON from the LLM and patches files</li>
+<li><code>verify</code> runs after edits to make sure they work</li>
+</ol>
+<p>The <code>{{ steps.fix.summary }}</code> bit extracts a field from the JSON output. You
+can also do <code>{{ arg.1 }}</code> for positional arguments, so <code>lok run fix-issue 42</code>
+passes 42 into the workflow.</p>
+<h2 id="lok-fixes-itself">Lok Fixes Itself</h2>
+<p><a href="https://github.com/ducks/lok/issues/25">Issue #25</a> was about a redundant <code>Clone</code> implementation. The <code>Delegator</code> struct
+already derives Clone, but there was a manual impl at the bottom of the file
+doing the same thing.</p>
+<p>I ran the fix workflow:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">lok</span><span> run fix-issue 25
+</span></code></pre>
+<p>It analyzed the issue, generated an edit to delete the redundant impl, applied
+it, ran <code>cargo build</code> to verify, committed with a message based on the fix
+summary, pushed the branch, and opened a PR.</p>
+<p>The whole loop took maybe 30 seconds. I reviewed the diff, looked reasonable,
+merged it.</p>
+<h2 id="finding-bugs-in-discourse">Finding Bugs in Discourse</h2>
+<p>Feeling confident, I pointed lok at the main Discourse codebase:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">lok</span><span> hunt </span><span style="color:#bf616a;">~</span><span>/discourse/discourse
+</span></code></pre>
+<p>Both Codex and Claude found issues. Most were minor (confusing patterns, style
+things) but two stood out:</p>
+<ol>
+<li>
+<p>A chat job with a TODO saying "delete after 2025-01-01" that was still there
+in January 2026. Pure dead code.</p>
+</li>
+<li>
+<p>A bug in the thread serializer. It had this pattern:</p>
+</li>
+</ol>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span>@</span><span style="color:#bf616a;">opts</span><span>[</span><span style="color:#a3be8c;">:include_thread_original_message</span><span>].presence || </span><span style="color:#d08770;">true
+</span></code></pre>
+<p>The problem is <code>.presence</code> on <code>false</code> returns <code>nil</code>. So if you explicitly pass
+<code>include_thread_original_message: false</code>, it gets converted to <code>nil</code>, then
+<code>|| true</code> kicks in, and your option is ignored.</p>
+<p>One controller was passing <code>false</code> and getting <code>true</code> back. Nobody noticed
+because the behavior difference is subtle, but it was definitely wrong.</p>
+<p>I created two PRs:
+<a href="https://github.com/discourse/discourse/pull/37333">#37333</a>
+<a href="https://github.com/discourse/discourse/pull/37334">#37334</a></p>
+<h2 id="the-vision">The Vision</h2>
+<p>The pieces are coming together for a fully autonomous loop:</p>
+<ol>
+<li><code>lok hunt --issues</code> finds bugs and creates GitHub issues</li>
+<li><code>lok run fix-issue 42</code> analyzes, fixes, verifies, commits, opens PR</li>
+<li><code>lok run review-pr 43</code> has multiple backends review the diff</li>
+<li>If they agree, merge</li>
+</ol>
+<p>Humans become exception handlers. You get pinged when the LLMs disagree or
+flag something they are not confident about. Otherwise the codebase quietly
+improves itself.</p>
+<p>We are not there yet. The fix workflow needs better error recovery, the review
+workflow needs the debate mode integrated, and I want confidence scores on
+the merge decision. But the foundation is solid.</p>
+<h2 id="what-s-next">What's Next</h2>
+<p>Honestly, I'm not 100% sure. I plan to just keep using it and adding/fixing things
+that I want or need. Stay tuned to see how the project evolves.</p>
+<p>Next stop: unknown. But the tracks are laid.</p>
+<hr />
+<p>Previous: <a href="/blog/2026/lok-dogfooding-and-code-review">Part 3: Dogfooding and Code Review</a></p>
+
+
+      
+        
+        
+
+        
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;ai-problems-are-human-problems&#x2F;">AI Problems Are Just Human Problems Amplified</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 23, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">AI fatigue, perfectionism vs non-determinism, and garbage in&#x2F;garbage out. These are not new problems. AI just makes them obvious faster.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;llm-mux-workflow-orchestration&#x2F;">llm-mux: Why I Rebuilt Lok</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 11, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok got 300+ installs, then I rewrote it. The abstractions were wrong. llm-mux has roles, teams, and proper apply&#x2F;verify. Here&#x27;s why.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;finna-multi-model-spec-implement&#x2F;">finna: Multi-Model Debate, Spec, and Implement</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 10, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A standalone tool that takes an idea, debates it across Claude, Codex, and Gemini, creates a roadmap, writes specs, and implements. Planning and execution in one pipeline.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-json-parser-multi-llm&#x2F;">Building a JSON Parser with Multi-LLM Orchestration (Part 1)</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 07, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Using lok to orchestrate four LLMs debating design decisions, then synthesizing specs for a Rust JSON parser. The debate phase surfaced edge cases no single model would have caught.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-spec-multi-agent-planning&#x2F;">Lok Part 5: Multi-Agent Planning with lok spec</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 06, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok gains a spec command that turns task descriptions into structured implementation plans. Multiple LLMs propose, debate, and converge on a roadmap before any code gets written.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

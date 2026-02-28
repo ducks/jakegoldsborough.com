@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Implementing custom user titles and the Yaks earning system. This post covers serializer overrides for titles and building a complete earning system with rate limiting, trust level requirements, and real-time balance updates.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Building Yaks: A Virtual Currency System for Discourse (Part 4: Custom Titles and Earning System)">
+    <meta property="og:description" content="Implementing custom user titles and the Yaks earning system. This post covers serializer overrides for titles and building a complete earning system with rate limiting, trust level requirements, and real-time balance updates.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-yaks-virtual-currency-part-4&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Building Yaks: A Virtual Currency System for Discourse (Part 4: Custom Titles and Earning System)">
+    <meta name="twitter:description" content="Implementing custom user titles and the Yaks earning system. This post covers serializer overrides for titles and building a complete earning system with rate limiting, trust level requirements, and real-time balance updates.">
+
+    <title>Building Yaks: A Virtual Currency System for Discourse (Part 4: Custom Titles and Earning System) - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Building Yaks: A Virtual Currency System for Discourse (Part 4: Custom Titles and Earning System)</h1>
+      <div class="meta">
+        
+        <p>Oct 19, 2025</p>
+        
+        <p>7 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/discourse">#discourse</a></p>
+          
+          <p><a href="/tags/ruby">#ruby</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <p><a href="/blog/2025/building-yaks-virtual-currency-part-1/">Part 1</a> covered the
+backend architecture, <a href="/blog/2025/building-yaks-virtual-currency-part-2/">Part 2</a>
+covered topic pinning and expiration, and <a href="/blog/2025/building-yaks-virtual-currency-part-3/">Part 3</a>
+covered topic boosting and custom avatar flair. This post covers two more
+major features: custom user titles and the automatic earning system.</p>
+<h2 id="custom-user-titles">Custom User Titles</h2>
+<p>Custom titles let users spend Yaks to set a custom title displayed next to
+their username throughout the forum. Unlike Discourse's built-in title system
+(which is tied to badges and trust levels), Yak titles are purely
+cosmetic and time-limited.</p>
+<p><img src="/images/yaks-custom-title.png" alt="A reply showing a user with the custom user title &quot;The Yaks Man&quot;" /></p>
+<h3 id="the-challenge-serializer-discovery">The Challenge: Serializer Discovery</h3>
+<p>The first attempt seemed straightforward: override the <code>title</code> field in the
+user serializers. But after implementing it, the title showed in user cards
+and profiles but not next to posts. Why?</p>
+<p>Discourse uses different serializer methods for different contexts:</p>
+<ul>
+<li><code>title</code>: Used in user cards, profiles, group member lists</li>
+<li><code>user_title</code>: Used specifically in <code>PostSerializer</code> for post display</li>
+</ul>
+<p>This makes sense from an architecture perspective. Posts need their own
+serializer method because they serialize the user as a nested object, not as
+the main object.</p>
+<h3 id="the-solution-override-both">The Solution: Override Both</h3>
+<p>The fix required overriding both serializer methods across multiple
+serializers:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#65737e;"># For user cards, profiles, groups
+</span><span>[</span><span style="color:#a3be8c;">:post</span><span>, </span><span style="color:#a3be8c;">:user_card</span><span>, </span><span style="color:#a3be8c;">:post_action_user</span><span>, </span><span style="color:#a3be8c;">:user_name</span><span>,
+</span><span> </span><span style="color:#a3be8c;">:group_post_user</span><span>, </span><span style="color:#a3be8c;">:group_user</span><span>, </span><span style="color:#a3be8c;">:hidden_profile</span><span>].each </span><span style="color:#b48ead;">do </span><span>|</span><span style="color:#bf616a;">serializer_name</span><span>|
+</span><span>  add_to_serializer(serializer_name, </span><span style="color:#a3be8c;">:title</span><span>) </span><span style="color:#b48ead;">do
+</span><span>    title_data = object.custom_fields[&quot;</span><span style="color:#a3be8c;">yak_features</span><span>&quot;]&amp;.dig(&quot;</span><span style="color:#a3be8c;">title</span><span>&quot;)
+</span><span>    </span><span style="color:#b48ead;">if</span><span> title_data &amp;&amp; title_data[&quot;</span><span style="color:#a3be8c;">enabled</span><span>&quot;]
+</span><span>      title_data[&quot;</span><span style="color:#a3be8c;">text</span><span>&quot;]
+</span><span>    </span><span style="color:#b48ead;">else
+</span><span>      object.title
+</span><span>    </span><span style="color:#b48ead;">end
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span style="color:#b48ead;">end
+</span><span>
+</span><span style="color:#65737e;"># For post display (critical!)
+</span><span>add_to_serializer(</span><span style="color:#a3be8c;">:post</span><span>, </span><span style="color:#a3be8c;">:user_title</span><span>) </span><span style="color:#b48ead;">do
+</span><span>  user = object&amp;.user
+</span><span>  </span><span style="color:#b48ead;">return </span><span style="color:#d08770;">nil </span><span style="color:#b48ead;">unless</span><span> user
+</span><span>
+</span><span>  title_data = user.custom_fields[&quot;</span><span style="color:#a3be8c;">yak_features</span><span>&quot;]&amp;.dig(&quot;</span><span style="color:#a3be8c;">title</span><span>&quot;)
+</span><span>  </span><span style="color:#b48ead;">if</span><span> title_data &amp;&amp; title_data[&quot;</span><span style="color:#a3be8c;">enabled</span><span>&quot;]
+</span><span>    title_data[&quot;</span><span style="color:#a3be8c;">text</span><span>&quot;]
+</span><span>  </span><span style="color:#b48ead;">else
+</span><span>    user.title
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>In <code>PostSerializer</code>, <code>object</code> is a Post, so we access the user via
+<code>object.user</code>. In user-focused serializers, <code>object</code> is the User directly.</p>
+<h3 id="the-frontend-modal">The Frontend Modal</h3>
+<p><img src="/images/yaks-custom-title-modal.png" alt="A modal showing user&#39;s options for creating a custom user title" /></p>
+<p>The custom title modal is straightforward:</p>
+<pre data-lang="javascript" style="background-color:#2b303b;color:#c0c5ce;" class="language-javascript "><code class="language-javascript" data-lang="javascript"><span>@</span><span style="color:#bf616a;">tracked customTitle </span><span>= &quot;&quot;;
+</span><span>
+</span><span style="color:#bf616a;">get </span><span style="color:#8fa1b3;">characterCount</span><span>() {
+</span><span>  </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">this</span><span>.</span><span style="color:#bf616a;">customTitle</span><span>.length;
+</span><span>}
+</span><span>
+</span><span style="color:#bf616a;">get </span><span style="color:#8fa1b3;">isOverLimit</span><span>() {
+</span><span>  </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">this</span><span>.</span><span style="color:#bf616a;">characterCount </span><span>&gt; </span><span style="color:#d08770;">50</span><span>;
+</span><span>}
+</span><span>
+</span><span style="color:#bf616a;">get </span><span style="color:#8fa1b3;">canApply</span><span>() {
+</span><span>  </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">this</span><span>.</span><span style="color:#bf616a;">customTitle</span><span>.</span><span style="color:#8fa1b3;">trim</span><span>().length &gt; </span><span style="color:#d08770;">0 </span><span>&amp;&amp;
+</span><span>         !</span><span style="color:#bf616a;">this</span><span>.</span><span style="color:#bf616a;">isOverLimit </span><span>&amp;&amp;
+</span><span>         </span><span style="color:#bf616a;">this</span><span>.</span><span style="color:#bf616a;">currentUser</span><span>.</span><span style="color:#bf616a;">yak_balance </span><span>&gt;= </span><span style="color:#bf616a;">this</span><span>.</span><span style="color:#bf616a;">cost</span><span>;
+</span><span>}
+</span></code></pre>
+<p>Live preview, character counter, balance check. The modal shows exactly what
+the title will look like before spending Yaks.</p>
+<h2 id="the-earning-system">The Earning System</h2>
+<p>This was the most complex feature to implement. Users needed a way to earn
+Yaks by contributing to the community, with anti-gaming measures built in.</p>
+<h3 id="requirements">Requirements</h3>
+<p>From the start, the requirements were clear:</p>
+<ol>
+<li>Be modular (database-driven, not hardcoded)</li>
+<li>Rate limiting (can't spam posts to farm Yaks)</li>
+<li>Trust level requirements (new accounts can't abuse it)</li>
+<li>Content length minimums (beyond Discourse's defaults, prevent low-effort farming)</li>
+</ol>
+<h3 id="database-schema">Database Schema</h3>
+<p>Instead of hardcoding earning rules in the service, we made them
+database-driven:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span>create_table </span><span style="color:#a3be8c;">:yak_earning_rules </span><span style="color:#b48ead;">do </span><span>|</span><span style="color:#bf616a;">t</span><span>|
+</span><span>  t.string </span><span style="color:#a3be8c;">:action_key</span><span>, </span><span style="color:#a3be8c;">null: </span><span style="color:#d08770;">false
+</span><span>  t.string </span><span style="color:#a3be8c;">:action_name</span><span>, </span><span style="color:#a3be8c;">null: </span><span style="color:#d08770;">false
+</span><span>  t.text </span><span style="color:#a3be8c;">:description
+</span><span>  t.integer </span><span style="color:#a3be8c;">:amount</span><span>, </span><span style="color:#a3be8c;">null: </span><span style="color:#d08770;">false</span><span>, </span><span style="color:#a3be8c;">default: </span><span style="color:#d08770;">0
+</span><span>  t.integer </span><span style="color:#a3be8c;">:daily_cap</span><span>, </span><span style="color:#a3be8c;">null: </span><span style="color:#d08770;">false</span><span>, </span><span style="color:#a3be8c;">default: </span><span style="color:#d08770;">0
+</span><span>  t.integer </span><span style="color:#a3be8c;">:min_trust_level</span><span>, </span><span style="color:#a3be8c;">null: </span><span style="color:#d08770;">false</span><span>, </span><span style="color:#a3be8c;">default: </span><span style="color:#d08770;">0
+</span><span>  t.boolean </span><span style="color:#a3be8c;">:enabled</span><span>, </span><span style="color:#a3be8c;">null: </span><span style="color:#d08770;">false</span><span>, </span><span style="color:#a3be8c;">default: </span><span style="color:#d08770;">true
+</span><span>  t.jsonb </span><span style="color:#a3be8c;">:settings</span><span>, </span><span style="color:#a3be8c;">default: </span><span>{}
+</span><span>  t.timestamps
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>Seeded with four default rules:</p>
+<ol>
+<li><strong>Post Created</strong>: 2 Yaks, 20/day cap, TL1+, 20 character minimum</li>
+<li><strong>Topic Created</strong>: 5 Yaks, 10/day cap, TL1+, 50 character minimum</li>
+<li><strong>Post Liked</strong>: 3 Yaks, 30/day cap, TL1+</li>
+<li><strong>Solution Accepted</strong>: 25 Yaks, no cap, TL1+</li>
+</ol>
+<p>The <code>settings</code> jsonb column allows flexible per-rule configuration like
+content length minimums without schema changes.</p>
+<h3 id="service-layer">Service Layer</h3>
+<p><code>YakEarningService</code> handles all validation and awarding logic:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#b48ead;">def </span><span style="color:#bf616a;">self</span><span>.</span><span style="color:#8fa1b3;">award</span><span>(</span><span style="color:#bf616a;">user</span><span>:, </span><span style="color:#bf616a;">action_key</span><span>:, </span><span style="color:#bf616a;">related_post</span><span>: </span><span style="color:#d08770;">nil</span><span>, </span><span style="color:#bf616a;">related_topic</span><span>: </span><span style="color:#d08770;">nil</span><span>)
+</span><span>  rule = </span><span style="color:#ebcb8b;">YakEarningRule</span><span>.get_rule(action_key)
+</span><span>  </span><span style="color:#b48ead;">return </span><span style="color:#d08770;">false </span><span style="color:#b48ead;">if </span><span>!rule
+</span><span>
+</span><span>  </span><span style="color:#65737e;"># Check trust level requirement
+</span><span>  </span><span style="color:#b48ead;">return </span><span style="color:#d08770;">false </span><span style="color:#b48ead;">if</span><span> user.trust_level &lt; rule.min_trust_level
+</span><span>
+</span><span>  </span><span style="color:#65737e;"># Check minimum content length if applicable
+</span><span>  </span><span style="color:#b48ead;">if</span><span> rule.min_length &gt; </span><span style="color:#d08770;">0
+</span><span>    content = related_post&amp;.raw || related_topic&amp;.first_post&amp;.raw || &quot;&quot;
+</span><span>    </span><span style="color:#b48ead;">return </span><span style="color:#d08770;">false </span><span style="color:#b48ead;">if</span><span> content.length &lt; rule.min_length
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span>
+</span><span>  </span><span style="color:#65737e;"># Check daily cap
+</span><span>  </span><span style="color:#b48ead;">if</span><span> rule.has_daily_cap?
+</span><span>    earned_today = get_daily_earning_count(user, action_key)
+</span><span>    </span><span style="color:#b48ead;">return </span><span style="color:#d08770;">false </span><span style="color:#b48ead;">if</span><span> earned_today &gt;= rule.daily_cap
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span>
+</span><span>  </span><span style="color:#65737e;"># Award the Yaks
+</span><span>  wallet = </span><span style="color:#ebcb8b;">YakWallet</span><span>.find_or_create_by(</span><span style="color:#a3be8c;">user:</span><span> user)
+</span><span>
+</span><span>  </span><span style="color:#ebcb8b;">YakTransaction</span><span>.create!(
+</span><span>    </span><span style="color:#a3be8c;">user:</span><span> user,
+</span><span>    </span><span style="color:#a3be8c;">yak_wallet:</span><span> wallet,
+</span><span>    </span><span style="color:#a3be8c;">amount:</span><span> rule.amount,
+</span><span>    </span><span style="color:#a3be8c;">transaction_type: </span><span>&quot;</span><span style="color:#a3be8c;">earn</span><span>&quot;,
+</span><span>    </span><span style="color:#a3be8c;">description: </span><span>&quot;</span><span style="color:#a3be8c;">Earned from: </span><span>#{rule.action_name}&quot;,
+</span><span>    </span><span style="color:#a3be8c;">related_post:</span><span> related_post,
+</span><span>    </span><span style="color:#a3be8c;">related_topic:</span><span> related_topic,
+</span><span>  )
+</span><span>
+</span><span>  wallet.update!(</span><span style="color:#a3be8c;">balance:</span><span> wallet.balance + rule.amount)
+</span><span>
+</span><span>  </span><span style="color:#65737e;"># Publish balance update to frontend
+</span><span>  </span><span style="color:#ebcb8b;">MessageBus</span><span>.publish(&quot;</span><span style="color:#a3be8c;">/yak-balance/</span><span>#{user.id}&quot;,
+</span><span>                     { </span><span style="color:#a3be8c;">balance:</span><span> wallet.balance },
+</span><span>                     </span><span style="color:#a3be8c;">user_ids: </span><span>[user.id])
+</span><span>
+</span><span>  </span><span style="color:#d08770;">true
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>The service returns a boolean so we can track success/failure in logs.</p>
+<h3 id="rate-limiting-implementation">Rate Limiting Implementation</h3>
+<p>Daily caps are enforced by counting today's transactions:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#b48ead;">def </span><span style="color:#bf616a;">self</span><span>.</span><span style="color:#8fa1b3;">get_daily_earning_count</span><span>(</span><span style="color:#bf616a;">user</span><span>, </span><span style="color:#bf616a;">action_key</span><span>)
+</span><span>  wallet = </span><span style="color:#ebcb8b;">YakWallet</span><span>.find_by(</span><span style="color:#a3be8c;">user:</span><span> user)
+</span><span>  </span><span style="color:#b48ead;">return </span><span style="color:#d08770;">0 </span><span style="color:#b48ead;">if </span><span>!wallet
+</span><span>
+</span><span>  rule = </span><span style="color:#ebcb8b;">YakEarningRule</span><span>.find_by(</span><span style="color:#a3be8c;">action_key:</span><span> action_key)
+</span><span>  </span><span style="color:#b48ead;">return </span><span style="color:#d08770;">0 </span><span style="color:#b48ead;">if </span><span>!rule
+</span><span>
+</span><span>  start_of_day = </span><span style="color:#ebcb8b;">Time</span><span>.zone.now.beginning_of_day
+</span><span>
+</span><span>  </span><span style="color:#bf616a;">YakTransaction
+</span><span>    .where(</span><span style="color:#a3be8c;">yak_wallet:</span><span> wallet)
+</span><span>    .where(</span><span style="color:#a3be8c;">transaction_type: </span><span>&quot;</span><span style="color:#a3be8c;">earn</span><span>&quot;)
+</span><span>    .where(&quot;</span><span style="color:#a3be8c;">description LIKE ?</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">Earned from: </span><span>#{rule.action_name}&quot;)
+</span><span>    .where(&quot;</span><span style="color:#a3be8c;">created_at &gt;= ?</span><span>&quot;, start_of_day)
+</span><span>    .count
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>Single query per award attempt. Could be cached if it becomes a bottleneck,
+but the query is fast.</p>
+<h3 id="event-hooks">Event Hooks</h3>
+<p>Discourse provides events for all the actions we care about:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#ebcb8b;">DiscourseEvent</span><span>.on(</span><span style="color:#a3be8c;">:post_created</span><span>) </span><span style="color:#b48ead;">do </span><span>|</span><span style="color:#bf616a;">post</span><span>, </span><span style="color:#bf616a;">opts</span><span>, </span><span style="color:#bf616a;">user</span><span>|
+</span><span>  </span><span style="color:#b48ead;">next if</span><span> post.post_type != </span><span style="color:#ebcb8b;">Post</span><span>.types[</span><span style="color:#a3be8c;">:regular</span><span>]
+</span><span>  </span><span style="color:#b48ead;">next if</span><span> post.deleted_at.present?
+</span><span>  </span><span style="color:#b48ead;">next if</span><span> post.hidden
+</span><span>  </span><span style="color:#b48ead;">next if </span><span>!post.user
+</span><span>
+</span><span>  </span><span style="color:#ebcb8b;">YakEarningService</span><span>.award(
+</span><span>    </span><span style="color:#a3be8c;">user:</span><span> post.user,
+</span><span>    </span><span style="color:#a3be8c;">action_key: </span><span>&quot;</span><span style="color:#a3be8c;">post_created</span><span>&quot;,
+</span><span>    </span><span style="color:#a3be8c;">related_post:</span><span> post,
+</span><span>    </span><span style="color:#a3be8c;">related_topic:</span><span> post.topic,
+</span><span>  )
+</span><span style="color:#b48ead;">end
+</span><span>
+</span><span style="color:#ebcb8b;">DiscourseEvent</span><span>.on(</span><span style="color:#a3be8c;">:like_created</span><span>) </span><span style="color:#b48ead;">do </span><span>|</span><span style="color:#bf616a;">post_action</span><span>|
+</span><span>  post = post_action.post
+</span><span>  </span><span style="color:#b48ead;">next if </span><span>!post
+</span><span>  </span><span style="color:#b48ead;">next if</span><span> post.deleted_at.present?
+</span><span>  </span><span style="color:#b48ead;">next if</span><span> post.hidden
+</span><span>  </span><span style="color:#b48ead;">next if</span><span> post.user_id == post_action.user_id  </span><span style="color:#65737e;"># No self-likes
+</span><span>
+</span><span>  </span><span style="color:#ebcb8b;">YakEarningService</span><span>.award(
+</span><span>    </span><span style="color:#a3be8c;">user:</span><span> post.user,
+</span><span>    </span><span style="color:#a3be8c;">action_key: </span><span>&quot;</span><span style="color:#a3be8c;">post_liked</span><span>&quot;,
+</span><span>    </span><span style="color:#a3be8c;">related_post:</span><span> post,
+</span><span>    </span><span style="color:#a3be8c;">related_topic:</span><span> post.topic,
+</span><span>  )
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>We also hook <code>topic_created</code> and <code>accepted_solution</code> (from the
+discourse-solved plugin, if installed).</p>
+<h3 id="real-time-balance-updates">Real-Time Balance Updates</h3>
+<p>The original implementation had a problem: after earning Yaks, the user menu
+still showed the old balance. Page refresh required.</p>
+<p>The fix uses MessageBus, Discourse's real-time messaging system:</p>
+<p><strong>Backend</strong>: Publish when balance changes</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#ebcb8b;">MessageBus</span><span>.publish(&quot;</span><span style="color:#a3be8c;">/yak-balance/</span><span>#{user.id}&quot;,
+</span><span>                   { </span><span style="color:#a3be8c;">balance:</span><span> wallet.balance },
+</span><span>                   </span><span style="color:#a3be8c;">user_ids: </span><span>[user.id])
+</span></code></pre>
+<p><strong>Frontend</strong>: Subscribe and update</p>
+<pre data-lang="javascript" style="background-color:#2b303b;color:#c0c5ce;" class="language-javascript "><code class="language-javascript" data-lang="javascript"><span style="color:#b48ead;">const </span><span style="color:#bf616a;">messageBus </span><span>= </span><span style="color:#bf616a;">container</span><span>.</span><span style="color:#8fa1b3;">lookup</span><span>(&quot;</span><span style="color:#a3be8c;">service:message-bus</span><span>&quot;);
+</span><span style="color:#bf616a;">messageBus</span><span>.</span><span style="color:#8fa1b3;">subscribe</span><span>(`</span><span style="color:#a3be8c;">/yak-balance/${</span><span style="color:#bf616a;">currentUser</span><span style="color:#a3be8c;">.id}</span><span>`, (</span><span style="color:#bf616a;">data</span><span>) </span><span style="color:#b48ead;">=&gt; </span><span>{
+</span><span>  </span><span style="color:#bf616a;">currentUser</span><span>.</span><span style="color:#96b5b4;">set</span><span>(&quot;</span><span style="color:#a3be8c;">yak_balance</span><span>&quot;, </span><span style="color:#bf616a;">data</span><span>.</span><span style="color:#bf616a;">balance</span><span>);
+</span><span>});
+</span></code></pre>
+<p>Now when you create a post, the balance in your user menu updates instantly.
+No polling, no page refresh.</p>
+<h2 id="bugs-fixed">Bugs Fixed</h2>
+<p>Some bugs were discovered during manual testing. All three would have been
+caught immediately by integration tests.</p>
+<h3 id="bug-1-event-hook-user-parameter">Bug 1: Event Hook User Parameter</h3>
+<p>The Discourse event signature includes a <code>user</code> parameter:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#ebcb8b;">DiscourseEvent</span><span>.on(</span><span style="color:#a3be8c;">:post_created</span><span>) </span><span style="color:#b48ead;">do </span><span>|</span><span style="color:#bf616a;">post</span><span>, </span><span style="color:#bf616a;">opts</span><span>, </span><span style="color:#bf616a;">user</span><span>|
+</span></code></pre>
+<p>The first implementation used that parameter directly:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#ebcb8b;">YakEarningService</span><span>.award(</span><span style="color:#a3be8c;">user:</span><span> user, ...)
+</span></code></pre>
+<p>But that <code>user</code> parameter is nil. The actual user must be accessed via
+<code>post.user</code>. The test would have failed immediately with "User can't be
+blank".</p>
+<h3 id="bug-2-topic-raw-doesn-t-exist">Bug 2: Topic.raw Doesn't Exist</h3>
+<p>Content length validation tried to access <code>topic.raw</code>:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span>content = related_post&amp;.raw || related_topic&amp;.raw || &quot;&quot;
+</span></code></pre>
+<p>But topics don't have a <code>raw</code> field. Only posts do. The fix:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span>content = related_post&amp;.raw || related_topic&amp;.first_post&amp;.raw || &quot;&quot;
+</span></code></pre>
+<p>A test creating a topic would have crashed with "undefined method `raw' for
+Topic".</p>
+<h3 id="bug-3-missing-user-in-transaction">Bug 3: Missing User in Transaction</h3>
+<p><code>YakTransaction</code> has a <code>belongs_to :user</code> association, which validates
+presence by default in Rails. But we weren't passing it:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#ebcb8b;">YakTransaction</span><span>.create!(
+</span><span>  </span><span style="color:#a3be8c;">yak_wallet:</span><span> wallet,
+</span><span>  </span><span style="color:#a3be8c;">amount:</span><span> rule.amount,
+</span><span>  ...
+</span><span>)
+</span></code></pre>
+<p>Should be:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#ebcb8b;">YakTransaction</span><span>.create!(
+</span><span>  </span><span style="color:#a3be8c;">user:</span><span> user,
+</span><span>  </span><span style="color:#a3be8c;">yak_wallet:</span><span> wallet,
+</span><span>  </span><span style="color:#a3be8c;">amount:</span><span> rule.amount,
+</span><span>  ...
+</span><span>)
+</span></code></pre>
+<p>Any test attempting to create a transaction would have failed validation.</p>
+<h2 id="a-new-basic-test-suite-structure">A New Basic Test Suite Structure</h2>
+<p>The test suite covers all validation paths:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#ebcb8b;">RSpec</span><span>.describe </span><span style="color:#bf616a;">YakEarningService </span><span style="color:#b48ead;">do
+</span><span>  describe &quot;</span><span style="color:#a3be8c;">.award</span><span>&quot; </span><span style="color:#b48ead;">do
+</span><span>    it &quot;</span><span style="color:#a3be8c;">awards Yaks for valid post by TL1 user</span><span>&quot; </span><span style="color:#b48ead;">do
+</span><span>      post = </span><span style="color:#bf616a;">Fabricate</span><span>(</span><span style="color:#a3be8c;">:post</span><span>, </span><span style="color:#a3be8c;">user:</span><span> user, </span><span style="color:#a3be8c;">raw: </span><span>&quot;</span><span style="color:#a3be8c;">This is a test post...</span><span>&quot;)
+</span><span>
+</span><span>      result = </span><span style="color:#ebcb8b;">YakEarningService</span><span>.award(
+</span><span>        </span><span style="color:#a3be8c;">user:</span><span> post.user,
+</span><span>        </span><span style="color:#a3be8c;">action_key: </span><span>&quot;</span><span style="color:#a3be8c;">post_created</span><span>&quot;,
+</span><span>        </span><span style="color:#a3be8c;">related_post:</span><span> post,
+</span><span>        </span><span style="color:#a3be8c;">related_topic:</span><span> post.topic,
+</span><span>      )
+</span><span>
+</span><span>      expect(result).to eq(</span><span style="color:#d08770;">true</span><span>)
+</span><span>      expect(user.reload.yak_balance).to eq(</span><span style="color:#d08770;">2</span><span>)
+</span><span>    </span><span style="color:#b48ead;">end
+</span><span>
+</span><span>    it &quot;</span><span style="color:#a3be8c;">does not award Yaks to TL0 user</span><span>&quot; </span><span style="color:#b48ead;">do
+</span><span>      post = </span><span style="color:#bf616a;">Fabricate</span><span>(</span><span style="color:#a3be8c;">:post</span><span>, </span><span style="color:#a3be8c;">user:</span><span> tl0_user, </span><span style="color:#a3be8c;">raw: </span><span>&quot;</span><span style="color:#a3be8c;">...</span><span>&quot;)
+</span><span>
+</span><span>      result = </span><span style="color:#ebcb8b;">YakEarningService</span><span>.award(
+</span><span>        </span><span style="color:#a3be8c;">user:</span><span> post.user,
+</span><span>        </span><span style="color:#a3be8c;">action_key: </span><span>&quot;</span><span style="color:#a3be8c;">post_created</span><span>&quot;,
+</span><span>        </span><span style="color:#a3be8c;">related_post:</span><span> post,
+</span><span>      )
+</span><span>
+</span><span>      expect(result).to eq(</span><span style="color:#d08770;">false</span><span>)
+</span><span>      expect(tl0_user.reload.yak_balance).to eq(</span><span style="color:#d08770;">0</span><span>)
+</span><span>    </span><span style="color:#b48ead;">end
+</span><span>
+</span><span>    it &quot;</span><span style="color:#a3be8c;">respects daily cap</span><span>&quot; </span><span style="color:#b48ead;">do
+</span><span>      rule = </span><span style="color:#ebcb8b;">YakEarningRule</span><span>.find_by(</span><span style="color:#a3be8c;">action_key: </span><span>&quot;</span><span style="color:#a3be8c;">post_created</span><span>&quot;)
+</span><span>
+</span><span>      </span><span style="color:#65737e;"># Create posts up to daily cap
+</span><span>      rule.daily_cap.times </span><span style="color:#b48ead;">do
+</span><span>        post = </span><span style="color:#bf616a;">Fabricate</span><span>(</span><span style="color:#a3be8c;">:post</span><span>, </span><span style="color:#a3be8c;">user:</span><span> user, </span><span style="color:#a3be8c;">raw: </span><span>&quot;</span><span style="color:#a3be8c;">...</span><span>&quot;)
+</span><span>        </span><span style="color:#ebcb8b;">YakEarningService</span><span>.award(</span><span style="color:#a3be8c;">user:</span><span> post.user, ...)
+</span><span>      </span><span style="color:#b48ead;">end
+</span><span>
+</span><span>      </span><span style="color:#65737e;"># Next post should fail due to cap
+</span><span>      post = </span><span style="color:#bf616a;">Fabricate</span><span>(</span><span style="color:#a3be8c;">:post</span><span>, </span><span style="color:#a3be8c;">user:</span><span> user, </span><span style="color:#a3be8c;">raw: </span><span>&quot;</span><span style="color:#a3be8c;">...</span><span>&quot;)
+</span><span>      result = </span><span style="color:#ebcb8b;">YakEarningService</span><span>.award(</span><span style="color:#a3be8c;">user:</span><span> post.user, ...)
+</span><span>
+</span><span>      expect(result).to eq(</span><span style="color:#d08770;">false</span><span>)
+</span><span>    </span><span style="color:#b48ead;">end
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>Tests force you to think about edge cases: trust levels, content length, daily
+caps, disabled rules.</p>
+<h2 id="admin-ui">Admin UI</h2>
+<p><img src="/images/yaks-earning-rules-admin.png" alt="A table showing Yaks earning rules and caps" /></p>
+<p>The admin UI shows all earning rules in a table:</p>
+<ul>
+<li>Action name and description</li>
+<li>Amount of Yaks awarded</li>
+<li>Daily cap (or "No limit")</li>
+<li>Minimum trust level</li>
+<li>Enabled status</li>
+</ul>
+<h2 id="architecture-wins">Architecture Wins</h2>
+<p><strong>Database-Driven Configuration</strong>: No code changes needed to adjust earning
+amounts or daily caps. Just update the database.</p>
+<p><strong>Event-Driven</strong>: Loosely coupled. The earning system doesn't need to know
+about post creation internals, just subscribes to events.</p>
+<p><strong>Real-Time Updates</strong>: MessageBus makes instant balance updates trivial. Six
+lines of code for publish and subscribe.</p>
+<p><strong>Proper Service Layer</strong>: Business logic lives in <code>YakEarningService</code>, not
+scattered across controllers and models.</p>
+<p><strong>Full Audit Trail</strong>: Every earning action creates a transaction record with
+type, amount, description, and related post/topic. Complete history.</p>
+<h2 id="performance-considerations">Performance Considerations</h2>
+<p><strong>Single Query for Rate Limiting</strong>: The daily count query is simple and fast.
+Could be cached if it becomes a bottleneck.</p>
+<p><strong>No N+1 Queries</strong>: Balance updates happen during the transaction creation, no
+separate queries.</p>
+<p><strong>MessageBus Efficiency</strong>: Only publishes to the specific user who earned
+Yaks. Not broadcasting to everyone.</p>
+<p><strong>Indexed Properly</strong>: Transactions table has indexes on <code>yak_wallet_id</code>,
+<code>transaction_type</code>, and <code>created_at</code> for the daily count query.</p>
+<h2 id="what-s-left">What's Left</h2>
+<p>The plugin is now feature-complete for the MVP:</p>
+<ul>
+<li>Wallet system with transaction logging</li>
+<li>Multiple purchasable features (post highlighting, topic boosting, custom
+flair, custom titles)</li>
+<li>Expiration system (features automatically expire)</li>
+<li>Earning system (users earn Yaks by contributing)</li>
+<li>Admin UI (view stats, packages, features, earning rules)</li>
+<li>Real-time updates (no page refresh needed)</li>
+</ul>
+<p>Remaining work:</p>
+<ul>
+<li>Payment integration (Stripe or similar) for purchasing Yak packages</li>
+<li>Guardian authorization checks (ensure users can only spend their own Yaks)</li>
+<li>More earning actions (first reply, helpful flags, etc.)</li>
+<li>Admin edit functionality for earning rules</li>
+<li>Production monitoring and adjustment based on real usage</li>
+</ul>
+<h2 id="lessons-learned">Lessons Learned</h2>
+<p><strong>Serializers Are Powerful</strong>: Understanding Discourse's serializer
+architecture unlocks a lot of customization possibilities.</p>
+<p><strong>MessageBus Is Handy</strong>: Real-time updates are easy with MessageBus, yet some
+plugins don't use it.</p>
+<p><strong>Database-Driven Config Is Worth It</strong>: The upfront effort to make earning
+rules configurable pays off in flexibility.</p>
+<p><strong>Event Hooks Are Reliable</strong>: Discourse's event system is solid. Events fire
+consistently and provide the data you need.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>Building a virtual currency system is teaching me a lot about Discourse's
+architecture. Serializers, custom fields, MessageBus, service objects, event
+hooks - all pieces that work together to create a cohesive plugin.</p>
+<p>The earning system was the most complex feature, but also the most rewarding.
+Watching a user create a post and seeing their balance update instantly,
+knowing that every piece of the system is working together (event hooks,
+service validation, database transactions, MessageBus publishing, frontend
+subscription) - that's satisfying.</p>
+<p>The full source code is available at
+<a href="https://github.com/ducks/discourse-yaks">github.com/ducks/discourse-yaks</a>.
+If you're building a Discourse plugin and want to see how all these pieces fit
+together, the repo should be a useful reference.</p>
+<p>Next up: Payment integration and production deployment. Stay tuned for Part 5.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-discourse-comments-in-typescript&#x2F;">Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 27, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">I rewrote the Discourse embedded comments API client from Rust&#x2F;WASM to pure TypeScript. The bundle went from 742 KB to 18 KB.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;how-a-friends-gif-broke-our-filesystem&#x2F;">How Jennifer Aniston and Friends Cost Us 377GB and Broke ext4 Hardlinks</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 23, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A backup deduplication fix, filesystem hardlink limits, and the Jennifer Aniston reaction GIF that stress-tested our infrastructure.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-discourse-embedded-comments&#x2F;">Building Embedded Discourse Comments with Rust and WASM</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 14, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">An experiment in creating a drop-in comment widget for static sites using Rust compiled to WebAssembly, talking to Discourse&#x27;s REST API.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/wasm">#wasm</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-stats-evolution&#x2F;">Invite Tree to Invite Stats - How A Simple Tree Flourished Into A Full Moderation Plugin</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 05, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">How a simple visualization plugin evolved into a moderation tool.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-tree&#x2F;">Visualizing Discourse Invite Trees</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 03, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A simple Discourse plugin that visualizes who invited whom as an ASCII tree, inspired by Lobsters.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

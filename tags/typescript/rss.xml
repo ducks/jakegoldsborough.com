@@ -1,0 +1,969 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - typescript</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/typescript/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Fri, 27 Feb 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle</title>
+          <pubDate>Fri, 27 Feb 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/rewriting-discourse-comments-in-typescript/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/rewriting-discourse-comments-in-typescript/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/rewriting-discourse-comments-in-typescript/">&lt;p&gt;Last month I wrote about building an
+&lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;building-discourse-embedded-comments&#x2F;&quot;&gt;embedded comment widget&lt;&#x2F;a&gt;
+for Discourse using Rust compiled to WebAssembly. It worked. Users
+could drop a single script tag on their page and get comments from
+a Discourse topic.&lt;&#x2F;p&gt;
+&lt;p&gt;But the bundle was 742 KB. Most of that was WASM.&lt;&#x2F;p&gt;
+&lt;p&gt;I rewrote the API client in TypeScript and the bundle dropped to
+18.5 KB. Same functionality, same API surface, no WASM runtime.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;why-rewrite&quot;&gt;Why Rewrite?&lt;&#x2F;h2&gt;
+&lt;p&gt;The original stack had three layers: a Rust HTTP client compiled to
+WASM, a TypeScript web component, and an esbuild plugin to inline
+the WASM binary as base64. That last part was the real cost. The
+WASM binary was ~546 KB, and base64 encoding inflates that by 33%.&lt;&#x2F;p&gt;
+&lt;p&gt;The Rust client existed because I wanted to push Rust into the
+browser. It was a fun experiment. But the API client itself was
+straightforward HTTP: build a URL, set some headers, parse JSON.
+There&#x27;s nothing in that workflow that benefits from Rust&#x27;s type
+system or performance characteristics. The browser&#x27;s native &lt;code&gt;fetch&lt;&#x2F;code&gt;
+does the same thing.&lt;&#x2F;p&gt;
+&lt;p&gt;So I asked the obvious question: what if the API client was just
+TypeScript?&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-rewrite&quot;&gt;The Rewrite&lt;&#x2F;h2&gt;
+&lt;p&gt;The new client is
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-api-ts&quot;&gt;discourse-api-ts&lt;&#x2F;a&gt;. Zero
+runtime dependencies. It uses &lt;code&gt;fetch&lt;&#x2F;code&gt; for HTTP, which every modern
+browser and Node.js already provides.&lt;&#x2F;p&gt;
+&lt;p&gt;The Rust client had 18 methods across topics, posts, categories,
+chat, notifications, and likes. The TypeScript port has the same 18
+methods with identical signatures. The only difference is &lt;code&gt;BigInt&lt;&#x2F;code&gt;
+parameters became regular &lt;code&gt;number&lt;&#x2F;code&gt; (JavaScript&#x27;s &lt;code&gt;Number&lt;&#x2F;code&gt; handles
+Discourse IDs fine).&lt;&#x2F;p&gt;
+&lt;p&gt;Here&#x27;s what the client looks like:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;typescript&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-typescript &quot;&gt;&lt;code class=&quot;language-typescript&quot; data-lang=&quot;typescript&quot;&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;&#x2F;&#x2F; Anonymous (read-only)
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;const &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;client &lt;&#x2F;span&gt;&lt;span&gt;= new DiscourseClient(&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;https:&#x2F;&#x2F;forum.example.com&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;);
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;&#x2F;&#x2F; Authenticated
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;const &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;client &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;DiscourseClient&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;withUserApiKey&lt;&#x2F;span&gt;&lt;span&gt;(
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;https:&#x2F;&#x2F;forum.example.com&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;storedApiKey
+&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;const &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;topic &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;await &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;client&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;getTopic&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;123&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;await &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;client&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;createPost&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;123&lt;&#x2F;span&gt;&lt;span&gt;, &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Hello from the widget&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;);
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;await &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;client&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;likePost&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;456&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;No &lt;code&gt;init()&lt;&#x2F;code&gt; call to load the WASM runtime. No &lt;code&gt;BigInt()&lt;&#x2F;code&gt; wrappers.
+Just regular async functions.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;updating-discourse-comments&quot;&gt;Updating discourse-comments&lt;&#x2F;h2&gt;
+&lt;p&gt;With the new client published to npm, updating the web component
+was mostly find-and-replace:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;import init, { WasmDiscourseClient }&lt;&#x2F;code&gt; became
+&lt;code&gt;import { DiscourseClient }&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Removed the &lt;code&gt;await init()&lt;&#x2F;code&gt; call in &lt;code&gt;loadComments&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;BigInt(this.topicId)&lt;&#x2F;code&gt; became &lt;code&gt;Number(this.topicId)&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Deleted the esbuild WASM inlining plugin entirely&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;The build script went from 60 lines of WASM gymnastics to a
+straightforward esbuild call:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;javascript&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-javascript &quot;&gt;&lt;code class=&quot;language-javascript&quot; data-lang=&quot;javascript&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;await &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;esbuild&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;build&lt;&#x2F;span&gt;&lt;span&gt;({
+&lt;&#x2F;span&gt;&lt;span&gt;  entryPoints: [&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;src&#x2F;discourse-comments.ts&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;],
+&lt;&#x2F;span&gt;&lt;span&gt;  bundle: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;true&lt;&#x2F;span&gt;&lt;span&gt;,
+&lt;&#x2F;span&gt;&lt;span&gt;  format: &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;iife&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  outfile: &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;dist&#x2F;discourse-comments.min.js&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  minify: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;true&lt;&#x2F;span&gt;&lt;span&gt;,
+&lt;&#x2F;span&gt;&lt;span&gt;});
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;No custom plugins. No base64 encoding. No &lt;code&gt;WebAssembly.instantiate&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-numbers&quot;&gt;The Numbers&lt;&#x2F;h2&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;&lt;&#x2F;th&gt;&lt;th&gt;Rust&#x2F;WASM&lt;&#x2F;th&gt;&lt;th&gt;TypeScript&lt;&#x2F;th&gt;&lt;&#x2F;tr&gt;&lt;&#x2F;thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;Bundle size (minified)&lt;&#x2F;td&gt;&lt;td&gt;742 KB&lt;&#x2F;td&gt;&lt;td&gt;18.5 KB&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;Runtime dependencies&lt;&#x2F;td&gt;&lt;td&gt;wasm-bindgen&lt;&#x2F;td&gt;&lt;td&gt;None&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;Build steps&lt;&#x2F;td&gt;&lt;td&gt;cargo build + wasm-pack + tsc + esbuild&lt;&#x2F;td&gt;&lt;td&gt;tsc + esbuild&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;Init overhead&lt;&#x2F;td&gt;&lt;td&gt;WASM decode + instantiate&lt;&#x2F;td&gt;&lt;td&gt;None&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;&#x2F;tbody&gt;&lt;&#x2F;table&gt;
+&lt;p&gt;That 18.5 KB includes the entire web component, all the styles, the
+OAuth flow, and the API client. A user on a slow connection
+downloads 40x less data.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;dev-experience&quot;&gt;Dev Experience&lt;&#x2F;h2&gt;
+&lt;p&gt;With the Rust client, the build pipeline was: cargo build targeting
+wasm32, wasm-pack to generate JS bindings, TypeScript compilation,
+then esbuild with a custom plugin to inline the binary. If any step
+failed, the error could be in Rust, in wasm-bindgen, in the
+TypeScript types, or in the bundler plugin. Debugging meant jumping
+between ecosystems.&lt;&#x2F;p&gt;
+&lt;p&gt;With TypeScript, it&#x27;s &lt;code&gt;tsc &amp;amp;&amp;amp; node build.mjs&lt;&#x2F;code&gt;. If there&#x27;s a type
+error, it&#x27;s in TypeScript. If there&#x27;s a runtime error, it&#x27;s in
+JavaScript. One language, one toolchain, one set of error messages.&lt;&#x2F;p&gt;
+&lt;p&gt;Adding a new API method in Rust meant: define the struct, implement
+the method, rebuild WASM, regenerate bindings, update TypeScript
+types to match. In TypeScript: add an interface, add a method, done.
+I added search, user profiles, and topic management (6 new methods)
+in one sitting.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-i-lost&quot;&gt;What I Lost&lt;&#x2F;h2&gt;
+&lt;p&gt;Honesty requires noting what the WASM version had going for it.&lt;&#x2F;p&gt;
+&lt;p&gt;Rust&#x27;s type system caught entire categories of errors at compile
+time. The TypeScript version uses interfaces, which help, but
+they&#x27;re structural and optional. A &lt;code&gt;Post&lt;&#x2F;code&gt; with a missing field
+compiles fine until it blows up at runtime.&lt;&#x2F;p&gt;
+&lt;p&gt;Rust&#x27;s &lt;code&gt;Result&lt;&#x2F;code&gt; type forced explicit error handling everywhere. In
+TypeScript, it&#x27;s easy to forget a &lt;code&gt;.catch()&lt;&#x2F;code&gt; or let an error
+propagate silently.&lt;&#x2F;p&gt;
+&lt;p&gt;For this particular project, those trade-offs don&#x27;t matter much. The
+API surface is small and the error handling is straightforward. But
+for a larger client library, I&#x27;d think harder about it.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;when-wasm-makes-sense&quot;&gt;When WASM Makes Sense&lt;&#x2F;h2&gt;
+&lt;p&gt;WASM is the right call when you need computation that JavaScript
+can&#x27;t do efficiently: image processing, cryptography, physics
+simulations, codecs. If you&#x27;re doing heavy lifting in a tight loop,
+WASM&#x27;s predictable performance model wins.&lt;&#x2F;p&gt;
+&lt;p&gt;But for HTTP clients that serialize JSON and build URLs, the browser
+already has everything you need. Adding a WASM layer for that is
+carrying a backpack full of bricks on a walk to the mailbox.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;try-it&quot;&gt;Try It&lt;&#x2F;h2&gt;
+&lt;p&gt;The widget still works the same way. Drop it on a page, point it
+at a Discourse topic, get comments. It&#x27;s just 40x lighter now.&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;html&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-html &quot;&gt;&lt;code class=&quot;language-html&quot; data-lang=&quot;html&quot;&gt;&lt;span&gt;&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;script &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;src&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;discourse-comments.min.js&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&amp;gt;&amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;script&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;discourse-comments
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;discourse-url&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;https:&#x2F;&#x2F;forum.example.com&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;topic-id&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;123&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;discourse-comments&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-comments&quot;&gt;discourse-comments&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-api-ts&quot;&gt;discourse-api-ts&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+      </item>
+      <item>
+          <title>Reverse Engineering A Unique Data Structure - Part 3, Course &amp; Course Details</title>
+          <pubDate>Wed, 03 Sep 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/reverse-engineering-unique-data-structure-pt-3/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/reverse-engineering-unique-data-structure-pt-3/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/reverse-engineering-unique-data-structure-pt-3/">&lt;p&gt;Second part of the series, Search, can be found here:
+&lt;a href=&quot;&#x2F;blog&#x2F;2025&#x2F;reverse-engineering-unique-data-structure-pt-2&#x2F;&quot;&gt;Search for Places and Courses&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;In the previous two posts, we learned how to &lt;code&gt;GET&lt;&#x2F;code&gt;, scrub, and parse &lt;code&gt;Courses&lt;&#x2F;code&gt;
+data, as well as how to use the search endpoint for &lt;code&gt;Places&lt;&#x2F;code&gt; and &lt;code&gt;Courses&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;viewing-a-specific-course&quot;&gt;Viewing a Specific Course&lt;&#x2F;h4&gt;
+&lt;p&gt;In this post, we will build on the previous data and show how to find the endpoint
+for a specific course and drill down into more data. We&#x27;ll focus on the
+&lt;code&gt;courseDetails&lt;&#x2F;code&gt;, using the beloved Maple Hill as our example:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_id&amp;quot;: &amp;quot;M6vT9WAEmtFKRFr2v&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;name&amp;quot;: &amp;quot;Maple Hill&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;ratingCount&amp;quot;: 10064,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;ratingAverage&amp;quot;: 4.899286515846228,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;locationText&amp;quot;: &amp;quot;Leicester, MA&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;courseId&amp;quot;: 1523,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;shortId&amp;quot;: &amp;quot;lCej&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;highlights&amp;quot;: [
+&lt;&#x2F;span&gt;&lt;span&gt;    {
+&lt;&#x2F;span&gt;&lt;span&gt;      &amp;quot;score&amp;quot;: 2.803980588912964,
+&lt;&#x2F;span&gt;&lt;span&gt;      &amp;quot;path&amp;quot;: &amp;quot;name&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;      &amp;quot;texts&amp;quot;: [
+&lt;&#x2F;span&gt;&lt;span&gt;        {
+&lt;&#x2F;span&gt;&lt;span&gt;          &amp;quot;value&amp;quot;: &amp;quot;Maple&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;          &amp;quot;type&amp;quot;: &amp;quot;hit&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;        },
+&lt;&#x2F;span&gt;&lt;span&gt;        {
+&lt;&#x2F;span&gt;&lt;span&gt;          &amp;quot;value&amp;quot;: &amp;quot; &amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;          &amp;quot;type&amp;quot;: &amp;quot;text&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;        },
+&lt;&#x2F;span&gt;&lt;span&gt;        {
+&lt;&#x2F;span&gt;&lt;span&gt;          &amp;quot;value&amp;quot;: &amp;quot;Hill&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;          &amp;quot;type&amp;quot;: &amp;quot;hit&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;        }
+&lt;&#x2F;span&gt;&lt;span&gt;      ]
+&lt;&#x2F;span&gt;&lt;span&gt;    }
+&lt;&#x2F;span&gt;&lt;span&gt;  ],
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;searchScore&amp;quot;: 15.834041595458984,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;autocompleteScore&amp;quot;: 16.079005921251294
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The URL for a course will be a slugified course name, plus the &lt;code&gt;shortId&lt;&#x2F;code&gt;.
+For Maple Hill, this URL is:
+&lt;code&gt;https:&#x2F;&#x2F;myfrisbee.com&#x2F;courses&#x2F;maple-hill-lCej.data&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Based on observation, spaces become dashes, and special characters are removed
+when generating the slug.&lt;&#x2F;p&gt;
+&lt;p&gt;For example, Keith L. Christner Family DG Course becomes
+keith-l-christner-family-dg-course.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;inspecting-the-data&quot;&gt;Inspecting the Data&lt;&#x2F;h4&gt;
+&lt;p&gt;The response from this endpoint is &lt;strong&gt;massive&lt;&#x2F;strong&gt;--so much so that Firefox
+truncates it in the Network tab. I had to use curl and save the file locally
+just to inspect it.&lt;&#x2F;p&gt;
+&lt;p&gt;Again, we are greeted by a large array of mixed types. The more I&#x27;m reading and
+learning, it seems like this may not actually be done for any kind of
+obfuscation, but for performance or a client side hydration strategy. The
+response is very large but it&#x27;s a full page of data and probably replaces
+multiple API calls.&lt;&#x2F;p&gt;
+&lt;p&gt;This time, the response goes even deeper: it includes a schema map of schema
+maps, where keys don&#x27;t point directly to data, but to other schema maps that
+must be resolved first.&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;&amp;quot;routes&#x2F;courses&#x2F;$slug&#x2F;index&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  {
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_3&amp;quot;: 143
+&lt;&#x2F;span&gt;&lt;span&gt;  },
+&lt;&#x2F;span&gt;&lt;span&gt;  {
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_144&amp;quot;: 145,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_335&amp;quot;: 336,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_343&amp;quot;: 344,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_24719&amp;quot;: 24720,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_24957&amp;quot;: 24958,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_25013&amp;quot;: 25014,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_25150&amp;quot;: 25151,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_25410&amp;quot;: 25411,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_25435&amp;quot;: 25436,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_25481&amp;quot;: 25482,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_25513&amp;quot;: -7,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_25514&amp;quot;: 25515
+&lt;&#x2F;span&gt;&lt;span&gt;  },
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The second object is just full of references to other references. If you follow
+each one of those schema maps, we can sometimes get the location of each
+field&#x27;s key and value. Often times, there are just more schema maps to follow.
+Here is a small snippet:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;&amp;quot;smartLayouts&amp;quot;: [345, 3534, 12323, 13767, 14131, 14506, 19520, 22543],
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;classicLayouts&amp;quot;: [24721],
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;reviews&amp;quot;: [24959, 24981, 24992, 25002],
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;photos&amp;quot;: [25015, 25083, 25097, 25107, 25128],
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;nearbyCourses&amp;quot;: [25152, 25226, 25280, 25344],
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Going to &lt;code&gt;array[345]&lt;&#x2F;code&gt;, we get this:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_66&amp;quot;: 346,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_84&amp;quot;: 85,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_347&amp;quot;: 348,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_349&amp;quot;: 350,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_72&amp;quot;: 3505,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_3506&amp;quot;: 195,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_3507&amp;quot;: 3508,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_147&amp;quot;: 256,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_3509&amp;quot;: 3510,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_3511&amp;quot;: 3512,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_3513&amp;quot;: 3514,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_3515&amp;quot;: 3516,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_3517&amp;quot;: 3518,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_104&amp;quot;: 3519,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_167&amp;quot;: 3520,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_3521&amp;quot;: 131,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_3522&amp;quot;: 320,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_3523&amp;quot;: 3524,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_3525&amp;quot;: 3526,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_3527&amp;quot;: 2679,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_3528&amp;quot;: 679,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_3529&amp;quot;: 3530,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_396&amp;quot;: 3531
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Going to some of those references leads to actual data, but again, often times
+it&#x27;s just more mappings.&lt;&#x2F;p&gt;
+&lt;p&gt;Now that it makes sense manually, let&#x27;s write some code to do it programmatically.&lt;&#x2F;p&gt;
+&lt;p&gt;At a high level, the flow is:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;const schemaMap = resolveCourseSchemaMapSchema(data);
+&lt;&#x2F;span&gt;&lt;span&gt;const courseDetailsSchema = schemaMap.courseDetail;
+&lt;&#x2F;span&gt;&lt;span&gt;const courseDetails = resolveKeyAndValueNames(courseDetailsSchema, mockCourse);
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;ol&gt;
+&lt;li&gt;Break the big array down into a schema map of schema maps&lt;&#x2F;li&gt;
+&lt;li&gt;Pass that &lt;code&gt;courseDetailsSchema&lt;&#x2F;code&gt; and our original array to &lt;code&gt;resolveKeyAndValueNames&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;h4 id=&quot;resolving-a-course-s-details-structure&quot;&gt;Resolving a Course&#x27;s Details Structure&lt;&#x2F;h4&gt;
+&lt;p&gt;The function below does 3 important things:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;finds our route key label. this key seems to precede the schema map.&lt;&#x2F;li&gt;
+&lt;li&gt;follows the next pointer to the schema map schema map&lt;&#x2F;li&gt;
+&lt;li&gt;passes that to &lt;code&gt;resolveKeyAndValueNames&lt;&#x2F;code&gt; to resolve each set of key&#x2F;values&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;export function resolveCourseSchemaMapSchema(data: any[]) {
+&lt;&#x2F;span&gt;&lt;span&gt;  for (let i = 0; i &amp;lt; data.length - 2; i++) {
+&lt;&#x2F;span&gt;&lt;span&gt;    const label = data[i];
+&lt;&#x2F;span&gt;&lt;span&gt;    const pointerMap = data[i + 1];
+&lt;&#x2F;span&gt;&lt;span&gt;    const schemaMap = data[i + 2];
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    if (
+&lt;&#x2F;span&gt;&lt;span&gt;      label === &amp;quot;routes&#x2F;courses&#x2F;$slug&#x2F;index&amp;quot; &amp;amp;&amp;amp;
+&lt;&#x2F;span&gt;&lt;span&gt;      typeof pointerMap === &amp;quot;object&amp;quot; &amp;amp;&amp;amp;
+&lt;&#x2F;span&gt;&lt;span&gt;      typeof schemaMap === &amp;quot;object&amp;quot; &amp;amp;&amp;amp;
+&lt;&#x2F;span&gt;&lt;span&gt;      Object.keys(pointerMap).length === 1
+&lt;&#x2F;span&gt;&lt;span&gt;    ) {
+&lt;&#x2F;span&gt;&lt;span&gt;      const pointerIndex = Object.values(pointerMap)[0];
+&lt;&#x2F;span&gt;&lt;span&gt;      const referencedMap = data[pointerIndex];
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;      if (typeof referencedMap === &amp;quot;object&amp;quot;) {
+&lt;&#x2F;span&gt;&lt;span&gt;        return resolveKeyAndValueNames(referencedMap, data);
+&lt;&#x2F;span&gt;&lt;span&gt;      }
+&lt;&#x2F;span&gt;&lt;span&gt;    }
+&lt;&#x2F;span&gt;&lt;span&gt;  }
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;That leaves us with a decoded schema object, where each field (like
+&lt;code&gt;courseDetail&lt;&#x2F;code&gt;, &lt;code&gt;reviews&lt;&#x2F;code&gt;, &lt;code&gt;smartLayouts&lt;&#x2F;code&gt;) still contains schema references or
+arrays of indexes:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;  courseDetail: {
+&lt;&#x2F;span&gt;&lt;span&gt;    _66: 67,
+&lt;&#x2F;span&gt;&lt;span&gt;    _68: 69,
+&lt;&#x2F;span&gt;&lt;span&gt;    _146: 131,
+&lt;&#x2F;span&gt;&lt;span&gt;    _147: 148,
+&lt;&#x2F;span&gt;&lt;span&gt;    _72: 73,
+&lt;&#x2F;span&gt;&lt;span&gt;    _149: 109,
+&lt;&#x2F;span&gt;&lt;span&gt;    _150: 151,
+&lt;&#x2F;span&gt;&lt;span&gt;    _152: 108,
+&lt;&#x2F;span&gt;&lt;span&gt;    _84: 85,
+&lt;&#x2F;span&gt;&lt;span&gt;    _153: 154,
+&lt;&#x2F;span&gt;&lt;span&gt;    _96: 97,
+&lt;&#x2F;span&gt;&lt;span&gt;    _155: 156,
+&lt;&#x2F;span&gt;&lt;span&gt;    _158: 159,
+&lt;&#x2F;span&gt;&lt;span&gt;    _160: 161,
+&lt;&#x2F;span&gt;&lt;span&gt;    _162: 163,
+&lt;&#x2F;span&gt;&lt;span&gt;    _164: 165,
+&lt;&#x2F;span&gt;&lt;span&gt;    _102: 172,
+&lt;&#x2F;span&gt;&lt;span&gt;    _110: 111,
+&lt;&#x2F;span&gt;&lt;span&gt;    _130: 131,
+&lt;&#x2F;span&gt;&lt;span&gt;    _174: 175,
+&lt;&#x2F;span&gt;&lt;span&gt;    _176: 177,
+&lt;&#x2F;span&gt;&lt;span&gt;    _180: 181,
+&lt;&#x2F;span&gt;&lt;span&gt;    _184: 185,
+&lt;&#x2F;span&gt;&lt;span&gt;    _56: 302,
+&lt;&#x2F;span&gt;&lt;span&gt;    _303: 304,
+&lt;&#x2F;span&gt;&lt;span&gt;    _305: 131,
+&lt;&#x2F;span&gt;&lt;span&gt;    _132: 7,
+&lt;&#x2F;span&gt;&lt;span&gt;    _133: 131,
+&lt;&#x2F;span&gt;&lt;span&gt;    _306: 307,
+&lt;&#x2F;span&gt;&lt;span&gt;    _308: 309,
+&lt;&#x2F;span&gt;&lt;span&gt;    _310: 311,
+&lt;&#x2F;span&gt;&lt;span&gt;    _312: 313,
+&lt;&#x2F;span&gt;&lt;span&gt;    _314: 315,
+&lt;&#x2F;span&gt;&lt;span&gt;    _316: 317,
+&lt;&#x2F;span&gt;&lt;span&gt;    _318: 319,
+&lt;&#x2F;span&gt;&lt;span&gt;    _134: 131,
+&lt;&#x2F;span&gt;&lt;span&gt;    _323: 324,
+&lt;&#x2F;span&gt;&lt;span&gt;    _328: 21,
+&lt;&#x2F;span&gt;&lt;span&gt;    _329: 330,
+&lt;&#x2F;span&gt;&lt;span&gt;    _331: 7,
+&lt;&#x2F;span&gt;&lt;span&gt;    _332: 131,
+&lt;&#x2F;span&gt;&lt;span&gt;    _333: 7,
+&lt;&#x2F;span&gt;&lt;span&gt;    _334: 7
+&lt;&#x2F;span&gt;&lt;span&gt;  },
+&lt;&#x2F;span&gt;&lt;span&gt;  normalizedCourseTraffic: { _337: 338 },
+&lt;&#x2F;span&gt;&lt;span&gt;  smartLayouts: [
+&lt;&#x2F;span&gt;&lt;span&gt;      345,  3534,
+&lt;&#x2F;span&gt;&lt;span&gt;    12323, 13767,
+&lt;&#x2F;span&gt;&lt;span&gt;    14131, 14506,
+&lt;&#x2F;span&gt;&lt;span&gt;    19520, 22543
+&lt;&#x2F;span&gt;&lt;span&gt;  ],
+&lt;&#x2F;span&gt;&lt;span&gt;  classicLayouts: [ 24721 ],
+&lt;&#x2F;span&gt;&lt;span&gt;  reviews: [ 24959, 24981, 24992, 25002 ],
+&lt;&#x2F;span&gt;&lt;span&gt;  photos: [ 25015, 25083, 25097, 25107, 25128 ],
+&lt;&#x2F;span&gt;&lt;span&gt;  nearbyCourses: [ 25152, 25226, 25280, 25344 ],
+&lt;&#x2F;span&gt;&lt;span&gt;  nearbyStores: [ 25412, 25424 ],
+&lt;&#x2F;span&gt;&lt;span&gt;  events: [ 25437, 25460, 25470 ],
+&lt;&#x2F;span&gt;&lt;span&gt;  badges: [
+&lt;&#x2F;span&gt;&lt;span&gt;    25483, 25494, 25498,
+&lt;&#x2F;span&gt;&lt;span&gt;    25500, 25505, 25506,
+&lt;&#x2F;span&gt;&lt;span&gt;    25508, 25509, 25511,
+&lt;&#x2F;span&gt;&lt;span&gt;    25512
+&lt;&#x2F;span&gt;&lt;span&gt;  ],
+&lt;&#x2F;span&gt;&lt;span&gt;  globalLayoutAverages: undefined,
+&lt;&#x2F;span&gt;&lt;span&gt;  userStatus: &amp;#39;loggedOut&amp;#39;
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Next is our core function. We take the &lt;code&gt;courseDetail&lt;&#x2F;code&gt; schema map and pass it
+and our original data array to &lt;code&gt;resolveKeyAndValueNames&lt;&#x2F;code&gt; to resolve the
+actual values.&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;&#x2F;**
+&lt;&#x2F;span&gt;&lt;span&gt; * Resolves a schema map where both keys and values are index references into the data array.
+&lt;&#x2F;span&gt;&lt;span&gt; *&#x2F;
+&lt;&#x2F;span&gt;&lt;span&gt;export function resolveKeyAndValueNames(schema: Record&amp;lt;string, number&amp;gt;, data: any[]): Record&amp;lt;string, any&amp;gt; {
+&lt;&#x2F;span&gt;&lt;span&gt;  const result: Record&amp;lt;string, any&amp;gt; = {};
+&lt;&#x2F;span&gt;&lt;span&gt;  for (const rawKey in schema) {
+&lt;&#x2F;span&gt;&lt;span&gt;    const keyIndex = parseInt(rawKey.replace(&#x2F;^_&#x2F;, &amp;quot;&amp;quot;), 10);
+&lt;&#x2F;span&gt;&lt;span&gt;    const valIndex = schema[rawKey];
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    const fieldName = data[keyIndex];
+&lt;&#x2F;span&gt;&lt;span&gt;    if (typeof fieldName !== &amp;quot;string&amp;quot;) {
+&lt;&#x2F;span&gt;&lt;span&gt;      throw new Error(`Expected string field name at index ${keyIndex}, got: ${typeof fieldName}`);
+&lt;&#x2F;span&gt;&lt;span&gt;    }
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    result[fieldName] = data[valIndex];
+&lt;&#x2F;span&gt;&lt;span&gt;  }
+&lt;&#x2F;span&gt;&lt;span&gt;  return result;
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;We are now left with a nicely formatted and readable object of values:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;_id&amp;quot;: &amp;quot;M6vT9WAEmtFKRFr2v&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;holeCount&amp;quot;: 18,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;isPay&amp;quot;: true,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;status&amp;quot;: &amp;quot;Active&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;name&amp;quot;: &amp;quot;Maple Hill&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;latitude&amp;quot;: 42.276001,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;website&amp;quot;: &amp;quot;http:&#x2F;&#x2F;maplehilldiscgolf.com&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;longitude&amp;quot;: -71.895699,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;courseId&amp;quot;: 1523,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;country&amp;quot;: &amp;quot;United States&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;availabilityStatus&amp;quot;: &amp;quot;available&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;landType&amp;quot;: [157],
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;targetType&amp;quot;: &amp;quot;basket&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;targetTypeDescription&amp;quot;: &amp;quot;Black Hole Portal, Black Hole Gravity Version 2&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;availabilityTypeDescription&amp;quot;: &amp;quot;Closed the Sunday before Thanksgiving to New Years for Christmas Tree Season. &amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;conditions&amp;quot;: {
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_104&amp;quot;: 166,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_167&amp;quot;: -5,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_168&amp;quot;: 169,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_170&amp;quot;: 171
+&lt;&#x2F;span&gt;&lt;span&gt;  },
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;location&amp;quot;: {
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_104&amp;quot;: 105,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_106&amp;quot;: 173
+&lt;&#x2F;span&gt;&lt;span&gt;  },
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;shortId&amp;quot;: &amp;quot;lCej&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;hasBathroom&amp;quot;: true,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;propertyType&amp;quot;: &amp;quot;dedicated&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;activeTargetTypes&amp;quot;: [178, 179],
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;activeTeeTypes&amp;quot;: [182, 183],
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;layoutConfiguration&amp;quot;: {
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_186&amp;quot;: 187,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_223&amp;quot;: 224,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_251&amp;quot;: 252,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_289&amp;quot;: 290,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_299&amp;quot;: 300,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_301&amp;quot;: -5
+&lt;&#x2F;span&gt;&lt;span&gt;  },
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;timezone&amp;quot;: &amp;quot;America&#x2F;New_York&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;otherFees&amp;quot;: &amp;quot;$5 Walker fee for those not playing&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;isSmartLayoutEnabled&amp;quot;: true,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;hasDrinkingWater&amp;quot;: false,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;isDogFriendly&amp;quot;: true,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;amenitiesRating&amp;quot;: 4.754434159544442,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;designRating&amp;quot;: 4.920076530755979,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;sceneryRating&amp;quot;: 4.923442842581462,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;signageRating&amp;quot;: 4.747814409366677,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;teeRating&amp;quot;: 4.882374770235053,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;upkeepRating&amp;quot;: 4.891556089317444,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;difficultyBins&amp;quot;: [320, 321, 322],
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;isCartFriendly&amp;quot;: true,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;contactInfo&amp;quot;: {
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_325&amp;quot;: 326,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_327&amp;quot;: 326
+&lt;&#x2F;span&gt;&lt;span&gt;  },
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;accessTypeDescription&amp;quot;: &amp;quot;&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;accessibility&amp;quot;: &amp;quot;notAccessible&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;byob&amp;quot;: false,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;dedicatedTargets&amp;quot;: true,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;hasAvailabilityRestrictions&amp;quot;: false,
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;quot;underConstruction&amp;quot;: false
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Note: Some fields like &lt;code&gt;conditions&lt;&#x2F;code&gt;, &lt;code&gt;location&lt;&#x2F;code&gt;, and &lt;code&gt;layoutConfiguration&lt;&#x2F;code&gt; are
+still partially encoded -- they contain their own schema maps or references that
+need to be decoded separately using &lt;code&gt;resolveKeyAndValueNames&lt;&#x2F;code&gt;. We&#x27;ll cover
+those in a future post when we dive deeper into layout and field-level data.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;summary&quot;&gt;Summary&lt;&#x2F;h4&gt;
+&lt;p&gt;In this post, we decoded the structure of MyFrisbee&#x27;s &lt;code&gt;courseDetails&lt;&#x2F;code&gt; payloads by:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Resolving the &lt;code&gt;&quot;routes&#x2F;courses&#x2F;$slug&#x2F;index&quot;&lt;&#x2F;code&gt; entry&lt;&#x2F;li&gt;
+&lt;li&gt;Using &lt;code&gt;resolveCourseSchemaMapSchema&lt;&#x2F;code&gt; to get a field-labeled schema&lt;&#x2F;li&gt;
+&lt;li&gt;Running that through &lt;code&gt;resolveKeyAndValueNames&lt;&#x2F;code&gt; to extract readable values&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;This pattern gives us a fully usable course object with real field names. While
+some nested fields (like &lt;code&gt;conditions&lt;&#x2F;code&gt; or &lt;code&gt;layoutConfiguration&lt;&#x2F;code&gt;) still require
+additional decoding, we now have the tools to confidently work with MyFrisbee&#x27;s
+structured course data.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;next-time&quot;&gt;Next Time&lt;&#x2F;h4&gt;
+&lt;p&gt;In the next post, we&#x27;ll go one level deeper--resolving nested layout data like
+hole-by-hole distances and tee types.&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>Reverse Engineering A Unique Data Structure - Part 2, Search</title>
+          <pubDate>Sat, 30 Aug 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/reverse-engineering-unique-data-structure-pt-2/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/reverse-engineering-unique-data-structure-pt-2/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/reverse-engineering-unique-data-structure-pt-2/">&lt;p&gt;First part of the series, Courses, can be found here:
+&lt;a href=&quot;&#x2F;blog&#x2F;2025&#x2F;reverse-engineering-unique-data-structure-pt-1&#x2F;&quot;&gt;Courses&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;search-for-places&quot;&gt;Search for Places&lt;&#x2F;h4&gt;
+&lt;p&gt;In the first post in this series, we were able to parse and extract a list
+of &lt;code&gt;Course&lt;&#x2F;code&gt; data. This is great, but we&#x27;re simply getting back 20 random courses
+that might not mean anything to the end user. Lucky for us, there are a couple
+search options.&lt;&#x2F;p&gt;
+&lt;p&gt;Going to &lt;a href=&quot;https:&#x2F;&#x2F;myfrisbee.com&#x2F;courses&quot;&gt;https:&#x2F;&#x2F;myfrisbee.com&#x2F;courses&lt;&#x2F;a&gt; and starting to
+type in the search box reveals some network calls:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;&#x2F;places&#x2F;search?term=charlotte&amp;amp;limit=5&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;This is getting called for every character that is typed and should probably
+be debounced a little.&lt;&#x2F;p&gt;
+&lt;p&gt;Anyway, from that call, we get some pretty well formed data instead of the
+index&#x2F;schema map data like before. Here is one result:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;_id&amp;quot;: &amp;quot;NxHZZBpPjDnXHbbZg&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;type&amp;quot;: &amp;quot;city&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;slug&amp;quot;: &amp;quot;charlotte-nc&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;name&amp;quot;: &amp;quot;Charlotte&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;country&amp;quot;: &amp;quot;United States&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;countryCode&amp;quot;: &amp;quot;US&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;admin1&amp;quot;: &amp;quot;North Carolina&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;city&amp;quot;: &amp;quot;Charlotte&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;location&amp;quot;: [
+&lt;&#x2F;span&gt;&lt;span&gt;  -80.84313,
+&lt;&#x2F;span&gt;&lt;span&gt;  35.22709
+&lt;&#x2F;span&gt;&lt;span&gt;],
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;score&amp;quot;: 98.75883083083083,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;fullLocationText&amp;quot;: &amp;quot;Charlotte North Carolina United States&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;highlights&amp;quot;: [
+&lt;&#x2F;span&gt;&lt;span&gt;  {
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;score&amp;quot;: 1.4719792604446411,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;path&amp;quot;: &amp;quot;fullLocationText&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;texts&amp;quot;: [
+&lt;&#x2F;span&gt;&lt;span&gt;      {
+&lt;&#x2F;span&gt;&lt;span&gt;        &amp;quot;value&amp;quot;: &amp;quot;Charlotte North Carolina&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;        &amp;quot;type&amp;quot;: &amp;quot;hit&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;      },
+&lt;&#x2F;span&gt;&lt;span&gt;      {
+&lt;&#x2F;span&gt;&lt;span&gt;        &amp;quot;value&amp;quot;: &amp;quot; United States&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;        &amp;quot;type&amp;quot;: &amp;quot;text&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;      }
+&lt;&#x2F;span&gt;&lt;span&gt;    ]
+&lt;&#x2F;span&gt;&lt;span&gt;  }
+&lt;&#x2F;span&gt;&lt;span&gt;],
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;autocompleteScore&amp;quot;: 72.5995921895284
+&lt;&#x2F;span&gt;&lt;span&gt;},
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;There seem to be a few options for &lt;code&gt;type&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;city&lt;&#x2F;li&gt;
+&lt;li&gt;admin1 (which appears to represent state in the US)&lt;&#x2F;li&gt;
+&lt;li&gt;country&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Now, you can take that &lt;code&gt;slug&lt;&#x2F;code&gt; and plug it into the courses call:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;&#x2F;courses.data?placeId=charlotte-nc&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;See the first &lt;a href=&quot;&#x2F;blog&#x2F;2025&#x2F;reverse-engineering-unique-data-structure-pt-1&#x2F;&quot;&gt;post&lt;&#x2F;a&gt;
+on how to parse and extract that data.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;search-for-courses&quot;&gt;Search for Courses&lt;&#x2F;h4&gt;
+&lt;p&gt;The Places endpoint was not the only one being hit though. When typing in the
+search box, you will also see this:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;&#x2F;api&#x2F;courses&#x2F;search?includeGenerallyUnavailableCourses=true&amp;amp;term=hornets nest&amp;amp;limit=5&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Again, we get some pretty well formed data:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;_id&amp;quot;: &amp;quot;jJAW46X3WX8qT7mXR&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;locationText&amp;quot;: &amp;quot;Charlotte, VT&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;ratingAverage&amp;quot;: 3.4976632020706235,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;courseId&amp;quot;: 11220,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;ratingCount&amp;quot;: 239,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;name&amp;quot;: &amp;quot;Charlotte Beach&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;shortId&amp;quot;: &amp;quot;j04j&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;highlights&amp;quot;: [
+&lt;&#x2F;span&gt;&lt;span&gt;  {
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;score&amp;quot;: 2.771970748901367,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;path&amp;quot;: &amp;quot;name&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;texts&amp;quot;: [
+&lt;&#x2F;span&gt;&lt;span&gt;      {
+&lt;&#x2F;span&gt;&lt;span&gt;        &amp;quot;value&amp;quot;: &amp;quot;Charlotte&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;        &amp;quot;type&amp;quot;: &amp;quot;hit&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;      },
+&lt;&#x2F;span&gt;&lt;span&gt;      {
+&lt;&#x2F;span&gt;&lt;span&gt;        &amp;quot;value&amp;quot;: &amp;quot; Beach&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;        &amp;quot;type&amp;quot;: &amp;quot;text&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;      }
+&lt;&#x2F;span&gt;&lt;span&gt;    ]
+&lt;&#x2F;span&gt;&lt;span&gt;  }
+&lt;&#x2F;span&gt;&lt;span&gt;],
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;searchScore&amp;quot;: 11.487470626831055,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;autocompleteScore&amp;quot;: 11.66234797214058
+&lt;&#x2F;span&gt;&lt;span&gt;},
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Next time I will show you how to take that data and get a specific &lt;code&gt;Course&lt;&#x2F;code&gt;
+endpoint and data.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;another-way-to-fuzzy-find-courses&quot;&gt;Another Way to Fuzzy Find Courses&lt;&#x2F;h4&gt;
+&lt;p&gt;Not exactly a search but there appears to be at least one more way of fuzzy finding
+courses. The &lt;code&gt;courses.data&lt;&#x2F;code&gt; endpoint can take another param called
+&lt;code&gt;courseTerm&lt;&#x2F;code&gt;. The full URL would be:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;&#x2F;courses.data?courseTerm=charlotte&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;This will return course results with &quot;Charlotte&quot; in the name. I&#x27;m thinking
+this endpoint is there for list type pages and the search endpoint might just be
+for autocomplete drop downs.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;summary&quot;&gt;Summary&lt;&#x2F;h4&gt;
+&lt;p&gt;Showed how to search for places and courses&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;plan-for-next-time&quot;&gt;Plan for Next Time&lt;&#x2F;h4&gt;
+&lt;p&gt;Drill down into specific course data&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>Reverse Engineering A Unique Data Structure - Part 1, Courses</title>
+          <pubDate>Wed, 27 Aug 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/reverse-engineering-unique-data-structure-pt-1/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/reverse-engineering-unique-data-structure-pt-1/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/reverse-engineering-unique-data-structure-pt-1/">&lt;p&gt;&lt;strong&gt;Note: Real app name and URL have been replaced&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;I am a very avid fan and player of disc golf.&lt;&#x2F;p&gt;
+&lt;p&gt;Disc golf is basically the rules of golf but you&#x27;re throwing a frisbee
+instead of hitting a ball. There are differences of course. We don&#x27;t throw
+the disc into a hole in the ground, but the basic idea of starting in one place
+and getting an object to another remains the same. It&#x27;s a beautiful sport that
+combines the mystique of physics and flight with the beauty and tranquility of
+nature. I get to take a hike and throw stuff through the woods, what&#x27;s not to
+love? Like golf, there is a scoring system, and that&#x27;s where &quot;MyFrisbee&quot; comes
+in.&lt;&#x2F;p&gt;
+&lt;p&gt;&quot;MyFrisbee&quot; is a disc golf scoring app. You can search for courses, find
+leagues, and most importantly, keep score. It&#x27;s a useful tool with one
+problem - there is no public API. I have seen this asked for publicly but
+MyFrisbee has shown no plans for this in the immediate future, and that&#x27;s where
+I come in. I really like figuring out how things work.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;starting-small&quot;&gt;Starting small&lt;&#x2F;h4&gt;
+&lt;p&gt;This is the first real API I&#x27;ve tried reverse engineering so I wanted to start
+small. Some of the features of MyFrisbee are paid and only available in the app and
+I didn&#x27;t want to dive into that just yet. There are parts of the service that
+are available on the website so I wanted to start there.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;courses&quot;&gt;Courses&lt;&#x2F;h4&gt;
+&lt;p&gt;The biggest feature of the free version of the app is probably the course
+directory so that&#x27;s where I started.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;myfrisbee.com&#x2F;courses&quot;&gt;https:&#x2F;&#x2F;myfrisbee.com&#x2F;courses&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Going directly to the courses URL, you can use the Developer Tools and the
+Network tab to already find some useful calls. The most important is a call
+to &lt;code&gt;&#x2F;__manifest&lt;&#x2F;code&gt;. This seems to strongly suggest at least the site is a Remix
+Run based app, also indicated by the &lt;code&gt;p&lt;&#x2F;code&gt; parameters.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;remix.run&#x2F;&quot;&gt;https:&#x2F;&#x2F;remix.run&#x2F;&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;The full URL looks like this:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;GET
+&lt;&#x2F;span&gt;&lt;span&gt;	https:&#x2F;&#x2F;myfrisbee.com&#x2F;__manifest?p=&#x2F;courses&amp;amp;p=&#x2F;courses&#x2F;carey-park-disc-golf-course-e2a5&amp;amp;p=&#x2F;courses&#x2F;cheney-state-park-disc-golf-course-west-DnNL&amp;amp;p=&#x2F;courses&#x2F;chisholm-trail-3RqD&amp;amp;p=&#x2F;courses&#x2F;cowskin-mKI4&amp;amp;p=&#x2F;courses&#x2F;cowskin-west-MXwZ&amp;amp;p=&#x2F;courses&#x2F;dragon-disc-golf-course-ePkd&amp;amp;p=&#x2F;courses&#x2F;flying-bee-country-club-WOm5&amp;amp;p=&#x2F;courses&#x2F;garden-plain-city-park-dgc-dsry&amp;amp;p=&#x2F;courses&#x2F;helten-gardens-Bupy&amp;amp;p=&#x2F;courses&#x2F;keith-l-christner-family-dg-course-kLoh&amp;amp;p=&#x2F;courses&#x2F;lazys-links-1S2k&amp;amp;p=&#x2F;courses&#x2F;liberty-links-disc-golf-course-uwbs&amp;amp;p=&#x2F;courses&#x2F;linear-park-0KnA&amp;amp;p=&#x2F;courses&#x2F;llama-loop-qBK4&amp;amp;p=&#x2F;courses&#x2F;maize-south-dgc-0eco&amp;amp;p=&#x2F;courses&#x2F;newman-university-9Fmt&amp;amp;p=&#x2F;courses&#x2F;orchard-disc-golf-course-7F1E&amp;amp;p=&#x2F;courses&#x2F;prairie-winds-disk-golf-course-LiKg&amp;amp;p=&#x2F;courses&#x2F;quail-run-gFli&amp;amp;p=&#x2F;courses&#x2F;west-millbrook-dgc-tDG5&amp;amp;version=149b0717
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;While this does tell us a lot, it doesn&#x27;t give us any real data. If we
+try changing filters, we see another useful call.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;GET https:&#x2F;&#x2F;myfrisbee.com&#x2F;courses.data?sortOrder=rating&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Fore! Data incoming. While it&#x27;s very, &lt;strong&gt;very&lt;&#x2F;strong&gt; obfuscated, you can see some real
+data in there.&lt;&#x2F;p&gt;
+&lt;p&gt;We also can confirm our suspicions by looking at the response headers:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;x-remix-response yes
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Most definitely a Remix based app.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;parsing-the-data&quot;&gt;Parsing The Data&lt;&#x2F;h3&gt;
+&lt;p&gt;Looking at the data itself, it looks JSON-y, but when trying to parse it, we find
+it&#x27;s corrupt and it fails. There are some foreign chars between two valid JSON
+arrays. This seems intentional as it&#x27;s not breaking their site so they must
+know about it? Regardless, let&#x27;s scrub that out.&lt;&#x2F;p&gt;
+&lt;p&gt;This function takes our raw string and iterates over it creating a stack and
+checking for valid opening JSON brackets. When it finds an opening bracket, it
+pushes it to the stack, and when it finds a closing bracket, it pops one off.
+When the stack is empty, we know the JSON structure is complete.&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;export function extractJsonChunks(raw: string): any[] {
+&lt;&#x2F;span&gt;&lt;span&gt;  const chunks: any[] = [];
+&lt;&#x2F;span&gt;&lt;span&gt;  let i = 0;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  while (i &amp;lt; raw.length) {
+&lt;&#x2F;span&gt;&lt;span&gt;    if (raw[i] === &amp;#39;[&amp;#39; || raw[i] === &amp;#39;{&amp;#39;) {
+&lt;&#x2F;span&gt;&lt;span&gt;      const start = i;
+&lt;&#x2F;span&gt;&lt;span&gt;      const stack = [raw[i]];
+&lt;&#x2F;span&gt;&lt;span&gt;      i++;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;      while (i &amp;lt; raw.length &amp;amp;&amp;amp; stack.length &amp;gt; 0) {
+&lt;&#x2F;span&gt;&lt;span&gt;        if (raw[i] === &amp;#39;[&amp;#39; || raw[i] === &amp;#39;{&amp;#39;) {
+&lt;&#x2F;span&gt;&lt;span&gt;          stack.push(raw[i]);
+&lt;&#x2F;span&gt;&lt;span&gt;        } else if (raw[i] === &amp;#39;]&amp;#39; || raw[i] === &amp;#39;}&amp;#39;) {
+&lt;&#x2F;span&gt;&lt;span&gt;          stack.pop();
+&lt;&#x2F;span&gt;&lt;span&gt;        }
+&lt;&#x2F;span&gt;&lt;span&gt;        i++;
+&lt;&#x2F;span&gt;&lt;span&gt;      }
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;      const chunk = raw.slice(start, i);
+&lt;&#x2F;span&gt;&lt;span&gt;      try {
+&lt;&#x2F;span&gt;&lt;span&gt;        chunks.push(JSON.parse(chunk));
+&lt;&#x2F;span&gt;&lt;span&gt;      } catch {
+&lt;&#x2F;span&gt;&lt;span&gt;        &#x2F;&#x2F; ignore invalid chunks
+&lt;&#x2F;span&gt;&lt;span&gt;      }
+&lt;&#x2F;span&gt;&lt;span&gt;    } else {
+&lt;&#x2F;span&gt;&lt;span&gt;      i++;
+&lt;&#x2F;span&gt;&lt;span&gt;    }
+&lt;&#x2F;span&gt;&lt;span&gt;  }
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  return chunks;
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;h4 id=&quot;inspecting-the-data&quot;&gt;Inspecting The Data&lt;&#x2F;h4&gt;
+&lt;p&gt;After successfully parsing the data, and there is &lt;strong&gt;a lot&lt;&#x2F;strong&gt; of it, we can take
+a better look at two very large arrays.&lt;&#x2F;p&gt;
+&lt;p&gt;The first part of the first array is mostly config looking stuff - API tokens for
+various services and basic user settings like locale.&lt;&#x2F;p&gt;
+&lt;p&gt;My interest is mostly in the actual data, which you can kind of see in the snippet
+below. These are items in the array, so you can tell the data is there but it&#x27;s
+very confusing to read and code against. It would be easy to assume a key then
+a value but then you see things like &lt;code&gt;price&lt;&#x2F;code&gt;, followed by &lt;code&gt;status&lt;&#x2F;code&gt; and can tell
+&lt;code&gt;price&lt;&#x2F;code&gt; is obviously missing a value.&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;&amp;quot;_id&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;cxYvYpWXX66MoAG5f&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;name&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;Orchard Disc Golf Course&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;headline&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;Moderately wooded technical course, Par 54 unless hole 5 is in long., making that a par 4 hole. (course 55)&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;longDescription&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;18 holes, 1 tee for each hole, 2 basket locations for each hole, rotated regularly.  &amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;holeCount&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;18,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;price&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;status&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;Active&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;website&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;https:&#x2F;&#x2F;www.facebook.com&#x2F;groups&#x2F;270758746431057&amp;quot;,
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Before any of that actual data, there is an array which didn&#x27;t make much sense
+at first.&lt;&#x2F;p&gt;
+&lt;p&gt;After some time digging and debugging (and a little help from ChatGPT), it
+clicked into place.&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;&amp;quot;courseResults&amp;quot;,
+&lt;&#x2F;span&gt;&lt;span&gt;  [
+&lt;&#x2F;span&gt;&lt;span&gt;    73,
+&lt;&#x2F;span&gt;&lt;span&gt;    253,
+&lt;&#x2F;span&gt;&lt;span&gt;    305,
+&lt;&#x2F;span&gt;&lt;span&gt;    382,
+&lt;&#x2F;span&gt;&lt;span&gt;    451,
+&lt;&#x2F;span&gt;&lt;span&gt;    538,
+&lt;&#x2F;span&gt;&lt;span&gt;    598,
+&lt;&#x2F;span&gt;&lt;span&gt;    661,
+&lt;&#x2F;span&gt;&lt;span&gt;    718,
+&lt;&#x2F;span&gt;&lt;span&gt;    774,
+&lt;&#x2F;span&gt;&lt;span&gt;    821,
+&lt;&#x2F;span&gt;&lt;span&gt;    864,
+&lt;&#x2F;span&gt;&lt;span&gt;    919,
+&lt;&#x2F;span&gt;&lt;span&gt;    979,
+&lt;&#x2F;span&gt;&lt;span&gt;    1026,
+&lt;&#x2F;span&gt;&lt;span&gt;    1074,
+&lt;&#x2F;span&gt;&lt;span&gt;    1123,
+&lt;&#x2F;span&gt;&lt;span&gt;    1174,
+&lt;&#x2F;span&gt;&lt;span&gt;    1224,
+&lt;&#x2F;span&gt;&lt;span&gt;    1285
+&lt;&#x2F;span&gt;&lt;span&gt;  ],
+&lt;&#x2F;span&gt;&lt;span&gt;  {
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_74&amp;quot;: 75,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_76&amp;quot;: 77,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_78&amp;quot;: 79,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_80&amp;quot;: 81,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_82&amp;quot;: 83,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_84&amp;quot;: 21,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_85&amp;quot;: 86,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_87&amp;quot;: 88,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_89&amp;quot;: 90,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_91&amp;quot;: 92,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_93&amp;quot;: 94,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_95&amp;quot;: 96,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_97&amp;quot;: 98,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_99&amp;quot;: 100,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_101&amp;quot;: 102,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_103&amp;quot;: 104,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_105&amp;quot;: 106,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_107&amp;quot;: 108,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_109&amp;quot;: 110,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_111&amp;quot;: 112,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_113&amp;quot;: 114,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_115&amp;quot;: 116,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_117&amp;quot;: 118,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_120&amp;quot;: 121,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_122&amp;quot;: 123,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_124&amp;quot;: 125,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_126&amp;quot;: 7,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_127&amp;quot;: 128,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_129&amp;quot;: 130,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_138&amp;quot;: 139,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_143&amp;quot;: 144,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_145&amp;quot;: 146,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_162&amp;quot;: 108,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_163&amp;quot;: 164,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_165&amp;quot;: 166,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_167&amp;quot;: 168,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_56&amp;quot;: 170,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_171&amp;quot;: 172,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_221&amp;quot;: 222,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_223&amp;quot;: 125,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_224&amp;quot;: 125,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_225&amp;quot;: -5,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_226&amp;quot;: 125,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_227&amp;quot;: 228,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_230&amp;quot;: 231,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_235&amp;quot;: 21,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_236&amp;quot;: 21,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_237&amp;quot;: 7,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_238&amp;quot;: 125,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_239&amp;quot;: 7,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_240&amp;quot;: 7,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_241&amp;quot;: 7,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_242&amp;quot;: 21,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_243&amp;quot;: 7,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_244&amp;quot;: 245,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_246&amp;quot;: 247,
+&lt;&#x2F;span&gt;&lt;span&gt;    &amp;quot;_252&amp;quot;: -7
+&lt;&#x2F;span&gt;&lt;span&gt;  },
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The first array, &lt;code&gt;courseResults&lt;&#x2F;code&gt; is an index map telling us where in this giant
+array each result is. If could you look at the site where we found this URL, you
+would notice 20 courses in the UI - it just so happens that there are 20 items
+in that &lt;code&gt;courseResults&lt;&#x2F;code&gt; array.&lt;&#x2F;p&gt;
+&lt;p&gt;If you happen to check &lt;code&gt;array[73]&lt;&#x2F;code&gt;, it&#x27;s the following object from above and that
+turns out to be a schema map - saying that the field name at &lt;code&gt;array[74]&lt;&#x2F;code&gt;
+is equal to whatever is at &lt;code&gt;array[75]&lt;&#x2F;code&gt; and so on.&lt;&#x2F;p&gt;
+&lt;p&gt;So, taking this further, the first result will have values in this giant array
+from &lt;code&gt;74&lt;&#x2F;code&gt; to &lt;code&gt;252&lt;&#x2F;code&gt;. If you notice in our index map array above, the second
+result will start at &lt;code&gt;253&lt;&#x2F;code&gt; so that makes perfect sense.&lt;&#x2F;p&gt;
+&lt;p&gt;If you look at &lt;code&gt;array[253]&lt;&#x2F;code&gt; you will find another schema index to indicate
+where to can find all the key value pairs for the 2nd result, which will actually
+start at &lt;code&gt;array[254]&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;To summarize a bit on how this data is encoded:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;The file contains multiple top-level JSON blocks, pasted together without separators&lt;&#x2F;li&gt;
+&lt;li&gt;The structure includes:
+&lt;ul&gt;
+&lt;li&gt;A &lt;strong&gt;top-level&lt;&#x2F;strong&gt; array of values (strings, numbers, objects)&lt;&#x2F;li&gt;
+&lt;li&gt;An array named &lt;code&gt;courseResults&lt;&#x2F;code&gt; that lists indices into that top-level array&lt;&#x2F;li&gt;
+&lt;li&gt;A set of &lt;strong&gt;object maps&lt;&#x2F;strong&gt; (e.g. at index 73, 253, etc.) that map &quot;key index&quot; → &quot;value index&quot;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;&lt;strong&gt;Key Insight:&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;The file is basically a compressed CSV, but:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Field names and field values are &lt;strong&gt;stored in different locations&lt;&#x2F;strong&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Object schema = &lt;code&gt;{ &quot;_76&quot;: 77, &quot;_78&quot;: 79 }&lt;&#x2F;code&gt; → &lt;code&gt;&quot;name&quot;&lt;&#x2F;code&gt; is at 76, value is at 77&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h4 id=&quot;putting-it-all-together&quot;&gt;Putting It All Together&lt;&#x2F;h4&gt;
+&lt;p&gt;After deciphering how to read the data manually, it was time to do it
+programmatically.&lt;&#x2F;p&gt;
+&lt;p&gt;With the help of ChatGPT, I wrote a couple functions that would
+take our original data and format it down to something much more useable.&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;function findCourseResultIndices(data: any[]): number[] {
+&lt;&#x2F;span&gt;&lt;span&gt;  for (let i = 0; i &amp;lt; data.length; i++) {
+&lt;&#x2F;span&gt;&lt;span&gt;    if (
+&lt;&#x2F;span&gt;&lt;span&gt;      Array.isArray(data[i]) &amp;amp;&amp;amp;
+&lt;&#x2F;span&gt;&lt;span&gt;      data[i].every((v: unknown) =&amp;gt; typeof v === &amp;#39;number&amp;#39;) &amp;amp;&amp;amp;
+&lt;&#x2F;span&gt;&lt;span&gt;      data[i - 1] === &amp;#39;courseResults&amp;#39;
+&lt;&#x2F;span&gt;&lt;span&gt;    ) {
+&lt;&#x2F;span&gt;&lt;span&gt;      return data[i];
+&lt;&#x2F;span&gt;&lt;span&gt;    }
+&lt;&#x2F;span&gt;&lt;span&gt;  }
+&lt;&#x2F;span&gt;&lt;span&gt;  throw new Error(&amp;#39;Could not find courseResults array&amp;#39;);
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;export function extractCourses(data: any[]): Record&amp;lt;string, any&amp;gt;[] {
+&lt;&#x2F;span&gt;&lt;span&gt;  const schemaIndices = findCourseResultIndices(data);
+&lt;&#x2F;span&gt;&lt;span&gt;  const courses: Record&amp;lt;string, any&amp;gt;[] = [];
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  for (const schemaIndex of schemaIndices) {
+&lt;&#x2F;span&gt;&lt;span&gt;    const schema = data[schemaIndex] as Record&amp;lt;string, number&amp;gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;    if (typeof schema !== &amp;#39;object&amp;#39; || Array.isArray(schema)) continue;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    const course: Record&amp;lt;string, any&amp;gt; = {};
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    for (const [rawFieldKey, valueIndex] of Object.entries(schema)) {
+&lt;&#x2F;span&gt;&lt;span&gt;      const fieldKeyIndex = parseInt(rawFieldKey.replace(&#x2F;^_&#x2F;, &amp;#39;&amp;#39;), 10);
+&lt;&#x2F;span&gt;&lt;span&gt;      const fieldName = data[fieldKeyIndex];
+&lt;&#x2F;span&gt;&lt;span&gt;      const value = data[valueIndex];
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;      if (typeof fieldName === &amp;#39;string&amp;#39;) {
+&lt;&#x2F;span&gt;&lt;span&gt;        course[fieldName] = value;
+&lt;&#x2F;span&gt;&lt;span&gt;      }
+&lt;&#x2F;span&gt;&lt;span&gt;    }
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    courses.push(course);
+&lt;&#x2F;span&gt;&lt;span&gt;  }
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  return courses;
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;&lt;code&gt;extractCourses&lt;&#x2F;code&gt; courses is a function that takes an array of any types.&lt;&#x2F;p&gt;
+&lt;p&gt;First, it calls out to another function, &lt;code&gt;findCourseResultIndices&lt;&#x2F;code&gt;. That function
+is iterating over the array, looking for another array of all numbers that is
+preceded by a string named &lt;code&gt;courseResults&lt;&#x2F;code&gt; and returns it.&lt;&#x2F;p&gt;
+&lt;p&gt;Then we take that list of indices back and iterate over it. For every index
+in that list, we build a schema of key value pairs and rebuild down into a simple
+&lt;code&gt;Record&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;The result is something like this:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;    _id: &amp;#39;cxYvYpWXX66MoAG5f&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    name: &amp;#39;Orchard Disc Golf Course&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    headline: &amp;#39;Moderately wooded technical course, Par 54 unless hole 5 is in long., making that a par 4 hole. (course 55)&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    longDescription: &amp;#39;18 holes, 1 tee for each hole, 2 basket locations for each hole, rotated regularly.  &amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    holeCount: 18,
+&lt;&#x2F;span&gt;&lt;span&gt;    price: &amp;#39;&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    status: &amp;#39;Active&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    website: &amp;#39;https:&#x2F;&#x2F;www.facebook.com&#x2F;groups&#x2F;270758746431057&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    latitude: 38.0998054149767,
+&lt;&#x2F;span&gt;&lt;span&gt;    longitude: -97.87738949287784,
+&lt;&#x2F;span&gt;&lt;span&gt;    locationText: &amp;#39;Hutchinson, KS&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    yearEstablished: 2018,
+&lt;&#x2F;span&gt;&lt;span&gt;    courseId: 20619,
+&lt;&#x2F;span&gt;&lt;span&gt;    ratingCount: 755,
+&lt;&#x2F;span&gt;&lt;span&gt;    ratingAverage: 4.385343483628396,
+&lt;&#x2F;span&gt;&lt;span&gt;    country: &amp;#39;United States&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    countryCode: &amp;#39;US&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    state: &amp;#39;Kansas&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    city: &amp;#39;Hutchinson&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    accessType: &amp;#39;everyone&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    availabilityStatus: &amp;#39;available&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    availabilityType: &amp;#39;yearRound&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    landType: [ 226 ],
+&lt;&#x2F;span&gt;&lt;span&gt;    targetType: &amp;#39;basket&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    targetTypeDescription: &amp;#39;DISCatcher Pro (28 chains)&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    hasBathroom: true,
+&lt;&#x2F;span&gt;&lt;span&gt;    hasDrinkingWater: false,
+&lt;&#x2F;span&gt;&lt;span&gt;    propertyType: &amp;#39;mixedUse&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    conditions: { _146: 195, _196: 21, _197: 342, _199: 343 },
+&lt;&#x2F;span&gt;&lt;span&gt;    location: { _146: 166, _167: 345 },
+&lt;&#x2F;span&gt;&lt;span&gt;    shortId: &amp;#39;7F1E&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    topPhoto: {
+&lt;&#x2F;span&gt;&lt;span&gt;      _74: 348,
+&lt;&#x2F;span&gt;&lt;span&gt;      _242: 349,
+&lt;&#x2F;span&gt;&lt;span&gt;      _244: 350,
+&lt;&#x2F;span&gt;&lt;span&gt;      _246: 351,
+&lt;&#x2F;span&gt;&lt;span&gt;      _248: 352,
+&lt;&#x2F;span&gt;&lt;span&gt;      _250: 353,
+&lt;&#x2F;span&gt;&lt;span&gt;      _252: 354,
+&lt;&#x2F;span&gt;&lt;span&gt;      _254: 355
+&lt;&#x2F;span&gt;&lt;span&gt;    },
+&lt;&#x2F;span&gt;&lt;span&gt;    admin1Name: &amp;#39;Kansas&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    worldRankingsRating: 86.11626662182661,
+&lt;&#x2F;span&gt;&lt;span&gt;    activeTargetTypes: [ 340 ],
+&lt;&#x2F;span&gt;&lt;span&gt;    activeTeeTypes: [ 259 ],
+&lt;&#x2F;span&gt;&lt;span&gt;    timezone: &amp;#39;America&#x2F;Chicago&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    layoutConfiguration: { _127: 360, _134: 363, _139: 374, _155: 380, _162: 383 },
+&lt;&#x2F;span&gt;&lt;span&gt;    playFeeType: &amp;#39;free&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    isCartFriendly: true,
+&lt;&#x2F;span&gt;&lt;span&gt;    isDogFriendly: true,
+&lt;&#x2F;span&gt;&lt;span&gt;    limitedAccessReason: undefined,
+&lt;&#x2F;span&gt;&lt;span&gt;    isSmartLayoutEnabled: true,
+&lt;&#x2F;span&gt;&lt;span&gt;    difficultyBins: [ 203 ],
+&lt;&#x2F;span&gt;&lt;span&gt;    contactInfo: { _387: 388, _389: 388 },
+&lt;&#x2F;span&gt;&lt;span&gt;    accessTypeDescription: &amp;#39;&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    availabilityTypeDescription: &amp;#39;&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    byob: false,
+&lt;&#x2F;span&gt;&lt;span&gt;    dedicatedTargets: true,
+&lt;&#x2F;span&gt;&lt;span&gt;    hasAvailabilityRestrictions: false,
+&lt;&#x2F;span&gt;&lt;span&gt;    isLocationPrivate: false,
+&lt;&#x2F;span&gt;&lt;span&gt;    isStrollerFriendly: false,
+&lt;&#x2F;span&gt;&lt;span&gt;    otherFees: &amp;#39;&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    underConstruction: false,
+&lt;&#x2F;span&gt;&lt;span&gt;    accessibility: &amp;#39;notAccessible&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;    distanceFromSelectedPlace: { _206: 397, _208: 398 },
+&lt;&#x2F;span&gt;&lt;span&gt;    badgesInfo: undefined
+&lt;&#x2F;span&gt;&lt;span&gt;  },
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Voila! We have a well formed &lt;code&gt;Course&lt;&#x2F;code&gt; object. If you look at fields like
+&lt;code&gt;topPhoto&lt;&#x2F;code&gt;, it looks like the schema map field reference rabbit hole goes even
+deeper but that&#x27;s for another post.&lt;&#x2F;p&gt;
+&lt;h4 id=&quot;summary&quot;&gt;Summary&lt;&#x2F;h4&gt;
+&lt;p&gt;In this post, we have:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Found URL for &lt;code&gt;Courses&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Scrubbed and extracted (broken) JSON from said URL&lt;&#x2F;li&gt;
+&lt;li&gt;Discovered data included index and schema maps&lt;&#x2F;li&gt;
+&lt;li&gt;Wrote functions to format data into useable object&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h4 id=&quot;plan-for-next-time&quot;&gt;Plan For Next Time&lt;&#x2F;h4&gt;
+&lt;p&gt;Enable the user to search for a &lt;code&gt;Place&lt;&#x2F;code&gt; and &lt;code&gt;Courses&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

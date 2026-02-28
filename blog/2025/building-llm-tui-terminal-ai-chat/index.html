@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Built a terminal AI chat that remembers everything. File context persists across sessions, tools execute with confirmation, and you never lose your place.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Building LLM-TUI: Never Lose Context Again">
+    <meta property="og:description" content="Built a terminal AI chat that remembers everything. File context persists across sessions, tools execute with confirmation, and you never lose your place.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-llm-tui-terminal-ai-chat&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Building LLM-TUI: Never Lose Context Again">
+    <meta name="twitter:description" content="Built a terminal AI chat that remembers everything. File context persists across sessions, tools execute with confirmation, and you never lose your place.">
+
+    <title>Building LLM-TUI: Never Lose Context Again - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Building LLM-TUI: Never Lose Context Again</h1>
+      <div class="meta">
+        
+        <p>Dec 16, 2025</p>
+        
+        <p>6 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+        </div>
+      
+
+      <p>I am loving CLI agentic LLM apps except for one thing... and that's losing context.</p>
+<p>You're working on a feature. You've shown the AI five files. You've explained
+your architecture. You're making progress. Then Claude crashes. Or you switch
+to a different project.</p>
+<p>When you come back tomorrow, you start over. Re-explain everything. Re-share
+the files. Re-establish context.</p>
+<p>I was taking daily notes but I got tired of that. So I built llm-tui.</p>
+<p>It's a terminal interface for AI chat, but that's not the main feature. The
+main feature is it remembers. File context persists across sessions. Tool
+results get cached. You can close it, come back a week later, and pick up
+exactly where you left off.</p>
+<h2 id="what-it-does">What It Does</h2>
+<p>You launch it, pick a model, and chat. But the devil's in the details.</p>
+<p><strong>Multi-Provider Support</strong></p>
+<p>Switch between Ollama (local models on your
+machine), Claude API (Anthropic's hosted models), and AWS Bedrock (Claude via
+AWS). One interface, multiple backends.</p>
+<p><strong>Tool System</strong></p>
+<p>When using Claude or Bedrock, the AI can Read files, Write
+files, Edit existing code, search with Glob and Grep, and run Bash commands.
+All sandboxed to your home directory. Every tool execution requires
+confirmation (y/n/q).</p>
+<p><strong>File Context Persistence</strong></p>
+<p>Files read during a session get cached. When you
+reopen that session later, those files are already loaded. The AI remembers
+what it was looking at.</p>
+<p><strong>Session Management</strong></p>
+<p>Create named sessions, organize them by project, rename
+and delete them. SQLite storage means everything persists and loads instantly.</p>
+<p><strong>Vim Keybindings</strong></p>
+<p>Modal editing. Normal mode for navigation, insert mode for
+typing, command mode for session management. j/k to scroll, i to insert, Esc to
+escape. Feels natural.</p>
+<p><strong>Token Tracking</strong></p>
+<p>Real-time display of token usage (Tokens: 1250/200000).
+When conversations get long, automatic context compaction kicks in at 75%
+capacity. Old messages get summarized, recent ones stay intact.</p>
+<h2 id="why-i-built-it">Why I Built It</h2>
+<p>Context loss kills productivity. You're building a feature, the AI understands
+your codebase, and then you lose it all. Browser tabs close. Sessions expire.
+You switch projects and forget to save the conversation.</p>
+<p>Starting over means minutes of setup every time. Copy file contents. Explain
+your architecture again. Re-establish what the AI already knew.</p>
+<p>I needed persistence. Sessions that survive restarts. File context that doesn't
+disappear. A tool that picks up where you left off without re-explaining
+everything.</p>
+<p>And I wanted control over which model handles the task. Local models for quick
+iteration. Claude when I need reasoning. Bedrock for AWS work. One interface,
+no lost context when switching.</p>
+<h2 id="the-tool-system">The Tool System</h2>
+<p>Context persistence only works if the AI can actually interact with your files.
+Browser-based chat requires copying code back and forth. Every file you want
+the AI to see means another copy-paste. Every change it suggests means manually
+applying edits.</p>
+<p>The tool system fixes this. When using Claude or Bedrock, the AI can Read
+files, Write files, Edit code, search with Glob and Grep, and run Bash
+commands. All sandboxed to your home directory with explicit confirmation.</p>
+<p>When the AI wants to read a file, it calls the Read tool. You see: <code>Read /home/user/project/foo.rs? (y/n/q)</code>. Same for writes and edits. You approve or
+reject each action.</p>
+<p>The key part: tool results get cached per session. If the AI reads
+<code>config.toml</code>, that result stays in the session history. Next time you open
+that session, it already knows what was in that file. No re-reading. No
+re-explaining. The context persists.</p>
+<h2 id="the-future-is-weird">The Future Is Weird</h2>
+<p>As you can probably tell, I love and prefer open source software. Unfortunately,
+Claude does not fall into that category so I could not look at it for inspiration.
+So, I tried a wild idea. I simply asked Claude how it's tools worked and what the API
+response looked like. And you know what, it worked! I had Claude help me basically
+rebuild it's tools by internal reflection. The future is a trip, man.</p>
+<h2 id="session-management">Session Management</h2>
+<p>This is where context persistence actually lives. Each session is a separate
+context with its own history, files, and conversation state. Work on multiple
+projects without mixing contexts. Switch between them without losing anything.</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>:new my-feature                # New session with custom name
+</span><span>:project discourse-yaks        # Set current project
+</span><span>:rename better-name            # Rename current session
+</span></code></pre>
+<p>Sessions are stored in SQLite at <code>~/.local/share/llm-tui/sessions.db</code>. Close
+the app, come back tomorrow, and every session is exactly as you left it. The
+AI still has all the files loaded. The conversation picks up mid-thought.</p>
+<p>You can even load context from other sessions with <code>:load session-name</code>. Pull
+in file context from a different project without manually re-sharing
+everything.</p>
+<h2 id="provider-management">Provider Management</h2>
+<p>Switch providers with a command:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>:provider ollama    # Local models
+</span><span>:provider claude    # Claude API (requires ANTHROPIC_API_KEY)
+</span><span>:provider bedrock   # AWS Bedrock (requires AWS credentials)
+</span></code></pre>
+<p>The models screen (press <code>3</code>) shows all available models across all providers.
+Installed Ollama models marked with <code>[installed]</code>. Current active model marked
+with <code>[current]</code>.</p>
+<p>You can download Ollama models directly from the TUI. Navigate to a
+non-installed model, hit Enter, and it pulls from the Ollama library. One
+keypress.</p>
+<h2 id="automatic-context-compaction">Automatic Context Compaction</h2>
+<p>Long conversations hit context window limits. Most chat interfaces handle this
+by truncating old messages. You lose the early context that established your
+architecture decisions and project structure.</p>
+<p>llm-tui summarizes old messages instead of dropping them. At 75% capacity, it
+sends old messages to the LLM for summarization. The summary replaces the
+original messages, keeping under 500 tokens. Recent messages (default: 10)
+always stay uncompacted.</p>
+<p>You keep the context. The AI still knows what happened at the start of the
+conversation. You just use fewer tokens to maintain it.</p>
+<h2 id="the-stack">The Stack</h2>
+<p>Written in Rust. The UI is built with ratatui (terminal UI library). SQLite for
+storage via rusqlite and crossterm for terminal handling.</p>
+<p>Three API clients: reqwest for Ollama's HTTP API, anthropic-sdk-rust for
+Claude, and AWS SDK for Bedrock.</p>
+<p>Tool execution uses ripgrep (grep crate) for fast content search, glob for
+pattern matching, and walkdir for file traversal.</p>
+<p>Built my own vim-navigator-rs library for the modal keybindings. Normal, insert,
+and command modes with proper vim-style navigation.</p>
+<h2 id="configuration">Configuration</h2>
+<p>Config file at <code>~/.config/llm-tui/config.toml</code>:</p>
+<pre data-lang="toml" style="background-color:#2b303b;color:#c0c5ce;" class="language-toml "><code class="language-toml" data-lang="toml"><span style="color:#bf616a;">autosave_mode </span><span>= &quot;</span><span style="color:#a3be8c;">onsend</span><span>&quot;              </span><span style="color:#65737e;"># disabled/onsend/timer
+</span><span style="color:#bf616a;">ollama_model </span><span>= &quot;</span><span style="color:#a3be8c;">llama2</span><span>&quot;
+</span><span style="color:#bf616a;">ollama_context_window </span><span>= </span><span style="color:#d08770;">4096
+</span><span style="color:#bf616a;">claude_model </span><span>= &quot;</span><span style="color:#a3be8c;">claude-3-5-sonnet-20241022</span><span>&quot;
+</span><span style="color:#bf616a;">claude_context_window </span><span>= </span><span style="color:#d08770;">200000
+</span><span style="color:#bf616a;">bedrock_model </span><span>= &quot;</span><span style="color:#a3be8c;">us.anthropic.claude-sonnet-4-20250514-v1:0</span><span>&quot;
+</span><span style="color:#bf616a;">bedrock_context_window </span><span>= </span><span style="color:#d08770;">200000
+</span><span style="color:#bf616a;">autocompact_threshold </span><span>= </span><span style="color:#d08770;">0.75          </span><span style="color:#65737e;"># Compact at 75% capacity
+</span><span style="color:#bf616a;">autocompact_keep_recent </span><span>= </span><span style="color:#d08770;">10          </span><span style="color:#65737e;"># Keep last 10 messages uncompacted
+</span></code></pre>
+<p>Autosave modes: disabled (manual <code>:w</code> only), onsend (save immediately when
+sending messages), or timer (save every N seconds).</p>
+<p>Auto-start Ollama if not running (configurable). Set default provider. Pick
+your context window sizes.</p>
+<h2 id="roadmap">Roadmap</h2>
+<p>Still building. Next up:</p>
+<ul>
+<li>OpenAI API integration</li>
+<li>Setup wizard for API keys</li>
+<li>Daily notes integration (load from my claude-notes directory)</li>
+<li>Search functionality across sessions</li>
+<li>Session export</li>
+<li>Code block syntax highlighting</li>
+</ul>
+<h2 id="final-thoughts">Final Thoughts</h2>
+<p>Browser-based chat interfaces are fine for casual use. But when you're deep in
+development work, context loss becomes the bottleneck. Re-explaining
+architecture. Re-sharing files. Starting conversations from scratch.</p>
+<p>llm-tui fixes that. Sessions persist. File context survives restarts. You pick
+up exactly where you left off. The AI remembers what it knew yesterday.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;ai-problems-are-human-problems&#x2F;">AI Problems Are Just Human Problems Amplified</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 23, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">AI fatigue, perfectionism vs non-determinism, and garbage in&#x2F;garbage out. These are not new problems. AI just makes them obvious faster.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;llm-mux-workflow-orchestration&#x2F;">llm-mux: Why I Rebuilt Lok</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 11, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok got 300+ installs, then I rewrote it. The abstractions were wrong. llm-mux has roles, teams, and proper apply&#x2F;verify. Here&#x27;s why.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;finna-multi-model-spec-implement&#x2F;">finna: Multi-Model Debate, Spec, and Implement</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 10, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A standalone tool that takes an idea, debates it across Claude, Codex, and Gemini, creates a roadmap, writes specs, and implements. Planning and execution in one pipeline.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-json-parser-multi-llm&#x2F;">Building a JSON Parser with Multi-LLM Orchestration (Part 1)</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 07, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Using lok to orchestrate four LLMs debating design decisions, then synthesizing specs for a Rust JSON parser. The debate phase surfaced edge cases no single model would have caught.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-spec-multi-agent-planning&#x2F;">Lok Part 5: Multi-Agent Planning with lok spec</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 06, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok gains a spec command that turns task descriptions into structured implementation plans. Multiple LLMs propose, debate, and converge on a roadmap before any code gets written.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

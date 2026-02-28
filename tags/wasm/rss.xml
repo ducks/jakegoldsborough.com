@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - wasm</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/wasm/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Wed, 14 Jan 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Building Embedded Discourse Comments with Rust and WASM</title>
+          <pubDate>Wed, 14 Jan 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/building-discourse-embedded-comments/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/building-discourse-embedded-comments/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/building-discourse-embedded-comments/">&lt;p&gt;I built an embedded comment widget that lets you add Discourse-powered comments
+to any static site with a single script tag. No iframe, no build step, just
+drop it in and it works.&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;html&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-html &quot;&gt;&lt;code class=&quot;language-html&quot; data-lang=&quot;html&quot;&gt;&lt;span&gt;&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;script &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;src&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;https:&#x2F;&#x2F;unpkg.com&#x2F;discourse-comments&#x2F;dist&#x2F;discourse-comments.min.js&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&amp;gt;&amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;script&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;discourse-comments
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;discourse-url&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;https:&#x2F;&#x2F;forum.example.com&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;topic-id&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;123&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;discourse-comments&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The widget fetches comments from a Discourse topic, renders them with a clean
+UI, and lets authenticated users post replies and like posts. All in a 725KB
+bundle with the WASM runtime inlined.&lt;&#x2F;p&gt;
+&lt;p&gt;You can see the code here:
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-comments&quot;&gt;discourse-comments on GitHub&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;why-build-this&quot;&gt;Why Build This?&lt;&#x2F;h2&gt;
+&lt;p&gt;Discourse has had an embedding feature for years, but it uses iframes. Iframes
+work, but they come with baggage: height management issues, styling isolation,
+auth cookie problems, SEO invisibility, accessibility complications. It&#x27;s 2026
+and we have web components, Shadow DOM, and ES modules. We can do better.&lt;&#x2F;p&gt;
+&lt;p&gt;I wanted to see if a standalone component talking directly to Discourse&#x27;s REST
+API could provide a cleaner experience. And I wanted an excuse to push some
+Rust into the browser.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-stack&quot;&gt;The Stack&lt;&#x2F;h2&gt;
+&lt;p&gt;The widget is built in three layers:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-api-rs&quot;&gt;discourse-api-rs&lt;&#x2F;a&gt;&lt;&#x2F;strong&gt; - A Rust
+client library for Discourse&#x27;s API, compiled to WASM with wasm-bindgen&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-comments&quot;&gt;discourse-comments&lt;&#x2F;a&gt;&lt;&#x2F;strong&gt; - A
+TypeScript web component that uses the WASM client&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;esbuild bundler&lt;&#x2F;strong&gt; - Inlines the WASM as base64 so the whole thing is a
+single file&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;The Rust layer handles HTTP requests, JSON parsing, and the OAuth flow. The
+TypeScript layer handles DOM rendering and user interactions. The bundler
+glues it together into a drop-in script.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-hard-part-oauth&quot;&gt;The Hard Part: OAuth&lt;&#x2F;h2&gt;
+&lt;p&gt;Getting read-only comments working was straightforward. The Discourse API is
+well-documented and predictable. But letting users post comments required
+authentication.&lt;&#x2F;p&gt;
+&lt;p&gt;Discourse supports User API Keys, which are perfect for third-party clients.
+The flow works like this:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;Generate an RSA key pair in the browser&lt;&#x2F;li&gt;
+&lt;li&gt;Redirect to Discourse with the public key&lt;&#x2F;li&gt;
+&lt;li&gt;User approves the app&lt;&#x2F;li&gt;
+&lt;li&gt;Discourse encrypts an API key with the public key&lt;&#x2F;li&gt;
+&lt;li&gt;Redirect back with the encrypted payload&lt;&#x2F;li&gt;
+&lt;li&gt;Decrypt the payload with the private key&lt;&#x2F;li&gt;
+&lt;li&gt;Store the API key for future requests&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;Sounds simple but there were issues.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-base64-whitespace-problem&quot;&gt;The Base64 Whitespace Problem&lt;&#x2F;h3&gt;
+&lt;p&gt;Discourse returns the encrypted payload as base64 in a query parameter. My
+code called &lt;code&gt;atob(payload)&lt;&#x2F;code&gt; to decode it.&lt;&#x2F;p&gt;
+&lt;p&gt;Problem: Discourse includes newlines in the base64 encoding. &lt;code&gt;atob()&lt;&#x2F;code&gt; chokes
+on whitespace.&lt;&#x2F;p&gt;
+&lt;p&gt;Fix: Strip whitespace first: &lt;code&gt;payload.replace(&#x2F;\s&#x2F;g, &#x27;&#x27;)&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-rsa-padding-problem&quot;&gt;The RSA Padding Problem&lt;&#x2F;h3&gt;
+&lt;p&gt;WebCrypto only supports RSA-OAEP for encryption&#x2F;decryption. Discourse
+historically used PKCS1 padding, which WebCrypto can&#x27;t handle.&lt;&#x2F;p&gt;
+&lt;p&gt;Turns out Discourse added OAEP support in December 2025 (PR #36592). You pass
+&lt;code&gt;padding=oaep&lt;&#x2F;code&gt; in the OAuth request and it encrypts with OAEP instead. But if
+your Discourse instance is older than that, you&#x27;re stuck.&lt;&#x2F;p&gt;
+&lt;p&gt;This one cost me hours of debugging before I found the version requirement.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-like-button&quot;&gt;The Like Button&lt;&#x2F;h2&gt;
+&lt;p&gt;Once posting worked, adding likes was straightforward. The Discourse API has
+&lt;code&gt;POST &#x2F;post_actions&lt;&#x2F;code&gt; to like and &lt;code&gt;DELETE &#x2F;post_actions&#x2F;:id&lt;&#x2F;code&gt; to unlike.&lt;&#x2F;p&gt;
+&lt;p&gt;The UI shows a heart icon that toggles between outline (not liked) and filled
+(liked). Clicking it calls the API and updates the count. Nothing fancy, but
+it makes the widget feel more interactive.&lt;&#x2F;p&gt;
+&lt;p&gt;One gotcha: you can&#x27;t like your own posts. Discourse returns 403. I added a
+check to hide the like button on posts where &lt;code&gt;yours: true&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-bundle&quot;&gt;The Bundle&lt;&#x2F;h2&gt;
+&lt;p&gt;Getting this to work as a single script tag required some bundler gymnastics.
+The WASM client needs its binary loaded somehow. Options:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;Fetch it from a URL at runtime (requires hosting the .wasm file)&lt;&#x2F;li&gt;
+&lt;li&gt;Inline it as base64 in the JavaScript bundle&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;I went with option 2. The esbuild plugin intercepts the WASM import, reads the
+binary, base64-encodes it, and injects code that decodes and instantiates it
+at runtime.&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;javascript&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-javascript &quot;&gt;&lt;code class=&quot;language-javascript&quot; data-lang=&quot;javascript&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;const &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;wasmBuffer &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;fs&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;readFileSync&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;wasmPath&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;const &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;wasmBase64 &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;wasmBuffer&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;toString&lt;&#x2F;span&gt;&lt;span&gt;(&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;base64&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;);
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;&#x2F;&#x2F; In the bundle:
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;const &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;bytes &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;Uint8Array&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;from&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;atob&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;wasmBase64&lt;&#x2F;span&gt;&lt;span&gt;), &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;c &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;=&amp;gt; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;c&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;charCodeAt&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span&gt;));
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;await &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;WebAssembly&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;instantiate&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;bytes&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;imports&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This adds ~500KB to the bundle (the WASM binary), but eliminates the need for
+any separate file hosting. One script tag, everything works.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-community-response&quot;&gt;The Community Response&lt;&#x2F;h2&gt;
+&lt;p&gt;I shared this experiment internally. The response was encouraging but also
+clarifying. Some on the core team pushed back on the WASM approach, preferring
+to stay within the existing Ember&#x2F;Rails stack. Ember recently added support for
+rendering components to a DOM without spinning up an entire application
+instance, which could serve the same use case without introducing a new
+runtime.&lt;&#x2F;p&gt;
+&lt;p&gt;I get it. Maintaining a Rust&#x2F;WASM layer alongside an existing codebase adds
+complexity. But an &quot;ever moving API target&quot; concern feels overstated. This is
+a REST API with stable endpoints for fetching topics, creating posts, and
+liking. Compare that to AI integrations that build on LLM APIs from multiple
+vendors with breaking changes every few months.&lt;&#x2F;p&gt;
+&lt;p&gt;The iframe suggestion also came up. That feels like a step backward. We have
+better tools now.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-i-learned&quot;&gt;What I Learned&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;strong&gt;WASM is production-ready.&lt;&#x2F;strong&gt; The toolchain (wasm-pack, wasm-bindgen) just
+works. Cross-compiling Rust to run in browsers isn&#x27;t experimental anymore.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;OAuth in the browser is tricky.&lt;&#x2F;strong&gt; The combination of cross-origin redirects,
+browser storage limitations, and encryption requirements creates a lot of edge
+cases. Test with real redirects, not just mocked flows.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Experiments spark conversations.&lt;&#x2F;strong&gt; Even if the official team goes a
+different direction, building a working prototype moved the discussion
+forward. Sometimes the value of an experiment is proving that a use case
+matters, not necessarily that your implementation is the right one.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;try-it&quot;&gt;Try It&lt;&#x2F;h2&gt;
+&lt;p&gt;The widget works today with any Discourse instance running December 2025 or
+later (for the OAEP OAuth support).&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-comments&quot;&gt;discourse-comments on GitHub&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-api-rs&quot;&gt;discourse-api-rs on GitHub&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;www.npmjs.com&#x2F;package&#x2F;discourse-comments&quot;&gt;npm package&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+      </item>
+    </channel>
+</rss>

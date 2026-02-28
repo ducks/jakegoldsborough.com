@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Discovering and using search endpoints for places and courses that return well-formed data, making it easy to find specific locations and query disc golf course information.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Reverse Engineering A Unique Data Structure - Part 2, Search">
+    <meta property="og:description" content="Discovering and using search endpoints for places and courses that return well-formed data, making it easy to find specific locations and query disc golf course information.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;reverse-engineering-unique-data-structure-pt-2&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Reverse Engineering A Unique Data Structure - Part 2, Search">
+    <meta name="twitter:description" content="Discovering and using search endpoints for places and courses that return well-formed data, making it easy to find specific locations and query disc golf course information.">
+
+    <title>Reverse Engineering A Unique Data Structure - Part 2, Search - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Reverse Engineering A Unique Data Structure - Part 2, Search</h1>
+      <div class="meta">
+        
+        <p>Aug 30, 2025</p>
+        
+        <p>2 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/apis">#APIs</a></p>
+          
+          <p><a href="/tags/typescript">#typescript</a></p>
+          
+        </div>
+      
+
+      <p>First part of the series, Courses, can be found here:
+<a href="/blog/2025/reverse-engineering-unique-data-structure-pt-1/">Courses</a></p>
+<h4 id="search-for-places">Search for Places</h4>
+<p>In the first post in this series, we were able to parse and extract a list
+of <code>Course</code> data. This is great, but we're simply getting back 20 random courses
+that might not mean anything to the end user. Lucky for us, there are a couple
+search options.</p>
+<p>Going to <a href="https://myfrisbee.com/courses">https://myfrisbee.com/courses</a> and starting to
+type in the search box reveals some network calls:</p>
+<p><code>/places/search?term=charlotte&amp;limit=5</code></p>
+<p>This is getting called for every character that is typed and should probably
+be debounced a little.</p>
+<p>Anyway, from that call, we get some pretty well formed data instead of the
+index/schema map data like before. Here is one result:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>{
+</span><span>&quot;_id&quot;: &quot;NxHZZBpPjDnXHbbZg&quot;,
+</span><span>&quot;type&quot;: &quot;city&quot;,
+</span><span>&quot;slug&quot;: &quot;charlotte-nc&quot;,
+</span><span>&quot;name&quot;: &quot;Charlotte&quot;,
+</span><span>&quot;country&quot;: &quot;United States&quot;,
+</span><span>&quot;countryCode&quot;: &quot;US&quot;,
+</span><span>&quot;admin1&quot;: &quot;North Carolina&quot;,
+</span><span>&quot;city&quot;: &quot;Charlotte&quot;,
+</span><span>&quot;location&quot;: [
+</span><span>  -80.84313,
+</span><span>  35.22709
+</span><span>],
+</span><span>&quot;score&quot;: 98.75883083083083,
+</span><span>&quot;fullLocationText&quot;: &quot;Charlotte North Carolina United States&quot;,
+</span><span>&quot;highlights&quot;: [
+</span><span>  {
+</span><span>    &quot;score&quot;: 1.4719792604446411,
+</span><span>    &quot;path&quot;: &quot;fullLocationText&quot;,
+</span><span>    &quot;texts&quot;: [
+</span><span>      {
+</span><span>        &quot;value&quot;: &quot;Charlotte North Carolina&quot;,
+</span><span>        &quot;type&quot;: &quot;hit&quot;
+</span><span>      },
+</span><span>      {
+</span><span>        &quot;value&quot;: &quot; United States&quot;,
+</span><span>        &quot;type&quot;: &quot;text&quot;
+</span><span>      }
+</span><span>    ]
+</span><span>  }
+</span><span>],
+</span><span>&quot;autocompleteScore&quot;: 72.5995921895284
+</span><span>},
+</span></code></pre>
+<p>There seem to be a few options for <code>type</code>.</p>
+<ul>
+<li>city</li>
+<li>admin1 (which appears to represent state in the US)</li>
+<li>country</li>
+</ul>
+<p>Now, you can take that <code>slug</code> and plug it into the courses call:</p>
+<p><code>/courses.data?placeId=charlotte-nc</code></p>
+<p>See the first <a href="/blog/2025/reverse-engineering-unique-data-structure-pt-1/">post</a>
+on how to parse and extract that data.</p>
+<h4 id="search-for-courses">Search for Courses</h4>
+<p>The Places endpoint was not the only one being hit though. When typing in the
+search box, you will also see this:</p>
+<p><code>/api/courses/search?includeGenerallyUnavailableCourses=true&amp;term=hornets nest&amp;limit=5</code></p>
+<p>Again, we get some pretty well formed data:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>{
+</span><span>&quot;_id&quot;: &quot;jJAW46X3WX8qT7mXR&quot;,
+</span><span>&quot;locationText&quot;: &quot;Charlotte, VT&quot;,
+</span><span>&quot;ratingAverage&quot;: 3.4976632020706235,
+</span><span>&quot;courseId&quot;: 11220,
+</span><span>&quot;ratingCount&quot;: 239,
+</span><span>&quot;name&quot;: &quot;Charlotte Beach&quot;,
+</span><span>&quot;shortId&quot;: &quot;j04j&quot;,
+</span><span>&quot;highlights&quot;: [
+</span><span>  {
+</span><span>    &quot;score&quot;: 2.771970748901367,
+</span><span>    &quot;path&quot;: &quot;name&quot;,
+</span><span>    &quot;texts&quot;: [
+</span><span>      {
+</span><span>        &quot;value&quot;: &quot;Charlotte&quot;,
+</span><span>        &quot;type&quot;: &quot;hit&quot;
+</span><span>      },
+</span><span>      {
+</span><span>        &quot;value&quot;: &quot; Beach&quot;,
+</span><span>        &quot;type&quot;: &quot;text&quot;
+</span><span>      }
+</span><span>    ]
+</span><span>  }
+</span><span>],
+</span><span>&quot;searchScore&quot;: 11.487470626831055,
+</span><span>&quot;autocompleteScore&quot;: 11.66234797214058
+</span><span>},
+</span></code></pre>
+<p>Next time I will show you how to take that data and get a specific <code>Course</code>
+endpoint and data.</p>
+<h4 id="another-way-to-fuzzy-find-courses">Another Way to Fuzzy Find Courses</h4>
+<p>Not exactly a search but there appears to be at least one more way of fuzzy finding
+courses. The <code>courses.data</code> endpoint can take another param called
+<code>courseTerm</code>. The full URL would be:</p>
+<p><code>/courses.data?courseTerm=charlotte</code></p>
+<p>This will return course results with "Charlotte" in the name. I'm thinking
+this endpoint is there for list type pages and the search endpoint might just be
+for autocomplete drop downs.</p>
+<h4 id="summary">Summary</h4>
+<p>Showed how to search for places and courses</p>
+<h4 id="plan-for-next-time">Plan for Next Time</h4>
+<p>Drill down into specific course data</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;reverse-engineering-unique-data-structure-pt-3&#x2F;">Reverse Engineering A Unique Data Structure - Part 3, Course &amp; Course Details</a></h3>
+                  <div class="meta">
+                    
+                    <p>Sep 03, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Decoding deeply nested course data by resolving schema maps within schema maps to extract readable information about disc golf courses including layouts, holes, and amenities.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/apis">#APIs</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;reverse-engineering-unique-data-structure-pt-1&#x2F;">Reverse Engineering A Unique Data Structure - Part 1, Courses</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 27, 2025</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Uncovering how a Remix-based disc golf app encodes course data in obfuscated arrays using index maps and schema maps, then writing TypeScript to parse it into usable objects.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/apis">#APIs</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;fairway-client-not-fair-enough&#x2F;">Fairway Client Not Fair Enough for MyFrisbee</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 06, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">The story of building an open source library to access public MyFrisbee data endpoints, receiving a takedown request despite working with user-submitted information, and the disappointment that followed.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                      <p><a href="/tags/apis">#APIs</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-discourse-comments-in-typescript&#x2F;">Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 27, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">I rewrote the Discourse embedded comments API client from Rust&#x2F;WASM to pure TypeScript. The bundle went from 742 KB to 18 KB.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;reverse-engineering-unique-data-structure-pt-3&#x2F;">Reverse Engineering A Unique Data Structure - Part 3, Course &amp; Course Details</a></h3>
+                  <div class="meta">
+                    
+                    <p>Sep 03, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Decoding deeply nested course data by resolving schema maps within schema maps to extract readable information about disc golf courses including layouts, holes, and amenities.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/apis">#APIs</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

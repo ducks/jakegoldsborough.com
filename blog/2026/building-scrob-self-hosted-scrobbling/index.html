@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Built a self-hosted scrobbling server with Rust and PostgreSQL to track listening history without relying on Last.fm, featuring public profiles and automated deployment.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Building Scrob: A Self-Hosted Music Scrobbling Server">
+    <meta property="og:description" content="Built a self-hosted scrobbling server with Rust and PostgreSQL to track listening history without relying on Last.fm, featuring public profiles and automated deployment.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-scrob-self-hosted-scrobbling&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Building Scrob: A Self-Hosted Music Scrobbling Server">
+    <meta name="twitter:description" content="Built a self-hosted scrobbling server with Rust and PostgreSQL to track listening history without relying on Last.fm, featuring public profiles and automated deployment.">
+
+    <title>Building Scrob: A Self-Hosted Music Scrobbling Server - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Building Scrob: A Self-Hosted Music Scrobbling Server</h1>
+      <div class="meta">
+        
+        <p>Jan 02, 2026</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/self-hosting">#self-hosting</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <p>I wanted to track what music I listen to without sending that data to
+Last.fm. Part privacy preference, part self-hosting habit.</p>
+<p>So I set up <a href="https://github.com/ducks/scrob">scrob</a> - a self-hosted
+scrobbling server that tracks my listening history and makes it
+shareable.</p>
+<p><img src="/images/2026/scrob-ui/1.png" alt="Scrob UI - Latest Scrobbles" /></p>
+<p><img src="/images/2026/scrob-ui/2.png" alt="Scrob UI - All Stats" /></p>
+<h2 id="how-it-works">How It Works</h2>
+<p>Scrob is a REST API server with a separate static UI:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>Music Player (shelltrax, etc.)
+</span><span>    |
+</span><span>    v
+</span><span>[POST /scrob] with Bearer token
+</span><span>    |
+</span><span>    v
+</span><span>Scrob API (Axum + Rust)
+</span><span>    |
+</span><span>    v
+</span><span>PostgreSQL (scrobbles + users)
+</span><span>    |
+</span><span>    v
+</span><span>Scrob UI (static Svelte site)
+</span><span>    |
+</span><span>    v
+</span><span>Public profile: ui.scrob.example.com/username
+</span></code></pre>
+<p>The server authenticates clients via Bearer tokens, stores scrobbles in
+Postgres, and serves stats via REST endpoints. The UI is a static site
+that fetches data from the API.</p>
+<h2 id="public-profiles">Public Profiles</h2>
+<p>The interesting part was adding public user profiles. Like Last.fm, I
+wanted people to be able to share their music taste via a URL:
+<code>ui.scrob.jakegoldsborough.com/username</code></p>
+<p>This required:</p>
+<ul>
+<li>New public API endpoints (<code>/users/:username/recent</code>,
+<code>/users/:username/top/artists</code>, <code>/users/:username/top/tracks</code>)</li>
+<li>Privacy controls (users are public by default, can opt-in to private)</li>
+<li>URL-based routing in the Svelte app</li>
+</ul>
+<p>The privacy model is simple: a boolean <code>is_private</code> column in the users
+table. Public endpoints check the flag and return 403 if private. Users
+can toggle it via <code>/settings/privacy</code>.</p>
+<h2 id="security-model">Security Model</h2>
+<p>Scrob uses token-based authentication:</p>
+<ul>
+<li>Login with username/password to get a Bearer token</li>
+<li>All scrobble submissions require <code>Authorization: Bearer &lt;token&gt;</code></li>
+<li>Tokens are stored in the database with revocation support</li>
+<li>Passwords are hashed with bcrypt</li>
+</ul>
+<p>TLS is expected to be handled by a reverse proxy (Caddy, nginx, etc.).
+The server itself runs over HTTP.</p>
+<p>Rate limiting is not currently implemented. Future work.</p>
+<h2 id="the-stack">The Stack</h2>
+<p><strong>Backend</strong>: Rust + Axum + PostgreSQL + sqlx</p>
+<p><strong>Frontend</strong>: Svelte 5 + Vite + TypeScript</p>
+<p><strong>Client</strong>: <a href="https://jakegoldsborough.com/blog/2025/introducing-shelltrax/">Shelltrax</a> (my terminal music player)</p>
+<p><strong>Infrastructure</strong>: Systemd services on a VPS, no Docker</p>
+<p>Scrob is straightforward. It's an API server that receives scrobble
+data, stores it in Postgres, and serves it back via REST endpoints. The
+UI is a static site that shows your listening history.</p>
+<h2 id="try-it">Try It</h2>
+<p>If you want to run your own scrob instance:</p>
+<ul>
+<li>Prerequisites: Rust 1.82+, PostgreSQL 12+, reverse proxy for TLS</li>
+<li>Clone repo and build: <code>cargo build --release</code></li>
+<li>Set <code>DATABASE_URL</code> environment variable</li>
+<li>Migrations run automatically on first startup via <code>sqlx::migrate!()</code></li>
+<li>Create a user with <code>./scripts/bootstrap.sh</code></li>
+<li>Start UI (separate repo: scrob-ui) or use API directly</li>
+</ul>
+<p>See the <a href="https://github.com/ducks/scrob">README</a> for full details.</p>
+<h2 id="sqlx-and-offline-query-caching">sqlx and Offline Query Caching</h2>
+<p>Scrob uses <code>sqlx</code> for compile-time checked SQL queries. This is great for type safety but annoying for CI: you need a database to compile.</p>
+<p>The solution is <code>cargo sqlx prepare</code> which generates a <code>.sqlx/</code> cache of
+query metadata. Then CI can build with <code>SQLX_OFFLINE=true</code> without
+needing Postgres.</p>
+<p>The problem: running <code>cargo sqlx prepare</code> manually is tedious. You need
+to spin up Postgres, run migrations, prepare the cache, tear it down.</p>
+<p>I automated it with a Makefile:</p>
+<pre data-lang="makefile" style="background-color:#2b303b;color:#c0c5ce;" class="language-makefile "><code class="language-makefile" data-lang="makefile"><span style="color:#8fa1b3;">prepare</span><span>:
+</span><span>  </span><span style="color:#d08770;">@</span><span style="color:#bf616a;">docker</span><span> run postgres:16-alpine (port 5433)
+</span><span>  </span><span style="color:#d08770;">@</span><span style="color:#bf616a;">Wait</span><span> for postgres
+</span><span>  </span><span style="color:#d08770;">@</span><span style="color:#bf616a;">cargo</span><span> sqlx migrate run
+</span><span>  </span><span style="color:#d08770;">@</span><span style="color:#bf616a;">cargo</span><span> sqlx prepare
+</span><span>  </span><span style="color:#d08770;">@</span><span style="color:#bf616a;">docker</span><span> rm postgres
+</span></code></pre>
+<p>Now <code>make prepare</code> handles everything. One command, query cache updated.</p>
+<h3 id="dev-tooling">Dev Tooling</h3>
+<p>The prepare target must be rerun whenever you:</p>
+<ul>
+<li>Add or modify SQL queries in the codebase</li>
+<li>Create new migrations</li>
+<li>Change database schema</li>
+</ul>
+<p>Without updating <code>.sqlx/</code>, CI builds fail with query verification
+errors. The cache is committed to git, so offline builds work without a
+live database connection.</p>
+<h2 id="deployment">Deployment</h2>
+<p>The deployment setup is declarative:</p>
+<ul>
+<li>Migrations live in the scrob repo</li>
+<li>On startup, scrob automatically detects and runs new migrations via
+<code>sqlx::migrate!()</code></li>
+<li>The deploy script checks GitHub releases for new versions and only
+downloads if there's an update</li>
+<li>Systemd restarts the service after updating the binary</li>
+</ul>
+<p>No manual migration management. No separate migration runner. Single
+source of truth.</p>
+<h2 id="what-works">What Works</h2>
+<ul>
+<li>Scrobbling from Shelltrax to the API</li>
+<li>Public profile pages with recent scrobbles and top stats</li>
+<li>Privacy toggle (public by default, opt-in private)</li>
+<li>Automated migrations on startup</li>
+<li>Version-aware deployment script</li>
+</ul>
+<h2 id="what-doesn-t">What Doesn't</h2>
+<ul>
+<li>No album stats yet (just artists and tracks)</li>
+<li>No client/player tracking (can't tell if you scrobbled from Shelltrax
+vs another client)</li>
+<li>Limited metadata (no album art, genre tags, etc.)</li>
+<li>UI is functional but basic</li>
+</ul>
+<h2 id="reflections">Reflections</h2>
+<p>The best part of this project was the deployment automation. The <code>make prepare</code> command and the version-checking deploy script make updates
+trivial. Push a tag, wait for CI, run <code>sudo ./bin/deploy</code>, done.</p>
+<p>Scrob isn't trying to compete with Last.fm's features... yet. It's a simple,
+self-hosted alternative that does one thing: tracks what you listen to
+and makes it shareable.</p>
+<p>That's enough for now.</p>
+<h2 id="links">Links</h2>
+<ul>
+<li><a href="https://github.com/ducks/scrob">scrob (backend)</a></li>
+<li><a href="https://github.com/ducks/scrob-ui">scrob-ui (frontend)</a></li>
+<li><a href="https://ui.scrob.jakegoldsborough.com/users/ducks">My public profile</a></li>
+</ul>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;llm-mux-workflow-orchestration&#x2F;">llm-mux: Why I Rebuilt Lok</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 11, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok got 300+ installs, then I rewrote it. The abstractions were wrong. llm-mux has roles, teams, and proper apply&#x2F;verify. Here&#x27;s why.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;finna-multi-model-spec-implement&#x2F;">finna: Multi-Model Debate, Spec, and Implement</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 10, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A standalone tool that takes an idea, debates it across Claude, Codex, and Gemini, creates a roadmap, writes specs, and implements. Planning and execution in one pipeline.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-json-parser-multi-llm&#x2F;">Building a JSON Parser with Multi-LLM Orchestration (Part 1)</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 07, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Using lok to orchestrate four LLMs debating design decisions, then synthesizing specs for a Rust JSON parser. The debate phase surfaced edge cases no single model would have caught.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-spec-multi-agent-planning&#x2F;">Lok Part 5: Multi-Agent Planning with lok spec</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 06, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok gains a spec command that turns task descriptions into structured implementation plans. Multiple LLMs propose, debate, and converge on a roadmap before any code gets written.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;arf-structured-reasoning-for-ai-agents&#x2F;">ARF: Structured Reasoning for AI Agents</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 02, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Moving beyond chat prompts to structured agent communication. Why unstructured data lets LLMs run wild, and how ARF enforces what&#x2F;why&#x2F;how before acting.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

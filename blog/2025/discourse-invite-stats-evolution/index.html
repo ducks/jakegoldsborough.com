@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="How a simple visualization plugin evolved into a moderation tool.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Invite Tree to Invite Stats - How A Simple Tree Flourished Into A Full Moderation Plugin">
+    <meta property="og:description" content="How a simple visualization plugin evolved into a moderation tool.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-stats-evolution&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Invite Tree to Invite Stats - How A Simple Tree Flourished Into A Full Moderation Plugin">
+    <meta name="twitter:description" content="How a simple visualization plugin evolved into a moderation tool.">
+
+    <title>Invite Tree to Invite Stats - How A Simple Tree Flourished Into A Full Moderation Plugin - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Invite Tree to Invite Stats - How A Simple Tree Flourished Into A Full Moderation Plugin</h1>
+      <div class="meta">
+        
+        <p>Nov 05, 2025</p>
+        
+        <p>3 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/discourse">#discourse</a></p>
+          
+          <p><a href="/tags/ruby">#ruby</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <p>Recently, I wrote about building a Discourse plugin that visualizes invite
+relationships as an ASCII tree. Clean, simple, Lobsters-inspired. I thought
+I was done.</p>
+<p>Then I kept thinking about it.</p>
+<p>Back in 2017, someone on Meta asked about <a href="https://meta.discourse.org/t/tracking-referrals-encouraging-users-to-invite-others/75040">tracking referrals and
+invites</a>.
+People wanted to know who was inviting quality members and who was creating
+moderation work. The Gamification plugin tracks invite counts, but that's
+just quantity. What about quality?</p>
+<p>If you're running an invite-only community, you care about accountability.
+Who's inviting spam accounts? Who's inviting people who get immediately
+suspended? Which inviters have consistently good judgment?</p>
+<p>The tree visualization was neat, but it wasn't answering those questions.</p>
+<h2 id="what-changed">What Changed</h2>
+<p>I added moderation metrics to every user in the tree. Now you see:</p>
+<ul>
+<li>Suspended users (🚫)</li>
+<li>Silenced users (🔇)</li>
+<li>Users with agreed flags (⚠️3)</li>
+<li>Quality scores for people who invited others</li>
+</ul>
+<p>Then I built an accountability report that sits above the tree. It shows
+inviters who meet certain criteria:</p>
+<ul>
+<li>Invited 3 or more problematic users</li>
+<li>Have less than 70% invite success rate with 5+ invites</li>
+</ul>
+<p>The tree is still there, but it's no longer the main feature. It's
+supporting evidence for the accountability data.</p>
+<h2 id="the-rename">The Rename</h2>
+<p>At this point, the plugin wasn't really about the tree anymore. It was
+about invite statistics and quality tracking. The tree was just one way to
+display the data.</p>
+<p>So I renamed it: <code>discourse-invite-tree</code> became <code>discourse-invite-stats</code>.</p>
+<p>Renaming a plugin mid-development is annoying. You have to update:</p>
+<ul>
+<li>Repository name</li>
+<li>Plugin metadata</li>
+<li>All Ruby class names</li>
+<li>All JavaScript component names</li>
+<li>All CSS classes</li>
+<li>All translation keys</li>
+<li>All site setting names</li>
+<li>The symlink in your Discourse plugins directory</li>
+<li>The remote URL in git</li>
+</ul>
+<p>But the name needs to match what the thing actually does. A plugin called
+"invite tree" that's primarily focused on moderation accountability is
+misleading.</p>
+<h2 id="making-it-configurable">Making It Configurable</h2>
+<p>The hardcoded thresholds (3 bad invites, 70% quality score, 5 minimum
+invites) worked for my mental model, but different communities have
+different standards.</p>
+<p>So I added site settings:</p>
+<ul>
+<li><code>invite_stats_problematic_threshold</code>: How many bad invites trigger a flag</li>
+<li><code>invite_stats_quality_threshold</code>: What percentage is acceptable</li>
+<li><code>invite_stats_min_invites_for_quality</code>: Minimum invites before scoring applies</li>
+<li><code>invite_stats_flags_threshold</code>: How many agreed flags mark someone as problematic</li>
+</ul>
+<p>I converted the template to a proper Glimmer component class so I could
+inject <code>siteSettings</code> and compute the threshold description dynamically. Now
+when an admin changes the thresholds in settings, the UI updates to match.</p>
+<p><img src="/images/invite-stats-settings.png" alt="Admin settings panel showing configurable thresholds" /></p>
+<p>No more hardcoded magic numbers. If your community runs strict moderation
+and wants to flag anyone with 2 bad invites, you can do that. If you're
+more lenient and only care about people with 5+ bad invites, that works
+too.</p>
+<h2 id="things-to-remember">Things to Remember</h2>
+<p>Scope creep isn't always bad. I started with "show me who invited whom" and
+ended up with "help me identify problematic inviters." The tree
+visualization is still there, but it's not the point anymore.</p>
+<p>Sometimes you need to keep iterating. The first version was fine. The
+second version is actually useful.</p>
+<p>Check it out: <a href="https://github.com/ducks/discourse-invite-stats">discourse-invite-stats on
+GitHub</a></p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-discourse-comments-in-typescript&#x2F;">Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 27, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">I rewrote the Discourse embedded comments API client from Rust&#x2F;WASM to pure TypeScript. The bundle went from 742 KB to 18 KB.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;how-a-friends-gif-broke-our-filesystem&#x2F;">How Jennifer Aniston and Friends Cost Us 377GB and Broke ext4 Hardlinks</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 23, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A backup deduplication fix, filesystem hardlink limits, and the Jennifer Aniston reaction GIF that stress-tested our infrastructure.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-discourse-embedded-comments&#x2F;">Building Embedded Discourse Comments with Rust and WASM</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 14, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">An experiment in creating a drop-in comment widget for static sites using Rust compiled to WebAssembly, talking to Discourse&#x27;s REST API.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/wasm">#wasm</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-tree&#x2F;">Visualizing Discourse Invite Trees</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 03, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A simple Discourse plugin that visualizes who invited whom as an ASCII tree, inspired by Lobsters.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-the-guest-spot-part-2&#x2F;">Building The Guest Spot: Part 2 - Two Refactors</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 26, 2025</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Two major refactors: custom model to Topics, then custom feed to plugin outlets. Less code, more features, better maintainability.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/ember">#ember</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

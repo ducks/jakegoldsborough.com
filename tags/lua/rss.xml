@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - lua</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/lua/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Fri, 07 Nov 2025 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>vimdeck.nvim: Markdown Presentations in Neovim</title>
+          <pubDate>Fri, 07 Nov 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/vimdeck-nvim-markdown-presentations/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/vimdeck-nvim-markdown-presentations/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/vimdeck-nvim-markdown-presentations/">&lt;p&gt;I live in the terminal and Neovim. We have been discussing lightning talks at work,
+so I wanted a way to present using both. The original
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;tybenz&#x2F;vimdeck&quot;&gt;vimdeck&lt;&#x2F;a&gt; used to work perfectly, but it&#x27;s a
+Ruby script that doesn&#x27;t seem to work with Neovim.&lt;&#x2F;p&gt;
+&lt;p&gt;So I rewrote it from scratch using Treesitter and Lua (and Claude).&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-it-does&quot;&gt;What It Does&lt;&#x2F;h2&gt;
+&lt;p&gt;You write your presentation in markdown. Separate slides with horizontal
+rules (&lt;code&gt;---&lt;&#x2F;code&gt;). Run &lt;code&gt;:Vimdeck&lt;&#x2F;code&gt; and you get a fullscreen presentation with:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;ASCII art headers (h1 and h2 use figlet)&lt;&#x2F;li&gt;
+&lt;li&gt;Syntax highlighted code blocks&lt;&#x2F;li&gt;
+&lt;li&gt;Clean list rendering with bullets&lt;&#x2F;li&gt;
+&lt;li&gt;Blockquote formatting&lt;&#x2F;li&gt;
+&lt;li&gt;Keyboard navigation (Space&#x2F;PageDown, Backspace&#x2F;PageUp, q to quit)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;neovim-deck-1.png&quot; alt=&quot;vimdeck presentation showing ASCII art header&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;neovim-deck-prose.png&quot; alt=&quot;neovimdeck prose slide&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;why-rewrite-it&quot;&gt;Why Rewrite It?&lt;&#x2F;h2&gt;
+&lt;p&gt;The original vimdeck was solid for Vim, but it was not working for me in
+Neovim. Adding to that, it felt like it could be done in a better, more native
+way. The current Vimdeck was:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;External Ruby script (dependency management)&lt;&#x2F;li&gt;
+&lt;li&gt;Generated temp files for each slide&lt;&#x2F;li&gt;
+&lt;li&gt;Custom shell wrapper for keybindings&lt;&#x2F;li&gt;
+&lt;li&gt;redcarpet gem for markdown parsing&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Neovim has Treesitter built-in. Lua is native. Why shell out to Ruby and
+manage temp files when you can parse and render everything directly?&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-approach&quot;&gt;The Approach&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;strong&gt;Parser&lt;&#x2F;strong&gt; (&lt;code&gt;lua&#x2F;vimdeck&#x2F;parser.lua&lt;&#x2F;code&gt;): Uses Treesitter to parse markdown
+buffers. Queries for headings, code blocks, lists, quotes, paragraphs. Splits
+content into slides on horizontal rules (thematic breaks).&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;lua&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-lua &quot;&gt;&lt;code class=&quot;language-lua&quot; data-lang=&quot;lua&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;local &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;query &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;vim&lt;&#x2F;span&gt;&lt;span&gt;.treesitter.query.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;parse&lt;&#x2F;span&gt;&lt;span&gt;(&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;markdown&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;, [[
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;  (thematic_break) @separator
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;  (atx_heading) @heading
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;  (fenced_code_block) @code
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;  (list_item) @list_item
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;  (block_quote) @quote
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;  (paragraph) @paragraph
+&lt;&#x2F;span&gt;&lt;span&gt;]])
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;For each captured node, extract the text and metadata (heading level, code
+language, etc.). Group elements into slides based on separators.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Renderer&lt;&#x2F;strong&gt; (&lt;code&gt;lua&#x2F;vimdeck&#x2F;renderer.lua&lt;&#x2F;code&gt;): Takes parsed slides and renders
+them to buffer lines with highlight instructions.&lt;&#x2F;p&gt;
+&lt;p&gt;Headers get piped through figlet for ASCII art (h1 uses standard font, h2
+uses small). Lists get bullet points. Blockquotes get vertical bars. Code
+blocks get syntax highlighting via Treesitter string parsers.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Navigation&lt;&#x2F;strong&gt; (&lt;code&gt;lua&#x2F;vimdeck&#x2F;navigation.lua&lt;&#x2F;code&gt;): Opens slides in a new tab,
+sets up keybindings, manages state. Updates the buffer content and applies
+highlights when switching slides.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;technical-bits&quot;&gt;Technical Bits&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;strong&gt;Treesitter Integration&lt;&#x2F;strong&gt;: The markdown parser exposes node types like
+&lt;code&gt;atx_heading&lt;&#x2F;code&gt;, &lt;code&gt;fenced_code_block&lt;&#x2F;code&gt;, &lt;code&gt;list_item&lt;&#x2F;code&gt;. Each node has position info
+(start&#x2F;end row&#x2F;col) and can extract text with
+&lt;code&gt;vim.treesitter.get_node_text()&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;Getting clean text required helper functions. List items include the markdown
+markers (&lt;code&gt;- item&lt;&#x2F;code&gt;), so we traverse child nodes to skip &lt;code&gt;list_marker&lt;&#x2F;code&gt; nodes
+and extract just the content. Same for blockquotes (strip &lt;code&gt;&amp;gt;&lt;&#x2F;code&gt; markers) and
+code blocks (strip fence markers).&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Heading Levels&lt;&#x2F;strong&gt;: Treesitter gives you &lt;code&gt;atx_heading&lt;&#x2F;code&gt; nodes. To determine
+level, check for child nodes like &lt;code&gt;atx_h1_marker&lt;&#x2F;code&gt;, &lt;code&gt;atx_h2_marker&lt;&#x2F;code&gt;, etc.&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;lua&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-lua &quot;&gt;&lt;code class=&quot;language-lua&quot; data-lang=&quot;lua&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;function &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;M&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;get_heading_level&lt;&#x2F;span&gt;&lt;span&gt;(heading_node)
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;for &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;child &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;in &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;heading_node&lt;&#x2F;span&gt;&lt;span&gt;:&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;iter_children&lt;&#x2F;span&gt;&lt;span&gt;() &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;do
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;child&lt;&#x2F;span&gt;&lt;span&gt;:&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;type&lt;&#x2F;span&gt;&lt;span&gt;() == &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;atx_h1_marker&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;then return &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1 &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;end
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;child&lt;&#x2F;span&gt;&lt;span&gt;:&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;type&lt;&#x2F;span&gt;&lt;span&gt;() == &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;atx_h2_marker&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;then return &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;2 &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;end
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;-- ...
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;end
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;return &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;end
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;&lt;strong&gt;Duplicate Elements&lt;&#x2F;strong&gt;: Initial implementation captured both &lt;code&gt;list_item&lt;&#x2F;code&gt;
+nodes and &lt;code&gt;paragraph&lt;&#x2F;code&gt; nodes inside them. Rendering each element separately
+meant lists showed up twice. Fix: check node ancestry and skip paragraphs
+that are children of list items or blockquotes.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Newline Flattening&lt;&#x2F;strong&gt;: &lt;code&gt;vim.api.nvim_buf_set_lines()&lt;&#x2F;code&gt; requires each array
+element to be a single line. Figlet output and some text processing can embed
+&lt;code&gt;\n&lt;&#x2F;code&gt; characters. Solution: scan lines before setting buffer content and split
+any with embedded newlines.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-it-supports&quot;&gt;What It Supports&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;strong&gt;All heading levels&lt;&#x2F;strong&gt; (h1-h6). h1 and h2 get ASCII art via figlet if
+available. h3-h6 render as plain text with style options such as box, dashed, or
+underline.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Code blocks&lt;&#x2F;strong&gt; with language-specific syntax highlighting. The renderer
+creates a Treesitter string parser for the code content and applies highlight
+queries.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Lists&lt;&#x2F;strong&gt; render with bullet points (&lt;code&gt;*&lt;&#x2F;code&gt;). &lt;strong&gt;Blockquotes&lt;&#x2F;strong&gt; render with
+vertical bars (&lt;code&gt;┃&lt;&#x2F;code&gt;).&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;neovim-deck-heading.png&quot; alt=&quot;A neovim deck slide showing heading styling, lists, and blockquotes&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;per-presentation-configuration&quot;&gt;Per-Presentation Configuration&lt;&#x2F;h2&gt;
+&lt;p&gt;YAML frontmatter lets you configure individual presentations without
+changing global settings. Add frontmatter at the start of your markdown:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;markdown&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-markdown &quot;&gt;&lt;code class=&quot;language-markdown&quot; data-lang=&quot;markdown&quot;&gt;&lt;span style=&quot;background-color:#4f5b66;color:#c0c5ce;&quot;&gt;---
+&lt;&#x2F;span&gt;&lt;span&gt;wrap: 80
+&lt;&#x2F;span&gt;&lt;span&gt;center_horizontal: true
+&lt;&#x2F;span&gt;&lt;span&gt;margin: 3
+&lt;&#x2F;span&gt;&lt;span&gt;use_figlet: false
+&lt;&#x2F;span&gt;&lt;span&gt;header_style: &amp;quot;underline&amp;quot;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;---
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;# First Slide
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The &lt;code&gt;wrap&lt;&#x2F;code&gt; option automatically wraps long paragraphs to the specified
+width. Perfect for prose-heavy slides where you don&#x27;t want to manually
+hard-wrap text. Write flowing paragraphs in your markdown source and let
+vimdeck handle the layout.&lt;&#x2F;p&gt;
+&lt;p&gt;Header styles provide alternatives to figlet ASCII art. Options include
+&lt;code&gt;underline&lt;&#x2F;code&gt; (single&#x2F;double lines), &lt;code&gt;box&lt;&#x2F;code&gt; (Unicode box drawing), &lt;code&gt;double&lt;&#x2F;code&gt;
+(double-line boxes), and &lt;code&gt;dashed&lt;&#x2F;code&gt; (dotted underlines). All use Unicode
+characters for clean terminal rendering.&lt;&#x2F;p&gt;
+&lt;p&gt;Frontmatter parsing uses a simple YAML parser (20 lines of Lua) that
+handles basic key-value pairs. Supports booleans, numbers, and strings.
+The frontmatter config merges with global config, so you only override what
+you need.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;installation&quot;&gt;Installation&lt;&#x2F;h2&gt;
+&lt;p&gt;Using lazy.nvim:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;lua&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-lua &quot;&gt;&lt;code class=&quot;language-lua&quot; data-lang=&quot;lua&quot;&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;ducks&#x2F;vimdeck.nvim&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;,
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;cmd &lt;&#x2F;span&gt;&lt;span&gt;= { &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Vimdeck&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;, &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;VimdeckFile&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39; },
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;opts &lt;&#x2F;span&gt;&lt;span&gt;= {
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;use_figlet &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;true&lt;&#x2F;span&gt;&lt;span&gt;,
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;center_slides &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;true&lt;&#x2F;span&gt;&lt;span&gt;,
+&lt;&#x2F;span&gt;&lt;span&gt;  }
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Requires figlet for ASCII art headers:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# macOS
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;brew&lt;&#x2F;span&gt;&lt;span&gt; install figlet
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Arch Linux
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;sudo&lt;&#x2F;span&gt;&lt;span&gt; pacman&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt; -S&lt;&#x2F;span&gt;&lt;span&gt; figlet
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# NixOS
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;pkgs.figlet
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;And markdown Treesitter parsers:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;vim&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-vim &quot;&gt;&lt;code class=&quot;language-vim&quot; data-lang=&quot;vim&quot;&gt;&lt;span&gt;:TSInstall markdown markdown_inline
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;h2 id=&quot;usage&quot;&gt;Usage&lt;&#x2F;h2&gt;
+&lt;p&gt;Write your presentation:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;markdown&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-markdown &quot;&gt;&lt;code class=&quot;language-markdown&quot; data-lang=&quot;markdown&quot;&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;# First Slide
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;Content here
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;background-color:#4f5b66;color:#c0c5ce;&quot;&gt;---
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;## Second Slide
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;More content
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;background-color:#4f5b66;color:#c0c5ce;&quot;&gt;---
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;### Code Example
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;```&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;lua
+&lt;&#x2F;span&gt;&lt;span&gt;function hello()
+&lt;&#x2F;span&gt;&lt;span&gt;  print(&amp;quot;Hello!&amp;quot;)
+&lt;&#x2F;span&gt;&lt;span&gt;end
+&lt;&#x2F;span&gt;&lt;span&gt;```
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Open in Neovim and run &lt;code&gt;:Vimdeck&lt;&#x2F;code&gt;. Navigate with Space&#x2F;PageDown for next
+slide, Backspace&#x2F;PageUp for previous, q to quit.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;differences-from-original&quot;&gt;Differences From Original&lt;&#x2F;h2&gt;
+&lt;p&gt;The original vimdeck was a Ruby script. This is a native Neovim plugin.&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;No external dependencies (besides figlet for ASCII art)&lt;&#x2F;li&gt;
+&lt;li&gt;No temp files&lt;&#x2F;li&gt;
+&lt;li&gt;Treesitter parsing instead of redcarpet&lt;&#x2F;li&gt;
+&lt;li&gt;Dynamic rendering instead of static file generation&lt;&#x2F;li&gt;
+&lt;li&gt;Works with Neovim&#x27;s highlight system directly&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;things-to-remember&quot;&gt;Things To Remember&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;strong&gt;Treesitter is powerful&lt;&#x2F;strong&gt;: The markdown parser handles all the edge cases
+(nested lists, multi-line quotes, code fence detection). Using the query
+system is cleaner than regex parsing.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Node traversal matters&lt;&#x2F;strong&gt;: Getting clean text from Treesitter nodes requires
+understanding the tree structure. List items have marker nodes, code blocks
+have fence nodes, quotes have paragraph children. Walking the tree to extract
+just content nodes is necessary.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Lua quirks&lt;&#x2F;strong&gt;: Coming from Ruby, easy to forget &lt;code&gt;not&lt;&#x2F;code&gt; instead of &lt;code&gt;!&lt;&#x2F;code&gt;, &lt;code&gt;~=&lt;&#x2F;code&gt;
+instead of &lt;code&gt;!=&lt;&#x2F;code&gt;, &lt;code&gt;..&lt;&#x2F;code&gt; for string concatenation, 1-indexed tables.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Code&lt;&#x2F;strong&gt;: &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;vimdeck.nvim&quot;&gt;github.com&#x2F;ducks&#x2F;vimdeck.nvim&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>How I accidentally wrote my first Neovim plugin</title>
+          <pubDate>Wed, 25 Jun 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/releasing-a-neovim-plugin/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/releasing-a-neovim-plugin/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/releasing-a-neovim-plugin/">&lt;h3 id=&quot;just-show-me-the-code&quot;&gt;Just Show Me The Code&lt;&#x2F;h3&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;nvim-vandelay&quot;&gt;repo&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-problem&quot;&gt;The Problem&lt;&#x2F;h3&gt;
+&lt;p&gt;There is a simple motion I use in Neovim often and I finally decided to do
+something about it.&lt;&#x2F;p&gt;
+&lt;p&gt;That motion is breaking up single line imports into multiline imports.&lt;&#x2F;p&gt;
+&lt;p&gt;Example:&lt;&#x2F;p&gt;
+&lt;p&gt;This:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;import { foo, bar, baz } from &#x27;.&#x2F;utils&#x27;;&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Should become:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;import {
+&lt;&#x2F;span&gt;&lt;span&gt;  foo,
+&lt;&#x2F;span&gt;&lt;span&gt;  bar,
+&lt;&#x2F;span&gt;&lt;span&gt;  baz,
+&lt;&#x2F;span&gt;&lt;span&gt;} from &amp;#39;.&#x2F;utils&amp;#39;;
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;It&#x27;s a tiny thing but something I do all the time in javascript, typescript, and
+rust. Even if it&#x27;s less than 80 characters wide, I really like breaking multiple
+modules imports down to separate lines.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-first-approach-regex-and-why-it-worked&quot;&gt;The First Approach: Regex (And Why It Worked)&lt;&#x2F;h3&gt;
+&lt;p&gt;The very first version of Vandelay used simple Lua string matching:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;local pattern = [[import%s*{%s*(.-)%s*}%s*from%s*(.*);]]
+&lt;&#x2F;span&gt;&lt;span&gt;local names, from = string.match(line, pattern)
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This captured two groups:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;names&lt;&#x2F;code&gt; - the full list inside &lt;code&gt;{ ... }&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;from&lt;&#x2F;code&gt; - the source string&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;After capturing, it simply:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Split &lt;code&gt;names&lt;&#x2F;code&gt; on commas into a table of individual imports&lt;&#x2F;li&gt;
+&lt;li&gt;Trimmed whitespace&lt;&#x2F;li&gt;
+&lt;li&gt;Reconstructed the formatted import line with newlines and indentation&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h4 id=&quot;why-it-worked&quot;&gt;Why It Worked&lt;&#x2F;h4&gt;
+&lt;p&gt;The format of imports I wanted to modify was extremely predictable. I only cared
+about one specific form and I was only operating on one line at a time. Lua
+strings were simple and fast for this very specific case. This worked extremely
+well from the start and passed some simple tests that tests import structure.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;adding-treesitter-and-why-it-didn-t-work&quot;&gt;Adding Treesitter (And Why It Didn&#x27;t Work)&lt;&#x2F;h3&gt;
+&lt;p&gt;I thought using Treesitter would make the plugin more robust. It sounded like a
+perfect fit: parse the full AST, extract imports properly, and avoid relying on
+fragile string patterns.&lt;&#x2F;p&gt;
+&lt;p&gt;In practice, I quickly ran into problems:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Complex Treesitter queries for what seemed like simple tasks&lt;&#x2F;li&gt;
+&lt;li&gt;Accidental full-line and full-file rewrites when I only wanted to touch one line&lt;&#x2F;li&gt;
+&lt;li&gt;Query capture ordering issues that merged unrelated imports together&lt;&#x2F;li&gt;
+&lt;li&gt;Inconsistent grammar across different Treesitter parser versions&lt;&#x2F;li&gt;
+&lt;li&gt;Parser installation requirements that added more dependencies&lt;&#x2F;li&gt;
+&lt;li&gt;Much more boilerplate code for very minimal benefit&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Treesitter excels for full-file refactors, linters, or analysis tools.
+But for surgical, highly structured, one-line rewrites? It was overkill.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;what-i-learned&quot;&gt;What I Learned&lt;&#x2F;h3&gt;
+&lt;p&gt;Treesitter is powerful. But &lt;strong&gt;power doesn’t always equal simplicity&lt;&#x2F;strong&gt; —
+especially for narrowly scoped formatting tasks.&lt;&#x2F;p&gt;
+&lt;p&gt;For this plugin, regex provided:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Faster iteration&lt;&#x2F;li&gt;
+&lt;li&gt;Predictable behavior&lt;&#x2F;li&gt;
+&lt;li&gt;No parser dependencies&lt;&#x2F;li&gt;
+&lt;li&gt;Simple implementation&lt;&#x2F;li&gt;
+&lt;li&gt;Easier testing&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Sometimes simple string matching really is enough -- especially when your input
+format is highly constrained.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;nvim-vandelay-1-0&quot;&gt;nvim-vandelay 1.0&lt;&#x2F;h3&gt;
+&lt;p&gt;The end result became &lt;code&gt;nvim-vandelay&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;A micro-plugin for formatting imports&lt;&#x2F;li&gt;
+&lt;li&gt;Fully manual keybind control&lt;&#x2F;li&gt;
+&lt;li&gt;Regex-powered single-line rewriting&lt;&#x2F;li&gt;
+&lt;li&gt;Rust and JavaScript support out of the box&lt;&#x2F;li&gt;
+&lt;li&gt;Fully tested via Plenary + CI&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Here is another link to the repo:
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;nvim-vandelay&quot;&gt;nvim-vandelay&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

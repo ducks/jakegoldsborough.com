@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Real-world AI pair programming: what works, what doesn&#x27;t, and how to avoid the traps">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="How I&#x27;m Using Claude Code for Daily Development Work">
+    <meta property="og:description" content="Real-world AI pair programming: what works, what doesn&#x27;t, and how to avoid the traps">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;how-i-am-using-claude-code&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="How I&#x27;m Using Claude Code for Daily Development Work">
+    <meta name="twitter:description" content="Real-world AI pair programming: what works, what doesn&#x27;t, and how to avoid the traps">
+
+    <title>How I&#x27;m Using Claude Code for Daily Development Work - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>How I&#x27;m Using Claude Code for Daily Development Work</h1>
+      <div class="meta">
+        
+        <p>Oct 24, 2025</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+        </div>
+      
+
+      <p>I've been using Claude Code for a few months now as my primary development assistant. Not as a replacement for thinking, but as a way to move faster on the boring stuff while keeping the interesting problems for myself.</p>
+<h2 id="what-it-s-actually-good-at">What It's Actually Good At</h2>
+<h3 id="the-grunt-work">The Grunt Work</h3>
+<p>Testing infrastructure is where Claude shines. Today, I needed to test SMTP error logging improvements. Instead of manually setting up <a href="https://github.com/Supermathie/mail-relay-simulator">mail-relay-simulator</a>, configuring different failure scenarios, and writing test cases, I described what I needed and got a complete Ruby script that:</p>
+<ul>
+<li>Manages docker-compose lifecycle</li>
+<li>Switches between 4 test scenarios (auth failures, wrong credentials, etc.)</li>
+<li>Writes proper config files with correct syntax</li>
+<li>Handles cleanup</li>
+</ul>
+<p>The script works. It's maintainable. It saved me 2-3 hours of tedious setup work.</p>
+<h3 id="research-and-discovery">Research and Discovery</h3>
+<p>"Find all the places in this codebase where we do X" - this is tedious grep work that Claude excels at. It can search, cross-reference, and explain patterns without me needing to open 20 files.</p>
+<p>Example: When investigating AWS SDK credential chain bugs, I had Claude trace through the entire credential provider chain, find where it was failing, and document the root cause. That kind of code archaeology is perfect for AI assistance.</p>
+<h3 id="documentation">Documentation</h3>
+<p>Writing test results documentation, commit messages, technical proposals - Claude can take my rough notes and produce clean markdown that I'd never bother writing myself. The writeup exists because the AI made it low-effort, not because I suddenly got better at documentation.</p>
+<h2 id="where-it-could-improve">Where It Could Improve</h2>
+<h3 id="understanding-intent">Understanding Intent</h3>
+<p>If I'm not specific about what I want, Claude will give me something that technically works but misses the point. Example: I asked for markdown rendering in Neovim. Got three different failed attempts at split-window rendering before I just said "fuck it, just hard-wrap at 80 characters."</p>
+<p>The AI doesn't know when to stop. It will keep trying increasingly complex solutions when the answer is "do less."</p>
+<h3 id="production-debugging">Production Debugging</h3>
+<p>When real production issues happen, Claude's knowledge cutoff and lack of access to live systems means it's guessing. I can describe symptoms and it'll suggest things to check, but it's not replacing actual debugging experience.</p>
+<h3 id="knowing-what-it-doesn-t-know">Knowing What It Doesn't Know</h3>
+<p>The worst thing Claude does is hallucinate with confidence. It'll make up photographer names for Unsplash images when WebFetch fails to parse the page. It'll suggest APIs that don't exist. It'll confidently explain behavior that's completely wrong.</p>
+<p>You have to verify everything. Trust but verify isn't optional.</p>
+<h2 id="how-i-actually-use-it">How I Actually Use It</h2>
+<h3 id="1-explicit-context">1. Explicit Context</h3>
+<p>I maintain a CONTEXT.md file with my preferences:</p>
+<ul>
+<li>Code style (no emoji, wrap at 80 chars, prefer <code>if !</code> over <code>unless</code>)</li>
+<li>Project patterns (date-based versioning, git workflow preferences)</li>
+<li>Common pitfalls (Ruby openssl gem vs extension, Discourse auth patterns)</li>
+</ul>
+<p>This cuts down on back-and-forth. Claude knows I want <code>--no-ff</code> merges without me explaining it every time.</p>
+<h3 id="2-incremental-validation">2. Incremental Validation</h3>
+<p>I don't let Claude write 500 lines without checking. Small changes, validate, next change. When it starts going off track, I stop and correct immediately.</p>
+<p>If tests fail, I read the error myself. If code looks weird, I ask "why did you do it this way?" and often realize there's a better approach.</p>
+<h3 id="3-use-it-for-what-it-s-built-for">3. Use It For What It's Built For</h3>
+<p>Good uses:</p>
+<ul>
+<li>File operations (read, edit, search)</li>
+<li>Repetitive code changes</li>
+<li>Documentation generation</li>
+<li>Test script creation</li>
+<li>Config file management</li>
+</ul>
+<p>Bad uses:</p>
+<ul>
+<li>Anything requiring judgment calls</li>
+<li>Performance optimization without profiling</li>
+<li>Security-sensitive code review</li>
+<li>"Just make it work" prompts</li>
+</ul>
+<h3 id="4-keep-notes">4. Keep Notes</h3>
+<p>I have Claude maintain daily notes of what we worked on. Not as todo tracking, but as a context refresh. When I come back tomorrow, I can read yesterday's notes and pick up where we left off.</p>
+<p>The notes also catch when Claude forgets something or contradicts earlier decisions.</p>
+<h2 id="the-workflow">The Workflow</h2>
+<p>Typical session:</p>
+<ol>
+<li><strong>Me</strong>: "I need to test SMTP error logging with mail-relay-simulator"</li>
+<li><strong>Claude</strong>: Reads existing code, finds simulator location, proposes script structure</li>
+<li><strong>Me</strong>: "Yeah but make it modular, don't hardcode paths"</li>
+<li><strong>Claude</strong>: Updates script with env var + path discovery</li>
+<li><strong>Me</strong>: Runs script, hits error</li>
+<li><strong>Claude</strong>: "That error means X, here's the fix"</li>
+<li><strong>Me</strong>: Applies fix, tests, moves on</li>
+</ol>
+<p>It's not magic. It's a very fast junior developer who never gets tired but also never learns from mistakes unless you tell it explicitly.</p>
+<h2 id="the-trap">The Trap</h2>
+<p>The trap is letting the AI do your thinking. It's really easy to just accept the first solution that looks reasonable. But "looks reasonable" and "is correct" aren't the same thing.</p>
+<p>I caught Claude trying to use <code>Dir.chdir</code> in a script today. RuboCop flagged it as not thread-safe. The "correct" solution was <code>system(..., chdir: path)</code>. Claude didn't know that until the linter told it.</p>
+<p>If I'm not reading the code and understanding the changes, I'm just a very expensive copy-paste machine.</p>
+<h2 id="should-you-use-it">Should You Use It?</h2>
+<p>If you're junior: Maybe not yet. You need to build pattern recognition before you can effectively verify AI output. You won't know when it's bullshitting.</p>
+<p>If you're mid-level: Useful for grunt work, but keep it on a short leash. You should be reading and understanding every change.</p>
+<p>If you're senior: This is productivity steroids. You already know what good code looks like. AI just makes it faster to write.</p>
+<h2 id="final-thoughts">Final Thoughts</h2>
+<p>Claude Code isn't replacing developers. It's replacing the boring parts of development. The parts where you know exactly what needs to happen but it's going to take an hour of tedious typing.</p>
+<p>I'm not using less brain power. I'm using it on the problems that actually matter instead of fighting with test harness boilerplate.</p>
+<p>That's the win.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;ai-problems-are-human-problems&#x2F;">AI Problems Are Just Human Problems Amplified</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 23, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">AI fatigue, perfectionism vs non-determinism, and garbage in&#x2F;garbage out. These are not new problems. AI just makes them obvious faster.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;llm-mux-workflow-orchestration&#x2F;">llm-mux: Why I Rebuilt Lok</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 11, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok got 300+ installs, then I rewrote it. The abstractions were wrong. llm-mux has roles, teams, and proper apply&#x2F;verify. Here&#x27;s why.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;finna-multi-model-spec-implement&#x2F;">finna: Multi-Model Debate, Spec, and Implement</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 10, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A standalone tool that takes an idea, debates it across Claude, Codex, and Gemini, creates a roadmap, writes specs, and implements. Planning and execution in one pipeline.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-json-parser-multi-llm&#x2F;">Building a JSON Parser with Multi-LLM Orchestration (Part 1)</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 07, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Using lok to orchestrate four LLMs debating design decisions, then synthesizing specs for a Rust JSON parser. The debate phase surfaced edge cases no single model would have caught.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-spec-multi-agent-planning&#x2F;">Lok Part 5: Multi-Agent Planning with lok spec</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 06, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok gains a spec command that turns task descriptions into structured implementation plans. Multiple LLMs propose, debate, and converge on a roadmap before any code gets written.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

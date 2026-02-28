@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="I rewrote the Discourse embedded comments API client from Rust&#x2F;WASM to pure TypeScript. The bundle went from 742 KB to 18 KB.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle">
+    <meta property="og:description" content="I rewrote the Discourse embedded comments API client from Rust&#x2F;WASM to pure TypeScript. The bundle went from 742 KB to 18 KB.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-discourse-comments-in-typescript&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle">
+    <meta name="twitter:description" content="I rewrote the Discourse embedded comments API client from Rust&#x2F;WASM to pure TypeScript. The bundle went from 742 KB to 18 KB.">
+
+    <title>Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle</h1>
+      <div class="meta">
+        
+        <p>Feb 27, 2026</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/discourse">#discourse</a></p>
+          
+          <p><a href="/tags/typescript">#typescript</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <p>Last month I wrote about building an
+<a href="/blog/2026/building-discourse-embedded-comments/">embedded comment widget</a>
+for Discourse using Rust compiled to WebAssembly. It worked. Users
+could drop a single script tag on their page and get comments from
+a Discourse topic.</p>
+<p>But the bundle was 742 KB. Most of that was WASM.</p>
+<p>I rewrote the API client in TypeScript and the bundle dropped to
+18.5 KB. Same functionality, same API surface, no WASM runtime.</p>
+<h2 id="why-rewrite">Why Rewrite?</h2>
+<p>The original stack had three layers: a Rust HTTP client compiled to
+WASM, a TypeScript web component, and an esbuild plugin to inline
+the WASM binary as base64. That last part was the real cost. The
+WASM binary was ~546 KB, and base64 encoding inflates that by 33%.</p>
+<p>The Rust client existed because I wanted to push Rust into the
+browser. It was a fun experiment. But the API client itself was
+straightforward HTTP: build a URL, set some headers, parse JSON.
+There's nothing in that workflow that benefits from Rust's type
+system or performance characteristics. The browser's native <code>fetch</code>
+does the same thing.</p>
+<p>So I asked the obvious question: what if the API client was just
+TypeScript?</p>
+<h2 id="the-rewrite">The Rewrite</h2>
+<p>The new client is
+<a href="https://github.com/ducks/discourse-api-ts">discourse-api-ts</a>. Zero
+runtime dependencies. It uses <code>fetch</code> for HTTP, which every modern
+browser and Node.js already provides.</p>
+<p>The Rust client had 18 methods across topics, posts, categories,
+chat, notifications, and likes. The TypeScript port has the same 18
+methods with identical signatures. The only difference is <code>BigInt</code>
+parameters became regular <code>number</code> (JavaScript's <code>Number</code> handles
+Discourse IDs fine).</p>
+<p>Here's what the client looks like:</p>
+<pre data-lang="typescript" style="background-color:#2b303b;color:#c0c5ce;" class="language-typescript "><code class="language-typescript" data-lang="typescript"><span style="color:#65737e;">// Anonymous (read-only)
+</span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">client </span><span>= new DiscourseClient(&quot;</span><span style="color:#a3be8c;">https://forum.example.com</span><span>&quot;);
+</span><span>
+</span><span style="color:#65737e;">// Authenticated
+</span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">client </span><span>= </span><span style="color:#bf616a;">DiscourseClient</span><span>.</span><span style="color:#8fa1b3;">withUserApiKey</span><span>(
+</span><span>  &quot;</span><span style="color:#a3be8c;">https://forum.example.com</span><span>&quot;,
+</span><span>  </span><span style="color:#bf616a;">storedApiKey
+</span><span>);
+</span><span>
+</span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">topic </span><span>= </span><span style="color:#b48ead;">await </span><span style="color:#bf616a;">client</span><span>.</span><span style="color:#8fa1b3;">getTopic</span><span>(</span><span style="color:#d08770;">123</span><span>);
+</span><span style="color:#b48ead;">await </span><span style="color:#bf616a;">client</span><span>.</span><span style="color:#8fa1b3;">createPost</span><span>(</span><span style="color:#d08770;">123</span><span>, &quot;</span><span style="color:#a3be8c;">Hello from the widget</span><span>&quot;);
+</span><span style="color:#b48ead;">await </span><span style="color:#bf616a;">client</span><span>.</span><span style="color:#8fa1b3;">likePost</span><span>(</span><span style="color:#d08770;">456</span><span>);
+</span></code></pre>
+<p>No <code>init()</code> call to load the WASM runtime. No <code>BigInt()</code> wrappers.
+Just regular async functions.</p>
+<h2 id="updating-discourse-comments">Updating discourse-comments</h2>
+<p>With the new client published to npm, updating the web component
+was mostly find-and-replace:</p>
+<ul>
+<li><code>import init, { WasmDiscourseClient }</code> became
+<code>import { DiscourseClient }</code></li>
+<li>Removed the <code>await init()</code> call in <code>loadComments</code></li>
+<li><code>BigInt(this.topicId)</code> became <code>Number(this.topicId)</code></li>
+<li>Deleted the esbuild WASM inlining plugin entirely</li>
+</ul>
+<p>The build script went from 60 lines of WASM gymnastics to a
+straightforward esbuild call:</p>
+<pre data-lang="javascript" style="background-color:#2b303b;color:#c0c5ce;" class="language-javascript "><code class="language-javascript" data-lang="javascript"><span style="color:#b48ead;">await </span><span style="color:#bf616a;">esbuild</span><span>.</span><span style="color:#8fa1b3;">build</span><span>({
+</span><span>  entryPoints: [&quot;</span><span style="color:#a3be8c;">src/discourse-comments.ts</span><span>&quot;],
+</span><span>  bundle: </span><span style="color:#d08770;">true</span><span>,
+</span><span>  format: &quot;</span><span style="color:#a3be8c;">iife</span><span>&quot;,
+</span><span>  outfile: &quot;</span><span style="color:#a3be8c;">dist/discourse-comments.min.js</span><span>&quot;,
+</span><span>  minify: </span><span style="color:#d08770;">true</span><span>,
+</span><span>});
+</span></code></pre>
+<p>No custom plugins. No base64 encoding. No <code>WebAssembly.instantiate</code>.</p>
+<h2 id="the-numbers">The Numbers</h2>
+<table><thead><tr><th></th><th>Rust/WASM</th><th>TypeScript</th></tr></thead><tbody>
+<tr><td>Bundle size (minified)</td><td>742 KB</td><td>18.5 KB</td></tr>
+<tr><td>Runtime dependencies</td><td>wasm-bindgen</td><td>None</td></tr>
+<tr><td>Build steps</td><td>cargo build + wasm-pack + tsc + esbuild</td><td>tsc + esbuild</td></tr>
+<tr><td>Init overhead</td><td>WASM decode + instantiate</td><td>None</td></tr>
+</tbody></table>
+<p>That 18.5 KB includes the entire web component, all the styles, the
+OAuth flow, and the API client. A user on a slow connection
+downloads 40x less data.</p>
+<h2 id="dev-experience">Dev Experience</h2>
+<p>With the Rust client, the build pipeline was: cargo build targeting
+wasm32, wasm-pack to generate JS bindings, TypeScript compilation,
+then esbuild with a custom plugin to inline the binary. If any step
+failed, the error could be in Rust, in wasm-bindgen, in the
+TypeScript types, or in the bundler plugin. Debugging meant jumping
+between ecosystems.</p>
+<p>With TypeScript, it's <code>tsc &amp;&amp; node build.mjs</code>. If there's a type
+error, it's in TypeScript. If there's a runtime error, it's in
+JavaScript. One language, one toolchain, one set of error messages.</p>
+<p>Adding a new API method in Rust meant: define the struct, implement
+the method, rebuild WASM, regenerate bindings, update TypeScript
+types to match. In TypeScript: add an interface, add a method, done.
+I added search, user profiles, and topic management (6 new methods)
+in one sitting.</p>
+<h2 id="what-i-lost">What I Lost</h2>
+<p>Honesty requires noting what the WASM version had going for it.</p>
+<p>Rust's type system caught entire categories of errors at compile
+time. The TypeScript version uses interfaces, which help, but
+they're structural and optional. A <code>Post</code> with a missing field
+compiles fine until it blows up at runtime.</p>
+<p>Rust's <code>Result</code> type forced explicit error handling everywhere. In
+TypeScript, it's easy to forget a <code>.catch()</code> or let an error
+propagate silently.</p>
+<p>For this particular project, those trade-offs don't matter much. The
+API surface is small and the error handling is straightforward. But
+for a larger client library, I'd think harder about it.</p>
+<h2 id="when-wasm-makes-sense">When WASM Makes Sense</h2>
+<p>WASM is the right call when you need computation that JavaScript
+can't do efficiently: image processing, cryptography, physics
+simulations, codecs. If you're doing heavy lifting in a tight loop,
+WASM's predictable performance model wins.</p>
+<p>But for HTTP clients that serialize JSON and build URLs, the browser
+already has everything you need. Adding a WASM layer for that is
+carrying a backpack full of bricks on a walk to the mailbox.</p>
+<h2 id="try-it">Try It</h2>
+<p>The widget still works the same way. Drop it on a page, point it
+at a Discourse topic, get comments. It's just 40x lighter now.</p>
+<pre data-lang="html" style="background-color:#2b303b;color:#c0c5ce;" class="language-html "><code class="language-html" data-lang="html"><span>&lt;</span><span style="color:#bf616a;">script </span><span style="color:#d08770;">src</span><span>=&quot;</span><span style="color:#a3be8c;">discourse-comments.min.js</span><span>&quot;&gt;&lt;/</span><span style="color:#bf616a;">script</span><span>&gt;
+</span><span>&lt;</span><span style="color:#bf616a;">discourse-comments
+</span><span>  </span><span style="color:#d08770;">discourse-url</span><span>=&quot;</span><span style="color:#a3be8c;">https://forum.example.com</span><span>&quot;
+</span><span>  </span><span style="color:#d08770;">topic-id</span><span>=&quot;</span><span style="color:#a3be8c;">123</span><span>&quot;&gt;
+</span><span>&lt;/</span><span style="color:#bf616a;">discourse-comments</span><span>&gt;
+</span></code></pre>
+<ul>
+<li><a href="https://github.com/ducks/discourse-comments">discourse-comments</a></li>
+<li><a href="https://github.com/ducks/discourse-api-ts">discourse-api-ts</a></li>
+</ul>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;how-a-friends-gif-broke-our-filesystem&#x2F;">How Jennifer Aniston and Friends Cost Us 377GB and Broke ext4 Hardlinks</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 23, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A backup deduplication fix, filesystem hardlink limits, and the Jennifer Aniston reaction GIF that stress-tested our infrastructure.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-discourse-embedded-comments&#x2F;">Building Embedded Discourse Comments with Rust and WASM</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 14, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">An experiment in creating a drop-in comment widget for static sites using Rust compiled to WebAssembly, talking to Discourse&#x27;s REST API.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/wasm">#wasm</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-stats-evolution&#x2F;">Invite Tree to Invite Stats - How A Simple Tree Flourished Into A Full Moderation Plugin</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 05, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">How a simple visualization plugin evolved into a moderation tool.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-tree&#x2F;">Visualizing Discourse Invite Trees</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 03, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A simple Discourse plugin that visualizes who invited whom as an ASCII tree, inspired by Lobsters.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-the-guest-spot-part-2&#x2F;">Building The Guest Spot: Part 2 - Two Refactors</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 26, 2025</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Two major refactors: custom model to Topics, then custom feed to plugin outlets. Less code, more features, better maintainability.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/ember">#ember</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

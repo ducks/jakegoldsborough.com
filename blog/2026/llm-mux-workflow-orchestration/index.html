@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Lok got 300+ installs, then I rewrote it. The abstractions were wrong. llm-mux has roles, teams, and proper apply&#x2F;verify. Here&#x27;s why.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="llm-mux: Why I Rebuilt Lok">
+    <meta property="og:description" content="Lok got 300+ installs, then I rewrote it. The abstractions were wrong. llm-mux has roles, teams, and proper apply&#x2F;verify. Here&#x27;s why.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;llm-mux-workflow-orchestration&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="llm-mux: Why I Rebuilt Lok">
+    <meta name="twitter:description" content="Lok got 300+ installs, then I rewrote it. The abstractions were wrong. llm-mux has roles, teams, and proper apply&#x2F;verify. Here&#x27;s why.">
+
+    <title>llm-mux: Why I Rebuilt Lok - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>llm-mux: Why I Rebuilt Lok</h1>
+      <div class="meta">
+        
+        <p>Feb 11, 2026</p>
+        
+        <p>3 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+        </div>
+      
+
+      <p>Lok hit 317 cargo installs. People were using it. So naturally I rewrote it from
+scratch.</p>
+<p>That's not as chaotic as it sounds. Lok grew organically from "query multiple
+LLMs" to "run workflows" to "apply edits" to "create GitHub issues." Each feature
+bolted onto the side. The codebase worked but the abstractions were wrong.</p>
+<p>llm-mux is what lok should have been from the start.</p>
+<h2 id="what-was-wrong">What Was Wrong</h2>
+<p>Lok conflates backends with tasks. When you write <code>backend = "claude"</code> in a
+workflow step, you're coupling your workflow to a specific model. Want to swap
+Claude for Gemini? Edit every step.</p>
+<p>Lok also has no concept of project context. A Rust project needs <code>cargo test</code>
+for verification. A Node project needs <code>npm test</code>. In lok, you hardcode these
+per-workflow. Switch projects, rewrite workflows.</p>
+<p>The apply_edits feature was bolted on late. It works but there's no retry loop,
+no structured verification, no rollback without git-agent.</p>
+<h2 id="roles">Roles</h2>
+<p>llm-mux introduces roles. Instead of hardcoding backends:</p>
+<pre data-lang="toml" style="background-color:#2b303b;color:#c0c5ce;" class="language-toml "><code class="language-toml" data-lang="toml"><span style="color:#65737e;"># lok style - backend hardcoded
+</span><span>[[steps]]
+</span><span style="color:#bf616a;">name </span><span>= &quot;</span><span style="color:#a3be8c;">analyze</span><span>&quot;
+</span><span style="color:#bf616a;">backend </span><span>= &quot;</span><span style="color:#a3be8c;">claude</span><span>&quot;
+</span><span style="color:#bf616a;">prompt </span><span>= &quot;</span><span style="color:#a3be8c;">Find bugs</span><span>&quot;
+</span></code></pre>
+<p>You declare what kind of task it is:</p>
+<pre data-lang="toml" style="background-color:#2b303b;color:#c0c5ce;" class="language-toml "><code class="language-toml" data-lang="toml"><span style="color:#65737e;"># llm-mux style - role-based
+</span><span>[[steps]]
+</span><span style="color:#bf616a;">name </span><span>= &quot;</span><span style="color:#a3be8c;">analyze</span><span>&quot;
+</span><span style="color:#bf616a;">type </span><span>= &quot;</span><span style="color:#a3be8c;">query</span><span>&quot;
+</span><span style="color:#bf616a;">role </span><span>= &quot;</span><span style="color:#a3be8c;">analyzer</span><span>&quot;
+</span><span style="color:#bf616a;">prompt </span><span>= &quot;</span><span style="color:#a3be8c;">Find bugs</span><span>&quot;
+</span></code></pre>
+<p>Then configure which backends handle which roles:</p>
+<pre data-lang="toml" style="background-color:#2b303b;color:#c0c5ce;" class="language-toml "><code class="language-toml" data-lang="toml"><span>[roles.analyzer]
+</span><span style="color:#bf616a;">description </span><span>= &quot;</span><span style="color:#a3be8c;">Code analysis tasks</span><span>&quot;
+</span><span style="color:#bf616a;">backends </span><span>= [&quot;</span><span style="color:#a3be8c;">claude</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">codex</span><span>&quot;]
+</span><span style="color:#bf616a;">execution </span><span>= &quot;</span><span style="color:#a3be8c;">parallel</span><span>&quot;
+</span><span>
+</span><span>[roles.quick]
+</span><span style="color:#bf616a;">description </span><span>= &quot;</span><span style="color:#a3be8c;">Fast local checks</span><span>&quot;
+</span><span style="color:#bf616a;">backends </span><span>= [&quot;</span><span style="color:#a3be8c;">qwen</span><span>&quot;]
+</span><span style="color:#bf616a;">execution </span><span>= &quot;</span><span style="color:#a3be8c;">first</span><span>&quot;
+</span></code></pre>
+<p>Swapping backends is a config change, not a workflow rewrite. The workflow says
+"I need analysis." The config decides who does analysis.</p>
+<h2 id="teams">Teams</h2>
+<p>Teams add project context:</p>
+<pre data-lang="toml" style="background-color:#2b303b;color:#c0c5ce;" class="language-toml "><code class="language-toml" data-lang="toml"><span>[teams.rust]
+</span><span style="color:#bf616a;">description </span><span>= &quot;</span><span style="color:#a3be8c;">Rust projects</span><span>&quot;
+</span><span style="color:#bf616a;">detect </span><span>= [&quot;</span><span style="color:#a3be8c;">Cargo.toml</span><span>&quot;]
+</span><span style="color:#bf616a;">verify </span><span>= &quot;</span><span style="color:#a3be8c;">cargo clippy &amp;&amp; cargo test</span><span>&quot;
+</span><span>
+</span><span>[teams.rust.roles.analyzer]
+</span><span style="color:#bf616a;">backends </span><span>= [&quot;</span><span style="color:#a3be8c;">claude</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">codex</span><span>&quot;]
+</span></code></pre>
+<p>When llm-mux detects <code>Cargo.toml</code>, it activates the rust team. Verification
+commands come from the team. Role mappings can be overridden per-team.</p>
+<p>Same workflow, different projects, correct tooling.</p>
+<h2 id="http-backends">HTTP Backends</h2>
+<p>Lok only does CLI. You shell out to <code>claude</code>, <code>codex</code>, <code>ollama run</code>. Each query
+spawns a process.</p>
+<p>llm-mux supports both CLI and HTTP:</p>
+<pre data-lang="toml" style="background-color:#2b303b;color:#c0c5ce;" class="language-toml "><code class="language-toml" data-lang="toml"><span>[backends.claude]
+</span><span style="color:#bf616a;">command </span><span>= &quot;</span><span style="color:#a3be8c;">claude</span><span>&quot;
+</span><span style="color:#bf616a;">args </span><span>= [&quot;</span><span style="color:#a3be8c;">-p</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">--</span><span>&quot;]
+</span><span>
+</span><span>[backends.openai]
+</span><span style="color:#bf616a;">command </span><span>= &quot;</span><span style="color:#a3be8c;">https://api.openai.com/v1</span><span>&quot;
+</span><span style="color:#bf616a;">model </span><span>= &quot;</span><span style="color:#a3be8c;">gpt-4</span><span>&quot;
+</span><span style="color:#bf616a;">api_key </span><span>= &quot;</span><span style="color:#a3be8c;">${OPENAI_API_KEY}</span><span>&quot;
+</span><span>
+</span><span>[backends.local]
+</span><span style="color:#bf616a;">command </span><span>= &quot;</span><span style="color:#a3be8c;">http://localhost:11434/v1</span><span>&quot;
+</span><span style="color:#bf616a;">model </span><span>= &quot;</span><span style="color:#a3be8c;">llama3</span><span>&quot;
+</span></code></pre>
+<p>If the command starts with <code>http</code>, it's HTTP. Otherwise CLI. HTTP is faster for
+high-volume workflows. No process overhead. Proper streaming. Rate limit handling.</p>
+<h2 id="apply-and-verify">Apply and Verify</h2>
+<p>Lok's apply_edits was a boolean flag. llm-mux has a real system:</p>
+<pre data-lang="toml" style="background-color:#2b303b;color:#c0c5ce;" class="language-toml "><code class="language-toml" data-lang="toml"><span>[[steps]]
+</span><span style="color:#bf616a;">name </span><span>= &quot;</span><span style="color:#a3be8c;">fix</span><span>&quot;
+</span><span style="color:#bf616a;">type </span><span>= &quot;</span><span style="color:#a3be8c;">apply</span><span>&quot;
+</span><span style="color:#bf616a;">source </span><span>= &quot;</span><span style="color:#a3be8c;">steps.analyze</span><span>&quot;
+</span><span style="color:#bf616a;">verify </span><span>= &quot;</span><span style="color:#a3be8c;">cargo test</span><span>&quot;
+</span><span style="color:#bf616a;">verify_retries </span><span>= </span><span style="color:#d08770;">3
+</span><span style="color:#bf616a;">verify_retry_prompt </span><span>= &quot;</span><span style="color:#a3be8c;">Fix failed: {{ error }}. Try again.</span><span>&quot;
+</span><span style="color:#bf616a;">rollback_on_failure </span><span>= </span><span style="color:#d08770;">true
+</span></code></pre>
+<p>The flow:</p>
+<ol>
+<li>Parse edits from source step</li>
+<li>Apply edits</li>
+<li>Run verification</li>
+<li>If it fails and retries remain, show error to LLM, try again</li>
+<li>If all retries fail, rollback</li>
+</ol>
+<p>The retry loop is the difference. Instead of failing on first bad edit, llm-mux
+shows the error and asks for a fix. Most failures are small mistakes a second
+attempt catches.</p>
+<p>Rollback uses git stash. No external tooling.</p>
+<h2 id="an-example">An Example</h2>
+<p>The rust-audit workflow runs four parallel audits and writes structured docs:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">llm-mux</span><span> run rust-audit
+</span><span style="color:#bf616a;">llm-mux</span><span> run rust-audit outdir=reports/feb-audit
+</span></code></pre>
+<p>Output:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>docs/audit/
+</span><span>├── README.md          # Summary table
+</span><span>├── 01-safety.md       # Memory safety
+</span><span>├── 02-performance.md  # Perf issues
+</span><span>├── 03-errors.md       # Error handling
+</span><span>└── 04-idioms.md       # Patterns
+</span></code></pre>
+<p>Each audit is its own query step. Each saves to a file. The final step synthesizes
+a summary. The <code>outdir</code> argument makes it reusable.</p>
+<h2 id="what-llm-mux-is-not">What llm-mux Is Not</h2>
+<p>llm-mux is not a replacement for lok's CLI commands. There's no <code>llm-mux ask</code> or
+<code>llm-mux hunt</code>. It's purely a workflow runner.</p>
+<p>If you want quick one-off queries, use lok. If you want structured multi-step
+pipelines with proper abstractions, use llm-mux.</p>
+<p>I'm keeping both. They solve different problems.</p>
+<h2 id="what-doesn-t-work-yet">What Doesn't Work Yet</h2>
+<p>The template system is powerful but error messages are cryptic. A typo in a Jinja
+variable gives you a wall of minijinja internals.</p>
+<p>HTTP backend streaming works but the progress output is ugly. You see chunks
+arrive but it's not as clean as the CLI backend output.</p>
+<p>Team auto-detection is basic. It looks for files but doesn't understand monorepos
+or nested projects yet.</p>
+<h2 id="getting-started">Getting Started</h2>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">cargo</span><span> install llm-mux
+</span><span style="color:#bf616a;">llm-mux</span><span> doctor
+</span><span style="color:#bf616a;">llm-mux</span><span> run rust-audit
+</span></code></pre>
+<p>Config goes in <code>~/.config/llm-mux/config.toml</code>. Workflows go in
+<code>.llm-mux/workflows/</code> or <code>~/.config/llm-mux/workflows/</code>.</p>
+<p>Source at <a href="https://github.com/ducks/llm-mux">github.com/ducks/llm-mux</a>.</p>
+<hr />
+<p>Lok was the prototype. llm-mux is the product. The 317 people using lok helped
+me figure out what the abstractions should be.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;ai-problems-are-human-problems&#x2F;">AI Problems Are Just Human Problems Amplified</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 23, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">AI fatigue, perfectionism vs non-determinism, and garbage in&#x2F;garbage out. These are not new problems. AI just makes them obvious faster.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;finna-multi-model-spec-implement&#x2F;">finna: Multi-Model Debate, Spec, and Implement</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 10, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A standalone tool that takes an idea, debates it across Claude, Codex, and Gemini, creates a roadmap, writes specs, and implements. Planning and execution in one pipeline.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-json-parser-multi-llm&#x2F;">Building a JSON Parser with Multi-LLM Orchestration (Part 1)</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 07, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Using lok to orchestrate four LLMs debating design decisions, then synthesizing specs for a Rust JSON parser. The debate phase surfaced edge cases no single model would have caught.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-spec-multi-agent-planning&#x2F;">Lok Part 5: Multi-Agent Planning with lok spec</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 06, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok gains a spec command that turns task descriptions into structured implementation plans. Multiple LLMs propose, debate, and converge on a roadmap before any code gets written.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;arf-structured-reasoning-for-ai-agents&#x2F;">ARF: Structured Reasoning for AI Agents</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 02, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Moving beyond chat prompts to structured agent communication. Why unstructured data lets LLMs run wild, and how ARF enforces what&#x2F;why&#x2F;how before acting.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Using lok to orchestrate four LLMs debating design decisions, then synthesizing specs for a Rust JSON parser. The debate phase surfaced edge cases no single model would have caught.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Building a JSON Parser with Multi-LLM Orchestration (Part 1)">
+    <meta property="og:description" content="Using lok to orchestrate four LLMs debating design decisions, then synthesizing specs for a Rust JSON parser. The debate phase surfaced edge cases no single model would have caught.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-json-parser-multi-llm&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Building a JSON Parser with Multi-LLM Orchestration (Part 1)">
+    <meta name="twitter:description" content="Using lok to orchestrate four LLMs debating design decisions, then synthesizing specs for a Rust JSON parser. The debate phase surfaced edge cases no single model would have caught.">
+
+    <title>Building a JSON Parser with Multi-LLM Orchestration (Part 1) - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Building a JSON Parser with Multi-LLM Orchestration (Part 1)</h1>
+      <div class="meta">
+        
+        <p>Feb 07, 2026</p>
+        
+        <p>3 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+        </div>
+      
+
+      <p>I've been building lok, a multi-LLM orchestration tool, and I wanted to put it
+through its paces on a real project. What better than a JSON parser? It's a
+classic learning project with enough nuance to surface interesting design
+decisions.</p>
+<p>Here's the premise: instead of just diving into code, what if I let multiple
+LLMs debate the design first? Then synthesize their consensus into specs. Then
+have them collaboratively implement it.</p>
+<h2 id="the-setup">The Setup</h2>
+<p>I started with a simple question:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">lok</span><span> debate &quot;</span><span style="color:#a3be8c;">We want to write a JSON parser from scratch as a learning project.
+</span><span style="color:#a3be8c;">Debate: What language should we use? What features should it support?
+</span><span style="color:#a3be8c;">What should the architecture look like?</span><span>&quot;
+</span></code></pre>
+<p>Four models participated: Claude, Codex (GPT-5.2), Gemini, and Qwen 3 Coder
+(running locally via Ollama).</p>
+<h2 id="round-1-surprising-agreement">Round 1: Surprising Agreement</h2>
+<p>All four converged on Rust. The reasoning varied:</p>
+<p><strong>Claude</strong> focused on the learning angle: "Forces you to think about ownership
+and memory layout. You'll learn more writing a parser in Rust than in Python/JS
+where you can be sloppy."</p>
+<p><strong>Codex</strong> got practical: "Ownership semantics force you to think about buffer
+management. <code>Result&lt;T, E&gt;</code> makes error handling explicit."</p>
+<p><strong>Gemini</strong> went for performance: "Zero-cost abstractions mean clean code
+compiles to efficient machine code."</p>
+<p><strong>Qwen</strong> hit safety: "Enums with exhaustive matching prevent invalid parser
+states."</p>
+<p>On architecture, unanimous: lexer + recursive descent parser. No surprises
+there.</p>
+<h2 id="round-2-the-interesting-bits">Round 2: The Interesting Bits</h2>
+<p>Numbers sparked actual debate. The naive approach stores JSON numbers as <code>f64</code>:</p>
+<pre data-lang="rust" style="background-color:#2b303b;color:#c0c5ce;" class="language-rust "><code class="language-rust" data-lang="rust"><span>Number(</span><span style="color:#b48ead;">f64</span><span>)  </span><span style="color:#65737e;">// Simple but WRONG
+</span></code></pre>
+<p>Codex caught it: "Treating numbers as f64 is not spec-correct. JSON allows
+arbitrary precision. The safest approach is storing the original string."</p>
+<pre data-lang="rust" style="background-color:#2b303b;color:#c0c5ce;" class="language-rust "><code class="language-rust" data-lang="rust"><span>Number(&amp;</span><span style="color:#b48ead;">&#39;a str</span><span>)  </span><span style="color:#65737e;">// Preserves original, validates grammar
+</span></code></pre>
+<p>This is why multi-model debate works. I might have defaulted to f64 and hit
+precision bugs later.</p>
+<p>Another good catch from Gemini: recursive descent needs depth limits. Without
+them, an adversarial input like <code>[[[[[[[[...</code> blows the stack. Simple fix, easy
+to forget.</p>
+<h2 id="the-consensus">The Consensus</h2>
+<p>After three rounds, the models settled on:</p>
+<ol>
+<li><strong>Language</strong>: Rust</li>
+<li><strong>Architecture</strong>: Lexer (iterator-based) + Recursive Descent Parser</li>
+<li><strong>Number handling</strong>: Store as string, not f64</li>
+<li><strong>Zero-copy</strong>: Use <code>Cow&lt;'a, str&gt;</code> where possible</li>
+<li><strong>Safety</strong>: Configurable depth limits</li>
+<li><strong>Features</strong>: RFC 8259 strict first, extensions later</li>
+</ol>
+<h2 id="generating-specs">Generating Specs</h2>
+<p>With design decisions locked, I fed the debate conclusions into <code>lok spec</code>:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">lok</span><span> spec &quot;</span><span style="color:#a3be8c;">Build a JSON parser in Rust with these design decisions:
+</span><span style="color:#a3be8c;">- Lexer + Recursive Descent Parser
+</span><span style="color:#a3be8c;">- Numbers stored as string, not f64
+</span><span style="color:#a3be8c;">- Zero-copy with Cow&lt;&#39;a, str&gt;
+</span><span style="color:#a3be8c;">- Depth limits for safety
+</span><span style="color:#a3be8c;">- RFC 8259 strict compliance</span><span>&quot;
+</span></code></pre>
+<p>This queries multiple backends, synthesizes a consensus roadmap, then breaks
+each step into subtasks. The output:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>.arf/specs/
+</span><span>  roadmap.arf
+</span><span>  01-core_types/     (5 subtasks) - Span, Error, Token, Value
+</span><span>  02-lexer/          (5 subtasks) - Iterator-based tokenizer
+</span><span>  03-parser/         (4 subtasks) - Recursive descent
+</span><span>  04-number_validation/ (2 subtasks) - RFC 8259 number format
+</span><span>  05-error_reporting/   (4 subtasks) - Line/column errors
+</span><span>  06-test_suite/        (3 subtasks) - JSONTestSuite compliance
+</span><span>  07-extension_hooks/   (4 subtasks) - Future comments/trailing commas
+</span></code></pre>
+<p>Each subtask is an <code>.arf</code> file (Agent Reasoning Format) with structured fields:</p>
+<pre data-lang="toml" style="background-color:#2b303b;color:#c0c5ce;" class="language-toml "><code class="language-toml" data-lang="toml"><span style="color:#bf616a;">order </span><span>= </span><span style="color:#d08770;">1
+</span><span style="color:#bf616a;">what </span><span>= &quot;</span><span style="color:#a3be8c;">Core Lexer struct implementing Iterator over tokens</span><span>&quot;
+</span><span style="color:#bf616a;">file </span><span>= &quot;</span><span style="color:#a3be8c;">src/lexer/lexer.rs</span><span>&quot;
+</span><span style="color:#bf616a;">why </span><span>= &quot;</span><span style="color:#a3be8c;">Main lexing logic that transforms input bytes into token stream</span><span>&quot;
+</span><span style="color:#bf616a;">how </span><span>= &quot;&quot;&quot;
+</span><span style="color:#a3be8c;">Struct Lexer&lt;&#39;a&gt; with input: &amp;&#39;a str, pos: usize. Implement
+</span><span style="color:#a3be8c;">Iterator&lt;Item = Result&lt;Token&lt;&#39;a&gt;, LexError&gt;&gt;. Dispatch on current
+</span><span style="color:#a3be8c;">byte: punctuation returns immediately, keywords verify literals,
+</span><span style="color:#a3be8c;">strings handle escapes, numbers capture as slice.
+</span><span>&quot;&quot;&quot;
+</span><span>
+</span><span>[context]
+</span><span style="color:#bf616a;">inputs </span><span>= &quot;</span><span style="color:#a3be8c;">Raw JSON string</span><span>&quot;
+</span><span style="color:#bf616a;">outputs </span><span>= &quot;</span><span style="color:#a3be8c;">Stream of Token results</span><span>&quot;
+</span></code></pre>
+<p>These specs become the contract for implementation.</p>
+<h2 id="what-multi-model-debate-surfaces">What Multi-Model Debate Surfaces</h2>
+<p><strong>Edge cases no single model catches.</strong> The f64 precision issue came from Codex.
+The depth limit vulnerability came from Gemini. Each model has blind spots.
+Claude focused on educational value, Codex on spec correctness, Gemini on
+performance, Qwen on safety.</p>
+<p><strong>Consensus beats any single model.</strong> Not because the average is smarter, but
+because different models catch different things. Three rounds of debate with
+four models surfaced issues I'd have hit weeks into implementation.</p>
+<h2 id="what-s-next">What's Next</h2>
+<p>Part 2 will cover <code>lok implement</code>, which takes these specs and:</p>
+<ol>
+<li>Queries multiple backends in parallel for each subtask</li>
+<li>Synthesizes consensus code from the proposals</li>
+<li>Writes the file and verifies it compiles</li>
+<li>Commits each file with an atomic git commit</li>
+<li>Records structured reasoning traces (ARF) alongside the code</li>
+</ol>
+<p>The implementation phase is where things get interesting. Backends disagree on
+details, synthesis has to resolve conflicts, and verification catches when the
+generated code doesn't actually compile.</p>
+<p>Stay tuned.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;ai-problems-are-human-problems&#x2F;">AI Problems Are Just Human Problems Amplified</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 23, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">AI fatigue, perfectionism vs non-determinism, and garbage in&#x2F;garbage out. These are not new problems. AI just makes them obvious faster.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;llm-mux-workflow-orchestration&#x2F;">llm-mux: Why I Rebuilt Lok</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 11, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok got 300+ installs, then I rewrote it. The abstractions were wrong. llm-mux has roles, teams, and proper apply&#x2F;verify. Here&#x27;s why.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;finna-multi-model-spec-implement&#x2F;">finna: Multi-Model Debate, Spec, and Implement</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 10, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A standalone tool that takes an idea, debates it across Claude, Codex, and Gemini, creates a roadmap, writes specs, and implements. Planning and execution in one pipeline.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-spec-multi-agent-planning&#x2F;">Lok Part 5: Multi-Agent Planning with lok spec</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 06, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok gains a spec command that turns task descriptions into structured implementation plans. Multiple LLMs propose, debate, and converge on a roadmap before any code gets written.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;arf-structured-reasoning-for-ai-agents&#x2F;">ARF: Structured Reasoning for AI Agents</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 02, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Moving beyond chat prompts to structured agent communication. Why unstructured data lets LLMs run wild, and how ARF enforces what&#x2F;why&#x2F;how before acting.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

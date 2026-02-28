@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - framework</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/framework/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Sun, 27 Jul 2025 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>NixOS as a daily driver or Zero to Nixty, part 9&#x2F;? - Enabling Wi-Fi</title>
+          <pubDate>Sun, 27 Jul 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/nixos-daily-driver-9/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/nixos-daily-driver-9/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-9/">&lt;p&gt;I recently got a new
+&lt;a href=&quot;https:&#x2F;&#x2F;frame.work&#x2F;products&#x2F;laptop16-diy-amd-7040&quot;&gt;Framework 16&lt;&#x2F;a&gt; (thanks
+Discourse!). In the previous post, we talked about encrypting the machine and
+refactoring our config into a modular layout. You can read about that and more
+in the &lt;a href=&quot;&#x2F;tags&#x2F;nixos&quot;&gt;NixOS As A Daily Driver&lt;&#x2F;a&gt; series.&lt;&#x2F;p&gt;
+&lt;p&gt;Today I will be showing how I got Wi-Fi working because it did not work on NixOS
+by default. The Framework 16 ships with an Intel AX210 Wi-Fi module.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-symptoms&quot;&gt;The Symptoms&lt;&#x2F;h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;nmcli device status&lt;&#x2F;code&gt; shows my &lt;code&gt;wlp2s0&lt;&#x2F;code&gt; as &quot;DOWN&quot;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;ip link set wlp2s0 up&lt;&#x2F;code&gt; was not effective&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;nmtui&lt;&#x2F;code&gt; would show SSIDs but refused to connect&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h3 id=&quot;steps-to-fix&quot;&gt;Steps To Fix&lt;&#x2F;h3&gt;
+&lt;p&gt;&lt;strong&gt;Load the Intel driver&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;The AX210 needs the &lt;code&gt;iwlwifi&lt;&#x2F;code&gt; kernel module and firmware:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;boot.kernelModules = [ &amp;quot;iwlwifi&amp;quot; ];
+&lt;&#x2F;span&gt;&lt;span&gt;hardware.enableRedistributableFirmware = true;
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This ensures the driver is in my &lt;code&gt;init-ramfs&lt;&#x2F;code&gt; and the firmware is present.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Explicitly define Wi-Fi backend&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;networking.networkmanager.enable = true;
+&lt;&#x2F;span&gt;&lt;span&gt;networking.networkmanager.wifi.backend = &amp;quot;wpa_supplicant&amp;quot;;
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;h3 id=&quot;full-minimal-config-snippet&quot;&gt;Full Minimal Config Snippet&lt;&#x2F;h3&gt;
+&lt;p&gt;All in all, this is what I added:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;# Load the Intel AX210 driver and firmware
+&lt;&#x2F;span&gt;&lt;span&gt;boot.kernelModules               = [ &amp;quot;iwlwifi&amp;quot; ];
+&lt;&#x2F;span&gt;&lt;span&gt;hardware.enableRedistributableFirmware = true;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;# Enable the wireless module and NM
+&lt;&#x2F;span&gt;&lt;span&gt;networking.networkmanager.enable = true;
+&lt;&#x2F;span&gt;&lt;span&gt;networking.networkmanager.wifi.backend = &amp;quot;wpa_supplicant&amp;quot;;
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;h3 id=&quot;rebuild-reboot&quot;&gt;Rebuild &amp;amp; Reboot&lt;&#x2F;h3&gt;
+&lt;p&gt;Make sure all the new config will take hold by rebuilding and rebooting.&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;sudo nixos-rebuild switch
+&lt;&#x2F;span&gt;&lt;span&gt;sudo reboot now
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;You can confirm everything worked by running:
+&lt;code&gt;nmcli device status | grep wlp2s0&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;victory&quot;&gt;Victory!&lt;&#x2F;h3&gt;
+&lt;p&gt;After rebooting, my &lt;code&gt;iwlwifi&lt;&#x2F;code&gt; driver loaded, &lt;code&gt;wlp2s0&lt;&#x2F;code&gt; came up, and &lt;code&gt;nmtui&lt;&#x2F;code&gt; was
+able to both see and connect to the SSIDs.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

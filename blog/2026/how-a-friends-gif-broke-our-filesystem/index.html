@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="A backup deduplication fix, filesystem hardlink limits, and the Jennifer Aniston reaction GIF that stress-tested our infrastructure.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="How Jennifer Aniston and Friends Cost Us 377GB and Broke ext4 Hardlinks">
+    <meta property="og:description" content="A backup deduplication fix, filesystem hardlink limits, and the Jennifer Aniston reaction GIF that stress-tested our infrastructure.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;how-a-friends-gif-broke-our-filesystem&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="How Jennifer Aniston and Friends Cost Us 377GB and Broke ext4 Hardlinks">
+    <meta name="twitter:description" content="A backup deduplication fix, filesystem hardlink limits, and the Jennifer Aniston reaction GIF that stress-tested our infrastructure.">
+
+    <title>How Jennifer Aniston and Friends Cost Us 377GB and Broke ext4 Hardlinks - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>How Jennifer Aniston and Friends Cost Us 377GB and Broke ext4 Hardlinks</h1>
+      <div class="meta">
+        
+        <p>Jan 23, 2026</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/discourse">#discourse</a></p>
+          
+          <p><a href="/tags/infrastructure">#infrastructure</a></p>
+          
+          <p><a href="/tags/linux">#linux</a></p>
+          
+        </div>
+      
+
+      <h2 id="intro">Intro</h2>
+<p>It started with backup issues. Sites with hundreds of gigabytes of uploads
+were running out of disk space during backup generation. One site had 600+ GB
+of uploads and the backup process kept dying.</p>
+<p>While looking into reliable large backups, we discovered something wild in one
+of those sites: the actual unique content was a fraction of the reported size.
+They were storing the same files over and over again, each with a different
+filename. The duplication was absurd.</p>
+<p>So we shipped an optimization. Detect duplicate files by their content hash, use
+hardlinks instead of downloading each copy. I wrote some new tests, they all
+passed, it got approved and merged. But unfortunately, a fix like this is kind
+of hard to actually fully test.</p>
+<p>Then someone ran it on a real production backup and hit a filesystem limit I
+didn't know existed. The culprit? A single reaction GIF, duplicated 246,173
+times.</p>
+<h2 id="the-problem">The Problem</h2>
+<p>Discourse has a feature called secure uploads. When a file moves between
+security contexts (say, from a private message to a public post), the system
+creates a new copy with a randomized SHA1. The original content is identical,
+but Discourse treats it as a new file.</p>
+<p>This happens constantly with reaction GIFs and popular images. Users share them
+across posts, embed them in PMs, repost in different categories. Each context
+creates another copy.</p>
+<p>This is mostly fine for normal operation. But for backups, it's a disaster.</p>
+<p>One customer had 432 GB of uploads. Unique content? 26 GB. The rest was
+duplicates. A 16x inflation factor, all going into the backup archive.</p>
+<h2 id="the-fix">The Fix</h2>
+<p>The fix seemed straightforward. Discourse tracks the original content hash in
+<code>original_sha1</code>. During backup:</p>
+<ol>
+<li>Group uploads by <code>original_sha1</code></li>
+<li>Download the first file in each group</li>
+<li>Create hardlinks for the duplicates</li>
+</ol>
+<p>Hardlinks point multiple filenames to the same data on disk. GNU tar preserves
+them, so the archive stores the data once. Download 26 GB, archive 26 GB,
+everyone wins.</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">process_upload_group</span><span>(</span><span style="color:#bf616a;">upload_group</span><span>)
+</span><span>  primary = upload_group.first
+</span><span>  primary_filename = upload_path_in_archive(primary)
+</span><span>
+</span><span>  </span><span style="color:#b48ead;">return if </span><span>!download_upload_to_file(primary, primary_filename)
+</span><span>
+</span><span>  </span><span style="color:#65737e;"># Create hardlinks for all duplicates in this group
+</span><span>  upload_group.drop(</span><span style="color:#d08770;">1</span><span>).each </span><span style="color:#b48ead;">do </span><span>|</span><span style="color:#bf616a;">duplicate</span><span>|
+</span><span>    duplicate_filename = upload_path_in_archive(duplicate)
+</span><span>    hardlink_or_download(primary_filename, duplicate, duplicate_filename)
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>The <code>hardlink_or_download</code> method falls back to downloading if the hardlink
+fails:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">hardlink_or_download</span><span>(</span><span style="color:#bf616a;">source_filename</span><span>, </span><span style="color:#bf616a;">upload_data</span><span>, </span><span style="color:#bf616a;">target_filename</span><span>)
+</span><span>  </span><span style="color:#ebcb8b;">FileUtils</span><span>.mkdir_p(</span><span style="color:#ebcb8b;">File</span><span>.dirname(target_filename))
+</span><span>  </span><span style="color:#ebcb8b;">FileUtils</span><span>.ln(source_filename, target_filename)  </span><span style="color:#65737e;"># Create hardlink
+</span><span>  increment_and_log_progress(</span><span style="color:#a3be8c;">:hardlinked</span><span>)
+</span><span style="color:#b48ead;">rescue </span><span style="color:#bf616a;">StandardError </span><span>=&gt; ex
+</span><span>  </span><span style="color:#65737e;"># Fallback: download if hardlink fails
+</span><span>  log &quot;</span><span style="color:#a3be8c;">Failed to create hardlink, downloading instead</span><span>&quot;, ex
+</span><span>  download_upload_to_file(upload_data, target_filename)
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>Shipped it and got positive feedback.</p>
+<h2 id="the-limit">The Limit</h2>
+<p>A colleague then used the new version to run a backup on a large site. The logs looked great:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>53000 files processed (25 downloaded, 52975 hardlinked). Still processing...
+</span><span>54000 files processed (25 downloaded, 53975 hardlinked). Still processing...
+</span><span>...
+</span><span>64000 files processed (25 downloaded, 63975 hardlinked). Still processing...
+</span><span>65000 files processed (25 downloaded, 64975 hardlinked). Still processing...
+</span><span>Failed to create hardlink for upload ID 482897, downloading instead
+</span><span>Failed to create hardlink for upload ID 457497, downloading instead
+</span><span>Failed to create hardlink for upload ID 867574, downloading instead
+</span></code></pre>
+<p>At 65,000 hardlinks, it started failing. Turns out ext4 has a limit: roughly
+65,000 hardlinks per inode. One file can only have 65,000 names pointing to it.</p>
+<p>The fallback worked and it didn't fail completely. The backup finished. But
+instead of one download for all 246,173 duplicates, we got one download plus
+~181,000 fallback downloads after hitting the limit.</p>
+<p>Still better than 246,173 downloads. But not the win I expected.</p>
+<h2 id="the-gif">The GIF</h2>
+<p>So what file had 246,173 copies?</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#ebcb8b;">Upload</span><span>.where(</span><span style="color:#a3be8c;">original_sha1: </span><span>&#39;</span><span style="color:#a3be8c;">27b7a62e34...</span><span>&#39;).count
+</span><span>=&gt; </span><span style="color:#d08770;">246173
+</span><span>
+</span><span style="color:#ebcb8b;">Upload</span><span>.where(</span><span style="color:#a3be8c;">original_sha1: </span><span>&#39;</span><span style="color:#a3be8c;">27b7a62e34...</span><span>&#39;).first.filesize
+</span><span>=&gt; </span><span style="color:#d08770;">1643869
+</span></code></pre>
+<p>1.6 MB. Duplicated a quarter million times. That's 377 GB of backup bloat from
+a single image.</p>
+<p>And then I saw what it was...</p>
+<p><img src="/images/jennifer-aniston.gif" alt="Jennifer Aniston dancing from Friends" /></p>
+<p>A reaction GIF. Used constantly in posts, PMs, everywhere. Each use in a
+different security context creates a new copy. 246,173 copies of Rachel from
+Friends doing a happy dance.</p>
+<p>One GIF broke the hardlink limit.</p>
+<h2 id="the-math">The Math</h2>
+<p>Without deduplication: 246,173 downloads, 377 GB transferred.</p>
+<p>With deduplication (hitting limit): ~4 downloads, ~6.4 MB transferred.</p>
+<p>The filesystem limit turned my "download once" into "download four times." I
+can live with that.</p>
+<h2 id="the-fix-for-the-fix">The Fix for the Fix</h2>
+<p>My first instinct was to track hardlink counts and proactively rotate before
+hitting the limit. But a colleague pointed out the flaw: we have no idea what
+filesystem is being used. ext4 has one limit, XFS another, ZFS another. Picking
+a magic number is fragile.</p>
+<p>Better approach: let the filesystem tell us when we've hit the limit.</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">create_hardlink</span><span>(</span><span style="color:#bf616a;">source_filename</span><span>, </span><span style="color:#bf616a;">upload_data</span><span>, </span><span style="color:#bf616a;">target_filename</span><span>)
+</span><span>  </span><span style="color:#ebcb8b;">FileUtils</span><span>.mkdir_p(</span><span style="color:#ebcb8b;">File</span><span>.dirname(target_filename))
+</span><span>  </span><span style="color:#ebcb8b;">FileUtils</span><span>.ln(source_filename, target_filename)
+</span><span>  source_filename
+</span><span style="color:#b48ead;">rescue </span><span style="color:#ebcb8b;">Errno</span><span>::EMLINK
+</span><span>  </span><span style="color:#65737e;"># Filesystem hardlink limit reached - copy and use as new primary
+</span><span>  </span><span style="color:#ebcb8b;">FileUtils</span><span>.cp(source_filename, target_filename)
+</span><span>  target_filename
+</span><span style="color:#b48ead;">rescue </span><span style="color:#bf616a;">StandardError </span><span>=&gt; ex
+</span><span>  download_upload_to_file(upload_data, target_filename)
+</span><span>  source_filename
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>When <code>Errno::EMLINK</code> fires, we already have the file locally. No need to
+re-download. Just copy it and use the copy as the new primary for subsequent
+hardlinks. Works on any filesystem, no configuration needed.</p>
+<h2 id="what-i-learned">What I Learned</h2>
+<p>Filesystems have opinions. ext4's hardlink limit exists to prevent certain
+classes of bugs and attacks. It's not arbitrary.</p>
+<p>The fallback saved the feature. Without graceful degradation, that backup would
+have failed entirely. Instead it completed, just slower than optimal.</p>
+<p>Production always finds the edge cases. 246,000 copies of one file is absurd.
+But absurd things happen at scale.</p>
+<p>A few concrete takeaways:</p>
+<ul>
+<li>Test for failure modes, not just success paths. The hardlink fallback was
+built-in from the start, but I never expected to actually need it.</li>
+<li>Optimizations that reduce work by 16x still need to handle edge cases. A
+99.998% improvement with graceful degradation beats a 100% improvement that
+crashes.</li>
+<li>Track filesystem-level constraints early. Hardlink limits, inode counts, path
+lengths - these are real operational boundaries, not theoretical concerns.</li>
+</ul>
+<p>And now I know Jennifer Aniston can stress-test infrastructure.</p>
+<h2 id="links">Links</h2>
+<ul>
+<li><a href="https://github.com/discourse/discourse/pull/37261">Discourse PR #37261</a> -
+The backup deduplication fix</li>
+<li><a href="https://github.com/discourse/discourse/pull/37293">Discourse PR #37293</a> -
+The hardlink limit fix</li>
+</ul>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-discourse-comments-in-typescript&#x2F;">Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 27, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">I rewrote the Discourse embedded comments API client from Rust&#x2F;WASM to pure TypeScript. The bundle went from 742 KB to 18 KB.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-discourse-embedded-comments&#x2F;">Building Embedded Discourse Comments with Rust and WASM</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 14, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">An experiment in creating a drop-in comment widget for static sites using Rust compiled to WebAssembly, talking to Discourse&#x27;s REST API.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/wasm">#wasm</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-stats-evolution&#x2F;">Invite Tree to Invite Stats - How A Simple Tree Flourished Into A Full Moderation Plugin</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 05, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">How a simple visualization plugin evolved into a moderation tool.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-tree&#x2F;">Visualizing Discourse Invite Trees</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 03, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A simple Discourse plugin that visualizes who invited whom as an ASCII tree, inspired by Lobsters.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-the-guest-spot-part-2&#x2F;">Building The Guest Spot: Part 2 - Two Refactors</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 26, 2025</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Two major refactors: custom model to Topics, then custom feed to plugin outlets. Less code, more features, better maintainability.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/ember">#ember</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

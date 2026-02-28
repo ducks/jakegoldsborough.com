@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="On letting go of endless debates and just building things to see what works.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Skin Shedding, Not Bikeshedding">
+    <meta property="og:description" content="On letting go of endless debates and just building things to see what works.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;skin-shedding-not-bikeshedding&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Skin Shedding, Not Bikeshedding">
+    <meta name="twitter:description" content="On letting go of endless debates and just building things to see what works.">
+
+    <title>Skin Shedding, Not Bikeshedding - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Skin Shedding, Not Bikeshedding</h1>
+      <div class="meta">
+        
+        <p>Nov 23, 2025</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+          <p><a href="/tags/philosophy">#philosophy</a></p>
+          
+        </div>
+      
+
+      <p>Snakes shed their skin. They outgrow it, slough it off, and keep moving.
+They're still the same snake, just with a fresh layer, ready for whatever
+comes next.</p>
+<p>I've been thinking about that lately.</p>
+<p>This whole reflection started because I caught myself in yet another argument
+where nobody was building anything.</p>
+<h2 id="the-bikeshed-problem">The Bikeshed Problem</h2>
+<p>There's this concept in software development called bikeshedding. The term
+comes from an example about a fictional committee reviewing plans for a
+nuclear power plant. They breeze through the complex reactor design but spend
+hours debating the color of the bike shed. Why? Because everyone understands
+bike sheds. Everyone has opinions about paint.</p>
+<p>In code, bikeshedding looks like endless debates about tab width, framework
+choices, naming conventions. Arguments about the "right way" to do things
+that could be resolved by just trying something and seeing if it works.</p>
+<p>I've spent too much time in those debates.</p>
+<h2 id="the-weight-of-being-right">The Weight of Being Right</h2>
+<p>Here's what I've learned: arguing about code is exhausting. Not the
+technical discussions about trade-offs or the collaborative problem-solving.
+I mean the arguments. The "this is the only correct approach" discussions.
+The debates where everyone digs in and nobody builds anything.</p>
+<p>I've been part of teams where every PR becomes a referendum on architectural
+philosophy. Where suggesting a different approach gets met with resistance
+before anyone's even tried it. Where the discussion thread is longer than
+the code changes.</p>
+<p>It's draining. And worse, it's a trap. Because when you're arguing about
+whether to use Tool A or Tool B, you're not actually learning which one
+works better for your specific use case. You're just... arguing.</p>
+<h2 id="the-freedom-of-not-knowing">The Freedom of Not Knowing</h2>
+<p>The truth is, half the time we don't know what will work until we try it.
+We think we do. We have intuitions, experience, opinions. But software is
+weird. Context matters. What worked great on one project might be wrong for
+another.</p>
+<p>So instead, I just try things.</p>
+<p>Not recklessly. Not without thought. But when faced with two reasonable
+approaches, instead of spending hours debating the merits, I'll pick one and
+build it. See how it feels. See where it breaks. See what I learn.</p>
+<p>And you know what? Sometimes the "wrong" choice teaches me more than the
+"right" one would have.</p>
+<h2 id="shedding-skin">Shedding Skin</h2>
+<p>This is where the snake metaphor comes back. Shedding skin isn't about
+becoming a different snake. It's about not being constrained by what fit
+before.</p>
+<p>For the most part, I'm the same developer I was six months ago. Same skills,
+same values, same approach to problem-solving. But I'm not carrying around the
+weight of old arguments anymore. I'm not defending approaches I used on past
+projects just because I invested ego in them.</p>
+<p>I can use SQLite on one project and Postgres on another. I can use React
+here and Svelte there. I can experiment with different state management
+approaches and see what actually works instead of what I think should work.</p>
+<p>The skin shedding isn't about the technology. It's about letting go of
+needing to be right before I've tried anything.</p>
+<h2 id="what-this-looks-like">What This Looks Like</h2>
+<p>Practically, this means:</p>
+<p>Build small experiments. Don't debate for hours about whether approach A or B
+is better. Spend 30 minutes trying A and see how it feels. Then try B. Now you
+have actual data instead of theoretical arguments.</p>
+<p>Ship things that might not be perfect. Perfect is the enemy of learning. Ship
+something that works, see how it breaks in the real world, iterate. You'll
+learn more in a week of production use than a month of pre-planning.</p>
+<p>Change your mind without drama. "We're using X" doesn't have to be a permanent
+commitment. If it's not working, you can try Y. This isn't failure, it's
+iteration.</p>
+<p>Judge by outcomes, not aesthetics. Code that's a bit messy but works reliably
+is better than code that's architecturally pure but brittle. The goal is to
+solve problems, not win style points.</p>
+<p>All of this beats spending three hours arguing about the hypothetical failure
+modes of something nobody has tested.</p>
+<h2 id="the-meta-lesson">The Meta Lesson</h2>
+<p>Here's the thing: this post is about code, but it's not really about code.
+It's about how we approach problems when we don't know the answer yet.</p>
+<p>Do we lock ourselves into positions before we have evidence? Do we defend
+our intuitions as if they're facts? Do we mistake confidence for correctness?</p>
+<p>Or do we stay curious? Do we try things? Do we update our beliefs when we
+learn new information?</p>
+<p>The snake sheds its skin because it has to. It's grown too big for the old
+one. We can do the same. We can outgrow old arguments, old certainties, old
+ways of working that don't serve us anymore.</p>
+<p>We're still the same developers. We're just not trapped by what we thought
+we knew before we tried it.</p>
+<h2 id="try-it-and-see">Try It and See</h2>
+<p>Last week, instead of debating the limitations of someone else's critique, I
+just built the tool I wished we had.</p>
+<p>Next time you're in a debate about the "right" way to do something, ask
+yourself: would it be faster to just try it?</p>
+<p>Not everything, of course. Some decisions are expensive to reverse. But a
+lot of what we argue about? It's just bike sheds. We could build both sheds,
+paint them different colors, and actually see which one we like better.</p>
+<p>That's skin shedding. Letting go of the need to be right about things you
+haven't tried yet. Staying light, staying curious, staying open to learning
+from the next thing you build.</p>
+<p>The old skin doesn't fit anymore. Time to shed it and keep moving.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;ai-problems-are-human-problems&#x2F;">AI Problems Are Just Human Problems Amplified</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 23, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">AI fatigue, perfectionism vs non-determinism, and garbage in&#x2F;garbage out. These are not new problems. AI just makes them obvious faster.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;llm-mux-workflow-orchestration&#x2F;">llm-mux: Why I Rebuilt Lok</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 11, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok got 300+ installs, then I rewrote it. The abstractions were wrong. llm-mux has roles, teams, and proper apply&#x2F;verify. Here&#x27;s why.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;finna-multi-model-spec-implement&#x2F;">finna: Multi-Model Debate, Spec, and Implement</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 10, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A standalone tool that takes an idea, debates it across Claude, Codex, and Gemini, creates a roadmap, writes specs, and implements. Planning and execution in one pipeline.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-json-parser-multi-llm&#x2F;">Building a JSON Parser with Multi-LLM Orchestration (Part 1)</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 07, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Using lok to orchestrate four LLMs debating design decisions, then synthesizing specs for a Rust JSON parser. The debate phase surfaced edge cases no single model would have caught.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-spec-multi-agent-planning&#x2F;">Lok Part 5: Multi-Agent Planning with lok spec</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 06, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok gains a spec command that turns task descriptions into structured implementation plans. Multiple LLMs propose, debate, and converge on a roadmap before any code gets written.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

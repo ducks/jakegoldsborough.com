@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="I created a formal specification for date-based version numbers because nobody else had. Now both Ubuntu and yaml-janitor are officially valid Date-Ver.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Date-Ver: A Formal Spec for Date-Based Versioning">
+    <meta property="og:description" content="I created a formal specification for date-based version numbers because nobody else had. Now both Ubuntu and yaml-janitor are officially valid Date-Ver.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;introducing-date-ver-date-based-versioning&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Date-Ver: A Formal Spec for Date-Based Versioning">
+    <meta name="twitter:description" content="I created a formal specification for date-based version numbers because nobody else had. Now both Ubuntu and yaml-janitor are officially valid Date-Ver.">
+
+    <title>Date-Ver: A Formal Spec for Date-Based Versioning - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Date-Ver: A Formal Spec for Date-Based Versioning</h1>
+      <div class="meta">
+        
+        <p>Nov 15, 2025</p>
+        
+        <p>3 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/versioning">#versioning</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+          <p><a href="/tags/specs">#specs</a></p>
+          
+        </div>
+      
+
+      <p>Yesterday I published <a href="https://rubygems.org/gems/yaml-janitor">yaml-janitor</a>
+using date-based version numbers like <code>20251115</code>. The version number is the
+release date. Automatic, meaningful, no decisions needed.</p>
+<p>Then I realized there's no formal specification for this. Semantic versioning
+has <a href="https://semver.org/">semver.org</a> with strict rules and RFC 2119 language.
+Calendar versioning has <a href="https://calver.org/">calver.org</a>, but that's just a
+pattern guide, not a spec.</p>
+<p>So I built <a href="https://date-ver.com/">date-ver</a>.</p>
+<h2 id="what-it-is">What It Is</h2>
+<p>date-ver is a formal spec for date-based version numbers. Instead of <code>1.2.3</code>
+or <code>2.0.0</code>, you use <code>20251116</code>, <code>202511</code>, or <code>2025</code>.</p>
+<p>The idea is simple: your version number is when you released, not what
+changed. Works great for applications, utilities, and distributions where
+users care about freshness over compatibility.</p>
+<h2 id="why-it-exists">Why It Exists</h2>
+<p>Projects have been using date-based versions forever. Ubuntu does <code>24.04</code> and
+<code>24.10</code>. yaml-janitor uses <code>20251115</code>. But without a formal spec, everyone
+makes up their own rules.</p>
+<p>Questions that needed answers:</p>
+<ul>
+<li>Can you mix formats? (Yes: <code>2024</code> → <code>202505</code> → <code>20250601</code> is valid)</li>
+<li>Multiple releases per day? (Sequence numbers: <code>20251116.1</code>, <code>20251116.2</code>)</li>
+<li>Pre-releases? (Use your separator: <code>20251116.alpha.1</code> or <code>2025-11-15-rc-2</code>)</li>
+<li>Separators allowed? (Yes: <code>20251116</code> = <code>2025.11.16</code> = <code>2025-11-16</code>)</li>
+</ul>
+<p>date-ver answers all of these with proper RFC 2119 language.</p>
+<h2 id="the-separator-decision">The Separator Decision</h2>
+<p>Ubuntu uses dots (<code>24.04</code>). yaml-janitor uses nothing (<code>20251115</code>). Some
+projects use hyphens or slashes. Rather than force everyone to change, date-ver
+allows any single-character separator as long as you're consistent throughout
+the entire version string similar to regex.</p>
+<p>Valid:</p>
+<ul>
+<li><code>20251116</code> (no separator)</li>
+<li><code>2025.11.16</code> (dots throughout)</li>
+<li><code>2025-11-16</code> (hyphens throughout)</li>
+<li><code>2025/11/16</code> (slashes throughout)</li>
+<li><code>20251116.alpha.1</code> (dots for everything)</li>
+<li><code>2025-11-15-rc-2</code> (hyphens for everything)</li>
+</ul>
+<p>Invalid:</p>
+<ul>
+<li><code>2025.11-16</code> (mixed separators in date)</li>
+<li><code>20251116-alpha.1</code> (mixing none with hyphen and dot)</li>
+</ul>
+<p>Pick one separator and stick to it. All separator styles are equivalent. To
+compare versions, strip separators and compare digits. Simple.</p>
+<h2 id="pick-your-precision">Pick Your Precision</h2>
+<p>Projects choose their granularity:</p>
+<ul>
+<li>Year: <code>2025</code></li>
+<li>Year-month: <code>202511</code> or <code>2025.11</code></li>
+<li>Year-month-day: <code>20251116</code> or <code>2025.11.16</code></li>
+</ul>
+<p>More specific = higher precedence: <code>2025 &lt; 202501 &lt; 20250101</code></p>
+<p>Start with yearly versions and switch to monthly or daily whenever. No
+breaking changes, just more precision when you need it.</p>
+<h2 id="when-to-use-it">When to Use It</h2>
+<p>Good fit:</p>
+<ul>
+<li>Applications with regular releases</li>
+<li>Operating systems and distributions</li>
+<li>Tools where freshness matters</li>
+<li>Internal utilities</li>
+</ul>
+<p>Bad fit:</p>
+<ul>
+<li>Libraries where compatibility matters</li>
+<li>APIs with semver expectations</li>
+<li>Projects with strict dependency contracts</li>
+</ul>
+<p>Need to signal breaking changes? Use semver. Need to signal release timing?
+Use date-ver.</p>
+<h2 id="building-it">Building It</h2>
+<p>Wrote the spec following semver's structure:</p>
+<ul>
+<li>Summary</li>
+<li>Introduction</li>
+<li>Numbered rules with RFC 2119 language</li>
+<li>FAQ</li>
+<li>Examples</li>
+</ul>
+<p>Built a website with GitHub Pages, Gruvbox colors, and automatic dark mode.
+The spec itself uses date-ver <code>20251115</code> (it originally said <code>1.0.0</code> which was
+pretty ironic).</p>
+<h2 id="that-s-it">That's It</h2>
+<p>date-ver exists. The spec is done, the domain is live, and the website is up
+at <a href="https://date-ver.com/">date-ver.com</a>.</p>
+<p>Ubuntu is officially valid date-ver. So is yaml-janitor. Any project using
+date-based versions can point to the spec now.</p>
+<p>Maybe it catches on. Maybe it doesn't. Either way, there's a formal answer
+when someone asks "why are your versions dates?"</p>
+<p>The version is the release date. That's date-ver.</p>
+<hr />
+<p>Full spec: <a href="https://date-ver.com/">date-ver.com</a>
+Source: <a href="https://github.com/ducks/date-ver">GitHub</a> (CC BY 4.0)</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-discourse-comments-in-typescript&#x2F;">Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 27, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">I rewrote the Discourse embedded comments API client from Rust&#x2F;WASM to pure TypeScript. The bundle went from 742 KB to 18 KB.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;cfgs-dev-a-directory-for-developer-setups&#x2F;">cfgs.dev: A Directory for Developer Setups</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 03, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Building a browsable index of dotfiles and development environments.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;arf-structured-reasoning-for-ai-agents&#x2F;">ARF: Structured Reasoning for AI Agents</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 02, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Moving beyond chat prompts to structured agent communication. Why unstructured data lets LLMs run wild, and how ARF enforces what&#x2F;why&#x2F;how before acting.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;letting-ai-pick-the-project&#x2F;">Letting AI Pick the Project</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 19, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">An experiment in creative delegation: I asked Claude to build whatever it wanted. It chose to build a tool it wished existed.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                      <p><a href="/tags/experiment">#experiment</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-discourse-embedded-comments&#x2F;">Building Embedded Discourse Comments with Rust and WASM</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 14, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">An experiment in creating a drop-in comment widget for static sites using Rust compiled to WebAssembly, talking to Discourse&#x27;s REST API.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/wasm">#wasm</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

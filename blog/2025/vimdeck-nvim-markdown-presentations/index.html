@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Rewrote vimdeck for Neovim using Treesitter. No Ruby, no temp files, just native Lua and clean slide rendering.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="vimdeck.nvim: Markdown Presentations in Neovim">
+    <meta property="og:description" content="Rewrote vimdeck for Neovim using Treesitter. No Ruby, no temp files, just native Lua and clean slide rendering.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;vimdeck-nvim-markdown-presentations&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="vimdeck.nvim: Markdown Presentations in Neovim">
+    <meta name="twitter:description" content="Rewrote vimdeck for Neovim using Treesitter. No Ruby, no temp files, just native Lua and clean slide rendering.">
+
+    <title>vimdeck.nvim: Markdown Presentations in Neovim - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>vimdeck.nvim: Markdown Presentations in Neovim</h1>
+      <div class="meta">
+        
+        <p>Nov 07, 2025</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/neovim">#neovim</a></p>
+          
+          <p><a href="/tags/lua">#lua</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <p>I live in the terminal and Neovim. We have been discussing lightning talks at work,
+so I wanted a way to present using both. The original
+<a href="https://github.com/tybenz/vimdeck">vimdeck</a> used to work perfectly, but it's a
+Ruby script that doesn't seem to work with Neovim.</p>
+<p>So I rewrote it from scratch using Treesitter and Lua (and Claude).</p>
+<h2 id="what-it-does">What It Does</h2>
+<p>You write your presentation in markdown. Separate slides with horizontal
+rules (<code>---</code>). Run <code>:Vimdeck</code> and you get a fullscreen presentation with:</p>
+<ul>
+<li>ASCII art headers (h1 and h2 use figlet)</li>
+<li>Syntax highlighted code blocks</li>
+<li>Clean list rendering with bullets</li>
+<li>Blockquote formatting</li>
+<li>Keyboard navigation (Space/PageDown, Backspace/PageUp, q to quit)</li>
+</ul>
+<p><img src="/images/neovim-deck-1.png" alt="vimdeck presentation showing ASCII art header" /></p>
+<p><img src="/images/neovim-deck-prose.png" alt="neovimdeck prose slide" /></p>
+<h2 id="why-rewrite-it">Why Rewrite It?</h2>
+<p>The original vimdeck was solid for Vim, but it was not working for me in
+Neovim. Adding to that, it felt like it could be done in a better, more native
+way. The current Vimdeck was:</p>
+<ul>
+<li>External Ruby script (dependency management)</li>
+<li>Generated temp files for each slide</li>
+<li>Custom shell wrapper for keybindings</li>
+<li>redcarpet gem for markdown parsing</li>
+</ul>
+<p>Neovim has Treesitter built-in. Lua is native. Why shell out to Ruby and
+manage temp files when you can parse and render everything directly?</p>
+<h2 id="the-approach">The Approach</h2>
+<p><strong>Parser</strong> (<code>lua/vimdeck/parser.lua</code>): Uses Treesitter to parse markdown
+buffers. Queries for headings, code blocks, lists, quotes, paragraphs. Splits
+content into slides on horizontal rules (thematic breaks).</p>
+<pre data-lang="lua" style="background-color:#2b303b;color:#c0c5ce;" class="language-lua "><code class="language-lua" data-lang="lua"><span style="color:#b48ead;">local </span><span style="color:#bf616a;">query </span><span>= </span><span style="color:#bf616a;">vim</span><span>.treesitter.query.</span><span style="color:#bf616a;">parse</span><span>(&#39;</span><span style="color:#a3be8c;">markdown</span><span>&#39;, [[
+</span><span style="color:#a3be8c;">  (thematic_break) @separator
+</span><span style="color:#a3be8c;">  (atx_heading) @heading
+</span><span style="color:#a3be8c;">  (fenced_code_block) @code
+</span><span style="color:#a3be8c;">  (list_item) @list_item
+</span><span style="color:#a3be8c;">  (block_quote) @quote
+</span><span style="color:#a3be8c;">  (paragraph) @paragraph
+</span><span>]])
+</span></code></pre>
+<p>For each captured node, extract the text and metadata (heading level, code
+language, etc.). Group elements into slides based on separators.</p>
+<p><strong>Renderer</strong> (<code>lua/vimdeck/renderer.lua</code>): Takes parsed slides and renders
+them to buffer lines with highlight instructions.</p>
+<p>Headers get piped through figlet for ASCII art (h1 uses standard font, h2
+uses small). Lists get bullet points. Blockquotes get vertical bars. Code
+blocks get syntax highlighting via Treesitter string parsers.</p>
+<p><strong>Navigation</strong> (<code>lua/vimdeck/navigation.lua</code>): Opens slides in a new tab,
+sets up keybindings, manages state. Updates the buffer content and applies
+highlights when switching slides.</p>
+<h2 id="technical-bits">Technical Bits</h2>
+<p><strong>Treesitter Integration</strong>: The markdown parser exposes node types like
+<code>atx_heading</code>, <code>fenced_code_block</code>, <code>list_item</code>. Each node has position info
+(start/end row/col) and can extract text with
+<code>vim.treesitter.get_node_text()</code>.</p>
+<p>Getting clean text required helper functions. List items include the markdown
+markers (<code>- item</code>), so we traverse child nodes to skip <code>list_marker</code> nodes
+and extract just the content. Same for blockquotes (strip <code>&gt;</code> markers) and
+code blocks (strip fence markers).</p>
+<p><strong>Heading Levels</strong>: Treesitter gives you <code>atx_heading</code> nodes. To determine
+level, check for child nodes like <code>atx_h1_marker</code>, <code>atx_h2_marker</code>, etc.</p>
+<pre data-lang="lua" style="background-color:#2b303b;color:#c0c5ce;" class="language-lua "><code class="language-lua" data-lang="lua"><span style="color:#b48ead;">function </span><span style="color:#bf616a;">M</span><span>.</span><span style="color:#8fa1b3;">get_heading_level</span><span>(heading_node)
+</span><span>  </span><span style="color:#b48ead;">for </span><span style="color:#bf616a;">child </span><span style="color:#b48ead;">in </span><span style="color:#bf616a;">heading_node</span><span>:</span><span style="color:#bf616a;">iter_children</span><span>() </span><span style="color:#b48ead;">do
+</span><span>    </span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">child</span><span>:</span><span style="color:#bf616a;">type</span><span>() == &#39;</span><span style="color:#a3be8c;">atx_h1_marker</span><span>&#39; </span><span style="color:#b48ead;">then return </span><span style="color:#d08770;">1 </span><span style="color:#b48ead;">end
+</span><span>    </span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">child</span><span>:</span><span style="color:#bf616a;">type</span><span>() == &#39;</span><span style="color:#a3be8c;">atx_h2_marker</span><span>&#39; </span><span style="color:#b48ead;">then return </span><span style="color:#d08770;">2 </span><span style="color:#b48ead;">end
+</span><span>    </span><span style="color:#65737e;">-- ...
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span>  </span><span style="color:#b48ead;">return </span><span style="color:#d08770;">1
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p><strong>Duplicate Elements</strong>: Initial implementation captured both <code>list_item</code>
+nodes and <code>paragraph</code> nodes inside them. Rendering each element separately
+meant lists showed up twice. Fix: check node ancestry and skip paragraphs
+that are children of list items or blockquotes.</p>
+<p><strong>Newline Flattening</strong>: <code>vim.api.nvim_buf_set_lines()</code> requires each array
+element to be a single line. Figlet output and some text processing can embed
+<code>\n</code> characters. Solution: scan lines before setting buffer content and split
+any with embedded newlines.</p>
+<h2 id="what-it-supports">What It Supports</h2>
+<p><strong>All heading levels</strong> (h1-h6). h1 and h2 get ASCII art via figlet if
+available. h3-h6 render as plain text with style options such as box, dashed, or
+underline.</p>
+<p><strong>Code blocks</strong> with language-specific syntax highlighting. The renderer
+creates a Treesitter string parser for the code content and applies highlight
+queries.</p>
+<p><strong>Lists</strong> render with bullet points (<code>*</code>). <strong>Blockquotes</strong> render with
+vertical bars (<code>┃</code>).</p>
+<p><img src="/images/neovim-deck-heading.png" alt="A neovim deck slide showing heading styling, lists, and blockquotes" /></p>
+<h2 id="per-presentation-configuration">Per-Presentation Configuration</h2>
+<p>YAML frontmatter lets you configure individual presentations without
+changing global settings. Add frontmatter at the start of your markdown:</p>
+<pre data-lang="markdown" style="background-color:#2b303b;color:#c0c5ce;" class="language-markdown "><code class="language-markdown" data-lang="markdown"><span style="background-color:#4f5b66;color:#c0c5ce;">---
+</span><span>wrap: 80
+</span><span>center_horizontal: true
+</span><span>margin: 3
+</span><span>use_figlet: false
+</span><span>header_style: &quot;underline&quot;
+</span><span style="color:#8fa1b3;">---
+</span><span>
+</span><span style="color:#8fa1b3;"># First Slide
+</span></code></pre>
+<p>The <code>wrap</code> option automatically wraps long paragraphs to the specified
+width. Perfect for prose-heavy slides where you don't want to manually
+hard-wrap text. Write flowing paragraphs in your markdown source and let
+vimdeck handle the layout.</p>
+<p>Header styles provide alternatives to figlet ASCII art. Options include
+<code>underline</code> (single/double lines), <code>box</code> (Unicode box drawing), <code>double</code>
+(double-line boxes), and <code>dashed</code> (dotted underlines). All use Unicode
+characters for clean terminal rendering.</p>
+<p>Frontmatter parsing uses a simple YAML parser (20 lines of Lua) that
+handles basic key-value pairs. Supports booleans, numbers, and strings.
+The frontmatter config merges with global config, so you only override what
+you need.</p>
+<h2 id="installation">Installation</h2>
+<p>Using lazy.nvim:</p>
+<pre data-lang="lua" style="background-color:#2b303b;color:#c0c5ce;" class="language-lua "><code class="language-lua" data-lang="lua"><span>{
+</span><span>  &#39;</span><span style="color:#a3be8c;">ducks/vimdeck.nvim</span><span>&#39;,
+</span><span>  </span><span style="color:#a3be8c;">cmd </span><span>= { &#39;</span><span style="color:#a3be8c;">Vimdeck</span><span>&#39;, &#39;</span><span style="color:#a3be8c;">VimdeckFile</span><span>&#39; },
+</span><span>  </span><span style="color:#a3be8c;">opts </span><span>= {
+</span><span>    </span><span style="color:#a3be8c;">use_figlet </span><span>= </span><span style="color:#d08770;">true</span><span>,
+</span><span>    </span><span style="color:#a3be8c;">center_slides </span><span>= </span><span style="color:#d08770;">true</span><span>,
+</span><span>  }
+</span><span>}
+</span></code></pre>
+<p>Requires figlet for ASCII art headers:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#65737e;"># macOS
+</span><span style="color:#bf616a;">brew</span><span> install figlet
+</span><span>
+</span><span style="color:#65737e;"># Arch Linux
+</span><span style="color:#bf616a;">sudo</span><span> pacman</span><span style="color:#bf616a;"> -S</span><span> figlet
+</span><span>
+</span><span style="color:#65737e;"># NixOS
+</span><span style="color:#bf616a;">pkgs.figlet
+</span></code></pre>
+<p>And markdown Treesitter parsers:</p>
+<pre data-lang="vim" style="background-color:#2b303b;color:#c0c5ce;" class="language-vim "><code class="language-vim" data-lang="vim"><span>:TSInstall markdown markdown_inline
+</span></code></pre>
+<h2 id="usage">Usage</h2>
+<p>Write your presentation:</p>
+<pre data-lang="markdown" style="background-color:#2b303b;color:#c0c5ce;" class="language-markdown "><code class="language-markdown" data-lang="markdown"><span style="color:#8fa1b3;"># First Slide
+</span><span>
+</span><span>Content here
+</span><span>
+</span><span style="background-color:#4f5b66;color:#c0c5ce;">---
+</span><span>
+</span><span style="color:#8fa1b3;">## Second Slide
+</span><span>
+</span><span>More content
+</span><span>
+</span><span style="background-color:#4f5b66;color:#c0c5ce;">---
+</span><span>
+</span><span style="color:#8fa1b3;">### Code Example
+</span><span>
+</span><span>```</span><span style="color:#d08770;">lua
+</span><span>function hello()
+</span><span>  print(&quot;Hello!&quot;)
+</span><span>end
+</span><span>```
+</span></code></pre>
+<p>Open in Neovim and run <code>:Vimdeck</code>. Navigate with Space/PageDown for next
+slide, Backspace/PageUp for previous, q to quit.</p>
+<h2 id="differences-from-original">Differences From Original</h2>
+<p>The original vimdeck was a Ruby script. This is a native Neovim plugin.</p>
+<ul>
+<li>No external dependencies (besides figlet for ASCII art)</li>
+<li>No temp files</li>
+<li>Treesitter parsing instead of redcarpet</li>
+<li>Dynamic rendering instead of static file generation</li>
+<li>Works with Neovim's highlight system directly</li>
+</ul>
+<h2 id="things-to-remember">Things To Remember</h2>
+<p><strong>Treesitter is powerful</strong>: The markdown parser handles all the edge cases
+(nested lists, multi-line quotes, code fence detection). Using the query
+system is cleaner than regex parsing.</p>
+<p><strong>Node traversal matters</strong>: Getting clean text from Treesitter nodes requires
+understanding the tree structure. List items have marker nodes, code blocks
+have fence nodes, quotes have paragraph children. Walking the tree to extract
+just content nodes is necessary.</p>
+<p><strong>Lua quirks</strong>: Coming from Ruby, easy to forget <code>not</code> instead of <code>!</code>, <code>~=</code>
+instead of <code>!=</code>, <code>..</code> for string concatenation, 1-indexed tables.</p>
+<p><strong>Code</strong>: <a href="https://github.com/ducks/vimdeck.nvim">github.com/ducks/vimdeck.nvim</a></p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;releasing-a-neovim-plugin&#x2F;">How I accidentally wrote my first Neovim plugin</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 25, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">A journey from regex-powered single-line rewrites to a fully tested Neovim plugin for formatting JavaScript and Rust imports, learning why simpler solutions sometimes beat powerful tools like Treesitter.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/neovim">#neovim</a></p>
+                      
+                      <p><a href="/tags/lua">#lua</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;releasing-a-neovim-plugin&#x2F;">How I accidentally wrote my first Neovim plugin</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 25, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">A journey from regex-powered single-line rewrites to a fully tested Neovim plugin for formatting JavaScript and Rust imports, learning why simpler solutions sometimes beat powerful tools like Treesitter.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/neovim">#neovim</a></p>
+                      
+                      <p><a href="/tags/lua">#lua</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-discourse-comments-in-typescript&#x2F;">Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 27, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">I rewrote the Discourse embedded comments API client from Rust&#x2F;WASM to pure TypeScript. The bundle went from 742 KB to 18 KB.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;cfgs-dev-a-directory-for-developer-setups&#x2F;">cfgs.dev: A Directory for Developer Setups</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 03, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Building a browsable index of dotfiles and development environments.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;arf-structured-reasoning-for-ai-agents&#x2F;">ARF: Structured Reasoning for AI Agents</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 02, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Moving beyond chat prompts to structured agent communication. Why unstructured data lets LLMs run wild, and how ARF enforces what&#x2F;why&#x2F;how before acting.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

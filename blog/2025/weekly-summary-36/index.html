@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="A ChatGPT-generated summary covering Prague travel notes, Czech visa preparation, camera research, Discourse experiments, desktop tooling, email deliverability, and personal logistics from weeks 36-39.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="ChatGPT assisted Changelog - 36-39&#x2F;52">
+    <meta property="og:description" content="A ChatGPT-generated summary covering Prague travel notes, Czech visa preparation, camera research, Discourse experiments, desktop tooling, email deliverability, and personal logistics from weeks 36-39.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-36&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="ChatGPT assisted Changelog - 36-39&#x2F;52">
+    <meta name="twitter:description" content="A ChatGPT-generated summary covering Prague travel notes, Czech visa preparation, camera research, Discourse experiments, desktop tooling, email deliverability, and personal logistics from weeks 36-39.">
+
+    <title>ChatGPT assisted Changelog - 36-39&#x2F;52 - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>ChatGPT assisted Changelog - 36-39&#x2F;52</h1>
+      <div class="meta">
+        
+        <p>Sep 26, 2025</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/gpt">#gpt</a></p>
+          
+          <p><a href="/tags/changelog">#changelog</a></p>
+          
+          <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+          
+        </div>
+      
+
+      <p><strong>Travel and Prague notes</strong></p>
+<p>A first Europe trip to Prague sparked a travel post and follow ups. Sections
+about the castle, tram lines 6 and 17, and Czech Cubism were drafted. Airport
+and TSA logistics were covered, including CT scanner lanes at PDX, KLM meal
+expectations, missed connection handling at AMS, and return routing via JFK.
+Mint Mobile's international pass proved sufficient for a week, with OsmAnd
+recommended for offline maps and Obtainium used to install apps without Play
+Store.</p>
+<p><strong>Czech visa preparation</strong></p>
+<p>Residency planning continued. A rental listing in Holesovice prompted an email
+draft to the agent and an explanation of Czech 4+1 flat notation. Resources for
+US to CZ expats, the role of Flatio, timing without a fixed move date, and
+document prep were explored. An employer affidavit template was rewritten in
+plain text. Fingerprinting and FBI background check expectations were
+clarified. Czech terms like software engineer and contract types such as HPP
+were noted.</p>
+<p><strong>Cameras and creative gear</strong></p>
+<p>Beginner travel camera options were compared: Nikon Z30 and Canon R50 kits
+versus the Ricoh GRIII for street and night work. Strengths, tradeoffs, and
+lens choices were outlined. For carry systems, compact bags and local stock for
+brands like WANDRD were discussed, with an eye toward minimal kits.</p>
+<p><strong>Discourse experiments and ideas</strong></p>
+<p>A flurry of off label Discourse concepts landed, from non forum app patterns to
+playful ideas like Conway's Game of Life. Practicalities came up too: VPS disk
+pressure from journal files, running locally instead, and revisiting plugin
+basics. A specific plugin that tracks days until the next cake day was analyzed
+for implementation details and feasibility.</p>
+<p><strong>Desktop tooling and small wins</strong></p>
+<p>On Wayland, grim plus wl copy needed an explicit MIME type to fix clipboard
+issues. A Nushell function location was clarified, and a prompt flow was added
+to optionally save screenshots after copying. Hyprland confirmations and UX
+touches resurfaced as blog worthy tips.</p>
+<p><strong>Selling, shipping, and decluttering</strong></p>
+<p>Paths for selling a non running 1974 Ford Ranchero in Portland were mapped out:
+where to get initial consultations, rough cost expectations for engine checks
+and tune ups, and whether restoration would raise sale value. Services that
+help sell or donate household items were listed. Options for shipping personal
+goods from the US to Europe were compared at a high level.</p>
+<p><strong>Email deliverability and DNS</strong></p>
+<p>Email headers were unpacked for a non technical audience. DKIM and DMARC were
+explained in plain terms, realistic DNS propagation timing was set, and common
+DMARC failure causes were reviewed. The idea of account warming was addressed
+with a pragmatic lens. Header domains and alignment details were parsed from
+sample Authentication Results lines.</p>
+<p><strong>Disc golf market checks</strong></p>
+<p>Kastaplast first run prices were researched with a focus on Falk, Lots, Stal,
+and Gote. Market ranges, recency caveats, and condition effects were noted. A
+correction landed for the Reko mix, with early plastics clarified. A well used
+FR Berg valuation was discussed with realism about wear and ceiling prices.</p>
+<p><strong>Personal finance and admin</strong></p>
+<p>401k choices were outlined: cash out implications, rollovers to IRAs, and how a
+move abroad intersects with taxes and planning. Help from fiduciary advisors
+and any digital nomad friendly country programs were surveyed at a high level.</p>
+<p><strong>Logos, apps, and posts</strong></p>
+<p>A map based Loop Finder app concept took shape using Vue, with local
+GraphHopper via Docker Compose to remove API key friction. Zola templating for
+shared resume layouts was explored. A prior post on typing Swedish with a US
+keyboard kept attracting search traffic.</p>
+<p><strong>Housekeeping on the site</strong></p>
+<p>Styling for headings aimed at mobile readability while respecting an 80 char
+column. Prior weekly summaries stayed the model: plain text markdown, no fancy
+chars, prose first, and wrapped lines. Future posts were queued from several
+threads above, especially Prague transport notes, Hyprland prompts, and the
+email DNS explainer.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;yearly-summary&#x2F;">2025 - A Review</a></h3>
+                  <div class="meta">
+                    
+                    <p>Dec 31, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">A reflective look back at 2025 as a year of integration: building durable tools, writing in public, and aligning technical work with sustainability, creativity, and a calm, long-term pace.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/gpt">#gpt</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-42&#x2F;">ChatGPT assisted Changelog - 42&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 17, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A week of creative experiments and follow-ups -- from launching a live transit board inside Discourse and polishing your AWS SDK Ruby series, to debugging GoatCounter exports and exploring privacy-friendly tools on GrapheneOS.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/gpt">#gpt</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-41&#x2F;">ChatGPT assisted Changelog - 41&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 10, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A quieter but productive week focused on publishing the Discourse transit tracker post, analyzing GoatCounter data across 37 countries and six continents, and continuing open source contributions to the AWS SDK for Ruby.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/gpt">#gpt</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-40&#x2F;">ChatGPT assisted Changelog - 40&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 03, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">Weekly topics spanning Czechia residency planning, Anki language learning setup, Framework 16 NixOS troubleshooting, Discourse plugin ideas, and practical logistics for international relocation.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/gpt">#gpt</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-35&#x2F;">ChatGPT assisted Changelog - 35&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 29, 2025</p>
+                    
+                    <p>1 min read</p>
+                  </div>
+                  
+                    <p class="desc">Weekly updates on cashctl budgeting tool development, Zola site improvements, AWS SDK contributions, and resume refinements for showcasing open source work.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/gpt">#gpt</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

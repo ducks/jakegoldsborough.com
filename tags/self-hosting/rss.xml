@@ -1,0 +1,661 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - self-hosting</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/self-hosting/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Sun, 18 Jan 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>From Bash Scripts to NixOS: Real Declarative Infrastructure on a VPS</title>
+          <pubDate>Sun, 18 Jan 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/real-declarative-infrastructure-nixos/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/real-declarative-infrastructure-nixos/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/real-declarative-infrastructure-nixos/">&lt;p&gt;In my &lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;running-infrastructure-with-systemd&#x2F;&quot;&gt;previous post&lt;&#x2F;a&gt;, I
+described running infrastructure with systemd services and bash scripts. It
+worked, but the update script kept growing with edge cases.&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# This kept getting longer
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;safe_download&lt;&#x2F;span&gt;&lt;span&gt;() { &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;... &lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;update_goatcounter&lt;&#x2F;span&gt;&lt;span&gt;() {
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Download binary
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Stop service
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Run migrations
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Start service
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Repeat for each service...
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Every service needed special handling. GoatCounter needed database migrations.
+Scrob had &quot;text file busy&quot; errors. Downloads could 404 and block everything.&lt;&#x2F;p&gt;
+&lt;p&gt;Three weeks in, the update script was 300+ lines with &lt;code&gt;|| true&lt;&#x2F;code&gt; scattered
+everywhere.&lt;&#x2F;p&gt;
+&lt;p&gt;I wasn&#x27;t managing infrastructure declaratively. I was writing imperative bash
+scripts to approximate declarative config.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-inevitable-upgrade&quot;&gt;The Inevitable Upgrade&lt;&#x2F;h2&gt;
+&lt;p&gt;I already use NixOS for local development. My laptop runs it. My dev
+environments are nix-shell. I know how good it is for reproducibility.&lt;&#x2F;p&gt;
+&lt;p&gt;The bash script approach was always temporary. I knew I&#x27;d migrate to NixOS
+eventually - I just wanted to get the services running first, understand what
+they needed, then declare it properly.&lt;&#x2F;p&gt;
+&lt;p&gt;But after three weeks of bash edge cases, &quot;eventually&quot; became &quot;now.&quot;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;creating-pond-nix&quot;&gt;Creating pond-nix&lt;&#x2F;h2&gt;
+&lt;p&gt;I created a new repo called &lt;code&gt;pond-nix&lt;&#x2F;code&gt; with NixOS configuration for the same
+services:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;nix&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-nix &quot;&gt;&lt;code class=&quot;language-nix&quot; data-lang=&quot;nix&quot;&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# configuration.nix
+&lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;imports &lt;&#x2F;span&gt;&lt;span&gt;= [
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;.&#x2F;services&#x2F;gitea.nix
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;.&#x2F;services&#x2F;goatcounter.nix
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;.&#x2F;services&#x2F;woodpecker.nix
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;.&#x2F;services&#x2F;scrob.nix
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;.&#x2F;services&#x2F;caddy.nix
+&lt;&#x2F;span&gt;&lt;span&gt;  ];
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;networking &lt;&#x2F;span&gt;&lt;span&gt;= {
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;hostName &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;pond&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;useDHCP &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;false&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;interfaces&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;ens3&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;ipv4&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;addresses &lt;&#x2F;span&gt;&lt;span&gt;= [{
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;address &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;199.68.196.244&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;prefixLength &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;24&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;    }];
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;defaultGateway &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;199.68.196.1&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;nameservers &lt;&#x2F;span&gt;&lt;span&gt;= [ &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;176.10.124.177&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot; &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;176.10.124.136&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot; ];
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;firewall&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;allowedTCPPorts &lt;&#x2F;span&gt;&lt;span&gt;= [ &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;22 80 443 &lt;&#x2F;span&gt;&lt;span&gt;];
+&lt;&#x2F;span&gt;&lt;span&gt;  };
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;users&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;users&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;ducks &lt;&#x2F;span&gt;&lt;span&gt;= {
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;isNormalUser &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;true&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;extraGroups &lt;&#x2F;span&gt;&lt;span&gt;= [ &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;wheel&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot; ];
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;openssh&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;authorizedKeys&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;keys &lt;&#x2F;span&gt;&lt;span&gt;= [
+&lt;&#x2F;span&gt;&lt;span&gt;      &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;ssh-ed25519 AAAAC3... ducks@pond&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;    ];
+&lt;&#x2F;span&gt;&lt;span&gt;  };
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;security&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;sudo&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;wheelNeedsPassword &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;false&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Each service gets its own module:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;nix&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-nix &quot;&gt;&lt;code class=&quot;language-nix&quot; data-lang=&quot;nix&quot;&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# services&#x2F;goatcounter.nix
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;{ &lt;&#x2F;span&gt;&lt;span&gt;config, pkgs, ... &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;}&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;systemd&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;services &lt;&#x2F;span&gt;&lt;span&gt;= {
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;goatcounter-jg &lt;&#x2F;span&gt;&lt;span&gt;= {
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;description &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;GoatCounter - stats.jakegoldsborough.com&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;after &lt;&#x2F;span&gt;&lt;span&gt;= [ &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;network.target&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot; ];
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;wantedBy &lt;&#x2F;span&gt;&lt;span&gt;= [ &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;multi-user.target&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot; ];
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;serviceConfig &lt;&#x2F;span&gt;&lt;span&gt;= {
+&lt;&#x2F;span&gt;&lt;span&gt;        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;ExecStart &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;font-style:italic;color:#ab7967;&quot;&gt;${&lt;&#x2F;span&gt;&lt;span style=&quot;font-style:italic;color:#bf616a;&quot;&gt;pkgs&lt;&#x2F;span&gt;&lt;span style=&quot;font-style:italic;color:#c0c5ce;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;font-style:italic;color:#bf616a;&quot;&gt;goatcounter&lt;&#x2F;span&gt;&lt;span style=&quot;font-style:italic;color:#ab7967;&quot;&gt;}&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;&#x2F;bin&#x2F;goatcounter serve -listen localhost:8081 -tls none -db sqlite+&#x2F;var&#x2F;lib&#x2F;goatcounter-jg&#x2F;goatcounter.db&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;User &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;goatcounter&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;WorkingDirectory &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;&#x2F;var&#x2F;lib&#x2F;goatcounter-jg&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;Restart &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;always&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;      };
+&lt;&#x2F;span&gt;&lt;span&gt;    };
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# ... other instances
+&lt;&#x2F;span&gt;&lt;span&gt;  };
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;No update scripts. No migrations to remember. Nix handles dependencies, service
+ordering, and restarts.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-installation-challenge&quot;&gt;The Installation Challenge&lt;&#x2F;h2&gt;
+&lt;p&gt;Installing NixOS on a VPS remotely is risky. Get the network config wrong and
+you&#x27;re locked out.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-nixos-infect-trap&quot;&gt;The nixos-infect Trap&lt;&#x2F;h3&gt;
+&lt;p&gt;My first thought was &lt;code&gt;nixos-infect&lt;&#x2F;code&gt; - a script that converts an existing Linux
+system to NixOS in-place. Seems clever, right?&lt;&#x2F;p&gt;
+&lt;p&gt;Maybe too clever?&lt;&#x2F;p&gt;
+&lt;p&gt;I tried it on a fresh Arch install. The script started building, then hit an
+error:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;swapon: &#x2F;tmp&#x2F;nixos-infect.swp: Invalid argument
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;&lt;strong&gt;The problem:&lt;&#x2F;strong&gt; On Linux, &lt;code&gt;&#x2F;tmp&lt;&#x2F;code&gt; is mounted as tmpfs - a RAM-based filesystem.
+nixos-infect tried to create a 1GB swap file &lt;em&gt;in RAM&lt;&#x2F;em&gt;. That&#x27;s like trying to
+extend your RAM by using... RAM.&lt;&#x2F;p&gt;
+&lt;p&gt;I patched the script to use &lt;code&gt;&#x2F;root&#x2F;tmp&lt;&#x2F;code&gt; instead:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;curl -o&lt;&#x2F;span&gt;&lt;span&gt; nixos-infect.sh
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;https:&#x2F;&#x2F;raw.githubusercontent.com&#x2F;elitak&#x2F;nixos-infect&#x2F;master&#x2F;nixos-infect
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;sed -i &lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;s|mktemp &#x2F;tmp&#x2F;|mktemp &#x2F;root&#x2F;tmp&#x2F;|g&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39; nixos-infect.sh
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;mkdir -p&lt;&#x2F;span&gt;&lt;span&gt; &#x2F;root&#x2F;tmp
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;NIX_CHANNEL&lt;&#x2F;span&gt;&lt;span&gt;=&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;nixos-24.05 &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;bash&lt;&#x2F;span&gt;&lt;span&gt; nixos-infect.sh
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This time it worked! The build completed, the system rebooted...&lt;&#x2F;p&gt;
+&lt;p&gt;And I was locked out.&lt;&#x2F;p&gt;
+&lt;p&gt;nixos-infect generated a config, but with no console password and broken SSH
+access. I could see the NixOS login screen through the console, but couldn&#x27;t log
+in. SSH timed out.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Lesson learned:&lt;&#x2F;strong&gt; In-place conversions are clever until they&#x27;re not. When
+you&#x27;re remote, clever is dangerous.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-iso-approach&quot;&gt;The ISO Approach&lt;&#x2F;h3&gt;
+&lt;p&gt;I wiped the VPS and started over with the NixOS installation ISO.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Step 1: Mount the ISO&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Downloaded the &lt;a href=&quot;https:&#x2F;&#x2F;nixos.org&#x2F;download&#x2F;&quot;&gt;NixOS 25.11 minimal
+ISO&lt;&#x2F;a&gt; and mounted it through Fornex&#x27;s control
+panel, then I rebooted the VPS.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Step 2: Set up networking&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;The installer gives you a root shell with no password. But before anything else,
+networking:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Check interface name (mine was ens3, not eth0!)
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;ip&lt;&#x2F;span&gt;&lt;span&gt; addr
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Configure static IP
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;ip&lt;&#x2F;span&gt;&lt;span&gt; addr add 199.68.196.244&#x2F;24 dev ens3
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;ip&lt;&#x2F;span&gt;&lt;span&gt; link set ens3 up
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;ip&lt;&#x2F;span&gt;&lt;span&gt; route add default via 199.68.196.1
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;echo &lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;nameserver 176.10.124.177&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot; &amp;gt; &#x2F;etc&#x2F;resolv.conf
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Test it
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;ping -c&lt;&#x2F;span&gt;&lt;span&gt; 2 google.com
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;&lt;strong&gt;Step 3: Enable SSH&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;passwd&lt;&#x2F;span&gt;&lt;span&gt; root  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Set a temporary password
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;systemctl&lt;&#x2F;span&gt;&lt;span&gt; start sshd
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Now I could SSH in from my local machine and use a proper terminal instead of
+the janky web console.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Step 4: Partition the disk&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;GPT with GRUB needs a BIOS boot partition:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;parted&lt;&#x2F;span&gt;&lt;span&gt; &#x2F;dev&#x2F;vda -- mklabel gpt
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;parted&lt;&#x2F;span&gt;&lt;span&gt; &#x2F;dev&#x2F;vda -- mkpart primary 1MB 512MB    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# BIOS boot
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;parted&lt;&#x2F;span&gt;&lt;span&gt; &#x2F;dev&#x2F;vda -- mkpart primary 512MB 100%   &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Root filesystem
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;parted&lt;&#x2F;span&gt;&lt;span&gt; &#x2F;dev&#x2F;vda -- set 1 bios_grub on
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;mkfs.ext4&lt;&#x2F;span&gt;&lt;span&gt; &#x2F;dev&#x2F;vda2
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;mount&lt;&#x2F;span&gt;&lt;span&gt; &#x2F;dev&#x2F;vda2 &#x2F;mnt
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The first partition stays unformatted - GRUB just needs it for bootloader code.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Step 5: Generate and customize config&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;nixos-generate-config --root&lt;&#x2F;span&gt;&lt;span&gt; &#x2F;mnt
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;nano&lt;&#x2F;span&gt;&lt;span&gt; &#x2F;mnt&#x2F;etc&#x2F;nixos&#x2F;configuration.nix
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Key settings:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;nix&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-nix &quot;&gt;&lt;code class=&quot;language-nix&quot; data-lang=&quot;nix&quot;&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;boot&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;loader&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;grub&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;enable &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;true&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;boot&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;loader&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;grub&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;device &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;&#x2F;dev&#x2F;vda&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;networking &lt;&#x2F;span&gt;&lt;span&gt;= {
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;hostName &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;pond&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;useDHCP &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;false&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;interfaces&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;ens3 &lt;&#x2F;span&gt;&lt;span&gt;= {  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Not eth0!
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;ipv4&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;addresses &lt;&#x2F;span&gt;&lt;span&gt;= [{
+&lt;&#x2F;span&gt;&lt;span&gt;        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;address &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;199.68.196.244&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;prefixLength &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;24&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;      }];
+&lt;&#x2F;span&gt;&lt;span&gt;    };
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;defaultGateway &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;199.68.196.1&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;nameservers &lt;&#x2F;span&gt;&lt;span&gt;= [ &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;176.10.124.177&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot; &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;176.10.124.136&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot; ];
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;firewall&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;allowedTCPPorts &lt;&#x2F;span&gt;&lt;span&gt;= [ &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;22 80 443 &lt;&#x2F;span&gt;&lt;span&gt;];
+&lt;&#x2F;span&gt;&lt;span&gt;  };
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;users&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;users&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;ducks &lt;&#x2F;span&gt;&lt;span&gt;= {
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;isNormalUser &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;true&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;extraGroups &lt;&#x2F;span&gt;&lt;span&gt;= [ &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;wheel&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot; ];
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;openssh&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;authorizedKeys&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;keys &lt;&#x2F;span&gt;&lt;span&gt;= [
+&lt;&#x2F;span&gt;&lt;span&gt;      &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;ssh-ed25519 AAAAC3... ducks@pond&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;    ];
+&lt;&#x2F;span&gt;&lt;span&gt;  };
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;security&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;sudo&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;wheelNeedsPassword &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;false&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;services&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;openssh &lt;&#x2F;span&gt;&lt;span&gt;= {
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;enable &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;true&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;settings &lt;&#x2F;span&gt;&lt;span&gt;= {
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;PasswordAuthentication &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;false&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;PermitRootLogin &lt;&#x2F;span&gt;&lt;span&gt;= &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;prohibit-password&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;    };
+&lt;&#x2F;span&gt;&lt;span&gt;  };
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;&lt;strong&gt;Step 6: Install&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;nixos-install
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Set root password when prompted
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;reboot
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;After reboot, unmount the ISO through the control panel.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Step 7: SSH in with your user&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;ssh&lt;&#x2F;span&gt;&lt;span&gt; ducks@199.68.196.244
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;It worked. NixOS booted, networking was correct, SSH keys worked. No lockouts.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;deploying-the-real-config&quot;&gt;Deploying the Real Config&lt;&#x2F;h2&gt;
+&lt;p&gt;Now that NixOS is installed, time to deploy pond-nix:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Clone your config
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;git&lt;&#x2F;span&gt;&lt;span&gt; clone https:&#x2F;&#x2F;git.jakegoldsborough.com&#x2F;ducks&#x2F;pond-nix.git
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;cd&lt;&#x2F;span&gt;&lt;span&gt; pond-nix
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Deploy it (automatically fetches hashes, copies files, and builds)
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;make&lt;&#x2F;span&gt;&lt;span&gt; install
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The Makefile handles everything: fetching binary hashes for packages, copying
+config files to &lt;code&gt;&#x2F;etc&#x2F;nixos&#x2F;&lt;&#x2F;code&gt;, and running &lt;code&gt;nixos-rebuild&lt;&#x2F;code&gt;. One command builds
+and activates all services: Gitea, GoatCounter, Woodpecker, Scrob, Caddy.
+Everything starts declaratively.&lt;&#x2F;p&gt;
+&lt;p&gt;If something breaks:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;sudo&lt;&#x2F;span&gt;&lt;span&gt; nixos-rebuild switch&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt; --rollback
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;One command. Back to the previous working state.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;migrating-the-data&quot;&gt;Migrating the Data&lt;&#x2F;h2&gt;
+&lt;p&gt;With NixOS running and services configured, time to migrate data from the old
+server (burrow). I wrote a migration script to handle this:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# scripts&#x2F;migrate-from-burrow.sh
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;#!&#x2F;usr&#x2F;bin&#x2F;env bash
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# 1. Stop services on pond (avoid database corruption)
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;ssh&lt;&#x2F;span&gt;&lt;span&gt; pond &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;sudo systemctl stop scrob goatcounter-jg gitea&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# 2. Back up databases from burrow
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;ssh&lt;&#x2F;span&gt;&lt;span&gt; burrow &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;sudo tar czf &#x2F;tmp&#x2F;goatcounter-backups.tar.gz &#x2F;var&#x2F;lib&#x2F;goatcounter-*&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;ssh&lt;&#x2F;span&gt;&lt;span&gt; burrow &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;sudo tar czf &#x2F;tmp&#x2F;gitea-backup.tar.gz &#x2F;var&#x2F;lib&#x2F;gitea&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;ssh&lt;&#x2F;span&gt;&lt;span&gt; burrow &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;sudo -u postgres pg_dump scrob | gzip &amp;gt; &#x2F;tmp&#x2F;scrob-db.sql.gz&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# 3. Copy to local machine (keep backups!)
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;scp&lt;&#x2F;span&gt;&lt;span&gt; burrow:&#x2F;tmp&#x2F;*.tar.gz burrow:&#x2F;tmp&#x2F;*.sql.gz &#x2F;tmp&#x2F;backups&#x2F;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# 4. Copy to pond and restore
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;scp&lt;&#x2F;span&gt;&lt;span&gt; &#x2F;tmp&#x2F;backups&#x2F;* pond:&#x2F;tmp&#x2F;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;ssh&lt;&#x2F;span&gt;&lt;span&gt; pond &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;cd &#x2F;tmp &amp;amp;&amp;amp; sudo tar xzf goatcounter-backups.tar.gz -C &#x2F;&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;ssh&lt;&#x2F;span&gt;&lt;span&gt; pond &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;cd &#x2F;tmp &amp;amp;&amp;amp; sudo tar xzf gitea-backup.tar.gz -C &#x2F;&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;ssh&lt;&#x2F;span&gt;&lt;span&gt; pond &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;gunzip &amp;lt; &#x2F;tmp&#x2F;scrob-db.sql.gz | sudo -u postgres psql scrob&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# 5. Fix permissions
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;ssh&lt;&#x2F;span&gt;&lt;span&gt; pond &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;sudo chown -R goatcounter:goatcounter &#x2F;var&#x2F;lib&#x2F;goatcounter-*&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;ssh&lt;&#x2F;span&gt;&lt;span&gt; pond &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;sudo chown -R gitea:gitea &#x2F;var&#x2F;lib&#x2F;gitea&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# 6. Start services
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;ssh&lt;&#x2F;span&gt;&lt;span&gt; pond &amp;#39;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;sudo systemctl start goatcounter-jg gitea scrob&lt;&#x2F;span&gt;&lt;span&gt;&amp;#39;
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Run it:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;.&#x2F;scripts&#x2F;migrate-from-burrow.sh
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;All data migrated: Git repositories, analytics databases, scrobble history.
+Everything preserved.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;updating-dns&quot;&gt;Updating DNS&lt;&#x2F;h2&gt;
+&lt;p&gt;Final step: point DNS to the new server. I use name.com&#x27;s API:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# scripts&#x2F;update-dns.sh
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;export &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;NAMECOM_USERNAME&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;your_username&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;export &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;NAMECOM_TOKEN&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;your_api_token&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;.&#x2F;scripts&#x2F;update-dns.sh
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The script updates specific service A records to pond&#x27;s IP (199.68.196.244):&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;code.jakegoldsborough.com&lt;&#x2F;code&gt; → Gitea&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;ci.jakegoldsborough.com&lt;&#x2F;code&gt; → Woodpecker&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;stats.jakegoldsborough.com&lt;&#x2F;code&gt; → GoatCounter&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;scrob.jakegoldsborough.com&lt;&#x2F;code&gt; → Scrob API&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;ui.scrob.jakegoldsborough.com&lt;&#x2F;code&gt; → Scrob UI&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;stats.date-ver.com&lt;&#x2F;code&gt; → GoatCounter&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;stats.gnarlyvoid.com&lt;&#x2F;code&gt; → GoatCounter&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;DNS propagates in a few minutes. Test with &lt;code&gt;dig&lt;&#x2F;code&gt;:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;dig&lt;&#x2F;span&gt;&lt;span&gt; code.jakegoldsborough.com +short
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# 199.68.196.244
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Once DNS updates, Caddy automatically provisions Let&#x27;s Encrypt certificates for
+all domains. No manual cert management needed.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-changed&quot;&gt;What Changed&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;strong&gt;Before (burrow-systemd):&lt;&#x2F;strong&gt; - 300+ lines of bash scripts - Manual version
+checking - Special migration handling per service - &quot;Text file busy&quot; errors -
+Download failures blocking other updates - &lt;code&gt;|| true&lt;&#x2F;code&gt; everywhere&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;After (pond-nix):&lt;&#x2F;strong&gt; - Declarative config in Nix - &lt;code&gt;nixos-rebuild switch --upgrade&lt;&#x2F;code&gt; updates everything - Migrations run automatically (defined in service
+modules) - Atomic updates - One command rollback&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;service-updates&quot;&gt;Service Updates&lt;&#x2F;h2&gt;
+&lt;p&gt;With systemd + bash:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;sudo&lt;&#x2F;span&gt;&lt;span&gt; .&#x2F;bin&#x2F;update check        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Check for updates
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;sudo&lt;&#x2F;span&gt;&lt;span&gt; .&#x2F;bin&#x2F;update apply        &lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Apply them
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Hope nothing breaks
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;With NixOS:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;cd&lt;&#x2F;span&gt;&lt;span&gt; pond-nix
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;git&lt;&#x2F;span&gt;&lt;span&gt; pull
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;make&lt;&#x2F;span&gt;&lt;span&gt; install
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;That&#x27;s it. Pull the latest config, and the Makefile handles the rest: updating
+hashes, testing the config, and deploying atomically. If anything fails, the old
+generation still works.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-tradeoff&quot;&gt;The Tradeoff&lt;&#x2F;h2&gt;
+&lt;p&gt;NixOS has a learning curve. Nix expressions are different from bash scripts.&lt;&#x2F;p&gt;
+&lt;p&gt;But once you understand it, everything clicks: - System is reproducible -
+Updates are atomic - Rollbacks are instant - Configuration is versioned in git&lt;&#x2F;p&gt;
+&lt;p&gt;No more &quot;it works on my machine&quot;. The configuration &lt;em&gt;is&lt;&#x2F;em&gt; the machine.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;was-it-worth-it&quot;&gt;Was It Worth It?&lt;&#x2F;h2&gt;
+&lt;p&gt;My update script was approaching 500 lines with &lt;code&gt;safe_download()&lt;&#x2F;code&gt;, per-service
+migration logic, and error handling for every edge case.&lt;&#x2F;p&gt;
+&lt;p&gt;Now it&#x27;s ~500 lines of readable Nix across multiple modules. But those lines
+are: - Declarative - Type-checked - Composable - Reproducible&lt;&#x2F;p&gt;
+&lt;p&gt;The difference: With bash, I was writing &lt;em&gt;procedures&lt;&#x2F;em&gt;. With Nix, I&#x27;m declaring
+&lt;em&gt;state&lt;&#x2F;em&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;That&#x27;s real declarative infrastructure.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;links&quot;&gt;Links&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;pond-nix&quot;&gt;pond-nix&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;elitak&#x2F;nixos-infect&quot;&gt;nixos-infect&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;nixos.org&#x2F;manual&#x2F;nixos&#x2F;stable&#x2F;&quot;&gt;NixOS Manual&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;running-infrastructure-with-systemd&#x2F;&quot;&gt;Previous post: Running Infrastructure with Systemd&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+      </item>
+      <item>
+          <title>Running VPS Infrastructure with Systemd</title>
+          <pubDate>Sat, 10 Jan 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/running-infrastructure-with-systemd/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/running-infrastructure-with-systemd/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/running-infrastructure-with-systemd/">&lt;p&gt;I run all my personal infrastructure on a single VPS using systemd
+services instead of Docker. No containers, no orchestration, just
+systemd units and bash scripts.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;why-not-docker&quot;&gt;Why Not Docker?&lt;&#x2F;h2&gt;
+&lt;p&gt;Docker is fine, but for a single VPS it felt like overhead. I wanted something simpler
+and built-in. I initially started with Docker but was constantly hitting
+networking issues with services communicating.&lt;&#x2F;p&gt;
+&lt;p&gt;Systemd already handles process supervision, logging, and restarts. Why
+add another layer?&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-s-running&quot;&gt;What&#x27;s Running&lt;&#x2F;h2&gt;
+&lt;p&gt;The VPS hosts:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Gitea&lt;&#x2F;strong&gt; - Git hosting at code.jakegoldsborough.com&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Woodpecker CI&lt;&#x2F;strong&gt; - Continuous integration (idle for now)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Scrob&lt;&#x2F;strong&gt; - Music scrobbling server (see &lt;a href=&quot;https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-scrob-self-hosted-scrobbling&#x2F;&quot;&gt;previous
+post&lt;&#x2F;a&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;GoatCounter&lt;&#x2F;strong&gt; (3 instances) - Analytics for multiple sites&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Caddy&lt;&#x2F;strong&gt; - Reverse proxy with automatic HTTPS&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;PostgreSQL&lt;&#x2F;strong&gt; - Shared database for Gitea, Woodpecker, and Scrob&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Everything runs as dedicated system users with systemd units managing
+their lifecycle.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;how-it-works&quot;&gt;How It Works&lt;&#x2F;h2&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;Caddy (reverse proxy + TLS)
+&lt;&#x2F;span&gt;&lt;span&gt;    |
+&lt;&#x2F;span&gt;&lt;span&gt;    +-- code.jakegoldsborough.com -&amp;gt; Gitea (port 3000)
+&lt;&#x2F;span&gt;&lt;span&gt;    +-- ci.jakegoldsborough.com -&amp;gt; Woodpecker (port 8000)
+&lt;&#x2F;span&gt;&lt;span&gt;    +-- scrob.jakegoldsborough.com -&amp;gt; Scrob (port 3002)
+&lt;&#x2F;span&gt;&lt;span&gt;    +-- ui.scrob.jakegoldsborough.com -&amp;gt; Scrob UI (static files)
+&lt;&#x2F;span&gt;&lt;span&gt;    +-- stats.jakegoldsborough.com -&amp;gt; GoatCounter (port 8081)
+&lt;&#x2F;span&gt;&lt;span&gt;    +-- stats.date-ver.com -&amp;gt; GoatCounter (port 8082)
+&lt;&#x2F;span&gt;&lt;span&gt;    +-- stats.gnarlyvoid.com -&amp;gt; GoatCounter (port 8083)
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Each service runs as a systemd unit. Caddy handles TLS termination and
+proxies requests to the appropriate backend.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-repository-structure&quot;&gt;The Repository Structure&lt;&#x2F;h2&gt;
+&lt;p&gt;The entire setup lives in a git repo called &lt;code&gt;burrow-systemd&lt;&#x2F;code&gt;:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;burrow-systemd&#x2F;
+&lt;&#x2F;span&gt;&lt;span&gt;├── systemd&#x2F;            # Service unit files
+&lt;&#x2F;span&gt;&lt;span&gt;│   ├── gitea.service
+&lt;&#x2F;span&gt;&lt;span&gt;│   ├── woodpecker-server.service
+&lt;&#x2F;span&gt;&lt;span&gt;│   ├── scrob.service
+&lt;&#x2F;span&gt;&lt;span&gt;│   ├── goatcounter-*.service
+&lt;&#x2F;span&gt;&lt;span&gt;│   └── caddy.service
+&lt;&#x2F;span&gt;&lt;span&gt;├── config&#x2F;             # Service configurations
+&lt;&#x2F;span&gt;&lt;span&gt;│   ├── Caddyfile
+&lt;&#x2F;span&gt;&lt;span&gt;│   ├── gitea&#x2F;app.ini
+&lt;&#x2F;span&gt;&lt;span&gt;│   ├── woodpecker&#x2F;server.env
+&lt;&#x2F;span&gt;&lt;span&gt;│   └── scrob&#x2F;scrob.env
+&lt;&#x2F;span&gt;&lt;span&gt;└── bin&#x2F;                # Deployment scripts
+&lt;&#x2F;span&gt;&lt;span&gt;    ├── bootstrap       # Initial setup
+&lt;&#x2F;span&gt;&lt;span&gt;    ├── deploy          # Update and restart
+&lt;&#x2F;span&gt;&lt;span&gt;    ├── update          # Check and apply updates
+&lt;&#x2F;span&gt;&lt;span&gt;    └── backup          # Backup databases
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Configuration is declarative. Change a config file, commit, push, pull
+on the VPS, run &lt;code&gt;.&#x2F;bin&#x2F;deploy&lt;&#x2F;code&gt;, done.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;bootstrap-script&quot;&gt;Bootstrap Script&lt;&#x2F;h2&gt;
+&lt;p&gt;The bootstrap script sets up everything from scratch:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;Installs packages (Caddy, PostgreSQL)&lt;&#x2F;li&gt;
+&lt;li&gt;Downloads service binaries (Gitea, GoatCounter, Woodpecker)&lt;&#x2F;li&gt;
+&lt;li&gt;Creates system users (&lt;code&gt;gitea&lt;&#x2F;code&gt;, &lt;code&gt;goatcounter&lt;&#x2F;code&gt;, &lt;code&gt;scrob&lt;&#x2F;code&gt;, etc.)&lt;&#x2F;li&gt;
+&lt;li&gt;Initializes PostgreSQL databases&lt;&#x2F;li&gt;
+&lt;li&gt;Generates secure passwords and tokens&lt;&#x2F;li&gt;
+&lt;li&gt;Copies config files from templates&lt;&#x2F;li&gt;
+&lt;li&gt;Installs systemd service files&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;Run once on a fresh VPS:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;sudo&lt;&#x2F;span&gt;&lt;span&gt; .&#x2F;bin&#x2F;bootstrap
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;It generates a &lt;code&gt;.env&lt;&#x2F;code&gt; file with all secrets and database passwords. This
+file is git-ignored and stays on the server.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;deploy-script&quot;&gt;Deploy Script&lt;&#x2F;h2&gt;
+&lt;p&gt;The deploy script handles updates and restarts:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;Updates configuration files (substitutes passwords from &lt;code&gt;.env&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;Copies service files to &lt;code&gt;&#x2F;etc&#x2F;systemd&#x2F;system&#x2F;&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Reloads systemd&lt;&#x2F;li&gt;
+&lt;li&gt;Creates databases if they don&#x27;t exist&lt;&#x2F;li&gt;
+&lt;li&gt;Enables and restarts all services&lt;&#x2F;li&gt;
+&lt;li&gt;Checks service status&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;After changing config locally:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;git&lt;&#x2F;span&gt;&lt;span&gt; add config&#x2F;Caddyfile
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;git&lt;&#x2F;span&gt;&lt;span&gt; commit&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt; -m &lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Update reverse proxy config&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;git&lt;&#x2F;span&gt;&lt;span&gt; push
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# On VPS
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;cd &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;~&lt;&#x2F;span&gt;&lt;span&gt;&#x2F;dev&#x2F;burrow-systemd
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;git&lt;&#x2F;span&gt;&lt;span&gt; pull
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;sudo&lt;&#x2F;span&gt;&lt;span&gt; .&#x2F;bin&#x2F;deploy
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The deploy script is idempotent. Run it as many times as you want.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;service-updates&quot;&gt;Service Updates&lt;&#x2F;h2&gt;
+&lt;p&gt;Updates are automated via the update script. It checks GitHub releases
+for all services and downloads new binaries when available:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Check what needs updating
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;sudo&lt;&#x2F;span&gt;&lt;span&gt; .&#x2F;bin&#x2F;update check
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Apply all updates
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;sudo&lt;&#x2F;span&gt;&lt;span&gt; .&#x2F;bin&#x2F;update apply
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# Update specific service
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;sudo&lt;&#x2F;span&gt;&lt;span&gt; .&#x2F;bin&#x2F;update apply gitea
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The script compares installed versions against the latest GitHub
+releases. If an update is available, it downloads the new binary, stops
+the service, replaces the binary, and restarts the service.&lt;&#x2F;p&gt;
+&lt;p&gt;Scrob migrations run automatically on startup via &lt;code&gt;sqlx::migrate!()&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;Simple and explicit.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;database-strategy&quot;&gt;Database Strategy&lt;&#x2F;h2&gt;
+&lt;p&gt;PostgreSQL is shared across Gitea, Woodpecker, and Scrob. Each service
+gets its own database and user with limited permissions.&lt;&#x2F;p&gt;
+&lt;p&gt;GoatCounter uses SQLite because each instance is independent. Three
+separate SQLite databases, three separate systemd units, three separate
+ports.&lt;&#x2F;p&gt;
+&lt;p&gt;No database clustering, no replication, no complexity. Daily backups via
+cron are enough for my use case.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-works&quot;&gt;What Works&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Single command deployment (&lt;code&gt;.&#x2F;bin&#x2F;deploy&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;Automated binary updates (&lt;code&gt;.&#x2F;bin&#x2F;update&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;Centralized logging via journalctl&lt;&#x2F;li&gt;
+&lt;li&gt;Automatic HTTPS via Caddy + Let&#x27;s Encrypt&lt;&#x2F;li&gt;
+&lt;li&gt;Service isolation via systemd users&lt;&#x2F;li&gt;
+&lt;li&gt;Declarative config in git&lt;&#x2F;li&gt;
+&lt;li&gt;Low memory footprint (no container runtime)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;what-doesn-t&quot;&gt;What Doesn&#x27;t&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Can&#x27;t easily move to a different host (not portable like containers)&lt;&#x2F;li&gt;
+&lt;li&gt;Service isolation is weaker than containers&lt;&#x2F;li&gt;
+&lt;li&gt;Harder to test locally (no docker-compose equivalent)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;security-model&quot;&gt;Security Model&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Each service runs as a dedicated system user&lt;&#x2F;li&gt;
+&lt;li&gt;PostgreSQL only listens on localhost&lt;&#x2F;li&gt;
+&lt;li&gt;TLS handled by Caddy (reverse proxy)&lt;&#x2F;li&gt;
+&lt;li&gt;Secrets stored in &lt;code&gt;.env&lt;&#x2F;code&gt; (git-ignored, mode 600)&lt;&#x2F;li&gt;
+&lt;li&gt;No rate limiting (future work)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;All services bind to localhost and are only accessible via Caddy&#x27;s
+reverse proxy. The VPS firewall blocks everything except 80, 443, and
+SSH.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;reflections&quot;&gt;Reflections&lt;&#x2F;h2&gt;
+&lt;p&gt;The best part is the simplicity. No Docker networking, no volume mounts,
+no image building. Just systemd units, config files, and bash scripts.&lt;&#x2F;p&gt;
+&lt;p&gt;When something breaks, &lt;code&gt;journalctl -u &amp;lt;service&amp;gt;&lt;&#x2F;code&gt; shows exactly what went
+wrong. No container layers to debug.&lt;&#x2F;p&gt;
+&lt;p&gt;The tradeoff is portability. This setup is tied to the specific VPS and
+filesystem layout. Migrating to a new server means running bootstrap
+again and restoring database backups.&lt;&#x2F;p&gt;
+&lt;p&gt;For my use case, that&#x27;s fine. I&#x27;m not running a multi-tenant SaaS. I&#x27;m
+hosting services for myself.&lt;&#x2F;p&gt;
+&lt;p&gt;That&#x27;s enough.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;links&quot;&gt;Links&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;burrow-systemd&quot;&gt;burrow-systemd&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-scrob-self-hosted-scrobbling&#x2F;&quot;&gt;Scrob blog post&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;about.gitea.com&#x2F;&quot;&gt;Gitea&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;woodpecker-ci.org&#x2F;&quot;&gt;Woodpecker CI&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;www.goatcounter.com&#x2F;&quot;&gt;GoatCounter&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;caddyserver.com&#x2F;&quot;&gt;Caddy&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+      </item>
+      <item>
+          <title>Building Scrob: A Self-Hosted Music Scrobbling Server</title>
+          <pubDate>Fri, 02 Jan 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/building-scrob-self-hosted-scrobbling/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/building-scrob-self-hosted-scrobbling/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/building-scrob-self-hosted-scrobbling/">&lt;p&gt;I wanted to track what music I listen to without sending that data to
+Last.fm. Part privacy preference, part self-hosting habit.&lt;&#x2F;p&gt;
+&lt;p&gt;So I set up &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;scrob&quot;&gt;scrob&lt;&#x2F;a&gt; - a self-hosted
+scrobbling server that tracks my listening history and makes it
+shareable.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;2026&#x2F;scrob-ui&#x2F;1.png&quot; alt=&quot;Scrob UI - Latest Scrobbles&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;2026&#x2F;scrob-ui&#x2F;2.png&quot; alt=&quot;Scrob UI - All Stats&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;how-it-works&quot;&gt;How It Works&lt;&#x2F;h2&gt;
+&lt;p&gt;Scrob is a REST API server with a separate static UI:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;Music Player (shelltrax, etc.)
+&lt;&#x2F;span&gt;&lt;span&gt;    |
+&lt;&#x2F;span&gt;&lt;span&gt;    v
+&lt;&#x2F;span&gt;&lt;span&gt;[POST &#x2F;scrob] with Bearer token
+&lt;&#x2F;span&gt;&lt;span&gt;    |
+&lt;&#x2F;span&gt;&lt;span&gt;    v
+&lt;&#x2F;span&gt;&lt;span&gt;Scrob API (Axum + Rust)
+&lt;&#x2F;span&gt;&lt;span&gt;    |
+&lt;&#x2F;span&gt;&lt;span&gt;    v
+&lt;&#x2F;span&gt;&lt;span&gt;PostgreSQL (scrobbles + users)
+&lt;&#x2F;span&gt;&lt;span&gt;    |
+&lt;&#x2F;span&gt;&lt;span&gt;    v
+&lt;&#x2F;span&gt;&lt;span&gt;Scrob UI (static Svelte site)
+&lt;&#x2F;span&gt;&lt;span&gt;    |
+&lt;&#x2F;span&gt;&lt;span&gt;    v
+&lt;&#x2F;span&gt;&lt;span&gt;Public profile: ui.scrob.example.com&#x2F;username
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The server authenticates clients via Bearer tokens, stores scrobbles in
+Postgres, and serves stats via REST endpoints. The UI is a static site
+that fetches data from the API.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;public-profiles&quot;&gt;Public Profiles&lt;&#x2F;h2&gt;
+&lt;p&gt;The interesting part was adding public user profiles. Like Last.fm, I
+wanted people to be able to share their music taste via a URL:
+&lt;code&gt;ui.scrob.jakegoldsborough.com&#x2F;username&lt;&#x2F;code&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;This required:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;New public API endpoints (&lt;code&gt;&#x2F;users&#x2F;:username&#x2F;recent&lt;&#x2F;code&gt;,
+&lt;code&gt;&#x2F;users&#x2F;:username&#x2F;top&#x2F;artists&lt;&#x2F;code&gt;, &lt;code&gt;&#x2F;users&#x2F;:username&#x2F;top&#x2F;tracks&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;Privacy controls (users are public by default, can opt-in to private)&lt;&#x2F;li&gt;
+&lt;li&gt;URL-based routing in the Svelte app&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;The privacy model is simple: a boolean &lt;code&gt;is_private&lt;&#x2F;code&gt; column in the users
+table. Public endpoints check the flag and return 403 if private. Users
+can toggle it via &lt;code&gt;&#x2F;settings&#x2F;privacy&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;security-model&quot;&gt;Security Model&lt;&#x2F;h2&gt;
+&lt;p&gt;Scrob uses token-based authentication:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Login with username&#x2F;password to get a Bearer token&lt;&#x2F;li&gt;
+&lt;li&gt;All scrobble submissions require &lt;code&gt;Authorization: Bearer &amp;lt;token&amp;gt;&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Tokens are stored in the database with revocation support&lt;&#x2F;li&gt;
+&lt;li&gt;Passwords are hashed with bcrypt&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;TLS is expected to be handled by a reverse proxy (Caddy, nginx, etc.).
+The server itself runs over HTTP.&lt;&#x2F;p&gt;
+&lt;p&gt;Rate limiting is not currently implemented. Future work.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-stack&quot;&gt;The Stack&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;strong&gt;Backend&lt;&#x2F;strong&gt;: Rust + Axum + PostgreSQL + sqlx&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Frontend&lt;&#x2F;strong&gt;: Svelte 5 + Vite + TypeScript&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Client&lt;&#x2F;strong&gt;: &lt;a href=&quot;https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;introducing-shelltrax&#x2F;&quot;&gt;Shelltrax&lt;&#x2F;a&gt; (my terminal music player)&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Infrastructure&lt;&#x2F;strong&gt;: Systemd services on a VPS, no Docker&lt;&#x2F;p&gt;
+&lt;p&gt;Scrob is straightforward. It&#x27;s an API server that receives scrobble
+data, stores it in Postgres, and serves it back via REST endpoints. The
+UI is a static site that shows your listening history.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;try-it&quot;&gt;Try It&lt;&#x2F;h2&gt;
+&lt;p&gt;If you want to run your own scrob instance:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Prerequisites: Rust 1.82+, PostgreSQL 12+, reverse proxy for TLS&lt;&#x2F;li&gt;
+&lt;li&gt;Clone repo and build: &lt;code&gt;cargo build --release&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Set &lt;code&gt;DATABASE_URL&lt;&#x2F;code&gt; environment variable&lt;&#x2F;li&gt;
+&lt;li&gt;Migrations run automatically on first startup via &lt;code&gt;sqlx::migrate!()&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Create a user with &lt;code&gt;.&#x2F;scripts&#x2F;bootstrap.sh&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Start UI (separate repo: scrob-ui) or use API directly&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;See the &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;scrob&quot;&gt;README&lt;&#x2F;a&gt; for full details.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;sqlx-and-offline-query-caching&quot;&gt;sqlx and Offline Query Caching&lt;&#x2F;h2&gt;
+&lt;p&gt;Scrob uses &lt;code&gt;sqlx&lt;&#x2F;code&gt; for compile-time checked SQL queries. This is great for type safety but annoying for CI: you need a database to compile.&lt;&#x2F;p&gt;
+&lt;p&gt;The solution is &lt;code&gt;cargo sqlx prepare&lt;&#x2F;code&gt; which generates a &lt;code&gt;.sqlx&#x2F;&lt;&#x2F;code&gt; cache of
+query metadata. Then CI can build with &lt;code&gt;SQLX_OFFLINE=true&lt;&#x2F;code&gt; without
+needing Postgres.&lt;&#x2F;p&gt;
+&lt;p&gt;The problem: running &lt;code&gt;cargo sqlx prepare&lt;&#x2F;code&gt; manually is tedious. You need
+to spin up Postgres, run migrations, prepare the cache, tear it down.&lt;&#x2F;p&gt;
+&lt;p&gt;I automated it with a Makefile:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;makefile&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-makefile &quot;&gt;&lt;code class=&quot;language-makefile&quot; data-lang=&quot;makefile&quot;&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;prepare&lt;&#x2F;span&gt;&lt;span&gt;:
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;docker&lt;&#x2F;span&gt;&lt;span&gt; run postgres:16-alpine (port 5433)
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;Wait&lt;&#x2F;span&gt;&lt;span&gt; for postgres
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;cargo&lt;&#x2F;span&gt;&lt;span&gt; sqlx migrate run
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;cargo&lt;&#x2F;span&gt;&lt;span&gt; sqlx prepare
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;docker&lt;&#x2F;span&gt;&lt;span&gt; rm postgres
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Now &lt;code&gt;make prepare&lt;&#x2F;code&gt; handles everything. One command, query cache updated.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;dev-tooling&quot;&gt;Dev Tooling&lt;&#x2F;h3&gt;
+&lt;p&gt;The prepare target must be rerun whenever you:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Add or modify SQL queries in the codebase&lt;&#x2F;li&gt;
+&lt;li&gt;Create new migrations&lt;&#x2F;li&gt;
+&lt;li&gt;Change database schema&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Without updating &lt;code&gt;.sqlx&#x2F;&lt;&#x2F;code&gt;, CI builds fail with query verification
+errors. The cache is committed to git, so offline builds work without a
+live database connection.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;deployment&quot;&gt;Deployment&lt;&#x2F;h2&gt;
+&lt;p&gt;The deployment setup is declarative:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Migrations live in the scrob repo&lt;&#x2F;li&gt;
+&lt;li&gt;On startup, scrob automatically detects and runs new migrations via
+&lt;code&gt;sqlx::migrate!()&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;The deploy script checks GitHub releases for new versions and only
+downloads if there&#x27;s an update&lt;&#x2F;li&gt;
+&lt;li&gt;Systemd restarts the service after updating the binary&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;No manual migration management. No separate migration runner. Single
+source of truth.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-works&quot;&gt;What Works&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Scrobbling from Shelltrax to the API&lt;&#x2F;li&gt;
+&lt;li&gt;Public profile pages with recent scrobbles and top stats&lt;&#x2F;li&gt;
+&lt;li&gt;Privacy toggle (public by default, opt-in private)&lt;&#x2F;li&gt;
+&lt;li&gt;Automated migrations on startup&lt;&#x2F;li&gt;
+&lt;li&gt;Version-aware deployment script&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;what-doesn-t&quot;&gt;What Doesn&#x27;t&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;No album stats yet (just artists and tracks)&lt;&#x2F;li&gt;
+&lt;li&gt;No client&#x2F;player tracking (can&#x27;t tell if you scrobbled from Shelltrax
+vs another client)&lt;&#x2F;li&gt;
+&lt;li&gt;Limited metadata (no album art, genre tags, etc.)&lt;&#x2F;li&gt;
+&lt;li&gt;UI is functional but basic&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;reflections&quot;&gt;Reflections&lt;&#x2F;h2&gt;
+&lt;p&gt;The best part of this project was the deployment automation. The &lt;code&gt;make prepare&lt;&#x2F;code&gt; command and the version-checking deploy script make updates
+trivial. Push a tag, wait for CI, run &lt;code&gt;sudo .&#x2F;bin&#x2F;deploy&lt;&#x2F;code&gt;, done.&lt;&#x2F;p&gt;
+&lt;p&gt;Scrob isn&#x27;t trying to compete with Last.fm&#x27;s features... yet. It&#x27;s a simple,
+self-hosted alternative that does one thing: tracks what you listen to
+and makes it shareable.&lt;&#x2F;p&gt;
+&lt;p&gt;That&#x27;s enough for now.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;links&quot;&gt;Links&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;scrob&quot;&gt;scrob (backend)&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;scrob-ui&quot;&gt;scrob-ui (frontend)&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;ui.scrob.jakegoldsborough.com&#x2F;users&#x2F;ducks&quot;&gt;My public profile&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+      </item>
+    </channel>
+</rss>

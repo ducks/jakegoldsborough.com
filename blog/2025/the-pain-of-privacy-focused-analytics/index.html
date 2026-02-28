@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="The frustrating journey of setting up GoatCounter for privacy-respecting analytics, encountering broken Docker registries, build failures, and tooling friction that makes ethical software harder to deploy.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="The Accidental Complexity of Doing The Right Thing or The Pain of Setting Up Privacy-Focused Analytics (2025 Edition)">
+    <meta property="og:description" content="The frustrating journey of setting up GoatCounter for privacy-respecting analytics, encountering broken Docker registries, build failures, and tooling friction that makes ethical software harder to deploy.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;the-pain-of-privacy-focused-analytics&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="The Accidental Complexity of Doing The Right Thing or The Pain of Setting Up Privacy-Focused Analytics (2025 Edition)">
+    <meta name="twitter:description" content="The frustrating journey of setting up GoatCounter for privacy-respecting analytics, encountering broken Docker registries, build failures, and tooling friction that makes ethical software harder to deploy.">
+
+    <title>The Accidental Complexity of Doing The Right Thing or The Pain of Setting Up Privacy-Focused Analytics (2025 Edition) - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>The Accidental Complexity of Doing The Right Thing or The Pain of Setting Up Privacy-Focused Analytics (2025 Edition)</h1>
+      <div class="meta">
+        
+        <p>Jun 22, 2025</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/devops">#devops</a></p>
+          
+          <p><a href="/tags/privacy">#privacy</a></p>
+          
+        </div>
+      
+
+      <h3 id="introduction">Introduction</h3>
+<p>As I've mentioned in the past, I’ve been writing and blogging more, and I
+became curious if anyone was actually reading my posts.</p>
+<p>Before I go any further, I need to make it clear that I am very
+privacy-focused. I hate logging, tracking, fingerprinting, or any kind of
+unnecessary data collection. A user’s data is theirs -- I have no interest in
+storing anything about them. I just want a basic count of which pages are being
+visited.</p>
+<p>Naturally, I asked ChatGPT for recommendations based on my current setup.</p>
+<p>I'm already using Caddy as my web server and TLS manager, so the first
+suggestion was straightforward: just enable HTTP access logs and analyze them.</p>
+<h3 id="attempt-1-server-side-access-logs-caddy">Attempt 1: Server-side access logs (Caddy)</h3>
+<p>The basic flow here would be:</p>
+<ul>
+<li>enable http logs in Caddy</li>
+<li>scrape log file</li>
+<li>count requests as rough pageviews</li>
+</ul>
+<p>In theory, this sounded perfect. I wasn’t looking for fancy dashboards or
+detailed metrics -- just simple counts of which pages were being hit. Plain log
+files should be more than enough.</p>
+<p>Caddy, by default, doesn't actually log HTTP requests unless you configure it
+to. More surprisingly, in many builds of Caddy (especially those provided by
+package managers), the <code>http.handlers.log</code> module isn’t even included.</p>
+<p>At first I thought I was on the wrong version, but after some digging, I
+realized that full HTTP access logging in Caddy requires building your own
+custom binary with <a href="https://caddyserver.com/docs/build#xcaddy"><code>xcaddy</code></a> to
+enable the logging module. This felt like massive overkill for something as
+basic as HTTP request logging.</p>
+<p>After trying multiple versions, failing to get access logs working, and
+realizing that Caddy’s modular architecture was actively getting in my way, I
+gave up on this approach.</p>
+<p>I asked ChatGPT for other options.</p>
+<h3 id="attempt-2-goatcounter-via-docker">Attempt 2: Goatcounter via Docker</h3>
+<p>The next recommendation was to use a dedicated privacy-first analytics tool.
+Several good open-source options exist:
+<a href="https://github.com/arp242/goatcounter">GoatCounter</a>, Plausible, and Umami.</p>
+<p>After doing a bit of research, GoatCounter stood out. It’s fully open-source,
+extremely privacy-focused, lightweight, and seems purpose-built for people like
+me who just want simple pageview counts without any tracking nonsense.</p>
+<p>Even better, GoatCounter has Docker images available.</p>
+<p>But of course — the Docker image that used to be hosted on Docker Hub was no
+longer available. The project had moved its images to GitHub Container Registry
+(GHCR), and GHCR was returning permission errors when I tried to pull the image
+anonymously. Apparently GHCR increasingly requires authentication even for
+public images, depending on Docker version, client configuration, and random
+GitHub API mood swings.</p>
+<h3 id="attempt-3-building-my-own-goatcounter-docker-image">Attempt 3: Building my own Goatcounter Docker image</h3>
+<p>After that, I decided to just build the image myself.</p>
+<p>GoatCounter publishes a Dockerfile in the repo, so this should be
+straightforward:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>git clone https://github.com/arp242/goatcounter.git
+</span><span>docker build -t goatcounter:local .
+</span></code></pre>
+<p>The Dockerfile requires Docker BuildKit support, and uses newer Dockerfile
+features like <code>--exclude</code>, which aren't supported by Docker’s legacy builder. I
+had to enable BuildKit, but enabling BuildKit required <code>docker-buildx</code>, which
+wasn’t installed by default on my Arch system.</p>
+<p>Once I installed <code>docker-buildx</code>, I ran the build again. This time, it started
+pulling Go modules but failed with timeouts halfway through the build.</p>
+<p>I retried. And retried. BuildKit timeouts, network flakiness, CDN rate limiting
+-- you name it. What should have been a 30-second build turned into multiple
+rounds of fighting with Docker’s build system and Go’s module proxy ecosystem.</p>
+<p>At this point, Docker was no longer simplifying anything — it was actively
+making everything worse.</p>
+<h3 id="attempt-4-running-goatcounter-directly">Attempt 4: Running GoatCounter directly</h3>
+<p>By this point I was fully in "I don’t even care anymore" mode.</p>
+<p>GoatCounter is a Go program that ships prebuilt binaries. I could just download
+the standalone Linux binary and run it behind Caddy directly, without Docker at
+all.</p>
+<p>Except even that wasn't as straightforward as it should have been.</p>
+<p>The download URL on GitHub releases points to a gzip-compressed file. I
+accidentally downloaded it and tried running it directly without decompressing
+it first, leading to confusing shell errors ("command not found" as it tried to
+parse the binary as text). Once I properly decompressed it, I finally had a
+functioning ELF binary.</p>
+<p>I ran <code>goatcounter serve</code>, initialized the SQLite database, and got it fully
+running behind Caddy with one reverse proxy entry. TLS worked automatically,
+and finally, my simple analytics system was live.</p>
+<h3 id="observations">Observations</h3>
+<p>Docker was supposed to make self-hosting trivial. But broken registries,
+permission issues, changing build standards, and fragmented tooling made things
+much harder. Self-hosted projects often don't have the resources to maintain
+registry hosting, Docker images, and packaging across multiple platforms.
+The friction involved in doing things ethically discourages people from even
+trying privacy-respecting solutions.</p>
+<p>It's no surprise so many people just give up and paste Google Analytics into
+their site -- it's not better technology, it's easier deployment.</p>
+<h3 id="conclusions">Conclusions</h3>
+<p>Privacy-first analytics tools absolutely exist — GoatCounter is an excellent
+project, and I’m very happy with it now that it’s running.</p>
+<p>But the tooling friction creates artificial barriers that discourage adoption.
+Ironically, it's often easier to deploy privacy-invasive analytics than
+privacy-respecting ones.</p>
+<p>There’s a huge opportunity here to improve the ecosystem:</p>
+<ul>
+<li>Smarter build tooling</li>
+<li>Better Docker automation</li>
+<li>Easier packaging of self-hostable apps</li>
+<li>(Maybe even a tool that turns install instructions into Dockerfiles
+automatically — but that’s a post for another day...)</li>
+</ul>
+<p>If we want ethical software to be the default, we need to make it easier, not
+harder.</p>
+<h3 id="edit-20250526">Edit (20250526)</h3>
+<h4 id="there-is-a-docker-image">There <strong>IS</strong> a Docker Image</h4>
+<p>Welp, naturally, after all of this — the registry issues, the broken builds, the
+manual binary install — I found out <em>there is</em> a Docker image for GoatCounter:</p>
+<p><a href="https://hub.docker.com/r/arp242/goatcounter">arp242/goatcounter</a></p>
+<p><em>(Yes, maintained by the actual author.)</em></p>
+<p>Apparently I was just one <code>docker pull</code> away the whole time.</p>
+<p>:facepalm:</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;yaml-janitor-comment-preservation&#x2F;">Building yaml-janitor: Solving the Comment Preservation Problem</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 14, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">How I built a YAML linter that preserves comments, validated 1,736 production files, and published it to RubyGems</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/yaml">#yaml</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                      <p><a href="/tags/devops">#devops</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-a-voting-system-with-git&#x2F;">Building a Fully Decentralized Voting System Using Just Git and Pull Requests</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 23, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Creating a transparent, auditable voting system where Git commits are the ledger, pull requests are ballots, and CI validates every vote without any centralized servers or databases.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/git">#git</a></p>
+                      
+                      <p><a href="/tags/devops">#devops</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-node-postgres-exporter&#x2F;">node-postgres-exporter — A Lightweight, Configurable PostgreSQL Prometheus Exporter</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 20, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Building a flexible Node.js-based Prometheus exporter for PostgreSQL with multi-database support, dynamic custom metrics via JSON configuration, and production-ready fault isolation.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/devops">#devops</a></p>
+                      
+                      <p><a href="/tags/nodejs">#nodejs</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;deploying-static-site-zola-github-actions&#x2F;">Deploying a Zola static site to a custom domain with Github Actions</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 24, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Setting up automated deployment for a Zola-based static site using GitHub Actions to build and publish to GitHub Pages with a custom domain and DNS configuration.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/github">#github</a></p>
+                      
+                      <p><a href="/tags/devops">#devops</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

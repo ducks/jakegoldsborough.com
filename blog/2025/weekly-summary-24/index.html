@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Introducing ChatGPT-generated personal changelogs covering MyFrisbee blog series, PostgreSQL exporter deployment, NixOS Hyprland configuration, and ongoing Swedish language learning.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="ChatGPT Changelog (fka Weekly Summary) - 24&#x2F;52">
+    <meta property="og:description" content="Introducing ChatGPT-generated personal changelogs covering MyFrisbee blog series, PostgreSQL exporter deployment, NixOS Hyprland configuration, and ongoing Swedish language learning.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-24&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="ChatGPT Changelog (fka Weekly Summary) - 24&#x2F;52">
+    <meta name="twitter:description" content="Introducing ChatGPT-generated personal changelogs covering MyFrisbee blog series, PostgreSQL exporter deployment, NixOS Hyprland configuration, and ongoing Swedish language learning.">
+
+    <title>ChatGPT Changelog (fka Weekly Summary) - 24&#x2F;52 - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>ChatGPT Changelog (fka Weekly Summary) - 24&#x2F;52</h1>
+      <div class="meta">
+        
+        <p>Jun 13, 2025</p>
+        
+        <p>3 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/gpt">#gpt</a></p>
+          
+          <p><a href="/tags/changelog">#changelog</a></p>
+          
+          <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+          
+        </div>
+      
+
+      <h3 id="happy-friday-the-13th">Happy Friday the 13th!</h3>
+<p>I have decided to slightly change up my personal weekly summary posts.</p>
+<p>I have been using ChatGPT more and more and really find it to be an important
+tool. It saves me so much time with debugging error messages and digging
+through docs. It can also keep very good track of what I've been working on
+and thinking about. Because of this, I have decided to update the way I do
+the weekly summary. I am going to let ChatGPT generate a personal changelog
+of everything I have been working on. It's not perfect so I do have to edit
+it some but it still does a better job than I could ever do.</p>
+<p>So with that, here is my weekly ChatGPT changelog:</p>
+<h3 id="accomplishments-since-june-7">Accomplishments (Since June 7)</h3>
+<h4 id="udisc-api-blog-series">UDisc API / Blog Series</h4>
+<ul>
+<li>Published Part 4 of the blog series: deep dive into <code>smartLayouts</code> and <code>holes</code>.</li>
+<li>Improved <code>deepHydrate</code>, began resolving issues with arrays of unresolved IDs.</li>
+<li>Continued resolving schema-indexed keys (e.g. <code>_254: 270</code>) for clarity.</li>
+<li>Added blog link to <code>open-udisc-api</code> README.</li>
+<li>Cleaned up TypeScript types and debugged schema hydration logic.</li>
+</ul>
+<h4 id="infra-devops">Infra &amp; DevOps</h4>
+<ul>
+<li>Set up Gitea using a Linux service.</li>
+<li>Implemented a Git pre-push hook to filter Zola drafts before publishing.</li>
+<li>Decided to drop OpenAPI support for the current API project.</li>
+</ul>
+<h4 id="postgresql-exporter">PostgreSQL Exporter</h4>
+<ul>
+<li>Deployed a general-purpose PostgreSQL -&gt; Prometheus exporter.</li>
+<li>Added <code>/metrics</code>, <code>/livez</code>, <code>/readyz</code>, and <code>/configz</code> endpoints.</li>
+<li>Configured basic token authentication.</li>
+<li>Documented endpoints and auth in the README.</li>
+</ul>
+<h4 id="nixos-hyprland">NixOS / Hyprland</h4>
+<ul>
+<li>Diagnosed Hyprland reload issues involving <code>exec-once</code> behavior.</li>
+<li>Installed and confirmed use of:
+<ul>
+<li>wezterm</li>
+<li>dunst</li>
+<li>hypridle</li>
+<li>bibata-cursor-theme</li>
+</ul>
+</li>
+<li>Explored xcursor previews and how to apply cursor themes via Nix.</li>
+<li>Set up Waybar with Gruvbox-inspired CSS.</li>
+</ul>
+<h4 id="miscellaneous">Miscellaneous</h4>
+<ul>
+<li>Continued Swedish learning streak (currently 179+ days).</li>
+<li>Expanded concept for a first-person disc golf course viewer.</li>
+<li>Researched 360-degree and panoramic photo capture on Android/GrapheneOS.</li>
+</ul>
+<hr />
+<h3 id="to-do-improvements">To-Do / Improvements</h3>
+<h4 id="udisc-api-blog">UDisc API + Blog</h4>
+<ul>
+<li>Fix unresolved arrays in <code>deepHydrate</code>, such as <code>targetPositionLabels</code>.</li>
+<li>Begin drafting a "meta" post summarizing the UDisc reverse-engineering series.</li>
+<li>Write additional parts exploring fields like <code>dogleg</code> or <code>obLines</code>.</li>
+<li>Explore creating a visualizer for hydrated course data.</li>
+</ul>
+<h4 id="infra-self-hosting">Infra / Self-Hosting</h4>
+<ul>
+<li>Document the Gitea systemd service setup.</li>
+<li>Write a blog post about using Git hooks to manage Zola drafts.</li>
+</ul>
+<h4 id="nixos-hyprland-1">NixOS / Hyprland</h4>
+<ul>
+<li>Investigate why <code>exec-once</code> commands don't rerun on <code>hyprctl reload</code>.</li>
+<li>Continue refining modular <code>environment.systemPackages</code> layout.</li>
+<li>Extend daily-driver blog series for NixOS on MacBook hardware.</li>
+</ul>
+<h4 id="portfolio-sharing">Portfolio + Sharing</h4>
+<ul>
+<li>Add README links or badges to published blog posts.</li>
+<li>Write a post about decoding custom schema formats in APIs.</li>
+<li>Share blog content on Hacker News, Lobsters, or relevant communities.</li>
+</ul>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;yearly-summary&#x2F;">2025 - A Review</a></h3>
+                  <div class="meta">
+                    
+                    <p>Dec 31, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">A reflective look back at 2025 as a year of integration: building durable tools, writing in public, and aligning technical work with sustainability, creativity, and a calm, long-term pace.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/gpt">#gpt</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-42&#x2F;">ChatGPT assisted Changelog - 42&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 17, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A week of creative experiments and follow-ups -- from launching a live transit board inside Discourse and polishing your AWS SDK Ruby series, to debugging GoatCounter exports and exploring privacy-friendly tools on GrapheneOS.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/gpt">#gpt</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-41&#x2F;">ChatGPT assisted Changelog - 41&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 10, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A quieter but productive week focused on publishing the Discourse transit tracker post, analyzing GoatCounter data across 37 countries and six continents, and continuing open source contributions to the AWS SDK for Ruby.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/gpt">#gpt</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-40&#x2F;">ChatGPT assisted Changelog - 40&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 03, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">Weekly topics spanning Czechia residency planning, Anki language learning setup, Framework 16 NixOS troubleshooting, Discourse plugin ideas, and practical logistics for international relocation.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/gpt">#gpt</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-36&#x2F;">ChatGPT assisted Changelog - 36-39&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Sep 26, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">A ChatGPT-generated summary covering Prague travel notes, Czech visa preparation, camera research, Discourse experiments, desktop tooling, email deliverability, and personal logistics from weeks 36-39.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/gpt">#gpt</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

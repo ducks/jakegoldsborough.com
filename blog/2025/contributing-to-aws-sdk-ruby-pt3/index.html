@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="The conclusion to the AWS credential chain saga, where maintainers close a valid bug report, the feature remains broken, and we learn about the politics of backward compatibility in open source.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="AWS SDK Ruby Part 3: When &quot;Working as Intended&quot; Means &quot;Broken by Design&quot;">
+    <meta property="og:description" content="The conclusion to the AWS credential chain saga, where maintainers close a valid bug report, the feature remains broken, and we learn about the politics of backward compatibility in open source.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;contributing-to-aws-sdk-ruby-pt3&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="AWS SDK Ruby Part 3: When &quot;Working as Intended&quot; Means &quot;Broken by Design&quot;">
+    <meta name="twitter:description" content="The conclusion to the AWS credential chain saga, where maintainers close a valid bug report, the feature remains broken, and we learn about the politics of backward compatibility in open source.">
+
+    <title>AWS SDK Ruby Part 3: When &quot;Working as Intended&quot; Means &quot;Broken by Design&quot; - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>AWS SDK Ruby Part 3: When &quot;Working as Intended&quot; Means &quot;Broken by Design&quot;</h1>
+      <div class="meta">
+        
+        <p>Oct 14, 2025</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/aws">#aws</a></p>
+          
+          <p><a href="/tags/ruby">#ruby</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <h3 id="the-saga-continues">The Saga Continues</h3>
+<p>If you've been following along (<a href="/blog/2025/contributing-to-aws-sdk-ruby/">Part
+1</a> and
+<a href="/blog/2025/contributing-to-aws-sdk-ruby-pt2/">Part
+2</a>),
+you know I've been on a journey fixing AWS SDK Ruby credential handling. First
+I added the missing <code>credential_source = Environment</code> implementation, then I
+discovered it didn't actually work due to credential chain precedence issues.</p>
+<p>After extensive testing and code analysis, I submitted <a href="https://github.com/aws/aws-sdk-ruby/pull/3303">PR
+#3303</a> with a fix. The
+maintainer initially responded positively:</p>
+<blockquote>
+<p>"Hey, thanks for opening an issue. I believe you are correct and this is
+something we need to fix."</p>
+</blockquote>
+<p>Great! But then...</p>
+<h3 id="the-reversal">The Reversal</h3>
+<p>After I provided detailed testing comparing AWS CLI behavior, demonstrated the
+fix working in production, and showed exactly which code was unreachable due to
+the chain precedence, the maintainer walked it back:</p>
+<blockquote>
+<p>"From what I understand, I think the default chain will try to resolve
+credentials as quickly as possible, so if environment variables are set it will
+use them directly instead of using them as a credential source. We try not to
+change the behavior of the default chain since returning credentials in a
+different order can break many customers."</p>
+</blockquote>
+<p>And then closed both the issue and PR.</p>
+<h3 id="why-this-is-wrong">Why This Is Wrong</h3>
+<p><strong>1. The Feature Is Completely Broken</strong></p>
+<p>When you configure:</p>
+<pre data-lang="ini" style="background-color:#2b303b;color:#c0c5ce;" class="language-ini "><code class="language-ini" data-lang="ini"><span style="color:#b48ead;">[default]
+</span><span style="color:#bf616a;">role_arn </span><span>= arn:aws:iam::</span><span style="color:#d08770;">123456789012</span><span>:role/MyRole
+</span><span style="color:#bf616a;">credential_source </span><span>= Environment
+</span></code></pre>
+<p>What happens?</p>
+<ol>
+<li><code>env_credentials</code> (position 7) finds <code>AWS_ACCESS_KEY_ID</code> and
+<code>AWS_SECRET_ACCESS_KEY</code></li>
+<li>Chain returns those credentials and stops</li>
+<li><code>assume_role_credentials</code> (position 10) never executes</li>
+<li>The <code>role_arn</code> and <code>credential_source</code> configuration is <strong>completely
+ignored</strong></li>
+</ol>
+<p>The maintainer confirmed this: "All of the <code>static_profile_</code> methods handle
+credentials resolution when a client is configured explicitly with a profile."</p>
+<p>So the feature works... but only if you don't use the credential chain, which
+defeats the entire purpose of having a credential chain.</p>
+<p><strong>2. The Code Contradicts Their Argument</strong></p>
+<p>Look at
+<a href="https://github.com/aws/aws-sdk-ruby/blob/version-3/gems/aws-sdk-core/lib/aws-sdk-core/shared_config.rb#L392-L400"><code>shared_config.rb:392-400</code></a>:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">credentials_from_source</span><span>(</span><span style="color:#bf616a;">credential_source</span><span>, </span><span style="color:#bf616a;">config</span><span>)
+</span><span>  </span><span style="color:#b48ead;">case</span><span> credential_source
+</span><span>  </span><span style="color:#b48ead;">when </span><span>&#39;</span><span style="color:#a3be8c;">Ec2InstanceMetadata</span><span>&#39;
+</span><span>    </span><span style="color:#65737e;"># ...
+</span><span>  </span><span style="color:#b48ead;">when </span><span>&#39;</span><span style="color:#a3be8c;">EcsContainer</span><span>&#39;
+</span><span>    </span><span style="color:#65737e;"># ...
+</span><span>  </span><span style="color:#b48ead;">when </span><span>&#39;</span><span style="color:#a3be8c;">Environment</span><span>&#39;
+</span><span>    creds = </span><span style="color:#ebcb8b;">Credentials</span><span>.</span><span style="color:#8fa1b3;">new</span><span>(
+</span><span>      </span><span style="color:#bf616a;">ENV</span><span>[&#39;</span><span style="color:#a3be8c;">AWS_ACCESS_KEY_ID</span><span>&#39;],
+</span><span>      </span><span style="color:#bf616a;">ENV</span><span>[&#39;</span><span style="color:#a3be8c;">AWS_SECRET_ACCESS_KEY</span><span>&#39;],
+</span><span>      </span><span style="color:#bf616a;">ENV</span><span>[&#39;</span><span style="color:#a3be8c;">AWS_SESSION_TOKEN</span><span>&#39;]
+</span><span>    )
+</span><span>    creds.metrics = [&#39;</span><span style="color:#a3be8c;">CREDENTIALS_ENV_VARS</span><span>&#39;]
+</span><span>    creds
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>This code exists specifically to use environment variables as source credentials
+for role assumption. But the credential chain prevents it from ever executing
+when using the default profile.</p>
+<p><strong>3. The Workaround Proves It's Broken</strong></p>
+<p>The maintainer suggested: "if specifying the profile resolves your issue I
+would recommend doing that."</p>
+<p>But that's not a solution, it's an admission the feature is broken. The
+credential chain exists so you DON'T have to explicitly pass <code>profile:</code>
+parameters everywhere. Setting <code>AWS_PROFILE=default</code> or using the default
+profile should work. That's the entire design philosophy.</p>
+<p><strong>4. Who Would This "Break"?</strong></p>
+<p>The maintainer worried about "breaking many customers." But let's think about
+this:</p>
+<p>My fix only affects users who have <strong>both</strong> of these conditions:</p>
+<ul>
+<li>A profile with <code>role_arn</code> AND <code>credential_source = Environment</code></li>
+<li>Environment variables <code>AWS_ACCESS_KEY_ID</code> and <code>AWS_SECRET_ACCESS_KEY</code> set</li>
+</ul>
+<p>If someone configures both, they're explicitly declaring: "use these
+environment variables AS SOURCE CREDENTIALS to assume this role."</p>
+<p>Who would configure this and expect it to be ignored? That's not a customer
+being protected, that's a broken feature being excused.</p>
+<h3 id="what-i-did-instead">What I Did Instead</h3>
+<p>Since the AWS team won't fix the credential chain, I worked around it by
+explicitly passing the <code>profile:</code> parameter to AWS SDK clients. This bypasses
+the broken credential chain entirely.</p>
+<p>The approach is simple:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">aws_client_options
+</span><span>  opts = { </span><span style="color:#a3be8c;">region:</span><span> config.region }
+</span><span>
+</span><span>  </span><span style="color:#65737e;"># Explicitly pass profile if configured
+</span><span>  </span><span style="color:#b48ead;">if</span><span> config.profile.present?
+</span><span>    opts[</span><span style="color:#a3be8c;">:profile</span><span>] = config.profile
+</span><span>  </span><span style="color:#b48ead;">elsif</span><span> config.access_key_id.present? &amp;&amp; config.secret_key.present?
+</span><span>    opts[</span><span style="color:#a3be8c;">:access_key_id</span><span>] = config.access_key_id
+</span><span>    opts[</span><span style="color:#a3be8c;">:secret_access_key</span><span>] = config.secret_key
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span>  </span><span style="color:#65737e;"># Otherwise omit credentials, let SDK auto-discover
+</span><span>
+</span><span>  opts
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>With AWS config:</p>
+<pre data-lang="ini" style="background-color:#2b303b;color:#c0c5ce;" class="language-ini "><code class="language-ini" data-lang="ini"><span style="color:#b48ead;">[profile app-uploads]
+</span><span style="color:#bf616a;">role_arn </span><span>= arn:aws:iam::</span><span style="color:#d08770;">123456789012</span><span>:role/AppUploads
+</span><span style="color:#bf616a;">credential_source </span><span>= Environment
+</span></code></pre>
+<p>This works because explicitly passing <code>profile:</code> to the SDK bypasses the broken
+credential chain and goes directly to the profile-based role assumption code.
+It's not fixing the SDK bug, but it enables working role assumption with
+temporary credentials instead of long-lived static keys.</p>
+<h3 id="what-i-learned-the-hard-way">What I Learned (The Hard Way)</h3>
+<p><strong>Open source maintainers aren't always right.</strong> Even when they're from AWS,
+even when they're maintaining critical infrastructure, they can make bad
+decisions.</p>
+<p><strong>Document your wins even when they don't get merged.</strong> This fix works in
+production. Other developers will hit this same issue. Having a public record
+of the problem and solution helps everyone.</p>
+<p><strong>The bug report itself has value.</strong> Even though they closed it, the issue and
+PR document exactly what's broken and why. Future developers will find it and
+understand they're not crazy. The feature really is broken.</p>
+<h3 id="the-bigger-picture">The Bigger Picture</h3>
+<p>This experience reminded me technical correctness doesn't always win.</p>
+<p>I had:</p>
+<ul>
+<li>Clear reproduction steps</li>
+<li>Root cause analysis with line numbers</li>
+<li>A working fix with tests</li>
+<li>Production validation</li>
+<li>Comparison with AWS CLI behavior</li>
+<li>Maintainer acknowledgment that it was broken</li>
+</ul>
+<p>And they still closed it.</p>
+<p>Sometimes the politics of "don't change anything" beat "fix the broken
+feature." That's frustrating, but it's reality.</p>
+<h3 id="for-other-contributors">For Other Contributors</h3>
+<p>If you hit this issue:</p>
+<ol>
+<li>Yes, <code>credential_source = Environment</code> is broken with the default credential
+chain</li>
+<li>No, it's not you, it's the SDK</li>
+<li>The workaround is explicitly passing <code>profile:</code> to clients (or using
+<code>source_profile</code> with plaintext keys)</li>
+<li>Explicitly passing the profile parameter bypasses the broken chain and
+enables proper role assumption</li>
+</ol>
+<p>For AWS maintainers reading this:</p>
+<ul>
+<li>You have unreachable code in <code>credentials_from_source</code></li>
+<li>Your credential chain prevents documented features from working</li>
+<li>"Breaking changes" is a poor excuse for not fixing broken features</li>
+<li>The feature is already broken for everyone using default profiles</li>
+</ul>
+<h3 id="the-end-for-now">The End (For Now)</h3>
+<p>This is where the story ends. I found a workaround, documented it for others,
+and moved on.</p>
+<p>Sometimes that's all you can do. Sometimes "no" from maintainers means finding
+another path. Sometimes proving you're technically correct doesn't matter if
+the project isn't willing to fix their bugs.</p>
+<p>But hey, at least the deployment works now. And maybe this blog series will
+help the next developer who hits this same wall and wonders why a documented
+feature doesn't actually work.</p>
+<p>The adventure is over. The bug remains. The workaround persists.</p>
+<p>Such is open source.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;contributing-to-aws-sdk-ruby-pt2&#x2F;">Going off the Rails on the AWS Credential Chain</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 04, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Uncovering a deeper architectural issue in the AWS Ruby SDK where credential chain precedence prevented role assumption from working correctly with environment variable source credentials.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/aws">#aws</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;contributing-to-aws-sdk-ruby&#x2F;">Contributing to the AWS Ruby SDK: When Documentation and Implementation Don&#x27;t Match</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 23, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Discovering and fixing a missing credential source implementation in the AWS Ruby SDK where documentation promised Environment support but the code didn&#x27;t deliver.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/aws">#aws</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;yaml-janitor-comment-preservation&#x2F;">Building yaml-janitor: Solving the Comment Preservation Problem</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 14, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">How I built a YAML linter that preserves comments, validated 1,736 production files, and published it to RubyGems</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/yaml">#yaml</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                      <p><a href="/tags/devops">#devops</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-stats-evolution&#x2F;">Invite Tree to Invite Stats - How A Simple Tree Flourished Into A Full Moderation Plugin</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 05, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">How a simple visualization plugin evolved into a moderation tool.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-tree&#x2F;">Visualizing Discourse Invite Trees</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 03, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A simple Discourse plugin that visualizes who invited whom as an ASCII tree, inspired by Lobsters.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

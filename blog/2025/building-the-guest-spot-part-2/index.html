@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Two major refactors: custom model to Topics, then custom feed to plugin outlets. Less code, more features, better maintainability.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Building The Guest Spot: Part 2 - Two Refactors">
+    <meta property="og:description" content="Two major refactors: custom model to Topics, then custom feed to plugin outlets. Less code, more features, better maintainability.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-the-guest-spot-part-2&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Building The Guest Spot: Part 2 - Two Refactors">
+    <meta name="twitter:description" content="Two major refactors: custom model to Topics, then custom feed to plugin outlets. Less code, more features, better maintainability.">
+
+    <title>Building The Guest Spot: Part 2 - Two Refactors - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Building The Guest Spot: Part 2 - Two Refactors</h1>
+      <div class="meta">
+        
+        <p>Oct 26, 2025</p>
+        
+        <p>6 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/discourse">#discourse</a></p>
+          
+          <p><a href="/tags/ruby">#ruby</a></p>
+          
+          <p><a href="/tags/ember">#ember</a></p>
+          
+        </div>
+      
+
+      <p>In <a href="/blog/2025/building-the-guest-spot-part-1/">Part 1</a>, I built an Instagram-style showcase using a custom <code>GuestSpotPost</code> model. It worked. But it also meant maintaining a parallel data structure instead of leveraging what Discourse already provides.</p>
+<p>This post covers two major refactors: first from custom models to Discourse Topics, then from custom feed infrastructure to plugin outlets. Each time, less code gave me more features.</p>
+<h2 id="why-refactor">Why Refactor?</h2>
+<p>The custom model approach had problems:</p>
+<ul>
+<li>Duplicate logic: Comments, moderation, spam protection already exist for Topics</li>
+<li>Extra maintenance: Every time Discourse updates, potential breakage</li>
+<li>Missing features: No native file upload, no revision history, no trust levels</li>
+<li>More code: Separate serializers, separate permissions, separate everything</li>
+</ul>
+<p>Discourse Topics already have everything we need:</p>
+<ul>
+<li>First post holds the caption and images</li>
+<li>Title can be auto-generated</li>
+<li>Categories handle public vs private</li>
+<li>Pinning is built-in</li>
+<li>Commenting works out of the box</li>
+</ul>
+<p>The showcase is just a custom view of Topics in the "Public Feed" category.</p>
+<h2 id="the-refactor">The Refactor</h2>
+<h3 id="backend-changes">Backend Changes</h3>
+<p>Deleted the entire <code>GuestSpotPost</code> model and migrations. Instead, the controller now works with Topics:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#65737e;"># app/controllers/guest_spot/posts_controller.rb
+</span><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">index
+</span><span>  category_id = </span><span style="color:#ebcb8b;">CategoryHelper</span><span>.public_feed_category_id
+</span><span>
+</span><span>  topics = </span><span style="color:#bf616a;">Topic
+</span><span>    .where(</span><span style="color:#a3be8c;">category_id:</span><span> category_id)
+</span><span>    .where(</span><span style="color:#a3be8c;">deleted_at: </span><span style="color:#d08770;">nil</span><span>)
+</span><span>    .includes(</span><span style="color:#a3be8c;">:user</span><span>, </span><span style="color:#a3be8c;">posts: :uploads</span><span>)
+</span><span>    .order(</span><span style="color:#a3be8c;">created_at: :desc</span><span>)
+</span><span>    .limit(</span><span style="color:#d08770;">50</span><span>)
+</span><span>
+</span><span>  pinned_topics = </span><span style="color:#bf616a;">Topic
+</span><span>    .where(</span><span style="color:#a3be8c;">category_id:</span><span> category_id)
+</span><span>    .where(</span><span style="color:#a3be8c;">deleted_at: </span><span style="color:#d08770;">nil</span><span>)
+</span><span>    .where.not(</span><span style="color:#a3be8c;">pinned_at: </span><span style="color:#d08770;">nil</span><span>)
+</span><span>    .includes(</span><span style="color:#a3be8c;">:user</span><span>, </span><span style="color:#a3be8c;">posts: :uploads</span><span>)
+</span><span>    .order(</span><span style="color:#a3be8c;">created_at: :desc</span><span>)
+</span><span>
+</span><span>  render </span><span style="color:#a3be8c;">json: </span><span>{
+</span><span>    </span><span style="color:#a3be8c;">posts:</span><span> serialize_data(topics, </span><span style="color:#bf616a;">GuestSpotPostSerializer</span><span>),
+</span><span>    </span><span style="color:#a3be8c;">pinned:</span><span> serialize_data(pinned_topics, </span><span style="color:#bf616a;">GuestSpotPostSerializer</span><span>)
+</span><span>  }
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>The serializer extracts what we need from Topics:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#65737e;"># app/serializers/guest_spot_post_serializer.rb
+</span><span style="color:#b48ead;">class </span><span style="color:#ebcb8b;">GuestSpotPostSerializer </span><span style="color:#eff1f5;">&lt; </span><span style="color:#a3be8c;">ApplicationSerializer
+</span><span>  attributes </span><span style="color:#a3be8c;">:id</span><span>, </span><span style="color:#a3be8c;">:user_id</span><span>, </span><span style="color:#a3be8c;">:username</span><span>, </span><span style="color:#a3be8c;">:caption</span><span>, </span><span style="color:#a3be8c;">:image_urls</span><span>, </span><span style="color:#a3be8c;">:created_at</span><span>, </span><span style="color:#a3be8c;">:pinned
+</span><span>
+</span><span>  </span><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">caption
+</span><span>    object.first_post&amp;.raw || &quot;&quot;
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span>
+</span><span>  </span><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">image_urls
+</span><span>    object.first_post.uploads.map { |</span><span style="color:#bf616a;">upload</span><span>| </span><span style="color:#ebcb8b;">UrlHelper</span><span>.absolute(upload.url) }
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span>
+</span><span>  </span><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">pinned
+</span><span>    object.pinned_at.present?
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>Caption is the post content. Images come from uploads. Pinned status is the native <code>pinned_at</code> field.</p>
+<h3 id="creating-posts">Creating Posts</h3>
+<p>Instead of <code>GuestSpotPost.create</code>, we use <code>TopicCreator</code>:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">create
+</span><span>  category_id = </span><span style="color:#ebcb8b;">CategoryHelper</span><span>.public_feed_category_id
+</span><span>  title = &quot;</span><span style="color:#a3be8c;">@</span><span>#{current_user.username}</span><span style="color:#a3be8c;"> - </span><span>#{</span><span style="color:#ebcb8b;">Time</span><span>.now.</span><span style="color:#96b5b4;">to_i</span><span>}&quot;
+</span><span>
+</span><span>  topic_creator = </span><span style="color:#ebcb8b;">TopicCreator</span><span>.</span><span style="color:#8fa1b3;">new</span><span>(
+</span><span>    current_user,
+</span><span>    </span><span style="color:#ebcb8b;">Guardian</span><span>.</span><span style="color:#8fa1b3;">new</span><span>(current_user),
+</span><span>    </span><span style="color:#a3be8c;">category:</span><span> category_id,
+</span><span>    </span><span style="color:#a3be8c;">title:</span><span> title,
+</span><span>    </span><span style="color:#a3be8c;">raw:</span><span> params[</span><span style="color:#a3be8c;">:caption</span><span>] || &quot;&quot;
+</span><span>  )
+</span><span>
+</span><span>  topic = topic_creator.create
+</span><span>  render_serialized(topic, </span><span style="color:#bf616a;">GuestSpotPostSerializer</span><span>)
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>Auto-generated titles keep them unique. The caption goes in the first post's raw content. Image uploads attach automatically through Discourse's existing upload system.</p>
+<h3 id="frontend-changes">Frontend Changes</h3>
+<p>Frontend barely changed. The serializer provides the same JSON structure, so components worked as-is. The only update was changing <code>@post.id</code> to reference topic IDs instead of custom model IDs.</p>
+<h3 id="what-this-got-us">What This Got Us</h3>
+<p>The refactor from custom models to Topics gave us:</p>
+<ul>
+<li>Comments work natively (no custom implementation)</li>
+<li>Moderation tools work (flags, hiding, deleting)</li>
+<li>File uploads work (native uploader)</li>
+<li>Revision history works (edit tracking)</li>
+<li>Trust levels work (spam protection)</li>
+<li>All for free, by using what Discourse already provides</li>
+</ul>
+<p>But I still had a custom feed with its own routes, controllers, and serializers. That was the next problem to solve.</p>
+<h2 id="going-native-deleting-the-custom-feed">Going Native: Deleting the Custom Feed</h2>
+<p>In Part 1, I built a custom <code>GuestSpotPost</code> model. Then I realized that was
+overkill and refactored to use Discourse Topics. But I kept the custom feed
+with its own routes, controllers, and serializers.</p>
+<p>After implementing that custom feed, I realized there was an uncomfortable
+disconnect. Users would browse an Instagram-style feed, click a post, and
+suddenly land in Discourse's standard topic view. The context switch was jarring.</p>
+<p>The question became: why maintain a custom feed at all? If the custom model
+was unnecessary, maybe the custom feed was too.</p>
+<p>Discourse already has everything we need:</p>
+<ul>
+<li>Category pages show topic lists</li>
+<li>Category permissions control who can post and who can view</li>
+<li>Native pinning highlights featured content</li>
+<li>Theme system allows extensive visual customization</li>
+</ul>
+<p>Instead of maintaining a parallel feed system, we could just make the Public
+Feed category look great using plugin outlets.</p>
+<h3 id="the-deletion">The Deletion</h3>
+<p>I deleted the entire custom feed infrastructure:</p>
+<p><strong>Removed (1,078 lines)</strong>:</p>
+<ul>
+<li>Custom feed routes and controllers (<code>guest_spot/feed_controller.rb</code>,
+<code>guest_spot/posts_controller.rb</code>)</li>
+<li>Custom post serializer (<code>guest_spot_post_serializer.rb</code>)</li>
+<li>All custom Ember components (<code>guest-spot-feed.gjs</code>,
+<code>guest-spot-post-card.gjs</code>)</li>
+<li>Custom route definitions and templates</li>
+<li>Multiple initializers for hiding UI elements</li>
+</ul>
+<p><strong>Added (264 lines)</strong>:</p>
+<ul>
+<li>Single plugin outlet connector:
+<code>assets/javascripts/discourse/connectors/topic-list-item/guest-spot-item.gjs</code></li>
+<li>CSS Grid layout for responsive cards</li>
+</ul>
+<p>Net result: 814 fewer lines of code.</p>
+<h3 id="plugin-outlets-the-right-pattern">Plugin Outlets: The Right Pattern</h3>
+<p>Discourse provides plugin outlets - extension points where plugins can inject
+custom HTML. There are two types:</p>
+<p><strong>Regular outlets</strong> inject content but Discourse still renders the default
+elements. <strong>Wrapper outlets</strong> completely replace the template.</p>
+<p>I used the <code>topic-list-item</code> wrapper outlet to completely replace how topics
+display in the Public Feed category:</p>
+<pre data-lang="javascript" style="background-color:#2b303b;color:#c0c5ce;" class="language-javascript "><code class="language-javascript" data-lang="javascript"><span style="color:#b48ead;">import </span><span style="color:#bf616a;">Component </span><span style="color:#b48ead;">from </span><span>&quot;</span><span style="color:#a3be8c;">@glimmer/component</span><span>&quot;;
+</span><span style="color:#b48ead;">import </span><span style="color:#bf616a;">avatar </span><span style="color:#b48ead;">from </span><span>&quot;</span><span style="color:#a3be8c;">discourse/helpers/avatar</span><span>&quot;;
+</span><span style="color:#b48ead;">import </span><span style="color:#bf616a;">replaceEmoji </span><span style="color:#b48ead;">from </span><span>&quot;</span><span style="color:#a3be8c;">discourse/helpers/replace-emoji</span><span>&quot;;
+</span><span style="color:#b48ead;">import </span><span style="color:#bf616a;">formatDate </span><span style="color:#b48ead;">from </span><span>&quot;</span><span style="color:#a3be8c;">discourse/helpers/format-date</span><span>&quot;;
+</span><span>
+</span><span style="color:#b48ead;">export default class </span><span style="color:#ebcb8b;">GuestSpotItem </span><span style="color:#b48ead;">extends </span><span style="color:#a3be8c;">Component </span><span style="color:#eff1f5;">{
+</span><span style="color:#eff1f5;">  </span><span style="color:#b48ead;">get </span><span style="color:#8fa1b3;">isPublicFeed</span><span>() </span><span style="color:#eff1f5;">{
+</span><span style="color:#eff1f5;">    </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">args</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">outletArgs</span><span style="color:#eff1f5;">?.</span><span style="color:#bf616a;">topic</span><span style="color:#eff1f5;">?.</span><span style="color:#bf616a;">category</span><span style="color:#eff1f5;">?.</span><span style="color:#bf616a;">slug </span><span>=== &quot;</span><span style="color:#a3be8c;">public-feed</span><span>&quot;</span><span style="color:#eff1f5;">;
+</span><span style="color:#eff1f5;">  }
+</span><span style="color:#eff1f5;">
+</span><span style="color:#eff1f5;">  </span><span style="color:#b48ead;">get </span><span style="color:#8fa1b3;">truncatedExcerpt</span><span>() </span><span style="color:#eff1f5;">{
+</span><span style="color:#eff1f5;">    </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">excerpt </span><span>= </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">args</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">outletArgs</span><span style="color:#eff1f5;">?.</span><span style="color:#bf616a;">topic</span><span style="color:#eff1f5;">?.</span><span style="color:#bf616a;">excerpt </span><span>|| &quot;&quot;</span><span style="color:#eff1f5;">;
+</span><span style="color:#eff1f5;">    </span><span style="color:#b48ead;">if </span><span style="color:#eff1f5;">(</span><span style="color:#bf616a;">excerpt</span><span style="color:#eff1f5;">.length </span><span>&lt;= </span><span style="color:#d08770;">50</span><span style="color:#eff1f5;">) {
+</span><span style="color:#eff1f5;">      </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">excerpt</span><span style="color:#eff1f5;">;
+</span><span style="color:#eff1f5;">    }
+</span><span style="color:#eff1f5;">    </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">excerpt</span><span style="color:#eff1f5;">.</span><span style="color:#96b5b4;">substring</span><span style="color:#eff1f5;">(</span><span style="color:#d08770;">0</span><span style="color:#eff1f5;">, </span><span style="color:#d08770;">50</span><span style="color:#eff1f5;">) </span><span>+ &quot;</span><span style="color:#a3be8c;">...</span><span>&quot;</span><span style="color:#eff1f5;">;
+</span><span style="color:#eff1f5;">  }
+</span><span style="color:#eff1f5;">
+</span><span style="color:#eff1f5;">  &lt;template&gt;
+</span><span style="color:#eff1f5;">    {{#</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">isPublicFeed</span><span style="color:#eff1f5;">}}
+</span><span style="color:#eff1f5;">      </span><span>&lt;</span><span style="color:#bf616a;">td class</span><span>=&quot;</span><span style="color:#a3be8c;">topic-list-data guest-spot-card</span><span>&quot;&gt;
+</span><span style="color:#eff1f5;">        </span><span>&lt;</span><span style="color:#bf616a;">div class</span><span>=&quot;</span><span style="color:#a3be8c;">guest-spot-author</span><span>&quot;&gt;
+</span><span style="color:#eff1f5;">          </span><span>&lt;</span><span style="color:#bf616a;">a href</span><span>=&quot;</span><span style="color:#a3be8c;">/u/{{this.args.outletArgs.topic.creator.username}}</span><span>&quot;&gt;
+</span><span style="color:#eff1f5;">            {{</span><span style="color:#bf616a;">avatar this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">args</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">outletArgs</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">topic</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">creator imageSize</span><span>=&quot;</span><span style="color:#a3be8c;">medium</span><span>&quot;</span><span style="color:#eff1f5;">}}
+</span><span style="color:#eff1f5;">            </span><span>&lt;</span><span style="color:#bf616a;">span class</span><span>=&quot;</span><span style="color:#a3be8c;">username</span><span>&quot;&gt;
+</span><span style="color:#eff1f5;">              {{</span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">args</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">outletArgs</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">topic</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">creator</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">username</span><span style="color:#eff1f5;">}}
+</span><span style="color:#eff1f5;">            </span><span>&lt;/</span><span style="color:#bf616a;">span</span><span>&gt;
+</span><span style="color:#eff1f5;">          </span><span>&lt;/</span><span style="color:#bf616a;">a</span><span>&gt;
+</span><span style="color:#eff1f5;">        </span><span>&lt;/</span><span style="color:#bf616a;">div</span><span>&gt;
+</span><span style="color:#eff1f5;">
+</span><span style="color:#eff1f5;">        </span><span>&lt;</span><span style="color:#bf616a;">div class</span><span>=&quot;</span><span style="color:#a3be8c;">guest-spot-image</span><span>&quot;&gt;
+</span><span style="color:#eff1f5;">          </span><span>&lt;</span><span style="color:#bf616a;">a href</span><span>=</span><span style="color:#eff1f5;">{{this.args.outletArgs.topic.</span><span style="color:#bf616a;">url</span><span style="color:#eff1f5;">}}</span><span>&gt;
+</span><span>            &lt;</span><span style="color:#bf616a;">img src</span><span>={{this.args.outletArgs.topic.</span><span style="color:#bf616a;">image_url</span><span>}} </span><span style="color:#bf616a;">alt</span><span>=&quot;&quot; /&gt;
+</span><span>          &lt;/</span><span style="color:#bf616a;">a</span><span>&gt;
+</span><span>        &lt;/</span><span style="color:#bf616a;">div</span><span>&gt;
+</span><span>
+</span><span>        &lt;</span><span style="color:#bf616a;">div class</span><span>=&quot;</span><span style="color:#a3be8c;">guest-spot-excerpt</span><span>&quot;&gt;
+</span><span>          {{</span><span style="color:#bf616a;">replaceEmoji this</span><span>.</span><span style="color:#bf616a;">truncatedExcerpt</span><span>}}
+</span><span>        &lt;/</span><span style="color:#bf616a;">div</span><span>&gt;
+</span><span>
+</span><span>        &lt;</span><span style="color:#bf616a;">div class</span><span>=&quot;</span><span style="color:#a3be8c;">guest-spot-metadata</span><span>&quot;&gt;
+</span><span>          &lt;</span><span style="color:#bf616a;">div class</span><span>=&quot;</span><span style="color:#a3be8c;">meta-item</span><span>&quot;&gt;
+</span><span>            Views: {{</span><span style="color:#bf616a;">this</span><span>.</span><span style="color:#bf616a;">args</span><span>.</span><span style="color:#bf616a;">outletArgs</span><span>.</span><span style="color:#bf616a;">topic</span><span>.</span><span style="color:#bf616a;">views</span><span>}}
+</span><span>          &lt;/</span><span style="color:#bf616a;">div</span><span>&gt;
+</span><span>          &lt;</span><span style="color:#bf616a;">div class</span><span>=&quot;</span><span style="color:#a3be8c;">meta-item</span><span>&quot;&gt;
+</span><span>            Replies: {{</span><span style="color:#bf616a;">this</span><span>.</span><span style="color:#bf616a;">args</span><span>.</span><span style="color:#bf616a;">outletArgs</span><span>.</span><span style="color:#bf616a;">topic</span><span>.</span><span style="color:#bf616a;">posts_count</span><span>}}
+</span><span>          &lt;/</span><span style="color:#bf616a;">div</span><span>&gt;
+</span><span>          &lt;</span><span style="color:#bf616a;">div class</span><span>=&quot;</span><span style="color:#a3be8c;">meta-item</span><span>&quot;&gt;
+</span><span>            Posted: {{</span><span style="color:#bf616a;">formatDate this</span><span>.</span><span style="color:#bf616a;">args</span><span>.</span><span style="color:#bf616a;">outletArgs</span><span>.</span><span style="color:#bf616a;">topic</span><span>.</span><span style="color:#bf616a;">createdAt
+</span><span>            </span><span style="color:#bf616a;">leaveAgo</span><span>=</span><span style="color:#d08770;">true</span><span>}}
+</span><span>          &lt;/</span><span style="color:#bf616a;">div</span><span>&gt;
+</span><span>        &lt;/</span><span style="color:#bf616a;">div</span><span>&gt;
+</span><span>      &lt;/</span><span style="color:#bf616a;">td</span><span>&gt;
+</span><span>    {{</span><span style="color:#b48ead;">else</span><span>}}
+</span><span>      {{@</span><span style="color:#bf616a;">default</span><span>}}
+</span><span>    {{/</span><span style="color:#b48ead;">if</span><span>}}
+</span><span>  &lt;/</span><span style="color:#bf616a;">template</span><span>&gt;
+</span><span>}
+</span></code></pre>
+<p>The component checks if we're in the public-feed category. If yes, render the
+custom card layout. If no, render the default (<code>{{@default}}</code>).</p>
+<h3 id="css-grid-for-responsive-layout">CSS Grid for Responsive Layout</h3>
+<p>Instead of JavaScript handling the layout, CSS Grid does all the work:</p>
+<pre data-lang="scss" style="background-color:#2b303b;color:#c0c5ce;" class="language-scss "><code class="language-scss" data-lang="scss"><span style="color:#8fa1b3;">.</span><span style="color:#d08770;">category-public-feed </span><span>{
+</span><span style="color:#b48ead;">  </span><span style="color:#8fa1b3;">.</span><span style="color:#d08770;">topic-list </span><span>{
+</span><span>    display: grid;
+</span><span>    grid-template-columns: </span><span style="color:#96b5b4;">repeat</span><span>(auto-fill, </span><span style="color:#96b5b4;">minmax</span><span>(</span><span style="color:#d08770;">280px</span><span>, </span><span style="color:#d08770;">1fr</span><span>));
+</span><span>    gap: </span><span style="color:#d08770;">1.5rem</span><span>;
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">@media </span><span>(max-width: </span><span style="color:#d08770;">480px</span><span>) {
+</span><span>      grid-template-columns: </span><span style="color:#d08770;">1fr</span><span>;
+</span><span>    }
+</span><span>
+</span><span style="color:#b48ead;">    </span><span style="color:#bf616a;">tr</span><span style="color:#8fa1b3;">.</span><span style="color:#d08770;">topic-list-item </span><span>{
+</span><span>      display: flex;
+</span><span>      flex-direction: column;
+</span><span>      border-radius: </span><span style="color:#d08770;">8px</span><span>;
+</span><span>      overflow: hidden;
+</span><span>      background: </span><span style="color:#96b5b4;">var</span><span>(--primary-very-low);
+</span><span>      transition: transform </span><span style="color:#d08770;">0.2s</span><span>;
+</span><span>
+</span><span style="color:#b48ead;">      </span><span>&amp;</span><span style="color:#8fa1b3;">:</span><span style="color:#b48ead;">hover </span><span>{
+</span><span>        transform: </span><span style="color:#96b5b4;">translateY</span><span>(</span><span style="color:#d08770;">-2px</span><span>);
+</span><span>      }
+</span><span>    }
+</span><span>  }
+</span><span>}
+</span></code></pre>
+<p>On mobile, it collapses to a single column. On tablet and desktop, it flows
+naturally based on available space.</p>
+<p><img src="/images/guest-spot-mobile-3.png" alt="Mobile view of The Guest Spot showing a nature image from Tattoo Mike" /></p>
+<p><img src="/images/guest-spot-feed-1.png" alt="Desktop view of The Guest Spot showing a grid of tattoo pictures" /></p>
+<h3 id="discovery-process">Discovery Process</h3>
+<p>Finding the right plugin outlet took some research. I used <code>rg</code> to search
+Discourse core for available outlets:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">rg </span><span>&quot;</span><span style="color:#a3be8c;">PluginOutlet</span><span>&quot; app/assets/javascripts/discourse/app/components/ \
+</span><span>  | </span><span style="color:#bf616a;">grep</span><span> topic-list
+</span></code></pre>
+<p>Found several candidates:</p>
+<ul>
+<li><code>topic-list-before-link</code> - Injects before the title link (still renders
+default content)</li>
+<li><code>topic-list-after-title</code> - Injects after the title (still renders default
+content)</li>
+<li><code>topic-list-item</code> - Wrapper outlet (replaces entire template)</li>
+</ul>
+<p>The wrapper outlet was key. Regular outlets would have shown both my custom
+card and the default topic row, creating duplicate content.</p>
+<h3 id="what-works-now">What Works Now</h3>
+<p>The native approach gives us:</p>
+<ul>
+<li>Comments work out of the box (no custom implementation needed)</li>
+<li>All Discourse features work (moderation, flags, bookmarks, etc.)</li>
+<li>814 fewer lines of code to maintain</li>
+<li>Better mobile support (Grid automatically adapts)</li>
+<li>No custom API (no serializers, controllers, or routes)</li>
+<li>Pin/unpin still works (using Discourse's native pinning)</li>
+</ul>
+<p>The showcase is now just "a really nicely styled Discourse category" instead
+of "a custom app built on top of Discourse."</p>
+<h2 id="vibe-coding-pros-and-cons">Vibe Coding: Pros and Cons</h2>
+<p>This project is a perfect example of "vibe coding" - building something by
+feel, iterating quickly, and learning what works through trial and error.</p>
+<p>I started with a custom model because that felt right. Then I realized Topics
+already did everything I needed. I built a custom feed because I wanted full
+control. Then I realized plugin outlets gave me that control without the
+maintenance burden.</p>
+<p><strong>The downside</strong>: I went too fast and tried too much. Each iteration meant
+throwing away code. The custom model, the custom feed infrastructure - all
+that work ended up deleted. If I'd researched Discourse patterns first, I
+could have gone straight to the plugin outlet approach.</p>
+<p><strong>The upside</strong>: I learned way more by doing it wrong first. I understand why
+wrapper outlets exist, because I felt the pain of duplicate content with
+regular outlets. I understand why Discourse's native features are powerful,
+because I tried to rebuild them and saw how much work that is.</p>
+<p>Fast iteration meant I could course-correct. I wasn't six months into building
+a custom ORM before realizing Topics existed. I was a few days in, so
+refactoring didn't hurt. The velocity of vibe coding let me try ideas, see
+them fail, and pivot quickly.</p>
+<p>The final result is simple and maintainable. It took three iterations to get
+there, but each iteration taught me something. Now I know how to not do things,
+which is just as valuable as knowing how to do them.</p>
+<p>The code is on GitHub: <a href="https://github.com/ducks/discourse-guest-spot">discourse-guest-spot</a></p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-discourse-comments-in-typescript&#x2F;">Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 27, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">I rewrote the Discourse embedded comments API client from Rust&#x2F;WASM to pure TypeScript. The bundle went from 742 KB to 18 KB.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;how-a-friends-gif-broke-our-filesystem&#x2F;">How Jennifer Aniston and Friends Cost Us 377GB and Broke ext4 Hardlinks</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 23, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A backup deduplication fix, filesystem hardlink limits, and the Jennifer Aniston reaction GIF that stress-tested our infrastructure.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-discourse-embedded-comments&#x2F;">Building Embedded Discourse Comments with Rust and WASM</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 14, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">An experiment in creating a drop-in comment widget for static sites using Rust compiled to WebAssembly, talking to Discourse&#x27;s REST API.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/wasm">#wasm</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-stats-evolution&#x2F;">Invite Tree to Invite Stats - How A Simple Tree Flourished Into A Full Moderation Plugin</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 05, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">How a simple visualization plugin evolved into a moderation tool.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-tree&#x2F;">Visualizing Discourse Invite Trees</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 03, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A simple Discourse plugin that visualizes who invited whom as an ASCII tree, inspired by Lobsters.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

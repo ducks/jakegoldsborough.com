@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Setting up a non-root user with sudo access, installing Hyprland as a window manager, and configuring essential daily driver tools like Neovim, Git, and Librewolf on NixOS.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="NixOS as a daily driver on a late 2011 Macbook Pro, part 3&#x2F;? - user, WM, tools">
+    <meta property="og:description" content="Setting up a non-root user with sudo access, installing Hyprland as a window manager, and configuring essential daily driver tools like Neovim, Git, and Librewolf on NixOS.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-3&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="NixOS as a daily driver on a late 2011 Macbook Pro, part 3&#x2F;? - user, WM, tools">
+    <meta name="twitter:description" content="Setting up a non-root user with sudo access, installing Hyprland as a window manager, and configuring essential daily driver tools like Neovim, Git, and Librewolf on NixOS.">
+
+    <title>NixOS as a daily driver on a late 2011 Macbook Pro, part 3&#x2F;? - user, WM, tools - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>NixOS as a daily driver on a late 2011 Macbook Pro, part 3&#x2F;? - user, WM, tools</h1>
+      <div class="meta">
+        
+        <p>Jun 05, 2025</p>
+        
+        <p>3 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/nixos">#nixos</a></p>
+          
+          <p><a href="/tags/linux">#linux</a></p>
+          
+        </div>
+      
+
+      <h4 id="recap">Recap</h4>
+<p>See <a href="/blog/2025/nixos-daily-driver-2">Part 2</a> where I cover installation and
+basic configuration.</p>
+<h4 id="outline">Outline</h4>
+<p>Things we will be covering in this post:</p>
+<ul>
+<li>adding a non-root user with sudo access</li>
+<li>installing a window manager - Hyprland</li>
+<li>installing some tools - neovim, git, waybar, wezterm</li>
+</ul>
+<h4 id="install-a-text-editor">Install a Text Editor</h4>
+<p>First things first, let's install a better text editor to make our configuration
+updating easier.</p>
+<p>You will have to use <code>nano</code> for this. Open <code>/etc/nixos/configuration.nix</code>
+and add the following:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>programs.neovim = {
+</span><span>  enable = true;
+</span><span>  defaultEditor = true;
+</span><span>};
+</span></code></pre>
+<p>Use <code>ctrl+o</code> then <code>ctrl+x</code> to write and exit nano.</p>
+<p>Then run <code>nixos-rebuild switch</code>. NixOS will rebuild your config and return you
+to a terminal. You should now be able to start neovim by running <code>nvim</code>.</p>
+<h4 id="adding-a-user">Adding a User</h4>
+<p>Now that we can edit files easier, let's add a non-root user.</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>users.users.disco = {
+</span><span> isNormalUser = true;
+</span><span> extraGroups = [
+</span><span>   &quot;wheel&quot;             # Allows sudo access
+</span><span>   &quot;networkmanager&quot;    # Allows controlling network
+</span><span>   &quot;audio&quot;             # Audio device access
+</span><span>   &quot;video&quot;             # Video devices (e.g. backlight, GPU)
+</span><span>   &quot;input&quot;             # For input devices like keyboard/mouse config
+</span><span> ];
+</span><span>};
+</span></code></pre>
+<p>Again, save and exit and then rebuild:</p>
+<p><code>nixos-rebuild switch</code></p>
+<p>After successfully rebuilding, you will need to set a password for the new user.
+For me that's:</p>
+<p><code>passwd disco</code></p>
+<p>Then you can <code>exit</code> and login as your new sudo accessible user.</p>
+<h4 id="enable-network-tools">Enable Network Tools</h4>
+<p>This will enable tools like <code>nmtui</code> to allow for easier network setup.</p>
+<p><code>networking.networkmanager.enable = true;</code></p>
+<h4 id="install-a-window-manager-and-daily-driver-tools">Install a Window Manager and Daily Driver Tools</h4>
+<p>I am using <a href="https://hyprland.org/">Hyprland</a>. Hyprland is a dynamic Wayland
+compositor that supports tiling, floating, and hybrid layouts.</p>
+<p>Add the following to your <code>/etc/nixos/configuration.nix</code>. This enables Hyprland
+along with XDG portals, which are required for features like file pickers,
+screen sharing, and communication between sandboxed apps (especially Flatpaks
+and browsers).</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>programs.hyprland.enable = true;
+</span><span>xdg.portal = {
+</span><span>  enable = true;
+</span><span>  wlr.enable = true;
+</span><span>  extraPortals = [ pkgs.xdg-desktop-portal-hyprland ];
+</span><span>};
+</span></code></pre>
+<p>Before rebuilding this time though, we will also install some daily driver tools.</p>
+<p>One reason for this is that <code>Hyprland</code> uses the <code>kitty</code> terminal by default.</p>
+<p>Look for this line in your <code>/etc/nixos/configuration.nix</code> file:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>environment.systemPackages = with pkgs; [
+</span></code></pre>
+<p>You will likely find this commented out with <code>wget</code> listed as a package.</p>
+<p>Expand on that section so it becomes:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>environment.systemPackages = with pkgs; [
+</span><span>  kitty # needed by Hyprland by default
+</span><span>  wget
+</span><span>  hyprpaper # background utility for Hyprland
+</span><span>  hyprlock # screen lock utility for Hyprland
+</span><span>  librewolf # privacy focused browser based on firefox
+</span><span>  wofi # needed by Hyprland by default
+</span><span>  git
+</span><span>  waybar # status bar for Hyprland
+</span><span>  wezterm
+</span><span>];
+</span></code></pre>
+<p>Some tools like <code>neovim</code> and <code>hyprland</code> have official NixOS modules, which let you
+enable them declaratively using <code>enable = true;</code>. Other tools (like <code>git</code> or
+<code>librewolf</code>) don’t have modules and should be added directly to
+<code>environment.systemPackages</code>.</p>
+<p>Now it's time to rebuild. Again, this is done by:
+<code>sudo nixos-rebuild switch</code>.</p>
+<p>You can now manually start <code>Hyprland</code> by running:
+<code>exec Hyprland</code></p>
+<p>You will be greeted with nothing but a random wallpaper supplied by Hyprland.</p>
+<p>A couple important default keybinds are:</p>
+<ul>
+<li>SUPER + q - opens terminal</li>
+<li>SUPER + r - opens wofi app runner</li>
+</ul>
+<h4 id="starting-hyprland-on-login">Starting Hyprland on Login</h4>
+<p>Let's make <code>Hyprland</code> start on login. Create a <code>~/.bash_profile</code> file if it
+doesn't exist and add this:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>if [ -z &quot;$DISPLAY&quot; ] &amp;&amp; [ &quot;$(tty)&quot; = &quot;/dev/tty1&quot; ]; then
+</span><span>  exec Hyprland
+</span><span>fi
+</span></code></pre>
+<h4 id="summary">Summary</h4>
+<p>In this post, we have:</p>
+<ul>
+<li>added a non-root user and set their password</li>
+<li>installed a window manager, <code>Hyprland</code>, and set it to start on login</li>
+<li>installed multiple important daily driver tools like git and librewolf</li>
+</ul>
+<h4 id="next-time">Next Time</h4>
+<p>In Part 4, we'll continue to configure <code>Hyprland</code>: adding keybindings,
+wallpapers, waybar, and maybe even a lockscreen.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;nix-shells-ssh-claude-code&#x2F;">The Unholy Trinity: Nix Shells, SSH Config, and Claude Code</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 21, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">How proper environment setup turns AI coding assistants from novelty into genuine infrastructure. Nix makes everything reproducible. SSH makes everything reachable. Claude ties it together.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;real-declarative-infrastructure-nixos&#x2F;">From Bash Scripts to NixOS: Real Declarative Infrastructure on a VPS</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 18, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Converting a bash script + systemd-based VPS to NixOS for truly declarative infrastructure. No more update scripts or edge cases, just configuration.nix.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/self-hosting">#self-hosting</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-9&#x2F;">NixOS as a daily driver or Zero to Nixty, part 9&#x2F;? - Enabling Wi-Fi</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 27, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">Troubleshooting and fixing Wi-Fi on a Framework 16 laptop running NixOS by loading the Intel AX210 driver, enabling firmware, and configuring NetworkManager with wpa_supplicant.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/framework">#framework</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-8&#x2F;">NixOS as a daily driver or Zero to Nixty, part 8&#x2F;? - Modular Config</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 20, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Breaking down a NixOS configuration into reusable modules organized by host and common settings, making it easy to deploy consistent environments across multiple machines.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-7-5&#x2F;">NixOS as a daily driver or Zero to Nixty, part 7.5&#x2F;? - Trial by Encrypted Fire</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 13, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">A detailed account of struggling through manual LUKS encryption setup on NixOS, hitting multiple roadblocks, and ultimately succeeding with the graphical installer after three failed attempts.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

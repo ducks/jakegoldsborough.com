@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="A step-by-step guide to installing NixOS from a minimal ISO, including partitioning with EFI, formatting drives, generating configuration files, and completing the first system build.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="NixOS as a daily driver on a late 2011 Macbook Pro, part 2&#x2F;? - Installation, Basic Configuration">
+    <meta property="og:description" content="A step-by-step guide to installing NixOS from a minimal ISO, including partitioning with EFI, formatting drives, generating configuration files, and completing the first system build.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-2&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="NixOS as a daily driver on a late 2011 Macbook Pro, part 2&#x2F;? - Installation, Basic Configuration">
+    <meta name="twitter:description" content="A step-by-step guide to installing NixOS from a minimal ISO, including partitioning with EFI, formatting drives, generating configuration files, and completing the first system build.">
+
+    <title>NixOS as a daily driver on a late 2011 Macbook Pro, part 2&#x2F;? - Installation, Basic Configuration - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>NixOS as a daily driver on a late 2011 Macbook Pro, part 2&#x2F;? - Installation, Basic Configuration</h1>
+      <div class="meta">
+        
+        <p>Jun 04, 2025</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/nixos">#nixos</a></p>
+          
+          <p><a href="/tags/linux">#linux</a></p>
+          
+        </div>
+      
+
+      <p>See <a href="/blog/2025/nixos-daily-driver-1">Part 1</a> where I cover why you would want
+to run NixOS as a daily driver.</p>
+<p>In this post, we will cover installation on a personal machine and setting up
+a basic configuration file.</p>
+<p>Just as a note, for this specific post I am using:</p>
+<ul>
+<li>efi</li>
+<li>minimal ISO</li>
+<li>dd (tool to write ISO)</li>
+</ul>
+<p>See <a href="https://nixos.org/manual/nixos/stable/#ch-installation">https://nixos.org/manual/nixos/stable/#ch-installation</a>
+for a full installation guide.</p>
+<h4 id="installation">Installation</h4>
+<p>Because Nix and Nixpkgs can be installed on almost any Linux distro, it's possible
+to install NixOS from inside an existing Linux install. You can even install
+it in place on the same partition.
+<a href="https://nixos.org/manual/nixos/stable/#sec-installing-from-other-distro">https://nixos.org/manual/nixos/stable/#sec-installing-from-other-distro</a></p>
+<p>We will keep it simple and focus on using an ISO on a USB drive.</p>
+<h4 id="iso">ISO</h4>
+<p>Go to <a href="https://nixos.org/download/#nixos-iso">https://nixos.org/download/#nixos-iso</a>
+to download the ISO of your choice. If you are a newer user, you should probably
+pick graphical as it will help guide you along. I have Linux experience so I
+will be using the minimal version.</p>
+<p>Next, insert your USB drive and look for it using <code>lsblk</code>.
+Make sure it's not mounted: <code>sudo umount /dev/sdX*</code>.
+Then use <code>dd</code> to write the ISO to your drive:</p>
+<p><code>sudo dd bs=4M conv=fsync oflag=direct status=progress if=&lt;path-to-image&gt; of=/dev/sdX</code></p>
+<p>Now it's time to boot.</p>
+<p>You will be greeted with nothing but a terminal. You will be automatically
+logged in as the <code>nixos</code> user and have sudo access without a password.</p>
+<h4 id="networking">Networking</h4>
+<p>You will need a connection to the internet to download various things needed
+for the install. The easiest way is to just use a wired connection if possible.
+If you need wireless, it takes a little setup. The minimal installer does not
+ship with the correct firmware for my wireless card so I'm forced to use a wired
+connection. The wireless setup doesn't look difficult and instructions can be
+found here:
+<a href="https://nixos.org/manual/nixos/stable/#sec-installation-manual-networking">https://nixos.org/manual/nixos/stable/#sec-installation-manual-networking</a></p>
+<h4 id="partitioning-and-formatting">Partitioning and formatting</h4>
+<p>The minimal NixOS install doesn't do any partitioning or formatting so that
+needs to be done manually.</p>
+<p>First, you will need to partition:</p>
+<ol>
+<li>Create a GPT partition table</li>
+</ol>
+<p><code>parted /dev/sda -- mklabel gpt</code></p>
+<ol start="2">
+<li>Add the root partition. This will fill the disk except for the end part,
+where the swap will live, and the space left in front (512MiB) which will be
+used by the boot partition.</li>
+</ol>
+<p><code>parted /dev/sda -- mkpart root ext4 512MB -8GB</code></p>
+<ol start="3">
+<li>Next, add a swap partition. The size required will vary according to needs, here a 8GB one is created.</li>
+</ol>
+<p><code>parted /dev/sda -- mkpart swap linux-swap -8GB 100%</code></p>
+<ol start="4">
+<li>Finally, the boot partition. NixOS by default uses the ESP (EFI system
+partition) as its <code>/boot</code> partition. It uses the initially reserved 512MiB at
+the start of the disk.</li>
+</ol>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>parted /dev/sda -- mkpart ESP fat32 1MB 512MB
+</span><span>parted /dev/sda -- set 3 esp on
+</span></code></pre>
+<p>Now, you need to format those partitions:</p>
+<ol>
+<li>For initialising <code>Ext4</code> partitions: <code>mkfs.ext4</code>. It is recommended that you
+assign a unique symbolic label to the file system using the option <code>-L label</code>,
+since this makes the file system configuration independent from device changes.
+For example:</li>
+</ol>
+<p><code>mkfs.ext4 -L nixos /dev/sda1</code></p>
+<ol start="2">
+<li>For creating swap partitions: mkswap. Again it’s recommended to assign a
+label to the swap partition: <code>-L label</code>. For example:</li>
+</ol>
+<p><code>mkswap -L swap /dev/sda2</code></p>
+<ol start="3">
+<li>For creating boot partitions: <code>mkfs.fat</code>. Again it’s recommended to assign a
+label to the boot partition: <code>-n label</code>. For example:</li>
+</ol>
+<p><code>mkfs.fat -F 32 -n boot /dev/sda3</code></p>
+<h4 id="installation-1">Installation</h4>
+<ol>
+<li>Mount the target file system on which NixOS should be installed on <code>/mnt</code>,
+e.g.</li>
+</ol>
+<p><code>mount /dev/disk/by-label/nixos /mnt</code></p>
+<ol start="2">
+<li>Mount the boot file system on /mnt/boot, e.g.</li>
+</ol>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>mkdir -p /mnt/boot
+</span><span>mount -o umask=077 /dev/disk/by-label/boot /mnt/boot
+</span></code></pre>
+<ol start="3">
+<li>(optional) If your machine has a limited amount of memory, you may want to
+activate swap devices now (swapon device). The installer (or rather, the
+build actions that it may spawn) may need quite a bit of RAM, depending on
+your configuration.</li>
+</ol>
+<p><code>swapon /dev/sda2</code></p>
+<ol start="3">
+<li>
+<p>You now need to create a file <code>/mnt/etc/nixos/configuration.nix</code> that
+specifies the intended configuration of the system. This is because NixOS
+has a declarative configuration model: you create or edit a description of
+the desired configuration of your system, and then NixOS takes care of
+making it happen.</p>
+<p>The command <code>nixos-generate-config</code> can generate an initial configuration
+file for you:</p>
+</li>
+</ol>
+<p><code>nixos-generate-config --root /mnt</code></p>
+<p>This command will also create a file at <code>/mnt/etc/nixos/hardware-configuration.nix</code>.
+This includes important config for your filesystems among other things. While
+NixOS should handle this, it can't hurt to double check just to make sure
+things are defined correctly.</p>
+<p>Most of the default config will be commented out, but a basic
+<code>configuration.nix</code> file will look something like this:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>{ config, pkgs, ... }:
+</span><span>
+</span><span>{
+</span><span>  imports = [ ./hardware-configuration.nix ];
+</span><span>
+</span><span>  boot.loader.systemd-boot.enable = true;
+</span><span>  boot.loader.efi.canTouchEfiVariables = true;
+</span><span>
+</span><span>  # Macbook Pro wireless firmware
+</span><span>  nixpkgs.config = {
+</span><span>    allowUnfree = true;
+</span><span>  };
+</span><span>
+</span><span>  services.openssh.enable = true;
+</span><span>
+</span><span>  system.stateVersion = &quot;25.05&quot;; # Adjust to match your NixOS version
+</span><span>}
+</span></code></pre>
+<p>Note for UEFI users: You must select a boot-loader, either systemd-boot or
+GRUB. The recommended option is systemd-boot: set the option
+<code>boot.loader.systemd-boot.enable</code> to true. <code>nixos-generate-config</code> should do
+this automatically for new configurations when booted in UEFI mode.</p>
+<ol start="4">
+<li>Install! This step can take some time depending on your machine.</li>
+</ol>
+<p><code>nixos-install</code></p>
+<ol start="5">
+<li>As the last step, nixos-install will ask you to set the password for the
+root user, e.g.</li>
+</ol>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>setting root password...
+</span><span>New password: ***
+</span><span>Retype new password: ***
+</span></code></pre>
+<ol start="6">
+<li>If everything went well, it's time to <code>reboot</code>.</li>
+</ol>
+<h4 id="summary">Summary</h4>
+<p>That's it for this post and the installation and basic configuration of NixOS.</p>
+<h4 id="next-time">Next Time</h4>
+<p>In the next installment, we'll create a non-root user, configure the Hyprland
+window manager, and install some key daily-driver tools including Neovim, Git,
+and LibreWolf.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;nix-shells-ssh-claude-code&#x2F;">The Unholy Trinity: Nix Shells, SSH Config, and Claude Code</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 21, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">How proper environment setup turns AI coding assistants from novelty into genuine infrastructure. Nix makes everything reproducible. SSH makes everything reachable. Claude ties it together.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;real-declarative-infrastructure-nixos&#x2F;">From Bash Scripts to NixOS: Real Declarative Infrastructure on a VPS</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 18, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Converting a bash script + systemd-based VPS to NixOS for truly declarative infrastructure. No more update scripts or edge cases, just configuration.nix.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/self-hosting">#self-hosting</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-9&#x2F;">NixOS as a daily driver or Zero to Nixty, part 9&#x2F;? - Enabling Wi-Fi</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 27, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">Troubleshooting and fixing Wi-Fi on a Framework 16 laptop running NixOS by loading the Intel AX210 driver, enabling firmware, and configuring NetworkManager with wpa_supplicant.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/framework">#framework</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-8&#x2F;">NixOS as a daily driver or Zero to Nixty, part 8&#x2F;? - Modular Config</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 20, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Breaking down a NixOS configuration into reusable modules organized by host and common settings, making it easy to deploy consistent environments across multiple machines.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-7-5&#x2F;">NixOS as a daily driver or Zero to Nixty, part 7.5&#x2F;? - Trial by Encrypted Fire</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 13, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">A detailed account of struggling through manual LUKS encryption setup on NixOS, hitting multiple roadblocks, and ultimately succeeding with the graphical installer after three failed attempts.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

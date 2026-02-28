@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Building a terminal-based music player in Rust from scratch to learn the language through real-world challenges like TUI rendering, audio streaming, metadata parsing, and concurrent state management.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Introducing Shelltrax - Or how I vibe programmed my way to a TUI music player">
+    <meta property="og:description" content="Building a terminal-based music player in Rust from scratch to learn the language through real-world challenges like TUI rendering, audio streaming, metadata parsing, and concurrent state management.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;introducing-shelltrax&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Introducing Shelltrax - Or how I vibe programmed my way to a TUI music player">
+    <meta name="twitter:description" content="Building a terminal-based music player in Rust from scratch to learn the language through real-world challenges like TUI rendering, audio streaming, metadata parsing, and concurrent state management.">
+
+    <title>Introducing Shelltrax - Or how I vibe programmed my way to a TUI music player - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Introducing Shelltrax - Or how I vibe programmed my way to a TUI music player</h1>
+      <div class="meta">
+        
+        <p>Jun 24, 2025</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/tui">#tui</a></p>
+          
+        </div>
+      
+
+      <h3 id="shelltrax">Shelltrax</h3>
+<p><a href="https://github.com/ducks/shelltrax">github</a></p>
+<p><img src="/images/shelltrax-1.png" alt="A screenshot showing a libray view of a CLI music player" /></p>
+<p>I love the terminal and have dabbled in Rust since the very early days. I've
+been to 5 RustConfs, but my actual knowledge of Rust never really went past the
+basics. I come from a scripted language background, so while I <em>understood</em> the
+ideas, I didn't really understand them in practice -- mostly because I hadn't
+personally suffered the pain points Rust tries to solve.</p>
+<p>The only way for me to truly understand was to build something real. Not
+another tutorial. Not another toy example. Something I'd actually use.</p>
+<h3 id="cmus">cmus</h3>
+<p><a href="https://cmus.github.io/">cmus</a> is a small, <em>fast</em>, and powerful console
+music player for Unix-like operating systems and it's easily one of the apps
+I use most.</p>
+<p>And like I mentioned above, I learn best by writing real tools so
+why not try to recreate one of my daily drivers? It seemed like the perfect mix
+of things to learn: input handling, TUI design, file scanning, metadata parsing,
+and real-time playback.</p>
+<h3 id="stack-and-structure">Stack and Structure</h3>
+<p>I tried to keep the stack small, modern, and as "Rust-native" as possible:</p>
+<ul>
+<li><code>ratatui</code> - TUI layout and rendering</li>
+<li><code>crossterm</code> - keyboard input handling and terminal backend</li>
+<li><code>walkdir</code> - recursive file scanning and directory walking</li>
+<li><code>id3v2</code> and <code>symphonia</code> - parsing audio metadata (ID3, Vorbis, FLAC, etc)</li>
+<li><code>rodio</code> - audio playback</li>
+</ul>
+<p>Together, these gave me a good spread of "real" Rust problems to tackle:
+filesystems, decoding binary formats, audio streaming, real-time UI state, and
+concurrency.</p>
+<h3 id="interface-design">Interface Design</h3>
+<p>From the start, I wanted it to feel very simple.</p>
+<p>The interface is split into a few key views:</p>
+<ul>
+<li>A <strong>library view</strong>, where I can browse artists, albums, and tracks</li>
+<li>A <strong>file browser</strong>, which lets me scan new folders and import music to the
+library</li>
+<li>A persistent <strong>footer</strong>, showing the current track, album, artist and a
+real-time progress bar while the song plays</li>
+</ul>
+<p>Even building that much required learning how to manage state in a long-running
+TUI app, wire up input handling with <code>crossterm</code>, and keep the UI responsive
+while streaming audio in the background.</p>
+<h3 id="what-s-working">What's Working</h3>
+<p>Despite starting this as mostly an experiment to learn Rust, I now have a music player that:</p>
+<ul>
+<li>Scans my local library for FLAC and MP3 files</li>
+<li>Parses metadata (title, album, artist, album artist, etc) correctly using Symphonia</li>
+<li>Sorts and groups tracks by album artist for proper browsing</li>
+<li>Supports autoplay, automatically advancing to the next track</li>
+<li>Displays a footer with current song info and a live progress bar</li>
+<li>Supports pause and resume functionality with synchronized playback state</li>
+</ul>
+<p>It's already become my daily music player, replacing cmus for my listening.</p>
+<p><img src="/images/shelltrax-2.png" alt="A screenshot showing a libray view of a CLI music player" /></p>
+<h3 id="reflections">Reflections</h3>
+<p>The most valuable part of this project was finally experiencing what Rust is
+really trying to protect you from.</p>
+<ul>
+<li><strong>Shared state</strong>: Coordinating real-time playback state across multiple
+threads (UI thread, playback thread, decode thread) forced me to actually
+deal with ownership, borrowing, and synchronization directly.</li>
+<li><strong>Lifetimes</strong>: I finally had to understand where lifetimes mattered when
+dealing with borrowed references and streaming APIs.</li>
+<li><strong>Real-world edge cases</strong>: Dealing with weird metadata formats, malformed
+files, and partial decode failures showed me how fragile real-world data can
+be.</li>
+</ul>
+<p>I've read about these things for years, but building Shelltrax forced me to
+feel the problems directly. That's what finally made the learning click.</p>
+<h3 id="vibe-programming">Vibe programming</h3>
+<p>There's a lot of discourse around "vibe programming" -- the idea of just writing
+code by intuition, following your gut, and iteratively figuring it out as you
+go. It sometimes gets a bad rap: "You're just hacking around without fully
+understanding the language or design."</p>
+<p>But for me, vibe programming doesn't mean ignoring fundamentals. It means
+building something real, fast enough to stay motivated, but being careful
+enough to stop and actually understand why something works (or why it doesn't).</p>
+<p>I could have read Rust books or done more exercises, but none of that would
+have taught me what happens when a real audio stream crosses threads and you
+forget to reset a state flag at just the right time. And I'll be honest, I
+didn't magically learn Rust completely and know how to handle every situation
+but I certainly have a much better idea than a few weeks ago.</p>
+<p>Vibe programming can force you into real problems. If you stay curious and
+careful, those problems become extremely effective teachers.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;llm-mux-workflow-orchestration&#x2F;">llm-mux: Why I Rebuilt Lok</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 11, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok got 300+ installs, then I rewrote it. The abstractions were wrong. llm-mux has roles, teams, and proper apply&#x2F;verify. Here&#x27;s why.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;finna-multi-model-spec-implement&#x2F;">finna: Multi-Model Debate, Spec, and Implement</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 10, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A standalone tool that takes an idea, debates it across Claude, Codex, and Gemini, creates a roadmap, writes specs, and implements. Planning and execution in one pipeline.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-json-parser-multi-llm&#x2F;">Building a JSON Parser with Multi-LLM Orchestration (Part 1)</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 07, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Using lok to orchestrate four LLMs debating design decisions, then synthesizing specs for a Rust JSON parser. The debate phase surfaced edge cases no single model would have caught.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-spec-multi-agent-planning&#x2F;">Lok Part 5: Multi-Agent Planning with lok spec</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 06, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok gains a spec command that turns task descriptions into structured implementation plans. Multiple LLMs propose, debate, and converge on a roadmap before any code gets written.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;arf-structured-reasoning-for-ai-agents&#x2F;">ARF: Structured Reasoning for AI Agents</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 02, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Moving beyond chat prompts to structured agent communication. Why unstructured data lets LLMs run wild, and how ARF enforces what&#x2F;why&#x2F;how before acting.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

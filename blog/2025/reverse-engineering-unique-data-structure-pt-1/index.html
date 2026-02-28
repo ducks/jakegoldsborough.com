@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Uncovering how a Remix-based disc golf app encodes course data in obfuscated arrays using index maps and schema maps, then writing TypeScript to parse it into usable objects.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Reverse Engineering A Unique Data Structure - Part 1, Courses">
+    <meta property="og:description" content="Uncovering how a Remix-based disc golf app encodes course data in obfuscated arrays using index maps and schema maps, then writing TypeScript to parse it into usable objects.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;reverse-engineering-unique-data-structure-pt-1&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Reverse Engineering A Unique Data Structure - Part 1, Courses">
+    <meta name="twitter:description" content="Uncovering how a Remix-based disc golf app encodes course data in obfuscated arrays using index maps and schema maps, then writing TypeScript to parse it into usable objects.">
+
+    <title>Reverse Engineering A Unique Data Structure - Part 1, Courses - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Reverse Engineering A Unique Data Structure - Part 1, Courses</h1>
+      <div class="meta">
+        
+        <p>Aug 27, 2025</p>
+        
+        <p>6 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/apis">#APIs</a></p>
+          
+          <p><a href="/tags/typescript">#typescript</a></p>
+          
+        </div>
+      
+
+      <p><strong>Note: Real app name and URL have been replaced</strong></p>
+<p>I am a very avid fan and player of disc golf.</p>
+<p>Disc golf is basically the rules of golf but you're throwing a frisbee
+instead of hitting a ball. There are differences of course. We don't throw
+the disc into a hole in the ground, but the basic idea of starting in one place
+and getting an object to another remains the same. It's a beautiful sport that
+combines the mystique of physics and flight with the beauty and tranquility of
+nature. I get to take a hike and throw stuff through the woods, what's not to
+love? Like golf, there is a scoring system, and that's where "MyFrisbee" comes
+in.</p>
+<p>"MyFrisbee" is a disc golf scoring app. You can search for courses, find
+leagues, and most importantly, keep score. It's a useful tool with one
+problem - there is no public API. I have seen this asked for publicly but
+MyFrisbee has shown no plans for this in the immediate future, and that's where
+I come in. I really like figuring out how things work.</p>
+<h4 id="starting-small">Starting small</h4>
+<p>This is the first real API I've tried reverse engineering so I wanted to start
+small. Some of the features of MyFrisbee are paid and only available in the app and
+I didn't want to dive into that just yet. There are parts of the service that
+are available on the website so I wanted to start there.</p>
+<h4 id="courses">Courses</h4>
+<p>The biggest feature of the free version of the app is probably the course
+directory so that's where I started.</p>
+<p><a href="https://myfrisbee.com/courses">https://myfrisbee.com/courses</a></p>
+<p>Going directly to the courses URL, you can use the Developer Tools and the
+Network tab to already find some useful calls. The most important is a call
+to <code>/__manifest</code>. This seems to strongly suggest at least the site is a Remix
+Run based app, also indicated by the <code>p</code> parameters.</p>
+<p><a href="https://remix.run/">https://remix.run/</a></p>
+<p>The full URL looks like this:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>GET
+</span><span>	https://myfrisbee.com/__manifest?p=/courses&amp;p=/courses/carey-park-disc-golf-course-e2a5&amp;p=/courses/cheney-state-park-disc-golf-course-west-DnNL&amp;p=/courses/chisholm-trail-3RqD&amp;p=/courses/cowskin-mKI4&amp;p=/courses/cowskin-west-MXwZ&amp;p=/courses/dragon-disc-golf-course-ePkd&amp;p=/courses/flying-bee-country-club-WOm5&amp;p=/courses/garden-plain-city-park-dgc-dsry&amp;p=/courses/helten-gardens-Bupy&amp;p=/courses/keith-l-christner-family-dg-course-kLoh&amp;p=/courses/lazys-links-1S2k&amp;p=/courses/liberty-links-disc-golf-course-uwbs&amp;p=/courses/linear-park-0KnA&amp;p=/courses/llama-loop-qBK4&amp;p=/courses/maize-south-dgc-0eco&amp;p=/courses/newman-university-9Fmt&amp;p=/courses/orchard-disc-golf-course-7F1E&amp;p=/courses/prairie-winds-disk-golf-course-LiKg&amp;p=/courses/quail-run-gFli&amp;p=/courses/west-millbrook-dgc-tDG5&amp;version=149b0717
+</span></code></pre>
+<p>While this does tell us a lot, it doesn't give us any real data. If we
+try changing filters, we see another useful call.</p>
+<p><code>GET https://myfrisbee.com/courses.data?sortOrder=rating</code></p>
+<p>Fore! Data incoming. While it's very, <strong>very</strong> obfuscated, you can see some real
+data in there.</p>
+<p>We also can confirm our suspicions by looking at the response headers:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>x-remix-response yes
+</span></code></pre>
+<p>Most definitely a Remix based app.</p>
+<h3 id="parsing-the-data">Parsing The Data</h3>
+<p>Looking at the data itself, it looks JSON-y, but when trying to parse it, we find
+it's corrupt and it fails. There are some foreign chars between two valid JSON
+arrays. This seems intentional as it's not breaking their site so they must
+know about it? Regardless, let's scrub that out.</p>
+<p>This function takes our raw string and iterates over it creating a stack and
+checking for valid opening JSON brackets. When it finds an opening bracket, it
+pushes it to the stack, and when it finds a closing bracket, it pops one off.
+When the stack is empty, we know the JSON structure is complete.</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>export function extractJsonChunks(raw: string): any[] {
+</span><span>  const chunks: any[] = [];
+</span><span>  let i = 0;
+</span><span>
+</span><span>  while (i &lt; raw.length) {
+</span><span>    if (raw[i] === &#39;[&#39; || raw[i] === &#39;{&#39;) {
+</span><span>      const start = i;
+</span><span>      const stack = [raw[i]];
+</span><span>      i++;
+</span><span>
+</span><span>      while (i &lt; raw.length &amp;&amp; stack.length &gt; 0) {
+</span><span>        if (raw[i] === &#39;[&#39; || raw[i] === &#39;{&#39;) {
+</span><span>          stack.push(raw[i]);
+</span><span>        } else if (raw[i] === &#39;]&#39; || raw[i] === &#39;}&#39;) {
+</span><span>          stack.pop();
+</span><span>        }
+</span><span>        i++;
+</span><span>      }
+</span><span>
+</span><span>      const chunk = raw.slice(start, i);
+</span><span>      try {
+</span><span>        chunks.push(JSON.parse(chunk));
+</span><span>      } catch {
+</span><span>        // ignore invalid chunks
+</span><span>      }
+</span><span>    } else {
+</span><span>      i++;
+</span><span>    }
+</span><span>  }
+</span><span>
+</span><span>  return chunks;
+</span><span>}
+</span></code></pre>
+<h4 id="inspecting-the-data">Inspecting The Data</h4>
+<p>After successfully parsing the data, and there is <strong>a lot</strong> of it, we can take
+a better look at two very large arrays.</p>
+<p>The first part of the first array is mostly config looking stuff - API tokens for
+various services and basic user settings like locale.</p>
+<p>My interest is mostly in the actual data, which you can kind of see in the snippet
+below. These are items in the array, so you can tell the data is there but it's
+very confusing to read and code against. It would be easy to assume a key then
+a value but then you see things like <code>price</code>, followed by <code>status</code> and can tell
+<code>price</code> is obviously missing a value.</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>&quot;_id&quot;,
+</span><span>&quot;cxYvYpWXX66MoAG5f&quot;,
+</span><span>&quot;name&quot;,
+</span><span>&quot;Orchard Disc Golf Course&quot;,
+</span><span>&quot;headline&quot;,
+</span><span>&quot;Moderately wooded technical course, Par 54 unless hole 5 is in long., making that a par 4 hole. (course 55)&quot;,
+</span><span>&quot;longDescription&quot;,
+</span><span>&quot;18 holes, 1 tee for each hole, 2 basket locations for each hole, rotated regularly.  &quot;,
+</span><span>&quot;holeCount&quot;,
+</span><span>18,
+</span><span>&quot;price&quot;,
+</span><span>&quot;status&quot;,
+</span><span>&quot;Active&quot;,
+</span><span>&quot;website&quot;,
+</span><span>&quot;https://www.facebook.com/groups/270758746431057&quot;,
+</span></code></pre>
+<p>Before any of that actual data, there is an array which didn't make much sense
+at first.</p>
+<p>After some time digging and debugging (and a little help from ChatGPT), it
+clicked into place.</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>&quot;courseResults&quot;,
+</span><span>  [
+</span><span>    73,
+</span><span>    253,
+</span><span>    305,
+</span><span>    382,
+</span><span>    451,
+</span><span>    538,
+</span><span>    598,
+</span><span>    661,
+</span><span>    718,
+</span><span>    774,
+</span><span>    821,
+</span><span>    864,
+</span><span>    919,
+</span><span>    979,
+</span><span>    1026,
+</span><span>    1074,
+</span><span>    1123,
+</span><span>    1174,
+</span><span>    1224,
+</span><span>    1285
+</span><span>  ],
+</span><span>  {
+</span><span>    &quot;_74&quot;: 75,
+</span><span>    &quot;_76&quot;: 77,
+</span><span>    &quot;_78&quot;: 79,
+</span><span>    &quot;_80&quot;: 81,
+</span><span>    &quot;_82&quot;: 83,
+</span><span>    &quot;_84&quot;: 21,
+</span><span>    &quot;_85&quot;: 86,
+</span><span>    &quot;_87&quot;: 88,
+</span><span>    &quot;_89&quot;: 90,
+</span><span>    &quot;_91&quot;: 92,
+</span><span>    &quot;_93&quot;: 94,
+</span><span>    &quot;_95&quot;: 96,
+</span><span>    &quot;_97&quot;: 98,
+</span><span>    &quot;_99&quot;: 100,
+</span><span>    &quot;_101&quot;: 102,
+</span><span>    &quot;_103&quot;: 104,
+</span><span>    &quot;_105&quot;: 106,
+</span><span>    &quot;_107&quot;: 108,
+</span><span>    &quot;_109&quot;: 110,
+</span><span>    &quot;_111&quot;: 112,
+</span><span>    &quot;_113&quot;: 114,
+</span><span>    &quot;_115&quot;: 116,
+</span><span>    &quot;_117&quot;: 118,
+</span><span>    &quot;_120&quot;: 121,
+</span><span>    &quot;_122&quot;: 123,
+</span><span>    &quot;_124&quot;: 125,
+</span><span>    &quot;_126&quot;: 7,
+</span><span>    &quot;_127&quot;: 128,
+</span><span>    &quot;_129&quot;: 130,
+</span><span>    &quot;_138&quot;: 139,
+</span><span>    &quot;_143&quot;: 144,
+</span><span>    &quot;_145&quot;: 146,
+</span><span>    &quot;_162&quot;: 108,
+</span><span>    &quot;_163&quot;: 164,
+</span><span>    &quot;_165&quot;: 166,
+</span><span>    &quot;_167&quot;: 168,
+</span><span>    &quot;_56&quot;: 170,
+</span><span>    &quot;_171&quot;: 172,
+</span><span>    &quot;_221&quot;: 222,
+</span><span>    &quot;_223&quot;: 125,
+</span><span>    &quot;_224&quot;: 125,
+</span><span>    &quot;_225&quot;: -5,
+</span><span>    &quot;_226&quot;: 125,
+</span><span>    &quot;_227&quot;: 228,
+</span><span>    &quot;_230&quot;: 231,
+</span><span>    &quot;_235&quot;: 21,
+</span><span>    &quot;_236&quot;: 21,
+</span><span>    &quot;_237&quot;: 7,
+</span><span>    &quot;_238&quot;: 125,
+</span><span>    &quot;_239&quot;: 7,
+</span><span>    &quot;_240&quot;: 7,
+</span><span>    &quot;_241&quot;: 7,
+</span><span>    &quot;_242&quot;: 21,
+</span><span>    &quot;_243&quot;: 7,
+</span><span>    &quot;_244&quot;: 245,
+</span><span>    &quot;_246&quot;: 247,
+</span><span>    &quot;_252&quot;: -7
+</span><span>  },
+</span></code></pre>
+<p>The first array, <code>courseResults</code> is an index map telling us where in this giant
+array each result is. If could you look at the site where we found this URL, you
+would notice 20 courses in the UI - it just so happens that there are 20 items
+in that <code>courseResults</code> array.</p>
+<p>If you happen to check <code>array[73]</code>, it's the following object from above and that
+turns out to be a schema map - saying that the field name at <code>array[74]</code>
+is equal to whatever is at <code>array[75]</code> and so on.</p>
+<p>So, taking this further, the first result will have values in this giant array
+from <code>74</code> to <code>252</code>. If you notice in our index map array above, the second
+result will start at <code>253</code> so that makes perfect sense.</p>
+<p>If you look at <code>array[253]</code> you will find another schema index to indicate
+where to can find all the key value pairs for the 2nd result, which will actually
+start at <code>array[254]</code>.</p>
+<p>To summarize a bit on how this data is encoded:</p>
+<ul>
+<li>The file contains multiple top-level JSON blocks, pasted together without separators</li>
+<li>The structure includes:
+<ul>
+<li>A <strong>top-level</strong> array of values (strings, numbers, objects)</li>
+<li>An array named <code>courseResults</code> that lists indices into that top-level array</li>
+<li>A set of <strong>object maps</strong> (e.g. at index 73, 253, etc.) that map "key index" → "value index"</li>
+</ul>
+</li>
+</ul>
+<p><strong>Key Insight:</strong></p>
+<p>The file is basically a compressed CSV, but:</p>
+<ul>
+<li>Field names and field values are <strong>stored in different locations</strong></li>
+<li>Object schema = <code>{ "_76": 77, "_78": 79 }</code> → <code>"name"</code> is at 76, value is at 77</li>
+</ul>
+<h4 id="putting-it-all-together">Putting It All Together</h4>
+<p>After deciphering how to read the data manually, it was time to do it
+programmatically.</p>
+<p>With the help of ChatGPT, I wrote a couple functions that would
+take our original data and format it down to something much more useable.</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>function findCourseResultIndices(data: any[]): number[] {
+</span><span>  for (let i = 0; i &lt; data.length; i++) {
+</span><span>    if (
+</span><span>      Array.isArray(data[i]) &amp;&amp;
+</span><span>      data[i].every((v: unknown) =&gt; typeof v === &#39;number&#39;) &amp;&amp;
+</span><span>      data[i - 1] === &#39;courseResults&#39;
+</span><span>    ) {
+</span><span>      return data[i];
+</span><span>    }
+</span><span>  }
+</span><span>  throw new Error(&#39;Could not find courseResults array&#39;);
+</span><span>}
+</span><span>
+</span><span>export function extractCourses(data: any[]): Record&lt;string, any&gt;[] {
+</span><span>  const schemaIndices = findCourseResultIndices(data);
+</span><span>  const courses: Record&lt;string, any&gt;[] = [];
+</span><span>
+</span><span>  for (const schemaIndex of schemaIndices) {
+</span><span>    const schema = data[schemaIndex] as Record&lt;string, number&gt;;
+</span><span>    if (typeof schema !== &#39;object&#39; || Array.isArray(schema)) continue;
+</span><span>
+</span><span>    const course: Record&lt;string, any&gt; = {};
+</span><span>
+</span><span>    for (const [rawFieldKey, valueIndex] of Object.entries(schema)) {
+</span><span>      const fieldKeyIndex = parseInt(rawFieldKey.replace(/^_/, &#39;&#39;), 10);
+</span><span>      const fieldName = data[fieldKeyIndex];
+</span><span>      const value = data[valueIndex];
+</span><span>
+</span><span>      if (typeof fieldName === &#39;string&#39;) {
+</span><span>        course[fieldName] = value;
+</span><span>      }
+</span><span>    }
+</span><span>
+</span><span>    courses.push(course);
+</span><span>  }
+</span><span>
+</span><span>  return courses;
+</span><span>}
+</span></code></pre>
+<p><code>extractCourses</code> courses is a function that takes an array of any types.</p>
+<p>First, it calls out to another function, <code>findCourseResultIndices</code>. That function
+is iterating over the array, looking for another array of all numbers that is
+preceded by a string named <code>courseResults</code> and returns it.</p>
+<p>Then we take that list of indices back and iterate over it. For every index
+in that list, we build a schema of key value pairs and rebuild down into a simple
+<code>Record</code>.</p>
+<p>The result is something like this:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>{
+</span><span>    _id: &#39;cxYvYpWXX66MoAG5f&#39;,
+</span><span>    name: &#39;Orchard Disc Golf Course&#39;,
+</span><span>    headline: &#39;Moderately wooded technical course, Par 54 unless hole 5 is in long., making that a par 4 hole. (course 55)&#39;,
+</span><span>    longDescription: &#39;18 holes, 1 tee for each hole, 2 basket locations for each hole, rotated regularly.  &#39;,
+</span><span>    holeCount: 18,
+</span><span>    price: &#39;&#39;,
+</span><span>    status: &#39;Active&#39;,
+</span><span>    website: &#39;https://www.facebook.com/groups/270758746431057&#39;,
+</span><span>    latitude: 38.0998054149767,
+</span><span>    longitude: -97.87738949287784,
+</span><span>    locationText: &#39;Hutchinson, KS&#39;,
+</span><span>    yearEstablished: 2018,
+</span><span>    courseId: 20619,
+</span><span>    ratingCount: 755,
+</span><span>    ratingAverage: 4.385343483628396,
+</span><span>    country: &#39;United States&#39;,
+</span><span>    countryCode: &#39;US&#39;,
+</span><span>    state: &#39;Kansas&#39;,
+</span><span>    city: &#39;Hutchinson&#39;,
+</span><span>    accessType: &#39;everyone&#39;,
+</span><span>    availabilityStatus: &#39;available&#39;,
+</span><span>    availabilityType: &#39;yearRound&#39;,
+</span><span>    landType: [ 226 ],
+</span><span>    targetType: &#39;basket&#39;,
+</span><span>    targetTypeDescription: &#39;DISCatcher Pro (28 chains)&#39;,
+</span><span>    hasBathroom: true,
+</span><span>    hasDrinkingWater: false,
+</span><span>    propertyType: &#39;mixedUse&#39;,
+</span><span>    conditions: { _146: 195, _196: 21, _197: 342, _199: 343 },
+</span><span>    location: { _146: 166, _167: 345 },
+</span><span>    shortId: &#39;7F1E&#39;,
+</span><span>    topPhoto: {
+</span><span>      _74: 348,
+</span><span>      _242: 349,
+</span><span>      _244: 350,
+</span><span>      _246: 351,
+</span><span>      _248: 352,
+</span><span>      _250: 353,
+</span><span>      _252: 354,
+</span><span>      _254: 355
+</span><span>    },
+</span><span>    admin1Name: &#39;Kansas&#39;,
+</span><span>    worldRankingsRating: 86.11626662182661,
+</span><span>    activeTargetTypes: [ 340 ],
+</span><span>    activeTeeTypes: [ 259 ],
+</span><span>    timezone: &#39;America/Chicago&#39;,
+</span><span>    layoutConfiguration: { _127: 360, _134: 363, _139: 374, _155: 380, _162: 383 },
+</span><span>    playFeeType: &#39;free&#39;,
+</span><span>    isCartFriendly: true,
+</span><span>    isDogFriendly: true,
+</span><span>    limitedAccessReason: undefined,
+</span><span>    isSmartLayoutEnabled: true,
+</span><span>    difficultyBins: [ 203 ],
+</span><span>    contactInfo: { _387: 388, _389: 388 },
+</span><span>    accessTypeDescription: &#39;&#39;,
+</span><span>    availabilityTypeDescription: &#39;&#39;,
+</span><span>    byob: false,
+</span><span>    dedicatedTargets: true,
+</span><span>    hasAvailabilityRestrictions: false,
+</span><span>    isLocationPrivate: false,
+</span><span>    isStrollerFriendly: false,
+</span><span>    otherFees: &#39;&#39;,
+</span><span>    underConstruction: false,
+</span><span>    accessibility: &#39;notAccessible&#39;,
+</span><span>    distanceFromSelectedPlace: { _206: 397, _208: 398 },
+</span><span>    badgesInfo: undefined
+</span><span>  },
+</span></code></pre>
+<p>Voila! We have a well formed <code>Course</code> object. If you look at fields like
+<code>topPhoto</code>, it looks like the schema map field reference rabbit hole goes even
+deeper but that's for another post.</p>
+<h4 id="summary">Summary</h4>
+<p>In this post, we have:</p>
+<ul>
+<li>Found URL for <code>Courses</code></li>
+<li>Scrubbed and extracted (broken) JSON from said URL</li>
+<li>Discovered data included index and schema maps</li>
+<li>Wrote functions to format data into useable object</li>
+</ul>
+<h4 id="plan-for-next-time">Plan For Next Time</h4>
+<p>Enable the user to search for a <code>Place</code> and <code>Courses</code>.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;reverse-engineering-unique-data-structure-pt-3&#x2F;">Reverse Engineering A Unique Data Structure - Part 3, Course &amp; Course Details</a></h3>
+                  <div class="meta">
+                    
+                    <p>Sep 03, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Decoding deeply nested course data by resolving schema maps within schema maps to extract readable information about disc golf courses including layouts, holes, and amenities.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/apis">#APIs</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;reverse-engineering-unique-data-structure-pt-2&#x2F;">Reverse Engineering A Unique Data Structure - Part 2, Search</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 30, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">Discovering and using search endpoints for places and courses that return well-formed data, making it easy to find specific locations and query disc golf course information.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/apis">#APIs</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;fairway-client-not-fair-enough&#x2F;">Fairway Client Not Fair Enough for MyFrisbee</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 06, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">The story of building an open source library to access public MyFrisbee data endpoints, receiving a takedown request despite working with user-submitted information, and the disappointment that followed.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                      <p><a href="/tags/apis">#APIs</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-discourse-comments-in-typescript&#x2F;">Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 27, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">I rewrote the Discourse embedded comments API client from Rust&#x2F;WASM to pure TypeScript. The bundle went from 742 KB to 18 KB.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;reverse-engineering-unique-data-structure-pt-3&#x2F;">Reverse Engineering A Unique Data Structure - Part 3, Course &amp; Course Details</a></h3>
+                  <div class="meta">
+                    
+                    <p>Sep 03, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Decoding deeply nested course data by resolving schema maps within schema maps to extract readable information about disc golf courses including layouts, holes, and amenities.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/apis">#APIs</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

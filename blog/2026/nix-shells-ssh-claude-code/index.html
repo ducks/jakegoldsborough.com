@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="How proper environment setup turns AI coding assistants from novelty into genuine infrastructure. Nix makes everything reproducible. SSH makes everything reachable. Claude ties it together.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="The Unholy Trinity: Nix Shells, SSH Config, and Claude Code">
+    <meta property="og:description" content="How proper environment setup turns AI coding assistants from novelty into genuine infrastructure. Nix makes everything reproducible. SSH makes everything reachable. Claude ties it together.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;nix-shells-ssh-claude-code&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="The Unholy Trinity: Nix Shells, SSH Config, and Claude Code">
+    <meta name="twitter:description" content="How proper environment setup turns AI coding assistants from novelty into genuine infrastructure. Nix makes everything reproducible. SSH makes everything reachable. Claude ties it together.">
+
+    <title>The Unholy Trinity: Nix Shells, SSH Config, and Claude Code - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>The Unholy Trinity: Nix Shells, SSH Config, and Claude Code</h1>
+      <div class="meta">
+        
+        <p>Jan 21, 2026</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/nixos">#nixos</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+        </div>
+      
+
+      <p>I wrote about <a href="/blog/2025/how-i-am-using-claude-code/">using Claude Code for daily development</a>
+a few months ago. That post was about workflow and mindset. This one is about
+infrastructure.</p>
+<p>Turns out, the real multiplier isn't how you prompt the AI. It's what you let
+it touch.</p>
+<h2 id="the-problem-with-ai-coding-assistants">The Problem With AI Coding Assistants</h2>
+<p>Most AI coding tools work in a sandbox. They can read your code, suggest
+changes, maybe run a linter. But the moment you need to actually test
+something, build something, deploy something? You're back to copy-pasting
+commands.</p>
+<p>"Here's how you'd run the tests" is not the same as running the tests.</p>
+<p>Claude Code is different because it has shell access. It can run commands,
+read output, iterate. But that only matters if the environment is set up for
+it.</p>
+<h2 id="nix-shells-run-anything-anytime">Nix Shells: Run Anything, Anytime</h2>
+<p>Every project I work on has a <code>shell.nix</code>. When Claude needs to run something,
+the command is:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">nix-shell --run </span><span>&quot;</span><span style="color:#a3be8c;">bundle exec rspec</span><span>&quot;
+</span></code></pre>
+<p>That's it. No "first install Rust nightly, then set up ALSA, then configure
+pkg-config paths." The shell.nix declares everything. Claude doesn't need to
+know how to set up a Rust audio environment. It just needs to know <code>nix-shell</code>.</p>
+<p>Here's what my <a href="https://github.com/ducks/shelltrax">shelltrax</a> shell looks like:</p>
+<pre data-lang="nix" style="background-color:#2b303b;color:#c0c5ce;" class="language-nix "><code class="language-nix" data-lang="nix"><span style="color:#8fa1b3;">{ </span><span>pkgs ? </span><span style="color:#96b5b4;">import </span><span style="color:#a3be8c;">&lt;nixpkgs&gt; </span><span>{} </span><span style="color:#8fa1b3;">}</span><span>:
+</span><span style="color:#b48ead;">let
+</span><span>  </span><span style="color:#d08770;">rust-overlay </span><span>= </span><span style="color:#96b5b4;">import </span><span>(</span><span style="color:#d08770;">builtins</span><span>.</span><span style="color:#bf616a;">fetchTarball
+</span><span>    &quot;</span><span style="color:#a3be8c;">https://github.com/oxalica/rust-overlay/archive/master.tar.gz</span><span>&quot;);
+</span><span>  </span><span style="color:#d08770;">pkgs&#39; </span><span>= </span><span style="color:#96b5b4;">import </span><span style="color:#a3be8c;">&lt;nixpkgs&gt; </span><span>{ </span><span style="color:#d08770;">overlays </span><span>= [ </span><span style="color:#bf616a;">rust-overlay </span><span>]; };
+</span><span>  </span><span style="color:#d08770;">rust </span><span>= </span><span style="color:#bf616a;">pkgs&#39;</span><span>.</span><span style="color:#bf616a;">rust-bin</span><span>.</span><span style="color:#bf616a;">nightly</span><span>.</span><span style="color:#bf616a;">latest</span><span>.</span><span style="color:#bf616a;">default</span><span>;
+</span><span style="color:#b48ead;">in
+</span><span style="color:#bf616a;">pkgs&#39;</span><span>.</span><span style="color:#bf616a;">mkShell </span><span>{
+</span><span>  </span><span style="color:#d08770;">buildInputs </span><span>= </span><span style="color:#b48ead;">with </span><span style="color:#bf616a;">pkgs&#39;</span><span>; [
+</span><span>    </span><span style="color:#bf616a;">rust rust-analyzer
+</span><span>    </span><span style="color:#bf616a;">pkg-config alsa-lib openssl gcc
+</span><span>  ];
+</span><span>}
+</span></code></pre>
+<p>Claude can run tests, build releases, check for warnings. All without me
+explaining how to install Rust nightly or configure audio libraries.</p>
+<p>The pattern works everywhere. Rust project? <code>nix-shell --run "cargo test"</code>.
+Ruby project? <code>nix-shell --run "bundle exec rspec"</code>. Node? Same deal. The AI
+doesn't need to understand package managers. It just needs one command that
+always works.</p>
+<h2 id="ssh-config-the-revelation">SSH Config: The Revelation</h2>
+<p>I've had SSH config set up for years. <code>Host pond</code> instead of typing IPs,
+key-based auth, the usual. Standard stuff for anyone who manages servers.</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>Host pond
+</span><span>    HostName 199.68.196.244
+</span><span>    User ducks
+</span><span>    IdentityFile ~/.ssh/pond_ed25519
+</span></code></pre>
+<p>What I hadn't considered: Claude can use it too.</p>
+<p>I was debugging why my analytics service was down. Normally I'd open another
+terminal tab, SSH in, check logs, come back and describe what I found. The
+usual dance.</p>
+<p>Instead, on a whim, I just asked Claude to check the logs. And it did.</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">ssh</span><span> pond &quot;</span><span style="color:#a3be8c;">journalctl -u goatcounter -n 50</span><span>&quot;
+</span></code></pre>
+<p>It found the error, suggested the fix, and I approved the command to restart
+the service. I never left the conversation.</p>
+<p>That was the moment it clicked. My SSH config wasn't just for me anymore. Any
+host I can reach, Claude can reach. Any command I can run remotely, Claude can
+run remotely.</p>
+<h2 id="the-combination">The Combination</h2>
+<p>Here's where it gets interesting. These two things compound.</p>
+<p>Locally, nix-shell means Claude can build, test, and run anything in any of my
+projects. Remotely, SSH config means Claude can check, restart, and deploy
+anything on my servers.</p>
+<p>The AI goes from "helpful for writing code" to "helpful for everything."</p>
+<p>Example from this week: I was debugging why a webhook wasn't firing. Claude:</p>
+<ol>
+<li>Read the local webhook handler code</li>
+<li>SSH'd to the server to check the logs</li>
+<li>Found the error (SSL cert issue on callback URL)</li>
+<li>Suggested the fix</li>
+<li>I approved, it deployed</li>
+<li>SSH'd back to verify the fix worked</li>
+</ol>
+<p>That's five context switches I didn't have to make. Five terminal tabs I
+didn't have to open. And I stayed focused on understanding the problem instead
+of typing commands.</p>
+<h2 id="what-this-enables">What This Enables</h2>
+<p>With proper setup, Claude becomes useful for:</p>
+<p><strong>Local development</strong> - Run tests, check linting, build assets. Not "here's
+how to run tests" but actually running them and reading the output.</p>
+<p><strong>Server management</strong> - Check service status, read logs, restart processes.
+Actual ops work, not just suggesting commands.</p>
+<p><strong>Debugging across boundaries</strong> - Read local code, check remote logs,
+correlate the two. The AI can see both sides of the problem.</p>
+<p><strong>Deployments</strong> - On my NixOS server, <code>nixos-rebuild switch</code> is the entire
+deploy process. Claude can run it.</p>
+<h2 id="the-trust-question">The Trust Question</h2>
+<p>"But do you really want AI SSH'd into your production server?"</p>
+<p>Fair question. My answer: it's my personal VPS running hobby projects. The
+worst case is I rebuild it from my NixOS config. If this were production
+infrastructure at work, I'd be more careful.</p>
+<p>But for personal stuff? The productivity gain is massive. And honestly,
+Claude is less likely to <code>rm -rf /</code> than I am after a long day.</p>
+<h2 id="setting-it-up">Setting It Up</h2>
+<p>If you want to try this:</p>
+<p><strong>1. Create shell.nix files for your projects</strong></p>
+<p>Even a minimal one helps:</p>
+<pre data-lang="nix" style="background-color:#2b303b;color:#c0c5ce;" class="language-nix "><code class="language-nix" data-lang="nix"><span style="color:#8fa1b3;">{ </span><span>pkgs ? </span><span style="color:#96b5b4;">import </span><span style="color:#a3be8c;">&lt;nixpkgs&gt; </span><span>{} </span><span style="color:#8fa1b3;">}</span><span>:
+</span><span style="color:#bf616a;">pkgs</span><span>.</span><span style="color:#bf616a;">mkShell </span><span>{
+</span><span>  </span><span style="color:#d08770;">buildInputs </span><span>= </span><span style="color:#b48ead;">with </span><span style="color:#bf616a;">pkgs</span><span>; [ </span><span style="color:#bf616a;">ruby nodejs yarn </span><span>];
+</span><span>}
+</span></code></pre>
+<p><strong>2. Set up SSH config with key auth</strong></p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>Host myserver
+</span><span>    HostName your.ip.here
+</span><span>    User youruser
+</span><span>    IdentityFile ~/.ssh/your_key
+</span></code></pre>
+<p><strong>3. Tell Claude about it</strong></p>
+<p>In your CLAUDE.md or context file:</p>
+<ul>
+<li>"Use <code>nix-shell --run</code> for commands in projects with shell.nix"</li>
+<li>"SSH host <code>myserver</code> is available for server operations"</li>
+</ul>
+<p>That's it. Now your AI assistant has actual hands instead of just a mouth.</p>
+<h2 id="the-multiplier-effect">The Multiplier Effect</h2>
+<p>Good tools multiply your output. AI is a good tool. But AI with proper
+environment access? That's a different category.</p>
+<p>I'm not faster because the AI writes better code. I'm faster because the AI
+can actually verify what it writes. It can run tests, check logs, and iterate
+without me being the middleman.</p>
+<p>The unholy trinity: Nix makes everything reproducible. SSH makes everything
+reachable. Claude ties it together.</p>
+<p>Set up your environment right, and AI coding assistants stop being a novelty.
+They become infrastructure.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;ai-problems-are-human-problems&#x2F;">AI Problems Are Just Human Problems Amplified</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 23, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">AI fatigue, perfectionism vs non-determinism, and garbage in&#x2F;garbage out. These are not new problems. AI just makes them obvious faster.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;llm-mux-workflow-orchestration&#x2F;">llm-mux: Why I Rebuilt Lok</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 11, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok got 300+ installs, then I rewrote it. The abstractions were wrong. llm-mux has roles, teams, and proper apply&#x2F;verify. Here&#x27;s why.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;finna-multi-model-spec-implement&#x2F;">finna: Multi-Model Debate, Spec, and Implement</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 10, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A standalone tool that takes an idea, debates it across Claude, Codex, and Gemini, creates a roadmap, writes specs, and implements. Planning and execution in one pipeline.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-json-parser-multi-llm&#x2F;">Building a JSON Parser with Multi-LLM Orchestration (Part 1)</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 07, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Using lok to orchestrate four LLMs debating design decisions, then synthesizing specs for a Rust JSON parser. The debate phase surfaced edge cases no single model would have caught.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-spec-multi-agent-planning&#x2F;">Lok Part 5: Multi-Agent Planning with lok spec</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 06, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok gains a spec command that turns task descriptions into structured implementation plans. Multiple LLMs propose, debate, and converge on a roadmap before any code gets written.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

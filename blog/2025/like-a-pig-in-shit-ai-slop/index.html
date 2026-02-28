@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="I&#x27;m having the time of my life building projects with AI assistance. Call it slop if you want - I&#x27;m too busy shipping to care.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Like a Pig in Shit: Why I Love AI &quot;Slop&quot;">
+    <meta property="og:description" content="I&#x27;m having the time of my life building projects with AI assistance. Call it slop if you want - I&#x27;m too busy shipping to care.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;like-a-pig-in-shit-ai-slop&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Like a Pig in Shit: Why I Love AI &quot;Slop&quot;">
+    <meta name="twitter:description" content="I&#x27;m having the time of my life building projects with AI assistance. Call it slop if you want - I&#x27;m too busy shipping to care.">
+
+    <title>Like a Pig in Shit: Why I Love AI &quot;Slop&quot; - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Like a Pig in Shit: Why I Love AI &quot;Slop&quot;</h1>
+      <div class="meta">
+        
+        <p>Nov 08, 2025</p>
+        
+        <p>6 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+          <p><a href="/tags/opinion">#opinion</a></p>
+          
+        </div>
+      
+
+      <p>I've shipped more projects in the last three months than I did in the previous
+year. Are they all perfect? No. Are they all polished production-grade code?
+Hell no. Do I care? Not even a little bit.</p>
+<p>I'm having the time of my life building whatever idea pops into my head, and AI
+is the reason I can actually finish things instead of just thinking about them.</p>
+<p>And look, shipping isn't everything. Sometimes the best code never sees the
+light of day. Sometimes you build something just to learn, or just because it
+sounds fun. But there's something deeply satisfying about making things that
+actually work - even if they're just for you.</p>
+<h2 id="what-i-ve-been-building">What I've Been Building</h2>
+<p>In the last few months alone:</p>
+<ul>
+<li><strong><a href="https://github.com/ducks/vimdeck.nvim">vimdeck.nvim</a></strong>: Markdown presentations in Neovim using Treesitter</li>
+<li><strong><a href="https://github.com/ducks/mdpreview.nvim">mdpreview.nvim</a></strong>: Live markdown preview in a split window</li>
+<li><strong><a href="https://github.com/ducks/discourse-yaks">discourse-yaks</a></strong>: Virtual currency system for forum posts</li>
+<li><strong><a href="https://github.com/ducks/discourse-transit-tracker">discourse-transit-tracker</a></strong>: Turn forums into live departure boards</li>
+<li><strong><a href="https://github.com/ducks/discourse-invite-stats">discourse-invite-stats</a></strong>: Invite reporting and analytics plugin</li>
+<li><strong><a href="https://github.com/ducks/shelltrax">shelltrax</a></strong>: TUI music player in Rust (my daily driver now)</li>
+<li>Plus a handful of smaller tools and fixes</li>
+</ul>
+<p>Some of these are polished. Some are "good enough for me." All of them work.
+All of them solve real problems I had. And I built most of them in a day or
+two.</p>
+<h2 id="the-slop-criticism">The "Slop" Criticism</h2>
+<p>There's this narrative that AI-generated code is "slop." Low quality, generic,
+copy-pasted garbage that's polluting the internet. And sure, that exists. That
+existed before AI when people would blindly copy from Stack Overflow. But
+the criticism misses something important:</p>
+<p>When you're building for yourself, "slop" doesn't matter.</p>
+<p>I'm not pushing half-baked code to production systems. I'm not claiming my
+afternoon projects are enterprise-ready. I'm building tools that solve my
+problems, learning by doing, and having fun.</p>
+<p>If the markdown preview plugin has rough edges, who cares? It works for me. If
+the presentation tool doesn't handle every edge case, so what? It renders my
+slides.</p>
+<p>The "slop" criticism only matters when you're shipping garbage and calling it
+gold. When you're building for yourself? Ship it, iterate, move on.</p>
+<h2 id="what-s-actually-happening">What's Actually Happening</h2>
+<p>Here's what working with AI looks like for me:</p>
+<p>I have an idea. "I want to do presentations in Neovim." Instead of spending a
+week researching markdown parsers and figlet integration and buffer management,
+I describe what I want and start building.</p>
+<p>The AI suggests approaches. Some work. Some don't. We iterate. I learn what
+Treesitter can do. I understand how Neovim's highlight system works. I see
+patterns I wouldn't have thought of.</p>
+<p>A few hours later, I have a working plugin.</p>
+<p>Is it perfect? No. Did I learn a ton? Yes. Can I actually use it? Absolutely.</p>
+<h2 id="the-joy-of-building">The Joy of Building</h2>
+<p>What the critics miss is how much fun this is.</p>
+<p>I used to have a backlog of ideas that never got built. "Someday I'll make
+that." "That would be cool but it's too much work." "I don't have time to learn
+X framework."</p>
+<p>Now? I just build it.</p>
+<p>Want to visualize invite relationships as an ASCII tree? Build it. Want live
+transit departures in a forum? Build it. Want to fix a bug in a YAML parser?
+Build it and submit the fix upstream.</p>
+<p>The barrier between "I wish this existed" and "I built this" has collapsed. And
+that's incredible.</p>
+<h2 id="but-is-it-actually-good-code">But Is It Actually Good Code?</h2>
+<p>Sometimes yes, sometimes no. And that's fine.</p>
+<p>The <a href="https://github.com/kddnewton/psych-pure/pull/30">Ruby psych-pure bug fix</a> I
+submitted? That's good code. Full test coverage, proper edge case handling,
+clean implementation. It's going into a production library.</p>
+<p>The <a href="https://github.com/ducks/discourse-transit-tracker">transit tracker</a>? It
+works, handles 500k+ MTA stop times, and has solid patterns for data
+downloading and parsing. Could the UI be more polished? Sure. But it does what
+I need and I learned a ton building it.</p>
+<p>The key is knowing the difference. When it matters, I put in the work. When
+it's just for me, I ship it and move on.</p>
+<h2 id="the-real-productivity-hack">The Real Productivity Hack</h2>
+<p>Working with AI isn't about replacing thinking. It's about spending your brain
+cycles on the interesting problems instead of the boring setup work.</p>
+<p>I don't want to spend three hours setting up test infrastructure. I want to
+spend three hours solving the actual problem. AI handles the grunt work. I
+handle the decisions.</p>
+<h2 id="you-can-vibe-and-still-be-productive">You Can Vibe and Still Be Productive</h2>
+<p>Here's the thing: you can have fun, move fast, and still produce quality work.
+It's not either/or.</p>
+<p>I'm "vibing out" projects. Building whatever sounds interesting. Shipping fast.
+And yet:</p>
+<ul>
+<li>The code works</li>
+<li>The tests pass</li>
+<li>The bugs get fixed</li>
+<li>The upstream contributions get merged</li>
+</ul>
+<p>You can be a pig in shit and still do good work. The slop is the medium, not
+the output.</p>
+<h2 id="the-gatekeeping-problem">The Gatekeeping Problem</h2>
+<p>A lot of the "AI slop" criticism is just gatekeeping in disguise.</p>
+<p>"Real programmers don't use AI." "You're not actually learning." "This is
+ruining software quality."</p>
+<p>Meanwhile, I'm shipping. Learning by building. Contributing to open source.
+Having fun.</p>
+<p>The gatekeepers can argue about the "right way" to write code. I'm too busy
+building things.</p>
+<h2 id="what-actually-matters">What Actually Matters</h2>
+<p>At the end of the day, here's what matters:</p>
+<ul>
+<li>Does it work?</li>
+<li>Did you learn something?</li>
+<li>Are you having fun?</li>
+</ul>
+<p>If the answer to those three questions is yes, then it doesn't matter if
+someone on Twitter thinks your code is "slop."</p>
+<p>You're building. They're complaining. You win.</p>
+<h2 id="like-a-pig-in-shit">Like a Pig in Shit</h2>
+<p>So yeah, I'm rolling around in the AI slop. Building projects at a pace I never
+could before. Shipping tools that solve real problems. Learning by doing
+instead of just reading about it. Old me would think I was full of shit if I
+tried explaining this.</p>
+<p>Call it slop if you want. I'm too busy having the time of my life to care.</p>
+<p>The pig pen is the place for me.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;ai-problems-are-human-problems&#x2F;">AI Problems Are Just Human Problems Amplified</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 23, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">AI fatigue, perfectionism vs non-determinism, and garbage in&#x2F;garbage out. These are not new problems. AI just makes them obvious faster.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;llm-mux-workflow-orchestration&#x2F;">llm-mux: Why I Rebuilt Lok</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 11, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok got 300+ installs, then I rewrote it. The abstractions were wrong. llm-mux has roles, teams, and proper apply&#x2F;verify. Here&#x27;s why.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;finna-multi-model-spec-implement&#x2F;">finna: Multi-Model Debate, Spec, and Implement</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 10, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A standalone tool that takes an idea, debates it across Claude, Codex, and Gemini, creates a roadmap, writes specs, and implements. Planning and execution in one pipeline.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-json-parser-multi-llm&#x2F;">Building a JSON Parser with Multi-LLM Orchestration (Part 1)</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 07, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Using lok to orchestrate four LLMs debating design decisions, then synthesizing specs for a Rust JSON parser. The debate phase surfaced edge cases no single model would have caught.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-spec-multi-agent-planning&#x2F;">Lok Part 5: Multi-Agent Planning with lok spec</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 06, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok gains a spec command that turns task descriptions into structured implementation plans. Multiple LLMs propose, debate, and converge on a roadmap before any code gets written.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

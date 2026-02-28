@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Building a flexible Node.js-based Prometheus exporter for PostgreSQL with multi-database support, dynamic custom metrics via JSON configuration, and production-ready fault isolation.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="node-postgres-exporter — A Lightweight, Configurable PostgreSQL Prometheus Exporter">
+    <meta property="og:description" content="Building a flexible Node.js-based Prometheus exporter for PostgreSQL with multi-database support, dynamic custom metrics via JSON configuration, and production-ready fault isolation.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-node-postgres-exporter&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="node-postgres-exporter — A Lightweight, Configurable PostgreSQL Prometheus Exporter">
+    <meta name="twitter:description" content="Building a flexible Node.js-based Prometheus exporter for PostgreSQL with multi-database support, dynamic custom metrics via JSON configuration, and production-ready fault isolation.">
+
+    <title>node-postgres-exporter — A Lightweight, Configurable PostgreSQL Prometheus Exporter - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>node-postgres-exporter — A Lightweight, Configurable PostgreSQL Prometheus Exporter</h1>
+      <div class="meta">
+        
+        <p>Jun 20, 2025</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/devops">#devops</a></p>
+          
+          <p><a href="/tags/nodejs">#nodejs</a></p>
+          
+        </div>
+      
+
+      <p>I’m releasing a small project I’ve been building:</p>
+<p><code>node-postgres-exporter</code>, is a lightweight Prometheus exporter for PostgreSQL,
+written in Node.js.</p>
+<p>The goal: build a fully configurable exporter that supports multiple databases,
+dynamic custom metrics, and solid production fault tolerance — while keeping
+the design modular and simple to operate.</p>
+<p>There are excellent existing exporters in the ecosystem — but many of them
+require full privilege access, tightly coupled SQL views, or lack flexible
+multi-database support.</p>
+<p>This exporter aims to solve a more targeted problem:</p>
+<ul>
+<li>Support multiple independent PostgreSQL instances</li>
+<li>Expose core database metrics (connections, size, etc.)</li>
+<li>Allow fully configurable, per-database custom metrics via JSON</li>
+<li>Provide basic fault isolation so partial database failures don't block full scrapes</li>
+<li>Expose Prometheus-friendly endpoints with modern HTTP APIs</li>
+</ul>
+<h3 id="key-features">Key Features</h3>
+<ul>
+<li>Node.js + Express based architecture</li>
+<li>Uses <a href="https://node-postgres.com/"><code>pg</code></a> for database access via dedicated connection pools per database</li>
+<li>Uses <a href="https://github.com/siimon/prom-client"><code>prom-client</code></a> for full Prometheus metric management</li>
+<li>Simple configuration via JSON files (<code>databases.json</code> and <code>queries.json</code>)</li>
+<li>API key authentication (Bearer token) for securing metrics endpoint</li>
+<li>Graceful shutdown handling for safe database pool cleanup</li>
+<li>Fully Dockerized with ready-to-run <code>docker-compose</code> setup for local testing</li>
+<li>Includes health endpoints: <code>/healthz</code>, <code>/readyz</code>, <code>/livez</code>, <code>/configz</code></li>
+</ul>
+<h3 id="metric-types-supported">Metric Types Supported</h3>
+<ul>
+<li>PostgreSQL connection counts</li>
+<li>Per-database size metrics</li>
+<li>Custom query metrics with support for <code>Gauge</code> and <code>Counter</code> types</li>
+<li>Exporter self-metrics: scrape duration, error tracking, scrape lockouts, etc.</li>
+</ul>
+<h3 id="dynamic-query-configuration">Dynamic Query Configuration</h3>
+<p>One of the core design goals for <code>node-postgres-exporter</code> was flexibility
+without requiring code changes. To achieve this, all custom metric definitions
+are fully externalized via configuration files.</p>
+<p><code>queries.json</code></p>
+<p>Custom metrics are defined in a simple <code>queries.json</code> file, allowing operators
+to add new metrics by writing plain SQL queries without modifying or
+redeploying the exporter. Each query entry includes:</p>
+<p><code>name</code> – the Prometheus metric name</p>
+<p><code>help</code> – description for the metric</p>
+<p><code>type</code> – gauge or counter</p>
+<p><code>labels</code> – array of columns to extract as metric labels</p>
+<p><code>query</code> – the raw SQL statement to run against the target database</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>[
+</span><span>  {
+</span><span>    &quot;name&quot;: &quot;active_users&quot;,
+</span><span>    &quot;help&quot;: &quot;Number of active users&quot;,
+</span><span>    &quot;type&quot;: &quot;gauge&quot;,
+</span><span>    &quot;labels&quot;: [&quot;status&quot;],
+</span><span>    &quot;query&quot;: &quot;SELECT status, COUNT(*)::int FROM users GROUP BY status&quot;
+</span><span>  }
+</span><span>]
+</span></code></pre>
+<p>On each scrape, the exporter executes the configured queries, extracts label
+values from the row fields, and populates the Prometheus metric accordingly.</p>
+<h3 id="fault-tolerance-and-isolation">Fault Tolerance and Isolation</h3>
+<p>Another design goal was to handle database failures gracefully. If one database
+becomes unavailable (network issue, restart, maintenance), the exporter:</p>
+<ul>
+<li>Continues scraping all healthy databases</li>
+<li>Exposes scrape success/failure per database as dedicated metrics
+(<code>pg_scrape_success</code>)</li>
+<li>Never fails the entire scrape due to single database issues</li>
+</ul>
+<p>Internally, this is implemented using:</p>
+<ul>
+<li><code>Promise.allSettled()</code> to concurrently scrape databases while isolating
+failures</li>
+<li>Explicit error metric tracking</li>
+<li>Per-database scrape duration timing</li>
+</ul>
+<h3 id="example-use-case">Example Use Case</h3>
+<p>This design fits environments where:</p>
+<ul>
+<li>You manage multiple distinct PostgreSQL instances</li>
+<li>You have limited privilege access on some databases</li>
+<li>You want metrics to be purely driven by SQL queries without deeper system
+integration</li>
+</ul>
+<h3 id="what-it-s-not-trying-to-be">What it’s not trying to be</h3>
+<ul>
+<li>A full replacement for highly privileged exporters like the canonical
+<a href="https://github.com/prometheus-community/postgres_exporter"><code>postgres_exporter</code></a></li>
+<li>A deep SQL monitoring agent requiring superuser roles or heavy introspection</li>
+</ul>
+<p>This exporter is intentionally <strong>simple, safe, and scoped</strong> — easy to audit and
+deploy.</p>
+<h3 id="roadmap-future-ideas">Roadmap / Future Ideas</h3>
+<p>There’s plenty of room for future enhancement:</p>
+<ul>
+<li>Hot-reload support for queries and DB configs</li>
+<li>JSON schema validation on configuration files</li>
+<li>Cardinality protection on dynamic label sets</li>
+<li>Additional metric types (<code>Histogram</code>, <code>Summary</code>)</li>
+<li>Publish Docker images to container registries</li>
+<li>Integration with secret management for DB credentials</li>
+</ul>
+<h3 id="source-code">Source Code</h3>
+<p>Repo available here:
+<a href="https://github.com/ducks/node-postgres-exporter">https://github.com/ducks/node-postgres-exporter</a></p>
+<h3 id="a-side-benefit">A Side Benefit</h3>
+<p>Although this started as part of an audition project, I ended up building
+something I’d absolutely consider productionizing for real-world use cases —
+and more importantly, something I can showcase as a clean systems-level
+engineering project.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;yaml-janitor-comment-preservation&#x2F;">Building yaml-janitor: Solving the Comment Preservation Problem</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 14, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">How I built a YAML linter that preserves comments, validated 1,736 production files, and published it to RubyGems</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/yaml">#yaml</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                      <p><a href="/tags/devops">#devops</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-a-voting-system-with-git&#x2F;">Building a Fully Decentralized Voting System Using Just Git and Pull Requests</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 23, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Creating a transparent, auditable voting system where Git commits are the ledger, pull requests are ballots, and CI validates every vote without any centralized servers or databases.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/git">#git</a></p>
+                      
+                      <p><a href="/tags/devops">#devops</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;the-pain-of-privacy-focused-analytics&#x2F;">The Accidental Complexity of Doing The Right Thing or The Pain of Setting Up Privacy-Focused Analytics (2025 Edition)</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 22, 2025</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">The frustrating journey of setting up GoatCounter for privacy-respecting analytics, encountering broken Docker registries, build failures, and tooling friction that makes ethical software harder to deploy.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/devops">#devops</a></p>
+                      
+                      <p><a href="/tags/privacy">#privacy</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;deploying-static-site-zola-github-actions&#x2F;">Deploying a Zola static site to a custom domain with Github Actions</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 24, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Setting up automated deployment for a Zola-based static site using GitHub Actions to build and publish to GitHub Pages with a custom domain and DNS configuration.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/github">#github</a></p>
+                      
+                      <p><a href="/tags/devops">#devops</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

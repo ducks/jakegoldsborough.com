@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - ember</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/ember/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Sun, 26 Oct 2025 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Building The Guest Spot: Part 2 - Two Refactors</title>
+          <pubDate>Sun, 26 Oct 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/building-the-guest-spot-part-2/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/building-the-guest-spot-part-2/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/building-the-guest-spot-part-2/">&lt;p&gt;In &lt;a href=&quot;&#x2F;blog&#x2F;2025&#x2F;building-the-guest-spot-part-1&#x2F;&quot;&gt;Part 1&lt;&#x2F;a&gt;, I built an Instagram-style showcase using a custom &lt;code&gt;GuestSpotPost&lt;&#x2F;code&gt; model. It worked. But it also meant maintaining a parallel data structure instead of leveraging what Discourse already provides.&lt;&#x2F;p&gt;
+&lt;p&gt;This post covers two major refactors: first from custom models to Discourse Topics, then from custom feed infrastructure to plugin outlets. Each time, less code gave me more features.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;why-refactor&quot;&gt;Why Refactor?&lt;&#x2F;h2&gt;
+&lt;p&gt;The custom model approach had problems:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Duplicate logic: Comments, moderation, spam protection already exist for Topics&lt;&#x2F;li&gt;
+&lt;li&gt;Extra maintenance: Every time Discourse updates, potential breakage&lt;&#x2F;li&gt;
+&lt;li&gt;Missing features: No native file upload, no revision history, no trust levels&lt;&#x2F;li&gt;
+&lt;li&gt;More code: Separate serializers, separate permissions, separate everything&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Discourse Topics already have everything we need:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;First post holds the caption and images&lt;&#x2F;li&gt;
+&lt;li&gt;Title can be auto-generated&lt;&#x2F;li&gt;
+&lt;li&gt;Categories handle public vs private&lt;&#x2F;li&gt;
+&lt;li&gt;Pinning is built-in&lt;&#x2F;li&gt;
+&lt;li&gt;Commenting works out of the box&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;The showcase is just a custom view of Topics in the &quot;Public Feed&quot; category.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-refactor&quot;&gt;The Refactor&lt;&#x2F;h2&gt;
+&lt;h3 id=&quot;backend-changes&quot;&gt;Backend Changes&lt;&#x2F;h3&gt;
+&lt;p&gt;Deleted the entire &lt;code&gt;GuestSpotPost&lt;&#x2F;code&gt; model and migrations. Instead, the controller now works with Topics:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;ruby&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-ruby &quot;&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# app&#x2F;controllers&#x2F;guest_spot&#x2F;posts_controller.rb
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;def &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;index
+&lt;&#x2F;span&gt;&lt;span&gt;  category_id = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;CategoryHelper&lt;&#x2F;span&gt;&lt;span&gt;.public_feed_category_id
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  topics = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;Topic
+&lt;&#x2F;span&gt;&lt;span&gt;    .where(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;category_id:&lt;&#x2F;span&gt;&lt;span&gt; category_id)
+&lt;&#x2F;span&gt;&lt;span&gt;    .where(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;deleted_at: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;nil&lt;&#x2F;span&gt;&lt;span&gt;)
+&lt;&#x2F;span&gt;&lt;span&gt;    .includes(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;:user&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;posts: :uploads&lt;&#x2F;span&gt;&lt;span&gt;)
+&lt;&#x2F;span&gt;&lt;span&gt;    .order(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;created_at: :desc&lt;&#x2F;span&gt;&lt;span&gt;)
+&lt;&#x2F;span&gt;&lt;span&gt;    .limit(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;50&lt;&#x2F;span&gt;&lt;span&gt;)
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  pinned_topics = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;Topic
+&lt;&#x2F;span&gt;&lt;span&gt;    .where(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;category_id:&lt;&#x2F;span&gt;&lt;span&gt; category_id)
+&lt;&#x2F;span&gt;&lt;span&gt;    .where(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;deleted_at: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;nil&lt;&#x2F;span&gt;&lt;span&gt;)
+&lt;&#x2F;span&gt;&lt;span&gt;    .where.not(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;pinned_at: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;nil&lt;&#x2F;span&gt;&lt;span&gt;)
+&lt;&#x2F;span&gt;&lt;span&gt;    .includes(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;:user&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;posts: :uploads&lt;&#x2F;span&gt;&lt;span&gt;)
+&lt;&#x2F;span&gt;&lt;span&gt;    .order(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;created_at: :desc&lt;&#x2F;span&gt;&lt;span&gt;)
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  render &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;json: &lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;posts:&lt;&#x2F;span&gt;&lt;span&gt; serialize_data(topics, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;GuestSpotPostSerializer&lt;&#x2F;span&gt;&lt;span&gt;),
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;pinned:&lt;&#x2F;span&gt;&lt;span&gt; serialize_data(pinned_topics, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;GuestSpotPostSerializer&lt;&#x2F;span&gt;&lt;span&gt;)
+&lt;&#x2F;span&gt;&lt;span&gt;  }
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;end
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The serializer extracts what we need from Topics:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;ruby&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-ruby &quot;&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span style=&quot;color:#65737e;&quot;&gt;# app&#x2F;serializers&#x2F;guest_spot_post_serializer.rb
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;class &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;GuestSpotPostSerializer &lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;&amp;lt; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;ApplicationSerializer
+&lt;&#x2F;span&gt;&lt;span&gt;  attributes &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;:id&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;:user_id&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;:username&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;:caption&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;:image_urls&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;:created_at&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;:pinned
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;def &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;caption
+&lt;&#x2F;span&gt;&lt;span&gt;    object.first_post&amp;amp;.raw || &amp;quot;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;end
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;def &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;image_urls
+&lt;&#x2F;span&gt;&lt;span&gt;    object.first_post.uploads.map { |&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;upload&lt;&#x2F;span&gt;&lt;span&gt;| &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;UrlHelper&lt;&#x2F;span&gt;&lt;span&gt;.absolute(upload.url) }
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;end
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;def &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;pinned
+&lt;&#x2F;span&gt;&lt;span&gt;    object.pinned_at.present?
+&lt;&#x2F;span&gt;&lt;span&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;end
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;end
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Caption is the post content. Images come from uploads. Pinned status is the native &lt;code&gt;pinned_at&lt;&#x2F;code&gt; field.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;creating-posts&quot;&gt;Creating Posts&lt;&#x2F;h3&gt;
+&lt;p&gt;Instead of &lt;code&gt;GuestSpotPost.create&lt;&#x2F;code&gt;, we use &lt;code&gt;TopicCreator&lt;&#x2F;code&gt;:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;ruby&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-ruby &quot;&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;def &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;create
+&lt;&#x2F;span&gt;&lt;span&gt;  category_id = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;CategoryHelper&lt;&#x2F;span&gt;&lt;span&gt;.public_feed_category_id
+&lt;&#x2F;span&gt;&lt;span&gt;  title = &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span&gt;#{current_user.username}&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt; - &lt;&#x2F;span&gt;&lt;span&gt;#{&lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;Time&lt;&#x2F;span&gt;&lt;span&gt;.now.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;to_i&lt;&#x2F;span&gt;&lt;span&gt;}&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  topic_creator = &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;TopicCreator&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;new&lt;&#x2F;span&gt;&lt;span&gt;(
+&lt;&#x2F;span&gt;&lt;span&gt;    current_user,
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;Guardian&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;new&lt;&#x2F;span&gt;&lt;span&gt;(current_user),
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;category:&lt;&#x2F;span&gt;&lt;span&gt; category_id,
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;title:&lt;&#x2F;span&gt;&lt;span&gt; title,
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;raw:&lt;&#x2F;span&gt;&lt;span&gt; params[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;:caption&lt;&#x2F;span&gt;&lt;span&gt;] || &amp;quot;&amp;quot;
+&lt;&#x2F;span&gt;&lt;span&gt;  )
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;  topic = topic_creator.create
+&lt;&#x2F;span&gt;&lt;span&gt;  render_serialized(topic, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;GuestSpotPostSerializer&lt;&#x2F;span&gt;&lt;span&gt;)
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;end
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Auto-generated titles keep them unique. The caption goes in the first post&#x27;s raw content. Image uploads attach automatically through Discourse&#x27;s existing upload system.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;frontend-changes&quot;&gt;Frontend Changes&lt;&#x2F;h3&gt;
+&lt;p&gt;Frontend barely changed. The serializer provides the same JSON structure, so components worked as-is. The only update was changing &lt;code&gt;@post.id&lt;&#x2F;code&gt; to reference topic IDs instead of custom model IDs.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;what-this-got-us&quot;&gt;What This Got Us&lt;&#x2F;h3&gt;
+&lt;p&gt;The refactor from custom models to Topics gave us:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Comments work natively (no custom implementation)&lt;&#x2F;li&gt;
+&lt;li&gt;Moderation tools work (flags, hiding, deleting)&lt;&#x2F;li&gt;
+&lt;li&gt;File uploads work (native uploader)&lt;&#x2F;li&gt;
+&lt;li&gt;Revision history works (edit tracking)&lt;&#x2F;li&gt;
+&lt;li&gt;Trust levels work (spam protection)&lt;&#x2F;li&gt;
+&lt;li&gt;All for free, by using what Discourse already provides&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;But I still had a custom feed with its own routes, controllers, and serializers. That was the next problem to solve.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;going-native-deleting-the-custom-feed&quot;&gt;Going Native: Deleting the Custom Feed&lt;&#x2F;h2&gt;
+&lt;p&gt;In Part 1, I built a custom &lt;code&gt;GuestSpotPost&lt;&#x2F;code&gt; model. Then I realized that was
+overkill and refactored to use Discourse Topics. But I kept the custom feed
+with its own routes, controllers, and serializers.&lt;&#x2F;p&gt;
+&lt;p&gt;After implementing that custom feed, I realized there was an uncomfortable
+disconnect. Users would browse an Instagram-style feed, click a post, and
+suddenly land in Discourse&#x27;s standard topic view. The context switch was jarring.&lt;&#x2F;p&gt;
+&lt;p&gt;The question became: why maintain a custom feed at all? If the custom model
+was unnecessary, maybe the custom feed was too.&lt;&#x2F;p&gt;
+&lt;p&gt;Discourse already has everything we need:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Category pages show topic lists&lt;&#x2F;li&gt;
+&lt;li&gt;Category permissions control who can post and who can view&lt;&#x2F;li&gt;
+&lt;li&gt;Native pinning highlights featured content&lt;&#x2F;li&gt;
+&lt;li&gt;Theme system allows extensive visual customization&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Instead of maintaining a parallel feed system, we could just make the Public
+Feed category look great using plugin outlets.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-deletion&quot;&gt;The Deletion&lt;&#x2F;h3&gt;
+&lt;p&gt;I deleted the entire custom feed infrastructure:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Removed (1,078 lines)&lt;&#x2F;strong&gt;:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Custom feed routes and controllers (&lt;code&gt;guest_spot&#x2F;feed_controller.rb&lt;&#x2F;code&gt;,
+&lt;code&gt;guest_spot&#x2F;posts_controller.rb&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;Custom post serializer (&lt;code&gt;guest_spot_post_serializer.rb&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;All custom Ember components (&lt;code&gt;guest-spot-feed.gjs&lt;&#x2F;code&gt;,
+&lt;code&gt;guest-spot-post-card.gjs&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;Custom route definitions and templates&lt;&#x2F;li&gt;
+&lt;li&gt;Multiple initializers for hiding UI elements&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;&lt;strong&gt;Added (264 lines)&lt;&#x2F;strong&gt;:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Single plugin outlet connector:
+&lt;code&gt;assets&#x2F;javascripts&#x2F;discourse&#x2F;connectors&#x2F;topic-list-item&#x2F;guest-spot-item.gjs&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;CSS Grid layout for responsive cards&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Net result: 814 fewer lines of code.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;plugin-outlets-the-right-pattern&quot;&gt;Plugin Outlets: The Right Pattern&lt;&#x2F;h3&gt;
+&lt;p&gt;Discourse provides plugin outlets - extension points where plugins can inject
+custom HTML. There are two types:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Regular outlets&lt;&#x2F;strong&gt; inject content but Discourse still renders the default
+elements. &lt;strong&gt;Wrapper outlets&lt;&#x2F;strong&gt; completely replace the template.&lt;&#x2F;p&gt;
+&lt;p&gt;I used the &lt;code&gt;topic-list-item&lt;&#x2F;code&gt; wrapper outlet to completely replace how topics
+display in the Public Feed category:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;javascript&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-javascript &quot;&gt;&lt;code class=&quot;language-javascript&quot; data-lang=&quot;javascript&quot;&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;import &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;Component &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;from &lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;@glimmer&#x2F;component&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;import &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;avatar &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;from &lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;discourse&#x2F;helpers&#x2F;avatar&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;import &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;replaceEmoji &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;from &lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;discourse&#x2F;helpers&#x2F;replace-emoji&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;import &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;formatDate &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;from &lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;discourse&#x2F;helpers&#x2F;format-date&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;export default class &lt;&#x2F;span&gt;&lt;span style=&quot;color:#ebcb8b;&quot;&gt;GuestSpotItem &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;extends &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;Component &lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;{
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;get &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;isPublicFeed&lt;&#x2F;span&gt;&lt;span&gt;() &lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;{
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;return &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;this&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;args&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;outletArgs&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;?.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;topic&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;?.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;category&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;?.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;slug &lt;&#x2F;span&gt;&lt;span&gt;=== &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;public-feed&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;  }
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;get &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;truncatedExcerpt&lt;&#x2F;span&gt;&lt;span&gt;() &lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;{
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;const &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;excerpt &lt;&#x2F;span&gt;&lt;span&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;this&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;args&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;outletArgs&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;?.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;topic&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;?.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;excerpt &lt;&#x2F;span&gt;&lt;span&gt;|| &amp;quot;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if &lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;excerpt&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.length &lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;50&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;) {
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;      &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;return &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;excerpt&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;    }
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;return &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;excerpt&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;substring&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;50&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;) &lt;&#x2F;span&gt;&lt;span&gt;+ &amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;...&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;  }
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;  &amp;lt;template&amp;gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;    {{#&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;this&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;isPublicFeed&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;}}
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;      &lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;td class&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;topic-list-data guest-spot-card&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;        &lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;div class&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;guest-spot-author&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;          &lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;a href&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;&#x2F;u&#x2F;{{this.args.outletArgs.topic.creator.username}}&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;            {{&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;avatar this&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;args&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;outletArgs&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;topic&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;creator imageSize&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;medium&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;}}
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;            &lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;span class&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;username&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;              {{&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;this&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;args&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;outletArgs&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;topic&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;creator&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;username&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;}}
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;            &lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;span&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;          &lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;        &lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;div&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;        &lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;div class&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;guest-spot-image&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;          &lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;a href&lt;&#x2F;span&gt;&lt;span&gt;=&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;{{this.args.outletArgs.topic.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;url&lt;&#x2F;span&gt;&lt;span style=&quot;color:#eff1f5;&quot;&gt;}}&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;            &amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;img src&lt;&#x2F;span&gt;&lt;span&gt;={{this.args.outletArgs.topic.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;image_url&lt;&#x2F;span&gt;&lt;span&gt;}} &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;alt&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&amp;quot; &#x2F;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;          &amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;a&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;        &amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;div&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;        &amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;div class&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;guest-spot-excerpt&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;          {{&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;replaceEmoji this&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;truncatedExcerpt&lt;&#x2F;span&gt;&lt;span&gt;}}
+&lt;&#x2F;span&gt;&lt;span&gt;        &amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;div&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;        &amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;div class&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;guest-spot-metadata&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;          &amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;div class&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;meta-item&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;            Views: {{&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;this&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;args&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;outletArgs&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;topic&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;views&lt;&#x2F;span&gt;&lt;span&gt;}}
+&lt;&#x2F;span&gt;&lt;span&gt;          &amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;div&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;          &amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;div class&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;meta-item&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;            Replies: {{&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;this&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;args&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;outletArgs&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;topic&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;posts_count&lt;&#x2F;span&gt;&lt;span&gt;}}
+&lt;&#x2F;span&gt;&lt;span&gt;          &amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;div&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;          &amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;div class&lt;&#x2F;span&gt;&lt;span&gt;=&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;meta-item&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;            Posted: {{&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;formatDate this&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;args&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;outletArgs&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;topic&lt;&#x2F;span&gt;&lt;span&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;createdAt
+&lt;&#x2F;span&gt;&lt;span&gt;            &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;leaveAgo&lt;&#x2F;span&gt;&lt;span&gt;=&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;true&lt;&#x2F;span&gt;&lt;span&gt;}}
+&lt;&#x2F;span&gt;&lt;span&gt;          &amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;div&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;        &amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;div&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;      &amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;td&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    {{&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;else&lt;&#x2F;span&gt;&lt;span&gt;}}
+&lt;&#x2F;span&gt;&lt;span&gt;      {{@&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;default&lt;&#x2F;span&gt;&lt;span&gt;}}
+&lt;&#x2F;span&gt;&lt;span&gt;    {{&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;if&lt;&#x2F;span&gt;&lt;span&gt;}}
+&lt;&#x2F;span&gt;&lt;span&gt;  &amp;lt;&#x2F;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;template&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The component checks if we&#x27;re in the public-feed category. If yes, render the
+custom card layout. If no, render the default (&lt;code&gt;{{@default}}&lt;&#x2F;code&gt;).&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;css-grid-for-responsive-layout&quot;&gt;CSS Grid for Responsive Layout&lt;&#x2F;h3&gt;
+&lt;p&gt;Instead of JavaScript handling the layout, CSS Grid does all the work:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;scss&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-scss &quot;&gt;&lt;code class=&quot;language-scss&quot; data-lang=&quot;scss&quot;&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;category-public-feed &lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;  &lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;topic-list &lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;    display: grid;
+&lt;&#x2F;span&gt;&lt;span&gt;    grid-template-columns: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;repeat&lt;&#x2F;span&gt;&lt;span&gt;(auto-fill, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;minmax&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;280px&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1fr&lt;&#x2F;span&gt;&lt;span&gt;));
+&lt;&#x2F;span&gt;&lt;span&gt;    gap: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1.5rem&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;@media &lt;&#x2F;span&gt;&lt;span&gt;(max-width: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;480px&lt;&#x2F;span&gt;&lt;span&gt;) {
+&lt;&#x2F;span&gt;&lt;span&gt;      grid-template-columns: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;1fr&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;    }
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;    &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;tr&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;topic-list-item &lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;      display: flex;
+&lt;&#x2F;span&gt;&lt;span&gt;      flex-direction: column;
+&lt;&#x2F;span&gt;&lt;span&gt;      border-radius: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;8px&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;      overflow: hidden;
+&lt;&#x2F;span&gt;&lt;span&gt;      background: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;var&lt;&#x2F;span&gt;&lt;span&gt;(--primary-very-low);
+&lt;&#x2F;span&gt;&lt;span&gt;      transition: transform &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;0.2s&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;      &lt;&#x2F;span&gt;&lt;span&gt;&amp;amp;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#8fa1b3;&quot;&gt;:&lt;&#x2F;span&gt;&lt;span style=&quot;color:#b48ead;&quot;&gt;hover &lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;        transform: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#96b5b4;&quot;&gt;translateY&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d08770;&quot;&gt;-2px&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span&gt;      }
+&lt;&#x2F;span&gt;&lt;span&gt;    }
+&lt;&#x2F;span&gt;&lt;span&gt;  }
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;On mobile, it collapses to a single column. On tablet and desktop, it flows
+naturally based on available space.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;guest-spot-mobile-3.png&quot; alt=&quot;Mobile view of The Guest Spot showing a nature image from Tattoo Mike&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;guest-spot-feed-1.png&quot; alt=&quot;Desktop view of The Guest Spot showing a grid of tattoo pictures&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;discovery-process&quot;&gt;Discovery Process&lt;&#x2F;h3&gt;
+&lt;p&gt;Finding the right plugin outlet took some research. I used &lt;code&gt;rg&lt;&#x2F;code&gt; to search
+Discourse core for available outlets:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; style=&quot;background-color:#2b303b;color:#c0c5ce;&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;rg &lt;&#x2F;span&gt;&lt;span&gt;&amp;quot;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a3be8c;&quot;&gt;PluginOutlet&lt;&#x2F;span&gt;&lt;span&gt;&amp;quot; app&#x2F;assets&#x2F;javascripts&#x2F;discourse&#x2F;app&#x2F;components&#x2F; \
+&lt;&#x2F;span&gt;&lt;span&gt;  | &lt;&#x2F;span&gt;&lt;span style=&quot;color:#bf616a;&quot;&gt;grep&lt;&#x2F;span&gt;&lt;span&gt; topic-list
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Found several candidates:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;topic-list-before-link&lt;&#x2F;code&gt; - Injects before the title link (still renders
+default content)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;topic-list-after-title&lt;&#x2F;code&gt; - Injects after the title (still renders default
+content)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;topic-list-item&lt;&#x2F;code&gt; - Wrapper outlet (replaces entire template)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;The wrapper outlet was key. Regular outlets would have shown both my custom
+card and the default topic row, creating duplicate content.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;what-works-now&quot;&gt;What Works Now&lt;&#x2F;h3&gt;
+&lt;p&gt;The native approach gives us:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Comments work out of the box (no custom implementation needed)&lt;&#x2F;li&gt;
+&lt;li&gt;All Discourse features work (moderation, flags, bookmarks, etc.)&lt;&#x2F;li&gt;
+&lt;li&gt;814 fewer lines of code to maintain&lt;&#x2F;li&gt;
+&lt;li&gt;Better mobile support (Grid automatically adapts)&lt;&#x2F;li&gt;
+&lt;li&gt;No custom API (no serializers, controllers, or routes)&lt;&#x2F;li&gt;
+&lt;li&gt;Pin&#x2F;unpin still works (using Discourse&#x27;s native pinning)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;The showcase is now just &quot;a really nicely styled Discourse category&quot; instead
+of &quot;a custom app built on top of Discourse.&quot;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;vibe-coding-pros-and-cons&quot;&gt;Vibe Coding: Pros and Cons&lt;&#x2F;h2&gt;
+&lt;p&gt;This project is a perfect example of &quot;vibe coding&quot; - building something by
+feel, iterating quickly, and learning what works through trial and error.&lt;&#x2F;p&gt;
+&lt;p&gt;I started with a custom model because that felt right. Then I realized Topics
+already did everything I needed. I built a custom feed because I wanted full
+control. Then I realized plugin outlets gave me that control without the
+maintenance burden.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;The downside&lt;&#x2F;strong&gt;: I went too fast and tried too much. Each iteration meant
+throwing away code. The custom model, the custom feed infrastructure - all
+that work ended up deleted. If I&#x27;d researched Discourse patterns first, I
+could have gone straight to the plugin outlet approach.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;The upside&lt;&#x2F;strong&gt;: I learned way more by doing it wrong first. I understand why
+wrapper outlets exist, because I felt the pain of duplicate content with
+regular outlets. I understand why Discourse&#x27;s native features are powerful,
+because I tried to rebuild them and saw how much work that is.&lt;&#x2F;p&gt;
+&lt;p&gt;Fast iteration meant I could course-correct. I wasn&#x27;t six months into building
+a custom ORM before realizing Topics existed. I was a few days in, so
+refactoring didn&#x27;t hurt. The velocity of vibe coding let me try ideas, see
+them fail, and pivot quickly.&lt;&#x2F;p&gt;
+&lt;p&gt;The final result is simple and maintainable. It took three iterations to get
+there, but each iteration taught me something. Now I know how to not do things,
+which is just as valuable as knowing how to do them.&lt;&#x2F;p&gt;
+&lt;p&gt;The code is on GitHub: &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-guest-spot&quot;&gt;discourse-guest-spot&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

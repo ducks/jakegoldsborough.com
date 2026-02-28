@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="An experiment in creating a drop-in comment widget for static sites using Rust compiled to WebAssembly, talking to Discourse&#x27;s REST API.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Building Embedded Discourse Comments with Rust and WASM">
+    <meta property="og:description" content="An experiment in creating a drop-in comment widget for static sites using Rust compiled to WebAssembly, talking to Discourse&#x27;s REST API.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-discourse-embedded-comments&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Building Embedded Discourse Comments with Rust and WASM">
+    <meta name="twitter:description" content="An experiment in creating a drop-in comment widget for static sites using Rust compiled to WebAssembly, talking to Discourse&#x27;s REST API.">
+
+    <title>Building Embedded Discourse Comments with Rust and WASM - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Building Embedded Discourse Comments with Rust and WASM</h1>
+      <div class="meta">
+        
+        <p>Jan 14, 2026</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/discourse">#discourse</a></p>
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/wasm">#wasm</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <p>I built an embedded comment widget that lets you add Discourse-powered comments
+to any static site with a single script tag. No iframe, no build step, just
+drop it in and it works.</p>
+<pre data-lang="html" style="background-color:#2b303b;color:#c0c5ce;" class="language-html "><code class="language-html" data-lang="html"><span>&lt;</span><span style="color:#bf616a;">script </span><span style="color:#d08770;">src</span><span>=&quot;</span><span style="color:#a3be8c;">https://unpkg.com/discourse-comments/dist/discourse-comments.min.js</span><span>&quot;&gt;&lt;/</span><span style="color:#bf616a;">script</span><span>&gt;
+</span><span>&lt;</span><span style="color:#bf616a;">discourse-comments
+</span><span>  </span><span style="color:#d08770;">discourse-url</span><span>=&quot;</span><span style="color:#a3be8c;">https://forum.example.com</span><span>&quot;
+</span><span>  </span><span style="color:#d08770;">topic-id</span><span>=&quot;</span><span style="color:#a3be8c;">123</span><span>&quot;&gt;
+</span><span>&lt;/</span><span style="color:#bf616a;">discourse-comments</span><span>&gt;
+</span></code></pre>
+<p>The widget fetches comments from a Discourse topic, renders them with a clean
+UI, and lets authenticated users post replies and like posts. All in a 725KB
+bundle with the WASM runtime inlined.</p>
+<p>You can see the code here:
+<a href="https://github.com/ducks/discourse-comments">discourse-comments on GitHub</a></p>
+<h2 id="why-build-this">Why Build This?</h2>
+<p>Discourse has had an embedding feature for years, but it uses iframes. Iframes
+work, but they come with baggage: height management issues, styling isolation,
+auth cookie problems, SEO invisibility, accessibility complications. It's 2026
+and we have web components, Shadow DOM, and ES modules. We can do better.</p>
+<p>I wanted to see if a standalone component talking directly to Discourse's REST
+API could provide a cleaner experience. And I wanted an excuse to push some
+Rust into the browser.</p>
+<h2 id="the-stack">The Stack</h2>
+<p>The widget is built in three layers:</p>
+<ol>
+<li><strong><a href="https://github.com/ducks/discourse-api-rs">discourse-api-rs</a></strong> - A Rust
+client library for Discourse's API, compiled to WASM with wasm-bindgen</li>
+<li><strong><a href="https://github.com/ducks/discourse-comments">discourse-comments</a></strong> - A
+TypeScript web component that uses the WASM client</li>
+<li><strong>esbuild bundler</strong> - Inlines the WASM as base64 so the whole thing is a
+single file</li>
+</ol>
+<p>The Rust layer handles HTTP requests, JSON parsing, and the OAuth flow. The
+TypeScript layer handles DOM rendering and user interactions. The bundler
+glues it together into a drop-in script.</p>
+<h2 id="the-hard-part-oauth">The Hard Part: OAuth</h2>
+<p>Getting read-only comments working was straightforward. The Discourse API is
+well-documented and predictable. But letting users post comments required
+authentication.</p>
+<p>Discourse supports User API Keys, which are perfect for third-party clients.
+The flow works like this:</p>
+<ol>
+<li>Generate an RSA key pair in the browser</li>
+<li>Redirect to Discourse with the public key</li>
+<li>User approves the app</li>
+<li>Discourse encrypts an API key with the public key</li>
+<li>Redirect back with the encrypted payload</li>
+<li>Decrypt the payload with the private key</li>
+<li>Store the API key for future requests</li>
+</ol>
+<p>Sounds simple but there were issues.</p>
+<h3 id="the-base64-whitespace-problem">The Base64 Whitespace Problem</h3>
+<p>Discourse returns the encrypted payload as base64 in a query parameter. My
+code called <code>atob(payload)</code> to decode it.</p>
+<p>Problem: Discourse includes newlines in the base64 encoding. <code>atob()</code> chokes
+on whitespace.</p>
+<p>Fix: Strip whitespace first: <code>payload.replace(/\s/g, '')</code>.</p>
+<h3 id="the-rsa-padding-problem">The RSA Padding Problem</h3>
+<p>WebCrypto only supports RSA-OAEP for encryption/decryption. Discourse
+historically used PKCS1 padding, which WebCrypto can't handle.</p>
+<p>Turns out Discourse added OAEP support in December 2025 (PR #36592). You pass
+<code>padding=oaep</code> in the OAuth request and it encrypts with OAEP instead. But if
+your Discourse instance is older than that, you're stuck.</p>
+<p>This one cost me hours of debugging before I found the version requirement.</p>
+<h2 id="the-like-button">The Like Button</h2>
+<p>Once posting worked, adding likes was straightforward. The Discourse API has
+<code>POST /post_actions</code> to like and <code>DELETE /post_actions/:id</code> to unlike.</p>
+<p>The UI shows a heart icon that toggles between outline (not liked) and filled
+(liked). Clicking it calls the API and updates the count. Nothing fancy, but
+it makes the widget feel more interactive.</p>
+<p>One gotcha: you can't like your own posts. Discourse returns 403. I added a
+check to hide the like button on posts where <code>yours: true</code>.</p>
+<h2 id="the-bundle">The Bundle</h2>
+<p>Getting this to work as a single script tag required some bundler gymnastics.
+The WASM client needs its binary loaded somehow. Options:</p>
+<ol>
+<li>Fetch it from a URL at runtime (requires hosting the .wasm file)</li>
+<li>Inline it as base64 in the JavaScript bundle</li>
+</ol>
+<p>I went with option 2. The esbuild plugin intercepts the WASM import, reads the
+binary, base64-encodes it, and injects code that decodes and instantiates it
+at runtime.</p>
+<pre data-lang="javascript" style="background-color:#2b303b;color:#c0c5ce;" class="language-javascript "><code class="language-javascript" data-lang="javascript"><span style="color:#b48ead;">const </span><span style="color:#bf616a;">wasmBuffer </span><span>= </span><span style="color:#bf616a;">fs</span><span>.</span><span style="color:#8fa1b3;">readFileSync</span><span>(</span><span style="color:#bf616a;">wasmPath</span><span>);
+</span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">wasmBase64 </span><span>= </span><span style="color:#bf616a;">wasmBuffer</span><span>.</span><span style="color:#96b5b4;">toString</span><span>(&#39;</span><span style="color:#a3be8c;">base64</span><span>&#39;);
+</span><span>
+</span><span style="color:#65737e;">// In the bundle:
+</span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">bytes </span><span>= </span><span style="color:#ebcb8b;">Uint8Array</span><span>.</span><span style="color:#8fa1b3;">from</span><span>(</span><span style="color:#8fa1b3;">atob</span><span>(</span><span style="color:#bf616a;">wasmBase64</span><span>), </span><span style="color:#bf616a;">c </span><span style="color:#b48ead;">=&gt; </span><span style="color:#bf616a;">c</span><span>.</span><span style="color:#96b5b4;">charCodeAt</span><span>(</span><span style="color:#d08770;">0</span><span>));
+</span><span style="color:#b48ead;">await </span><span style="color:#bf616a;">WebAssembly</span><span>.</span><span style="color:#8fa1b3;">instantiate</span><span>(</span><span style="color:#bf616a;">bytes</span><span>, </span><span style="color:#bf616a;">imports</span><span>);
+</span></code></pre>
+<p>This adds ~500KB to the bundle (the WASM binary), but eliminates the need for
+any separate file hosting. One script tag, everything works.</p>
+<h2 id="the-community-response">The Community Response</h2>
+<p>I shared this experiment internally. The response was encouraging but also
+clarifying. Some on the core team pushed back on the WASM approach, preferring
+to stay within the existing Ember/Rails stack. Ember recently added support for
+rendering components to a DOM without spinning up an entire application
+instance, which could serve the same use case without introducing a new
+runtime.</p>
+<p>I get it. Maintaining a Rust/WASM layer alongside an existing codebase adds
+complexity. But an "ever moving API target" concern feels overstated. This is
+a REST API with stable endpoints for fetching topics, creating posts, and
+liking. Compare that to AI integrations that build on LLM APIs from multiple
+vendors with breaking changes every few months.</p>
+<p>The iframe suggestion also came up. That feels like a step backward. We have
+better tools now.</p>
+<h2 id="what-i-learned">What I Learned</h2>
+<p><strong>WASM is production-ready.</strong> The toolchain (wasm-pack, wasm-bindgen) just
+works. Cross-compiling Rust to run in browsers isn't experimental anymore.</p>
+<p><strong>OAuth in the browser is tricky.</strong> The combination of cross-origin redirects,
+browser storage limitations, and encryption requirements creates a lot of edge
+cases. Test with real redirects, not just mocked flows.</p>
+<p><strong>Experiments spark conversations.</strong> Even if the official team goes a
+different direction, building a working prototype moved the discussion
+forward. Sometimes the value of an experiment is proving that a use case
+matters, not necessarily that your implementation is the right one.</p>
+<h2 id="try-it">Try It</h2>
+<p>The widget works today with any Discourse instance running December 2025 or
+later (for the OAEP OAuth support).</p>
+<ul>
+<li><a href="https://github.com/ducks/discourse-comments">discourse-comments on GitHub</a></li>
+<li><a href="https://github.com/ducks/discourse-api-rs">discourse-api-rs on GitHub</a></li>
+<li><a href="https://www.npmjs.com/package/discourse-comments">npm package</a></li>
+</ul>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-discourse-comments-in-typescript&#x2F;">Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 27, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">I rewrote the Discourse embedded comments API client from Rust&#x2F;WASM to pure TypeScript. The bundle went from 742 KB to 18 KB.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;how-a-friends-gif-broke-our-filesystem&#x2F;">How Jennifer Aniston and Friends Cost Us 377GB and Broke ext4 Hardlinks</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 23, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A backup deduplication fix, filesystem hardlink limits, and the Jennifer Aniston reaction GIF that stress-tested our infrastructure.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-stats-evolution&#x2F;">Invite Tree to Invite Stats - How A Simple Tree Flourished Into A Full Moderation Plugin</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 05, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">How a simple visualization plugin evolved into a moderation tool.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-tree&#x2F;">Visualizing Discourse Invite Trees</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 03, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A simple Discourse plugin that visualizes who invited whom as an ASCII tree, inspired by Lobsters.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-the-guest-spot-part-2&#x2F;">Building The Guest Spot: Part 2 - Two Refactors</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 26, 2025</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Two major refactors: custom model to Topics, then custom feed to plugin outlets. Less code, more features, better maintainability.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/ember">#ember</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

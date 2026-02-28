@@ -1,0 +1,3064 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="A blog about NixOS, self-hosting, Rust projects, and other tech musings. Maybe some meatspace stuff as well.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Jake Goldsborough">
+    <meta property="og:description" content="A blog about NixOS, self-hosting, Rust projects, and other tech musings. Maybe some meatspace stuff as well.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Jake Goldsborough">
+    <meta name="twitter:description" content="A blog about NixOS, self-hosting, Rust projects, and other tech musings. Maybe some meatspace stuff as well.">
+
+    <title>Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+
+  
+  
+    
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+  
+    
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+      
+        
+      
+    
+  
+
+  
+  
+
+  <p>Want to know about something technical but don't want to spend the time? <a href="/request-an-article/">Sometimes it's easier to pay someone to read the fucking manual. I'm that someone.</a></p>
+
+  <ul class="blog-posts">
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-discourse-comments-in-typescript&#x2F;">Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle</a></h3>
+        <div class="meta">
+          
+          <p>Feb 27, 2026</p>
+          
+          <p>4 min read</p>
+        </div>
+        
+          <p class="desc">I rewrote the Discourse embedded comments API client from Rust&#x2F;WASM to pure TypeScript. The bundle went from 742 KB to 18 KB.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/discourse">#discourse</a></p>
+            
+            <p><a href="/tags/typescript">#typescript</a></p>
+            
+            <p><a href="/tags/oss">#oss</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;ai-problems-are-human-problems&#x2F;">AI Problems Are Just Human Problems Amplified</a></h3>
+        <div class="meta">
+          
+          <p>Feb 23, 2026</p>
+          
+          <p>6 min read</p>
+        </div>
+        
+          <p class="desc">AI fatigue, perfectionism vs non-determinism, and garbage in&#x2F;garbage out. These are not new problems. AI just makes them obvious faster.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/ai">#ai</a></p>
+            
+            <p><a href="/tags/tools">#tools</a></p>
+            
+            <p><a href="/tags/dev">#dev</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;llm-mux-workflow-orchestration&#x2F;">llm-mux: Why I Rebuilt Lok</a></h3>
+        <div class="meta">
+          
+          <p>Feb 11, 2026</p>
+          
+          <p>3 min read</p>
+        </div>
+        
+          <p class="desc">Lok got 300+ installs, then I rewrote it. The abstractions were wrong. llm-mux has roles, teams, and proper apply&#x2F;verify. Here&#x27;s why.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/ai">#ai</a></p>
+            
+            <p><a href="/tags/tools">#tools</a></p>
+            
+            <p><a href="/tags/rust">#rust</a></p>
+            
+            <p><a href="/tags/dev">#dev</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt1"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;finna-multi-model-spec-implement&#x2F;">finna: Multi-Model Debate, Spec, and Implement</a></h3>
+        <div class="meta">
+          
+          <p>Feb 10, 2026</p>
+          
+          <p>5 min read</p>
+        </div>
+        
+          <p class="desc">A standalone tool that takes an idea, debates it across Claude, Codex, and Gemini, creates a roadmap, writes specs, and implements. Planning and execution in one pipeline.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/ai">#ai</a></p>
+            
+            <p><a href="/tags/tools">#tools</a></p>
+            
+            <p><a href="/tags/rust">#rust</a></p>
+            
+            <p><a href="/tags/dev">#dev</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-json-parser-multi-llm&#x2F;">Building a JSON Parser with Multi-LLM Orchestration (Part 1)</a></h3>
+        <div class="meta">
+          
+          <p>Feb 07, 2026</p>
+          
+          <p>3 min read</p>
+        </div>
+        
+          <p class="desc">Using lok to orchestrate four LLMs debating design decisions, then synthesizing specs for a Rust JSON parser. The debate phase surfaced edge cases no single model would have caught.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/ai">#ai</a></p>
+            
+            <p><a href="/tags/tools">#tools</a></p>
+            
+            <p><a href="/tags/rust">#rust</a></p>
+            
+            <p><a href="/tags/dev">#dev</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-spec-multi-agent-planning&#x2F;">Lok Part 5: Multi-Agent Planning with lok spec</a></h3>
+        <div class="meta">
+          
+          <p>Feb 06, 2026</p>
+          
+          <p>6 min read</p>
+        </div>
+        
+          <p class="desc">Lok gains a spec command that turns task descriptions into structured implementation plans. Multiple LLMs propose, debate, and converge on a roadmap before any code gets written.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/ai">#ai</a></p>
+            
+            <p><a href="/tags/tools">#tools</a></p>
+            
+            <p><a href="/tags/rust">#rust</a></p>
+            
+            <p><a href="/tags/dev">#dev</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;cfgs-dev-a-directory-for-developer-setups&#x2F;">cfgs.dev: A Directory for Developer Setups</a></h3>
+        <div class="meta">
+          
+          <p>Feb 03, 2026</p>
+          
+          <p>5 min read</p>
+        </div>
+        
+          <p class="desc">Building a browsable index of dotfiles and development environments.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/dev">#dev</a></p>
+            
+            <p><a href="/tags/oss">#oss</a></p>
+            
+            <p><a href="/tags/tools">#tools</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt1"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;arf-structured-reasoning-for-ai-agents&#x2F;">ARF: Structured Reasoning for AI Agents</a></h3>
+        <div class="meta">
+          
+          <p>Feb 02, 2026</p>
+          
+          <p>4 min read</p>
+        </div>
+        
+          <p class="desc">Moving beyond chat prompts to structured agent communication. Why unstructured data lets LLMs run wild, and how ARF enforces what&#x2F;why&#x2F;how before acting.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/rust">#rust</a></p>
+            
+            <p><a href="/tags/ai">#ai</a></p>
+            
+            <p><a href="/tags/oss">#oss</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-a-robot-to-understand-humans&#x2F;">I Built a Robot to Help Me Understand People</a></h3>
+        <div class="meta">
+          
+          <p>Jan 31, 2026</p>
+          
+          <p>5 min read</p>
+        </div>
+        
+          <p class="desc">I&#x27;m good with machines but bad with people. So I built a tool that reads what my coworkers write and helps me understand them better.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/ai">#ai</a></p>
+            
+            <p><a href="/tags/tools">#tools</a></p>
+            
+            <p><a href="/tags/work">#work</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-the-self-healing-loop&#x2F;">Lok Part 4: The Self-Healing Loop</a></h3>
+        <div class="meta">
+          
+          <p>Jan 28, 2026</p>
+          
+          <p>3 min read</p>
+        </div>
+        
+          <p class="desc">Lok gains agentic workflows, fixes its own bugs, and finds a real bug in Discourse that I just pushed upstream.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/ai">#ai</a></p>
+            
+            <p><a href="/tags/tools">#tools</a></p>
+            
+            <p><a href="/tags/rust">#rust</a></p>
+            
+            <p><a href="/tags/dev">#dev</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-dogfooding-and-code-review&#x2F;">Lok Part 3: Dogfooding and Code Review</a></h3>
+        <div class="meta">
+          
+          <p>Jan 27, 2026</p>
+          
+          <p>4 min read</p>
+        </div>
+        
+          <p class="desc">PR review, codebase explanation, and lok opening 25 GitHub issues on itself. Plus parallel workflows and context detection.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/ai">#ai</a></p>
+            
+            <p><a href="/tags/tools">#tools</a></p>
+            
+            <p><a href="/tags/rust">#rust</a></p>
+            
+            <p><a href="/tags/dev">#dev</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt1"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-workflows-and-local-llms&#x2F;">Lok Part 2: Workflows and Local LLMs</a></h3>
+        <div class="meta">
+          
+          <p>Jan 25, 2026</p>
+          
+          <p>5 min read</p>
+        </div>
+        
+          <p class="desc">Declarative multi-step pipelines and Ollama integration. The workflow system that&#x27;s also a plugin system.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/ai">#ai</a></p>
+            
+            <p><a href="/tags/tools">#tools</a></p>
+            
+            <p><a href="/tags/rust">#rust</a></p>
+            
+            <p><a href="/tags/dev">#dev</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;no-i-dont-type-every-word-you-read&#x2F;">I Don&#x27;t Type Every Word You Read</a></h3>
+        <div class="meta">
+          
+          <p>Jan 25, 2026</p>
+          
+          <p>3 min read</p>
+        </div>
+        
+          <p class="desc">Most modern work is already mediated by machines. Writing is just late to admit it. On delegating friction, not thinking.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/ai">#ai</a></p>
+            
+            <p><a href="/tags/writing">#writing</a></p>
+            
+            <p><a href="/tags/craft">#craft</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;introducing-lok-multi-llm-orchestration&#x2F;">Introducing Lok: A Local Multi-LLM Orchestration Control Plane</a></h3>
+        <div class="meta">
+          
+          <p>Jan 24, 2026</p>
+          
+          <p>6 min read</p>
+        </div>
+        
+          <p class="desc">When one AI isn&#x27;t enough. Lok is a CLI tool that coordinates multiple LLM backends, routing tasks to the right model and letting them debate each other.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/ai">#ai</a></p>
+            
+            <p><a href="/tags/tools">#tools</a></p>
+            
+            <p><a href="/tags/rust">#rust</a></p>
+            
+            <p><a href="/tags/dev">#dev</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;how-a-friends-gif-broke-our-filesystem&#x2F;">How Jennifer Aniston and Friends Cost Us 377GB and Broke ext4 Hardlinks</a></h3>
+        <div class="meta">
+          
+          <p>Jan 23, 2026</p>
+          
+          <p>5 min read</p>
+        </div>
+        
+          <p class="desc">A backup deduplication fix, filesystem hardlink limits, and the Jennifer Aniston reaction GIF that stress-tested our infrastructure.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/discourse">#discourse</a></p>
+            
+            <p><a href="/tags/infrastructure">#infrastructure</a></p>
+            
+            <p><a href="/tags/linux">#linux</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt1"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;nix-shells-ssh-claude-code&#x2F;">The Unholy Trinity: Nix Shells, SSH Config, and Claude Code</a></h3>
+        <div class="meta">
+          
+          <p>Jan 21, 2026</p>
+          
+          <p>5 min read</p>
+        </div>
+        
+          <p class="desc">How proper environment setup turns AI coding assistants from novelty into genuine infrastructure. Nix makes everything reproducible. SSH makes everything reachable. Claude ties it together.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/ai">#ai</a></p>
+            
+            <p><a href="/tags/nixos">#nixos</a></p>
+            
+            <p><a href="/tags/tools">#tools</a></p>
+            
+            <p><a href="/tags/dev">#dev</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;letting-ai-pick-the-project&#x2F;">Letting AI Pick the Project</a></h3>
+        <div class="meta">
+          
+          <p>Jan 19, 2026</p>
+          
+          <p>3 min read</p>
+        </div>
+        
+          <p class="desc">An experiment in creative delegation: I asked Claude to build whatever it wanted. It chose to build a tool it wished existed.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/ai">#ai</a></p>
+            
+            <p><a href="/tags/rust">#rust</a></p>
+            
+            <p><a href="/tags/oss">#oss</a></p>
+            
+            <p><a href="/tags/experiment">#experiment</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;real-declarative-infrastructure-nixos&#x2F;">From Bash Scripts to NixOS: Real Declarative Infrastructure on a VPS</a></h3>
+        <div class="meta">
+          
+          <p>Jan 18, 2026</p>
+          
+          <p>5 min read</p>
+        </div>
+        
+          <p class="desc">Converting a bash script + systemd-based VPS to NixOS for truly declarative infrastructure. No more update scripts or edge cases, just configuration.nix.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/nixos">#nixos</a></p>
+            
+            <p><a href="/tags/self-hosting">#self-hosting</a></p>
+            
+            <p><a href="/tags/infrastructure">#infrastructure</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-discourse-embedded-comments&#x2F;">Building Embedded Discourse Comments with Rust and WASM</a></h3>
+        <div class="meta">
+          
+          <p>Jan 14, 2026</p>
+          
+          <p>5 min read</p>
+        </div>
+        
+          <p class="desc">An experiment in creating a drop-in comment widget for static sites using Rust compiled to WebAssembly, talking to Discourse&#x27;s REST API.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/discourse">#discourse</a></p>
+            
+            <p><a href="/tags/rust">#rust</a></p>
+            
+            <p><a href="/tags/wasm">#wasm</a></p>
+            
+            <p><a href="/tags/oss">#oss</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt1"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;running-infrastructure-with-systemd&#x2F;">Running VPS Infrastructure with Systemd</a></h3>
+        <div class="meta">
+          
+          <p>Jan 10, 2026</p>
+          
+          <p>4 min read</p>
+        </div>
+        
+          <p class="desc">Declarative VPS infrastructure using systemd services. Running Gitea, Woodpecker CI, Scrob, and GoatCounter with automated deployment scripts.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/self-hosting">#self-hosting</a></p>
+            
+            <p><a href="/tags/infrastructure">#infrastructure</a></p>
+            
+            <p><a href="/tags/systemd">#systemd</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-scrob-self-hosted-scrobbling&#x2F;">Building Scrob: A Self-Hosted Music Scrobbling Server</a></h3>
+        <div class="meta">
+          
+          <p>Jan 02, 2026</p>
+          
+          <p>4 min read</p>
+        </div>
+        
+          <p class="desc">Built a self-hosted scrobbling server with Rust and PostgreSQL to track listening history without relying on Last.fm, featuring public profiles and automated deployment.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/rust">#rust</a></p>
+            
+            <p><a href="/tags/self-hosting">#self-hosting</a></p>
+            
+            <p><a href="/tags/oss">#oss</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;yearly-summary&#x2F;">2025 - A Review</a></h3>
+        <div class="meta">
+          
+          <p>Dec 31, 2025</p>
+          
+          <p>3 min read</p>
+        </div>
+        
+          <p class="desc">A reflective look back at 2025 as a year of integration: building durable tools, writing in public, and aligning technical work with sustainability, creativity, and a calm, long-term pace.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/gpt">#gpt</a></p>
+            
+            <p><a href="/tags/changelog">#changelog</a></p>
+            
+            <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-llm-tui-terminal-ai-chat&#x2F;">Building LLM-TUI: Never Lose Context Again</a></h3>
+        <div class="meta">
+          
+          <p>Dec 16, 2025</p>
+          
+          <p>6 min read</p>
+        </div>
+        
+          <p class="desc">Built a terminal AI chat that remembers everything. File context persists across sessions, tools execute with confirmation, and you never lose your place.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/tools">#tools</a></p>
+            
+            <p><a href="/tags/ai">#ai</a></p>
+            
+            <p><a href="/tags/dev">#dev</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt1"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;jobl-srg-resume-tools&#x2F;">JOBL and SRG: Building Resume Tools I Actually Want to Use</a></h3>
+        <div class="meta">
+          
+          <p>Dec 14, 2025</p>
+          
+          <p>5 min read</p>
+        </div>
+        
+          <p class="desc">Building a TOML-based resume format and static generator after layoffs reminded me to keep my options open. Sometimes the best response to uncertainty is building something you control.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/rust">#rust</a></p>
+            
+            <p><a href="/tags/tools">#tools</a></p>
+            
+            <p><a href="/tags/resume">#resume</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;skin-shedding-not-bikeshedding&#x2F;">Skin Shedding, Not Bikeshedding</a></h3>
+        <div class="meta">
+          
+          <p>Nov 23, 2025</p>
+          
+          <p>5 min read</p>
+        </div>
+        
+          <p class="desc">On letting go of endless debates and just building things to see what works.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/dev">#dev</a></p>
+            
+            <p><a href="/tags/philosophy">#philosophy</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;introducing-date-ver-date-based-versioning&#x2F;">Date-Ver: A Formal Spec for Date-Based Versioning</a></h3>
+        <div class="meta">
+          
+          <p>Nov 15, 2025</p>
+          
+          <p>3 min read</p>
+        </div>
+        
+          <p class="desc">I created a formal specification for date-based version numbers because nobody else had. Now both Ubuntu and yaml-janitor are officially valid Date-Ver.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/versioning">#versioning</a></p>
+            
+            <p><a href="/tags/oss">#oss</a></p>
+            
+            <p><a href="/tags/specs">#specs</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;yaml-janitor-comment-preservation&#x2F;">Building yaml-janitor: Solving the Comment Preservation Problem</a></h3>
+        <div class="meta">
+          
+          <p>Nov 14, 2025</p>
+          
+          <p>3 min read</p>
+        </div>
+        
+          <p class="desc">How I built a YAML linter that preserves comments, validated 1,736 production files, and published it to RubyGems</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/ruby">#ruby</a></p>
+            
+            <p><a href="/tags/yaml">#yaml</a></p>
+            
+            <p><a href="/tags/oss">#oss</a></p>
+            
+            <p><a href="/tags/devops">#devops</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt1"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;like-a-pig-in-shit-ai-slop&#x2F;">Like a Pig in Shit: Why I Love AI &quot;Slop&quot;</a></h3>
+        <div class="meta">
+          
+          <p>Nov 08, 2025</p>
+          
+          <p>6 min read</p>
+        </div>
+        
+          <p class="desc">I&#x27;m having the time of my life building projects with AI assistance. Call it slop if you want - I&#x27;m too busy shipping to care.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/ai">#ai</a></p>
+            
+            <p><a href="/tags/dev">#dev</a></p>
+            
+            <p><a href="/tags/opinion">#opinion</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;vimdeck-nvim-markdown-presentations&#x2F;">vimdeck.nvim: Markdown Presentations in Neovim</a></h3>
+        <div class="meta">
+          
+          <p>Nov 07, 2025</p>
+          
+          <p>5 min read</p>
+        </div>
+        
+          <p class="desc">Rewrote vimdeck for Neovim using Treesitter. No Ruby, no temp files, just native Lua and clean slide rendering.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/neovim">#neovim</a></p>
+            
+            <p><a href="/tags/lua">#lua</a></p>
+            
+            <p><a href="/tags/oss">#oss</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-stats-evolution&#x2F;">Invite Tree to Invite Stats - How A Simple Tree Flourished Into A Full Moderation Plugin</a></h3>
+        <div class="meta">
+          
+          <p>Nov 05, 2025</p>
+          
+          <p>3 min read</p>
+        </div>
+        
+          <p class="desc">How a simple visualization plugin evolved into a moderation tool.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/discourse">#discourse</a></p>
+            
+            <p><a href="/tags/ruby">#ruby</a></p>
+            
+            <p><a href="/tags/oss">#oss</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-tree&#x2F;">Visualizing Discourse Invite Trees</a></h3>
+        <div class="meta">
+          
+          <p>Nov 03, 2025</p>
+          
+          <p>2 min read</p>
+        </div>
+        
+          <p class="desc">A simple Discourse plugin that visualizes who invited whom as an ASCII tree, inspired by Lobsters.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/discourse">#discourse</a></p>
+            
+            <p><a href="/tags/ruby">#ruby</a></p>
+            
+            <p><a href="/tags/oss">#oss</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt1"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;shelltrax-part-2-footer-tests-ci&#x2F;">Shelltrax Part 2: Footer, Tests, and CI</a></h3>
+        <div class="meta">
+          
+          <p>Oct 29, 2025</p>
+          
+          <p>5 min read</p>
+        </div>
+        
+          <p class="desc">Fixing footer playback progress, implementing unit tests, and setting up GitHub Actions CI for the Rust TUI music player.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/rust">#rust</a></p>
+            
+            <p><a href="/tags/tui">#tui</a></p>
+            
+            <p><a href="/tags/ci">#ci</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;replacing-messagebus-with-http-apis&#x2F;">Replacing MessageBus Pub&#x2F;Sub with REST APIs: Fixing Production Outages</a></h3>
+        <div class="meta">
+          
+          <p>Oct 27, 2025</p>
+          
+          <p>5 min read</p>
+        </div>
+        
+          <p class="desc">Converting postgres-manager from fire-and-forget MessageBus to synchronous HTTP APIs to eliminate message replay issues and gain operational visibility.</p>
+        
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-the-guest-spot-part-2&#x2F;">Building The Guest Spot: Part 2 - Two Refactors</a></h3>
+        <div class="meta">
+          
+          <p>Oct 26, 2025</p>
+          
+          <p>6 min read</p>
+        </div>
+        
+          <p class="desc">Two major refactors: custom model to Topics, then custom feed to plugin outlets. Less code, more features, better maintainability.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/discourse">#discourse</a></p>
+            
+            <p><a href="/tags/ruby">#ruby</a></p>
+            
+            <p><a href="/tags/ember">#ember</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-the-guest-spot-part-1&#x2F;">Building The Guest Spot: Part 1 - My First Community</a></h3>
+        <div class="meta">
+          
+          <p>Oct 25, 2025</p>
+          
+          <p>7 min read</p>
+        </div>
+        
+          <p class="desc">Building an Instagram-style showcase for tattoo artists using Discourse. My first attempt at helping build a community from scratch.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/discourse">#discourse</a></p>
+            
+            <p><a href="/tags/ruby">#ruby</a></p>
+            
+            <p><a href="/tags/community">#community</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt1"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;how-i-am-using-claude-code&#x2F;">How I&#x27;m Using Claude Code for Daily Development Work</a></h3>
+        <div class="meta">
+          
+          <p>Oct 24, 2025</p>
+          
+          <p>5 min read</p>
+        </div>
+        
+          <p class="desc">Real-world AI pair programming: what works, what doesn&#x27;t, and how to avoid the traps</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/ai">#ai</a></p>
+            
+            <p><a href="/tags/dev">#dev</a></p>
+            
+            <p><a href="/tags/tools">#tools</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-yaks-virtual-currency-part-4&#x2F;">Building Yaks: A Virtual Currency System for Discourse (Part 4: Custom Titles and Earning System)</a></h3>
+        <div class="meta">
+          
+          <p>Oct 19, 2025</p>
+          
+          <p>7 min read</p>
+        </div>
+        
+          <p class="desc">Implementing custom user titles and the Yaks earning system. This post covers serializer overrides for titles and building a complete earning system with rate limiting, trust level requirements, and real-time balance updates.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/discourse">#discourse</a></p>
+            
+            <p><a href="/tags/ruby">#ruby</a></p>
+            
+            <p><a href="/tags/oss">#oss</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-yaks-virtual-currency-part-3&#x2F;">Building Yaks: A Virtual Currency System for Discourse (Part 3: Advanced Features)</a></h3>
+        <div class="meta">
+          
+          <p>Oct 18, 2025</p>
+          
+          <p>5 min read</p>
+        </div>
+        
+          <p class="desc">Implementing topic-level features and user customization in the Yaks virtual currency plugin. This post covers topic boosting with global pinning and custom avatar flair.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/discourse">#discourse</a></p>
+            
+            <p><a href="/tags/ruby">#ruby</a></p>
+            
+            <p><a href="/tags/oss">#oss</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-yaks-virtual-currency-part-2&#x2F;">Building Yaks: A Virtual Currency System for Discourse (Part 2: Features and Expiration)</a></h3>
+        <div class="meta">
+          
+          <p>Oct 17, 2025</p>
+          
+          <p>6 min read</p>
+        </div>
+        
+          <p class="desc">Part 2 covers implementing topic pinning, building a modular service architecture, and creating an expiration system with background jobs.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/discourse">#discourse</a></p>
+            
+            <p><a href="/tags/ruby">#ruby</a></p>
+            
+            <p><a href="/tags/oss">#oss</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt1"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-42&#x2F;">ChatGPT assisted Changelog - 42&#x2F;52</a></h3>
+        <div class="meta">
+          
+          <p>Oct 17, 2025</p>
+          
+          <p>2 min read</p>
+        </div>
+        
+          <p class="desc">A week of creative experiments and follow-ups -- from launching a live transit board inside Discourse and polishing your AWS SDK Ruby series, to debugging GoatCounter exports and exploring privacy-friendly tools on GrapheneOS.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/gpt">#gpt</a></p>
+            
+            <p><a href="/tags/changelog">#changelog</a></p>
+            
+            <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-slumprutt-random-route-generator&#x2F;">Building Slumprutt: A Random Route Generator in Under an Hour</a></h3>
+        <div class="meta">
+          
+          <p>Oct 16, 2025</p>
+          
+          <p>5 min read</p>
+        </div>
+        
+          <p class="desc">Built a complete random route generator app with TypeScript, Svelte, and OSRM to find new walking and cycling routes in my neighborhood.</p>
+        
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;contributing-to-aws-sdk-ruby-pt3&#x2F;">AWS SDK Ruby Part 3: When &quot;Working as Intended&quot; Means &quot;Broken by Design&quot;</a></h3>
+        <div class="meta">
+          
+          <p>Oct 14, 2025</p>
+          
+          <p>5 min read</p>
+        </div>
+        
+          <p class="desc">The conclusion to the AWS credential chain saga, where maintainers close a valid bug report, the feature remains broken, and we learn about the politics of backward compatibility in open source.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/aws">#aws</a></p>
+            
+            <p><a href="/tags/ruby">#ruby</a></p>
+            
+            <p><a href="/tags/oss">#oss</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-yaks-virtual-currency-part-1&#x2F;">Building Yaks: A Virtual Currency System for Discourse (Part 1: Backend Architecture)</a></h3>
+        <div class="meta">
+          
+          <p>Oct 11, 2025</p>
+          
+          <p>5 min read</p>
+        </div>
+        
+          <p class="desc">Building a virtual currency plugin for Discourse. Part 1 covers the backend architecture: wallets, transactions, features, and the service layer that ties it together.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/discourse">#discourse</a></p>
+            
+            <p><a href="/tags/ruby">#ruby</a></p>
+            
+            <p><a href="/tags/oss">#oss</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt1"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-41&#x2F;">ChatGPT assisted Changelog - 41&#x2F;52</a></h3>
+        <div class="meta">
+          
+          <p>Oct 10, 2025</p>
+          
+          <p>2 min read</p>
+        </div>
+        
+          <p class="desc">A quieter but productive week focused on publishing the Discourse transit tracker post, analyzing GoatCounter data across 37 countries and six continents, and continuing open source contributions to the AWS SDK for Ruby.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/gpt">#gpt</a></p>
+            
+            <p><a href="/tags/changelog">#changelog</a></p>
+            
+            <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-transit-tracker-in-discourse&#x2F;">Building a Live Transit Departure Board with Discourse</a></h3>
+        <div class="meta">
+          
+          <p>Oct 08, 2025</p>
+          
+          <p>10 min read</p>
+        </div>
+        
+          <p class="desc">Experimenting with Discourse as a live transit departure board - blending GTFS data, aviation APIs, and forum topics into one real-time display.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/discourse">#discourse</a></p>
+            
+            <p><a href="/tags/ruby">#ruby</a></p>
+            
+            <p><a href="/tags/oss">#oss</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;first-official-discourse-contribution&#x2F;">My First Official Contribution to Discourse</a></h3>
+        <div class="meta">
+          
+          <p>Oct 06, 2025</p>
+          
+          <p>3 min read</p>
+        </div>
+        
+          <p class="desc">A small but satisfying first PR to the Discourse core codebase.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/discourse">#discourse</a></p>
+            
+            <p><a href="/tags/oss">#oss</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;contributing-to-aws-sdk-ruby-pt2&#x2F;">Going off the Rails on the AWS Credential Chain</a></h3>
+        <div class="meta">
+          
+          <p>Oct 04, 2025</p>
+          
+          <p>4 min read</p>
+        </div>
+        
+          <p class="desc">Uncovering a deeper architectural issue in the AWS Ruby SDK where credential chain precedence prevented role assumption from working correctly with environment variable source credentials.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/aws">#aws</a></p>
+            
+            <p><a href="/tags/ruby">#ruby</a></p>
+            
+            <p><a href="/tags/oss">#oss</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt1"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-40&#x2F;">ChatGPT assisted Changelog - 40&#x2F;52</a></h3>
+        <div class="meta">
+          
+          <p>Oct 03, 2025</p>
+          
+          <p>2 min read</p>
+        </div>
+        
+          <p class="desc">Weekly topics spanning Czechia residency planning, Anki language learning setup, Framework 16 NixOS troubleshooting, Discourse plugin ideas, and practical logistics for international relocation.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/gpt">#gpt</a></p>
+            
+            <p><a href="/tags/changelog">#changelog</a></p>
+            
+            <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-36&#x2F;">ChatGPT assisted Changelog - 36-39&#x2F;52</a></h3>
+        <div class="meta">
+          
+          <p>Sep 26, 2025</p>
+          
+          <p>4 min read</p>
+        </div>
+        
+          <p class="desc">A ChatGPT-generated summary covering Prague travel notes, Czech visa preparation, camera research, Discourse experiments, desktop tooling, email deliverability, and personal logistics from weeks 36-39.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/gpt">#gpt</a></p>
+            
+            <p><a href="/tags/changelog">#changelog</a></p>
+            
+            <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;visiting-prague-first-time-in-europe&#x2F;">First time in Europe: One week in Prague</a></h3>
+        <div class="meta">
+          
+          <p>Sep 16, 2025</p>
+          
+          <p>6 min read</p>
+        </div>
+        
+          <p class="desc">Field notes from a first-timer: a castle, smooth city transit,  and tattoos.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/travel">#travel</a></p>
+            
+            <p><a href="/tags/prague">#prague</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;reverse-engineering-unique-data-structure-pt-3&#x2F;">Reverse Engineering A Unique Data Structure - Part 3, Course &amp; Course Details</a></h3>
+        <div class="meta">
+          
+          <p>Sep 03, 2025</p>
+          
+          <p>4 min read</p>
+        </div>
+        
+          <p class="desc">Decoding deeply nested course data by resolving schema maps within schema maps to extract readable information about disc golf courses including layouts, holes, and amenities.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/apis">#APIs</a></p>
+            
+            <p><a href="/tags/typescript">#typescript</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt1"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;reverse-engineering-unique-data-structure-pt-2&#x2F;">Reverse Engineering A Unique Data Structure - Part 2, Search</a></h3>
+        <div class="meta">
+          
+          <p>Aug 30, 2025</p>
+          
+          <p>2 min read</p>
+        </div>
+        
+          <p class="desc">Discovering and using search endpoints for places and courses that return well-formed data, making it easy to find specific locations and query disc golf course information.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/apis">#APIs</a></p>
+            
+            <p><a href="/tags/typescript">#typescript</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-35&#x2F;">ChatGPT assisted Changelog - 35&#x2F;52</a></h3>
+        <div class="meta">
+          
+          <p>Aug 29, 2025</p>
+          
+          <p>1 min read</p>
+        </div>
+        
+          <p class="desc">Weekly updates on cashctl budgeting tool development, Zola site improvements, AWS SDK contributions, and resume refinements for showcasing open source work.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/gpt">#gpt</a></p>
+            
+            <p><a href="/tags/changelog">#changelog</a></p>
+            
+            <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;reverse-engineering-unique-data-structure-pt-1&#x2F;">Reverse Engineering A Unique Data Structure - Part 1, Courses</a></h3>
+        <div class="meta">
+          
+          <p>Aug 27, 2025</p>
+          
+          <p>6 min read</p>
+        </div>
+        
+          <p class="desc">Uncovering how a Remix-based disc golf app encodes course data in obfuscated arrays using index maps and schema maps, then writing TypeScript to parse it into usable objects.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/apis">#APIs</a></p>
+            
+            <p><a href="/tags/typescript">#typescript</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;contributing-to-aws-sdk-ruby&#x2F;">Contributing to the AWS Ruby SDK: When Documentation and Implementation Don&#x27;t Match</a></h3>
+        <div class="meta">
+          
+          <p>Aug 23, 2025</p>
+          
+          <p>4 min read</p>
+        </div>
+        
+          <p class="desc">Discovering and fixing a missing credential source implementation in the AWS Ruby SDK where documentation promised Environment support but the code didn&#x27;t deliver.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/aws">#aws</a></p>
+            
+            <p><a href="/tags/ruby">#ruby</a></p>
+            
+            <p><a href="/tags/oss">#oss</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt1"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-34&#x2F;">ChatGPT assisted Changelog - 34&#x2F;52</a></h3>
+        <div class="meta">
+          
+          <p>Aug 22, 2025</p>
+          
+          <p>1 min read</p>
+        </div>
+        
+          <p class="desc">A week balancing travel research for Europe, Shelltrax autoplay debugging, Discourse logo design experiments, and technical problem-solving across multiple projects.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/gpt">#gpt</a></p>
+            
+            <p><a href="/tags/changelog">#changelog</a></p>
+            
+            <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-32-33&#x2F;">ChatGPT assisted Changelog - 32+33&#x2F;52</a></h3>
+        <div class="meta">
+          
+          <p>Aug 17, 2025</p>
+          
+          <p>2 min read</p>
+        </div>
+        
+          <p class="desc">Two weeks of NixOS troubleshooting, node-postgres-exporter development, Framework 16 hardware configuration, and preparation for upcoming European travel.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/gpt">#gpt</a></p>
+            
+            <p><a href="/tags/changelog">#changelog</a></p>
+            
+            <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-31&#x2F;">ChatGPT assisted Changelog - 31&#x2F;52</a></h3>
+        <div class="meta">
+          
+          <p>Aug 01, 2025</p>
+          
+          <p>2 min read</p>
+        </div>
+        
+          <p class="desc">Weekly progress on Nix package development, NixOS Wi-Fi setup on Framework 16, Git commit signing, Hyprland keybinds, and exploring privacy-focused smartwatch options.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/gpt">#gpt</a></p>
+            
+            <p><a href="/tags/changelog">#changelog</a></p>
+            
+            <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;hyprland-tricks-close-window-confirmation&#x2F;">Hyprland Tricks - Close Window Keybind With Confirmation Window</a></h3>
+        <div class="meta">
+          
+          <p>Jul 28, 2025</p>
+          
+          <p>1 min read</p>
+        </div>
+        
+          <p class="desc">Adding a simple Wofi confirmation dialog to Hyprland&#x27;s window close keybind to prevent accidentally closing important windows with a quick Yes&#x2F;No prompt.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/hyprland">#hyprland</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt1"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-9&#x2F;">NixOS as a daily driver or Zero to Nixty, part 9&#x2F;? - Enabling Wi-Fi</a></h3>
+        <div class="meta">
+          
+          <p>Jul 27, 2025</p>
+          
+          <p>2 min read</p>
+        </div>
+        
+          <p class="desc">Troubleshooting and fixing Wi-Fi on a Framework 16 laptop running NixOS by loading the Intel AX210 driver, enabling firmware, and configuring NetworkManager with wpa_supplicant.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/nixos">#nixos</a></p>
+            
+            <p><a href="/tags/framework">#framework</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-30&#x2F;">ChatGPT assisted Changelog - 30&#x2F;52</a></h3>
+        <div class="meta">
+          
+          <p>Jul 25, 2025</p>
+          
+          <p>2 min read</p>
+        </div>
+        
+          <p class="desc">First week at Discourse covering Waybar configuration, Nixvim setup, Kolide agent deployment, TUI music player fixes, and various NixOS system troubleshooting.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/gpt">#gpt</a></p>
+            
+            <p><a href="/tags/changelog">#changelog</a></p>
+            
+            <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;joining-discourse&#x2F;">Today is my first day at Discourse!</a></h3>
+        <div class="meta">
+          
+          <p>Jul 21, 2025</p>
+          
+          <p>2 min read</p>
+        </div>
+        
+          <p class="desc">Celebrating the start of a new role at Discourse as a software engineer on the infrastructure team, working on open source software with an async, remote-first company.</p>
+        
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-8&#x2F;">NixOS as a daily driver or Zero to Nixty, part 8&#x2F;? - Modular Config</a></h3>
+        <div class="meta">
+          
+          <p>Jul 20, 2025</p>
+          
+          <p>4 min read</p>
+        </div>
+        
+          <p class="desc">Breaking down a NixOS configuration into reusable modules organized by host and common settings, making it easy to deploy consistent environments across multiple machines.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/nixos">#nixos</a></p>
+            
+            <p><a href="/tags/linux">#linux</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt1"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-29&#x2F;">ChatGPT assisted Changelog - 29&#x2F;52</a></h3>
+        <div class="meta">
+          
+          <p>Jul 18, 2025</p>
+          
+          <p>2 min read</p>
+        </div>
+        
+          <p class="desc">Refining NixOS setup with modular dotfiles, exploring Framework laptop RGB customization, researching task managers, and planning for NixCon 2025 attendance.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/gpt">#gpt</a></p>
+            
+            <p><a href="/tags/changelog">#changelog</a></p>
+            
+            <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-7-5&#x2F;">NixOS as a daily driver or Zero to Nixty, part 7.5&#x2F;? - Trial by Encrypted Fire</a></h3>
+        <div class="meta">
+          
+          <p>Jul 13, 2025</p>
+          
+          <p>4 min read</p>
+        </div>
+        
+          <p class="desc">A detailed account of struggling through manual LUKS encryption setup on NixOS, hitting multiple roadblocks, and ultimately succeeding with the graphical installer after three failed attempts.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/nixos">#nixos</a></p>
+            
+            <p><a href="/tags/linux">#linux</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-28&#x2F;">ChatGPT assisted Changelog - 28&#x2F;52</a></h3>
+        <div class="meta">
+          
+          <p>Jul 11, 2025</p>
+          
+          <p>1 min read</p>
+        </div>
+        
+          <p class="desc">Publishing NixOS daily driver posts, fighting encrypted disk installation issues, playing disc golf, continuing Swedish language studies, and garden updates.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/gpt">#gpt</a></p>
+            
+            <p><a href="/tags/changelog">#changelog</a></p>
+            
+            <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-6&#x2F;">NixOS as a daily driver or Zero to Nixty, part 6&#x2F;? - Dev environment</a></h3>
+        <div class="meta">
+          
+          <p>Jul 08, 2025</p>
+          
+          <p>3 min read</p>
+        </div>
+        
+          <p class="desc">Introducing NixVim for declarative Neovim configuration and exploring nix-shell for creating reproducible, project-specific development environments without global installs.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/nixos">#nixos</a></p>
+            
+            <p><a href="/tags/linux">#linux</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt1"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-5&#x2F;">NixOS as a daily driver or Zero to Nixty, part 5&#x2F;? - QoL enhancements</a></h3>
+        <div class="meta">
+          
+          <p>Jul 07, 2025</p>
+          
+          <p>5 min read</p>
+        </div>
+        
+          <p class="desc">Configuring keyboard remapping with Interception Tools to make Caps Lock act as Escape when tapped and Control when held, plus setting up hypridle and hyprlock for automatic screen locking.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/nixos">#nixos</a></p>
+            
+            <p><a href="/tags/linux">#linux</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;fairway-client-not-fair-enough&#x2F;">Fairway Client Not Fair Enough for MyFrisbee</a></h3>
+        <div class="meta">
+          
+          <p>Jul 06, 2025</p>
+          
+          <p>2 min read</p>
+        </div>
+        
+          <p class="desc">The story of building an open source library to access public MyFrisbee data endpoints, receiving a takedown request despite working with user-submitted information, and the disappointment that followed.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/oss">#oss</a></p>
+            
+            <p><a href="/tags/apis">#APIs</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-27&#x2F;">ChatGPT Changelog - 27&#x2F;52</a></h3>
+        <div class="meta">
+          
+          <p>Jul 04, 2025</p>
+          
+          <p>1 min read</p>
+        </div>
+        
+          <p class="desc">Week of NixOS and NixVim work including caps lock remapping, Starship integration, PipeWire setup, MyFrisbee reverse engineering takedown, woodworking projects, and job offer celebration.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/gpt">#gpt</a></p>
+            
+            <p><a href="/tags/changelog">#changelog</a></p>
+            
+            <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-4&#x2F;">NixOS as a daily driver or Zero to Nixty, part 4&#x2F;? - dotfile&#x2F;config management</a></h3>
+        <div class="meta">
+          
+          <p>Jun 27, 2025</p>
+          
+          <p>5 min read</p>
+        </div>
+        
+          <p class="desc">Using Dotter to manage NixOS configuration and Hyprland settings in version control with symlinks, making it simple to deploy and reproduce your setup across machines.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/nixos">#nixos</a></p>
+            
+            <p><a href="/tags/linux">#linux</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt1"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-26&#x2F;">ChatGPT Changelog (fka Weekly Summary) - 26&#x2F;52</a></h3>
+        <div class="meta">
+          
+          <p>Jun 27, 2025</p>
+          
+          <p>2 min read</p>
+        </div>
+        
+          <p class="desc">Refining NixOS workflow with nix-shell and Flakes, progressing GitVote CLI with GPG signatures, continuing blog writing, and maintaining Swedish language learning streak.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/gpt">#gpt</a></p>
+            
+            <p><a href="/tags/changelog">#changelog</a></p>
+            
+            <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;releasing-a-neovim-plugin&#x2F;">How I accidentally wrote my first Neovim plugin</a></h3>
+        <div class="meta">
+          
+          <p>Jun 25, 2025</p>
+          
+          <p>3 min read</p>
+        </div>
+        
+          <p class="desc">A journey from regex-powered single-line rewrites to a fully tested Neovim plugin for formatting JavaScript and Rust imports, learning why simpler solutions sometimes beat powerful tools like Treesitter.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/neovim">#neovim</a></p>
+            
+            <p><a href="/tags/lua">#lua</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;introducing-shelltrax&#x2F;">Introducing Shelltrax - Or how I vibe programmed my way to a TUI music player</a></h3>
+        <div class="meta">
+          
+          <p>Jun 24, 2025</p>
+          
+          <p>4 min read</p>
+        </div>
+        
+          <p class="desc">Building a terminal-based music player in Rust from scratch to learn the language through real-world challenges like TUI rendering, audio streaming, metadata parsing, and concurrent state management.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/rust">#rust</a></p>
+            
+            <p><a href="/tags/tui">#tui</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-a-voting-system-with-git&#x2F;">Building a Fully Decentralized Voting System Using Just Git and Pull Requests</a></h3>
+        <div class="meta">
+          
+          <p>Jun 23, 2025</p>
+          
+          <p>4 min read</p>
+        </div>
+        
+          <p class="desc">Creating a transparent, auditable voting system where Git commits are the ledger, pull requests are ballots, and CI validates every vote without any centralized servers or databases.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/rust">#rust</a></p>
+            
+            <p><a href="/tags/git">#git</a></p>
+            
+            <p><a href="/tags/devops">#devops</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt1"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;the-pain-of-privacy-focused-analytics&#x2F;">The Accidental Complexity of Doing The Right Thing or The Pain of Setting Up Privacy-Focused Analytics (2025 Edition)</a></h3>
+        <div class="meta">
+          
+          <p>Jun 22, 2025</p>
+          
+          <p>5 min read</p>
+        </div>
+        
+          <p class="desc">The frustrating journey of setting up GoatCounter for privacy-respecting analytics, encountering broken Docker registries, build failures, and tooling friction that makes ethical software harder to deploy.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/devops">#devops</a></p>
+            
+            <p><a href="/tags/privacy">#privacy</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-25&#x2F;">ChatGPT Changelog (fka Weekly Summary) - 25&#x2F;52</a></h3>
+        <div class="meta">
+          
+          <p>Jun 20, 2025</p>
+          
+          <p>1 min read</p>
+        </div>
+        
+          <p class="desc">Weekly accomplishments including Shelltrax TUI refinements, MyFrisbee API decoding progress, node-postgres-exporter release, NixOS configuration improvements, and Swedish study milestone.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/gpt">#gpt</a></p>
+            
+            <p><a href="/tags/changelog">#changelog</a></p>
+            
+            <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-node-postgres-exporter&#x2F;">node-postgres-exporter — A Lightweight, Configurable PostgreSQL Prometheus Exporter</a></h3>
+        <div class="meta">
+          
+          <p>Jun 20, 2025</p>
+          
+          <p>4 min read</p>
+        </div>
+        
+          <p class="desc">Building a flexible Node.js-based Prometheus exporter for PostgreSQL with multi-database support, dynamic custom metrics via JSON configuration, and production-ready fault isolation.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/devops">#devops</a></p>
+            
+            <p><a href="/tags/nodejs">#nodejs</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-24&#x2F;">ChatGPT Changelog (fka Weekly Summary) - 24&#x2F;52</a></h3>
+        <div class="meta">
+          
+          <p>Jun 13, 2025</p>
+          
+          <p>3 min read</p>
+        </div>
+        
+          <p class="desc">Introducing ChatGPT-generated personal changelogs covering MyFrisbee blog series, PostgreSQL exporter deployment, NixOS Hyprland configuration, and ongoing Swedish language learning.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/gpt">#gpt</a></p>
+            
+            <p><a href="/tags/changelog">#changelog</a></p>
+            
+            <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt1"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;typing-swedish-us-keyboard&#x2F;">Typing åäö in Hyprland: A US, Mac-style Keyboard Guide</a></h3>
+        <div class="meta">
+          
+          <p>Jun 12, 2025</p>
+          
+          <p>3 min read</p>
+        </div>
+        
+          <p class="desc">Configuring Hyprland to type Swedish characters using a US keyboard layout with Right Alt as a modifier, perfect for learners who want proper typing practice without remapping keys.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/swedish">#swedish</a></p>
+            
+            <p><a href="/tags/keyboard">#keyboard</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-23&#x2F;">Weekly Summary - 23&#x2F;52</a></h3>
+        <div class="meta">
+          
+          <p>Jun 07, 2025</p>
+          
+          <p>2 min read</p>
+        </div>
+        
+          <p class="desc">Accomplishments in reverse engineering MyFrisbee API, TypeScript module publishing, static site improvements, NixOS blog series, Gitea self-hosting, and reaching 179-day Swedish streak.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-3&#x2F;">NixOS as a daily driver on a late 2011 Macbook Pro, part 3&#x2F;? - user, WM, tools</a></h3>
+        <div class="meta">
+          
+          <p>Jun 05, 2025</p>
+          
+          <p>3 min read</p>
+        </div>
+        
+          <p class="desc">Setting up a non-root user with sudo access, installing Hyprland as a window manager, and configuring essential daily driver tools like Neovim, Git, and Librewolf on NixOS.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/nixos">#nixos</a></p>
+            
+            <p><a href="/tags/linux">#linux</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-2&#x2F;">NixOS as a daily driver on a late 2011 Macbook Pro, part 2&#x2F;? - Installation, Basic Configuration</a></h3>
+        <div class="meta">
+          
+          <p>Jun 04, 2025</p>
+          
+          <p>5 min read</p>
+        </div>
+        
+          <p class="desc">A step-by-step guide to installing NixOS from a minimal ISO, including partitioning with EFI, formatting drives, generating configuration files, and completing the first system build.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/nixos">#nixos</a></p>
+            
+            <p><a href="/tags/linux">#linux</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt1"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;vulfmon-inspired-me-to-learn-to-weave&#x2F;">How Vulfmon Inspired Me to Learn to Weave</a></h3>
+        <div class="meta">
+          
+          <p>May 31, 2025</p>
+          
+          <p>2 min read</p>
+        </div>
+        
+          <p class="desc">Discovering a beautiful weaving in a Vulfmon music video sparked a new creative journey, resulting in six handmade pieces inspired by Jack Stratton&#x27;s aesthetic.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/weaving">#weaving</a></p>
+            
+            <p><a href="/tags/art">#art</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-22&#x2F;">Weekly Summary - 22&#x2F;52</a></h3>
+        <div class="meta">
+          
+          <p>May 30, 2025</p>
+          
+          <p>1 min read</p>
+        </div>
+        
+          <p class="desc">A productive week focused on API inspection and blog writing, continuing Swedish language studies for 172 days, and sending out 13 job applications.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;deploying-static-site-zola-github-actions&#x2F;">Deploying a Zola static site to a custom domain with Github Actions</a></h3>
+        <div class="meta">
+          
+          <p>May 24, 2025</p>
+          
+          <p>3 min read</p>
+        </div>
+        
+          <p class="desc">Setting up automated deployment for a Zola-based static site using GitHub Actions to build and publish to GitHub Pages with a custom domain and DNS configuration.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/rust">#rust</a></p>
+            
+            <p><a href="/tags/github">#github</a></p>
+            
+            <p><a href="/tags/devops">#devops</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-21&#x2F;">Weekly Summary - 21&#x2F;52</a></h3>
+        <div class="meta">
+          
+          <p>May 23, 2025</p>
+          
+          <p>1 min read</p>
+        </div>
+        
+          <p class="desc">Celebrating RockPro64 revival, continuing Swedish studies, starting API inspection work, and solving NixOS Hyprland boot issues.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+            
+            <p><a href="/tags/rockpro64">#rockpro64</a></p>
+            
+            <p><a href="/tags/nixos">#nixos</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt1"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-1&#x2F;">NixOS as a daily driver on a late 2011 Macbook Pro, part 1&#x2F;? - What and why?</a></h3>
+        <div class="meta">
+          
+          <p>May 18, 2025</p>
+          
+          <p>3 min read</p>
+        </div>
+        
+          <p class="desc">An introduction to Nix and NixOS, explaining purely functional package management, declarative system configuration, atomic rollbacks, and why this approach makes for a powerful daily driver OS.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/nixos">#nixos</a></p>
+            
+            <p><a href="/tags/linux">#linux</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line alt3"></div>
+          
+        
+      </li>
+    
+      
+      <li class="post-item">
+        <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-20&#x2F;">Weekly Summary - 20&#x2F;52</a></h3>
+        <div class="meta">
+          
+          <p>May 16, 2025</p>
+          
+          <p>1 min read</p>
+        </div>
+        
+          <p class="desc">Starting a weekly reflection series covering site deployment, Raspberry Pi revival, Rust learning with blockchain and TUI projects, woodworking, and job hunting progress.</p>
+        
+        
+          <div class="tags">
+            
+            <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+            
+            <p><a href="/tags/rust">#rust</a></p>
+            
+            <p><a href="/tags/rockpro64">#rockpro64</a></p>
+            
+          </div>
+        
+        
+          
+            <div class="squiqqle-line"></div>
+          
+        
+      </li>
+    
+  </ul>
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

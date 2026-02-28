@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Experimenting with Discourse as a live transit departure board - blending GTFS data, aviation APIs, and forum topics into one real-time display.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Building a Live Transit Departure Board with Discourse">
+    <meta property="og:description" content="Experimenting with Discourse as a live transit departure board - blending GTFS data, aviation APIs, and forum topics into one real-time display.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-transit-tracker-in-discourse&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Building a Live Transit Departure Board with Discourse">
+    <meta name="twitter:description" content="Experimenting with Discourse as a live transit departure board - blending GTFS data, aviation APIs, and forum topics into one real-time display.">
+
+    <title>Building a Live Transit Departure Board with Discourse - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Building a Live Transit Departure Board with Discourse</h1>
+      <div class="meta">
+        
+        <p>Oct 08, 2025</p>
+        
+        <p>10 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/discourse">#discourse</a></p>
+          
+          <p><a href="/tags/ruby">#ruby</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <p>I've been working at Discourse for a few months now, learning how flexible
+the platform is. It's a forum. It's designed for conversations. But what if
+we used it for something completely different?</p>
+<p>Something like tracking flights and trains?</p>
+<p>I wanted to learn more about Discourse by building something that felt real and
+that would force me into actual problems. Most importantly though, I wanted to
+build something that involves my interests and would be fun. I love transit
+infrastructure and open data so why not a transit tracker using free government
+feeds? I had this image in my head: those old split-flap airport departure
+boards, the ones that click and whir as letters rotate into place.</p>
+<p><img src="/images/transit-tracker-source.jpg" alt="Split-flap departure board" />
+<em>Photo by <a href="https://unsplash.com/@amsterdamcityarchives">Amsterdam City Archives</a> on
+<a href="https://unsplash.com/photos/7diobitpahY">Unsplash</a></em></p>
+<p>What if I could recreate that aesthetic, but powered by Discourse topics
+instead of actual flights?</p>
+<p>You can see the result here: <a href="https://github.com/ducks/discourse-transit-tracker">discourse-transit-tracker on
+GitHub</a></p>
+<h2 id="why-this-makes-no-sense-and-why-i-did-it-anyway">Why This Makes No Sense (And Why I Did It Anyway)</h2>
+<p>Let's be clear: <strong>Discourse is not a transit tracking system</strong>. It's a
+forum platform built for human conversations, not GTFS feeds and real-time
+departure data.</p>
+<p>But that's exactly what made it interesting.</p>
+<p>Discourse topics are incredibly flexible. They have custom fields, tags,
+categories, and a robust permission system. If you squint hard enough, a
+flight departure is just a "post" with structured data. The departure time?
+A custom field. The status (on-time, delayed, departed)? A tag. The
+airline? Maybe a category.</p>
+<p>It's ridiculous. But it <em>could work</em>.</p>
+<h2 id="learning-with-claude-code">Learning with Claude Code</h2>
+<p>I built this entire plugin using Claude Code, Anthropic's CLI tool. Not
+because I couldn't write it myself, but because I wanted to learn Discourse
+patterns while writing quality code from the start.</p>
+<p>"Vibe programming" gets a bad rap. People hear "AI-assisted development"
+and think it's about blindly accepting generated code. But that's not how I
+used it. Claude Code became a learning tool. I'd describe what I wanted to
+build, Claude would suggest an approach using Discourse conventions, and
+I'd understand why those patterns exist.</p>
+<p>This allowed me to learn the platform faster than reading docs alone would
+have taught me. I saw real implementations of custom fields, service
+objects, Ember components, and ActiveRecord patterns. And because Claude
+follows Discourse's style guide and architecture, the code I wrote actually
+fits the codebase.</p>
+<p>This is what good AI-assisted development looks like: not replacing
+understanding, but accelerating it.</p>
+<h2 id="the-technical-stack">The Technical Stack</h2>
+<p>The plugin integrates three data sources, each with its own challenges.</p>
+<h3 id="amtrak-gtfs">Amtrak (GTFS)</h3>
+<p>I built an <code>AmtrakGtfsService</code> that downloads Amtrak's GTFS feed (a ZIP
+file with CSVs), parses routes, stops, trips, and schedules, and creates
+departure topics with detailed stop information. No API key required.</p>
+<p>The service:</p>
+<ol>
+<li>Downloads and extracts <code>GTFS.zip</code> from Amtrak's CDN</li>
+<li>Parses <code>routes.txt</code>, <code>stops.txt</code>, <code>trips.txt</code>, and <code>stop_times.txt</code></li>
+<li>For each trip in the next 24 hours, creates a topic with:
+<ul>
+<li>All basic departure info as custom fields</li>
+<li>A detailed stops array with lat/lon coordinates and times</li>
+<li>A formatted schedule table as Post #2</li>
+</ul>
+</li>
+</ol>
+<p>Running <code>bin/rake transit_tracker:import_amtrak</code> processes ~2,300 trips and
+creates ~600 departure topics (many trips share the same departure, so they
+get merged).</p>
+<p><strong>The Problem: "Title has already been used"</strong></p>
+<p>The first import run worked fine, processing ~2,300 trips and creating ~600
+topics. But when I ran it again to test updates, I hit a wall:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>Processing 340 trips...
+</span><span>Created 1 topic
+</span><span>Error: Title has already been used (339 times)
+</span></code></pre>
+<p>Only 1 out of 340 trips succeeded on the second run. The rest failed.</p>
+<p>Discourse requires unique topic titles. My title format was: <code>"City of New Orleans to New Orleans at 19:05"</code>. Multiple different trains with the same
+route, destination, and departure minute produced identical titles.</p>
+<p>My lookup strategy was to find topics by <code>trip_id</code> + <code>service_date</code> stored
+in custom fields. That worked fine when topics existed. But on subsequent
+runs, when a topic wasn't found by custom field (maybe the <code>trip_id</code>
+changed), I'd try to create one, and Discourse would reject it because
+another train had already claimed that title.</p>
+<p><strong>The Fix: Fallback Lookup by Title</strong></p>
+<p>The solution was to add a fallback lookup by title before trying to create:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#65737e;"># First, try to find by trip_id + service_date (the ideal natural key)
+</span><span>topic = </span><span style="color:#ebcb8b;">Topic</span><span>.joins(</span><span style="color:#a3be8c;">:_custom_fields</span><span>)
+</span><span>  .where(</span><span style="color:#a3be8c;">topic_custom_fields: </span><span>{
+</span><span>    </span><span style="color:#a3be8c;">name: </span><span>&quot;</span><span style="color:#a3be8c;">transit_trip_id</span><span>&quot;,
+</span><span>    </span><span style="color:#a3be8c;">value:</span><span> attributes[</span><span style="color:#a3be8c;">:trip_id</span><span>]
+</span><span>  })
+</span><span>  .where(...)
+</span><span>  .first
+</span><span>
+</span><span style="color:#65737e;"># If still no match, try to find by title to avoid duplicates
+</span><span style="color:#b48ead;">if </span><span>!topic
+</span><span>  title = build_title(attributes)
+</span><span>  category_id = determine_category(attributes[</span><span style="color:#a3be8c;">:mode</span><span>])
+</span><span>  topic = </span><span style="color:#ebcb8b;">Topic</span><span>.where(</span><span style="color:#a3be8c;">title:</span><span> title, </span><span style="color:#a3be8c;">category_id:</span><span> category_id).first
+</span><span>  </span><span style="color:#b48ead;">if</span><span> topic
+</span><span>    </span><span style="color:#ebcb8b;">Rails</span><span>.logger.info &quot;</span><span style="color:#a3be8c;">[TransitTracker] Found existing topic by title,
+</span><span style="color:#a3be8c;">      will update</span><span>&quot;
+</span><span>    is_new = </span><span style="color:#d08770;">false
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>This way, if multiple trips share a title, they merge into the same topic
+and get updated instead of failing.</p>
+<p>Result: <strong>327 departures created, 0 errors</strong>. All trips within the 24-hour
+window imported successfully. The duplicate trips just update the same
+topic with fresh data.</p>
+<h3 id="nyc-mta-subway-gtfs">NYC MTA Subway (GTFS)</h3>
+<p>The NYC MTA subway system is massive. Their GTFS feed contains over 500,000
+stop times covering weeks of schedules across dozens of routes.</p>
+<p>My first approach was simple: import everything, just like I did with
+Amtrak. Parse the entire feed, create topics for every departure in the
+next 24 hours.</p>
+<p><strong>The Problem: 19GB of RAM</strong></p>
+<p>I ran the import and watched my Rails process climb. 1GB. 5GB. 10GB. It
+kept going. By the time it finished parsing, <strong>it had consumed over 19GB of
+RAM</strong>.</p>
+<p>Loading and processing 500k+ stop times to create 20,000+ Discourse topics
+consumed massive amounts of memory. At scale, big data creates big
+problems.</p>
+<p><strong>The Fix: Reduce the Time Window</strong></p>
+<p>The fix? Reduce the import window from 24 hours to 6 hours:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#65737e;"># Only import departures within the next 6 hours
+</span><span>dep_time = parse_gtfs_time(today, first_stop[</span><span style="color:#a3be8c;">:departure_time</span><span>])
+</span><span style="color:#b48ead;">next if</span><span> dep_time &lt; now || dep_time &gt; (now + </span><span style="color:#d08770;">6</span><span>.hours)
+</span></code></pre>
+<p>Result: ~5,000 topics instead of 20,000+, memory usage stayed under 2GB,
+and the board still shows plenty of departures. For a live departure board,
+you don't need train schedules from tomorrow anyway.</p>
+<p>The final implementation includes official MTA line colors (red 1/2/3,
+green 4/5/6, yellow N/Q/R/W, etc.) and creates ~5,000 departure topics with
+complete schedules.</p>
+<h3 id="aviationstack-api">AviationStack API</h3>
+<p>Tracks flight departures with gate assignments, delays, and code-share
+detection. Requires an API key from <a href="https://aviationstack.com/">aviationstack.com</a>.</p>
+<p><strong>The Problem: Duplicate Code-Share Flights</strong></p>
+<p>Multiple airlines sell seats on the same physical flight under different
+flight numbers. That's called code-sharing. So you might have <code>AA123</code>,
+<code>BA456</code>, and <code>IB789</code> all referring to the exact same plane leaving from
+Gate E7 at 07:30.</p>
+<p>At first, I tried to build my own detection using departure time + gate +
+destination as a natural key. But then I looked closer at the AviationStack
+API response and found it: a <code>codeshared</code> field that tells you exactly
+which flight is the operating carrier.</p>
+<p><strong>The Fix: Use the API's Built-In Field</strong></p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#65737e;"># Handle code-share flights: use operating carrier as natural key
+</span><span>codeshared = flight_info[&quot;</span><span style="color:#a3be8c;">codeshared</span><span>&quot;]
+</span><span style="color:#b48ead;">if</span><span> codeshared.present?
+</span><span>  </span><span style="color:#65737e;"># This is a marketing carrier selling seats on another airline&#39;s flight
+</span><span>  </span><span style="color:#65737e;"># Use the operating flight as trip_id so all code-shares merge
+</span><span>  operating_flight = codeshared[&quot;</span><span style="color:#a3be8c;">flight_iata</span><span>&quot;] || codeshared[&quot;</span><span style="color:#a3be8c;">flight_icao</span><span>&quot;]
+</span><span>  trip_id = &quot;#{operating_flight}</span><span style="color:#a3be8c;">-</span><span>#{departure_info[&#39;</span><span style="color:#a3be8c;">scheduled</span><span>&#39;]}&quot;
+</span><span>
+</span><span>  </span><span style="color:#ebcb8b;">Rails</span><span>.logger.info &quot;</span><span style="color:#a3be8c;">[TransitTracker] Code-share detected:
+</span><span style="color:#a3be8c;">    </span><span>#{marketing_flight}</span><span style="color:#a3be8c;"> operated by </span><span>#{operating_flight}&quot;
+</span><span style="color:#b48ead;">else
+</span><span>  </span><span style="color:#65737e;"># Regular flight, use its own flight number
+</span><span>  trip_id = &quot;#{flight_info[&#39;</span><span style="color:#a3be8c;">iata</span><span>&#39;]}</span><span style="color:#a3be8c;">-</span><span>#{departure_info[&#39;</span><span style="color:#a3be8c;">scheduled</span><span>&#39;]}&quot;
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>Why reinvent the wheel? The API already does the hard work of identifying
+code-shares. I just use the operating carrier's flight number as the
+<code>trip_id</code>, and all marketing carriers automatically merge into the same
+topic.</p>
+<p>Result: <code>AA 1234 / BA 5678 / IB 789</code> displayed as one departure.</p>
+<h2 id="the-architecture">The Architecture</h2>
+<h3 id="topics-as-transit-legs">Topics as Transit Legs</h3>
+<p>Each flight (or train, or bus) is a Discourse topic. I created a
+<code>TransitLeg</code> model that wraps Topic and handles all the custom fields:</p>
+<ul>
+<li><code>transit_dep_sched_at</code> (scheduled departure time)</li>
+<li><code>transit_dep_est_at</code> (estimated departure time for delays)</li>
+<li><code>transit_route_short_name</code> (flight numbers)</li>
+<li><code>transit_headsign</code> (destination)</li>
+<li><code>transit_gate</code> / <code>transit_platform</code> (where to board)</li>
+<li><code>transit_dest</code> (airport code)</li>
+<li><code>transit_stops</code> (JSON array of all stops with coordinates and times)</li>
+</ul>
+<p>Tags handle the mode (<code>flight</code>, <code>train</code>, <code>bus</code>) and status
+(<code>status:scheduled</code>, <code>status:delayed</code>, <code>status:departed</code>).</p>
+<h3 id="posts-as-schedule-details">Posts as Schedule Details</h3>
+<p>Here's where using Discourse as the foundation really paid off.</p>
+<p>When you click on a departure row, it expands to show the complete route
+schedule with all stops and arrival/departure times. But I didn't build a
+custom data structure for this. <strong>I used Discourse posts</strong>.</p>
+<p>Each departure topic has:</p>
+<ol>
+<li><strong>Post #1</strong> (the OP): Basic departure info (route, times, gate)</li>
+<li><strong>Post #2</strong>: A markdown table with the complete schedule</li>
+<li><strong>Post #3+</strong>: Any delay notifications or status updates</li>
+</ol>
+<p>When you expand a row, you're literally seeing the topic's replies rendered
+inline. It slides down with a smooth animation, showing the full schedule
+table styled to match the departure board aesthetic.</p>
+<p>The schedule post looks like this:</p>
+<pre data-lang="markdown" style="background-color:#2b303b;color:#c0c5ce;" class="language-markdown "><code class="language-markdown" data-lang="markdown"><span style="color:#8fa1b3;">## 🚂 Complete Schedule
+</span><span>
+</span><span style="font-weight:bold;color:#ebcb8b;">**Route:**</span><span> City of New Orleans
+</span><span style="font-weight:bold;color:#ebcb8b;">**Direction:**</span><span> Chicago
+</span><span>
+</span><span>| Stop                                  | Arrival | Departure |
+</span><span>|---------------------------------------|---------|-----------|
+</span><span>| New Orleans Union Passenger Terminal  | 12:45   | 12:45     |
+</span><span>| Hammond Amtrak Station                | 13:42   | 13:45     |
+</span><span>| McComb                                | 14:30   | 14:32     |
+</span><span>| ...                                   | ...     | ...       |
+</span><span>| Chicago Union Station                 | 08:15   | 08:15     |
+</span><span>
+</span><span style="font-style:italic;color:#b48ead;">_Schedule times are in local timezone. This is the planned schedule and may
+</span><span style="font-style:italic;color:#b48ead;">be subject to delays._
+</span></code></pre>
+<p>It renders beautifully in the expanded row with the board's dark styling.</p>
+<h3 id="why-this-works-really-well">Why This Works Really Well</h3>
+<p>Using posts instead of a custom schema means:</p>
+<ul>
+<li><strong>Update history is built-in</strong>. If a train gets delayed, we post an
+update and users see the entire timeline.</li>
+<li><strong>Moderation tools work</strong>. If there's bad data, moderators can edit posts
+using Discourse's existing tools.</li>
+<li><strong>Comments could work</strong>. Users could reply to departures (we don't allow
+this now, but the infrastructure is there).</li>
+<li><strong>No additional database tables</strong>. Posts are just posts, Discourse
+handles all the storage.</li>
+</ul>
+<h2 id="screenshots">Screenshots</h2>
+<p><strong>Flights - Collapsed View</strong></p>
+<p><img src="/images/transit-tracker-planes.png" alt="Flight departures board showing routes, gates, destinations, and countdowns" /></p>
+<p><strong>Flights - Expanded View</strong></p>
+<p><img src="/images/transit-tracker-planes-expanded.png" alt="Expanded flight showing airline details, gates, terminals, and code-share information" /></p>
+<p><strong>NYC Subway - Collapsed View</strong></p>
+<p><img src="/images/transit-tracker-mta.png" alt="MTA subway board with authentic line colors" /></p>
+<p><strong>NYC Subway - Expanded View</strong></p>
+<p><img src="/images/transit-tracker-mta-expanded.png" alt="Expanded subway departure showing complete stop-by-stop schedule" /></p>
+<p><strong>Amtrak Trains - Collapsed View</strong></p>
+<p><img src="/images/transit-tracker-trains.png" alt="Amtrak departure board" /></p>
+<p><strong>Amtrak Trains - Expanded View</strong></p>
+<p><img src="/images/transit-tracker-trains-expanded.png" alt="Expanded train departure showing full station schedule" /></p>
+<h2 id="bonus-tooling-consistent-screenshots">Bonus Tooling: Consistent Screenshots</h2>
+<p>Getting these screenshots pixel-perfect required some tooling. I wanted to
+be able to:</p>
+<ol>
+<li>Select a region once</li>
+<li>Click things in the browser to expand/collapse</li>
+<li>Take multiple screenshots of the exact same region</li>
+</ol>
+<p>I built a Nix shell with Wayland screenshot tools (<code>grim</code> + <code>slurp</code>):</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">nix-shell ~</span><span>/discourse/nix-shells/screenshot.nix
+</span><span>
+</span><span style="color:#bf616a;">screenshot-region</span><span> flight-1.png     </span><span style="color:#65737e;"># Select region once
+</span><span style="color:#65737e;"># Click to expand in browser
+</span><span style="color:#bf616a;">screenshot-repeat</span><span> flight-2.png     </span><span style="color:#65737e;"># Same exact region
+</span></code></pre>
+<p>The <code>slurp</code> tool saves the region geometry, and <code>screenshot-repeat</code> reuses
+it for perfect alignment across multiple screenshots.</p>
+<h2 id="takeaways">Takeaways</h2>
+<p><strong>I learn best by writing real tools.</strong> Tutorial projects teach syntax, but
+they don't force you into the messy, real-world problems that make you
+actually understand a framework.</p>
+<h3 id="discourse-topics-are-more-flexible-than-you-think">Discourse Topics Are More Flexible Than You Think</h3>
+<p>Custom fields, tags, and categories gave me all the structured data I needed.
+Topics aren't just "posts". They're flexible containers for any kind of
+information.</p>
+<h3 id="posts-are-the-perfect-update-mechanism">Posts Are the Perfect Update Mechanism</h3>
+<p>Instead of building a custom "updates" system with timestamps and status
+changes, I just used Discourse posts. When a delay happens, post an update.
+The topic becomes a living history of what happened to that departure.</p>
+<h3 id="entity-resolution-check-your-data-before-building-logic">Entity Resolution: Check Your Data Before Building Logic</h3>
+<p>My first implementation created duplicate topics for every code-share
+flight. I started building my own deduplication logic using a natural key
+(departure time + gate + destination). But then I actually read the API
+response and found it: a <code>codeshared</code> field that identifies which flights
+are the same. I was about to solve a problem the API had already solved for
+me.</p>
+<h3 id="gtfs-parsing-has-edge-cases">GTFS Parsing Has Edge Cases</h3>
+<p>GTFS times can exceed 24 hours (e.g., "25:30:00" means 1:30 AM the next
+day). ZIP files can have encoding issues. Stop sequences aren't always
+sequential. Real-world data is messy.</p>
+<h3 id="performance-matters-at-scale">Performance Matters at Scale</h3>
+<p>The MTA feed has 500k+ stop times. A 6-hour import window instead of 24
+hours keeps memory usage reasonable and topic counts manageable (~5,000
+instead of 20,000+).</p>
+<h2 id="is-this-practical">Is This Practical?</h2>
+<p>Probably not for real transit tracking. But it's a great example of pushing
+Discourse in unexpected directions to understand the platform deeply.</p>
+<p>The same pattern (topics as structured data + posts as updates) could work
+for:</p>
+<ul>
+<li>Package tracking (topics = packages, posts = scan events)</li>
+<li>Server status boards (topics = servers, posts = incidents)</li>
+<li>Deployment pipelines (topics = deploys, posts = stage completions)</li>
+<li>Event schedules (topics = sessions, posts = time/room changes)</li>
+<li>Support ticket boards (topics = tickets, expandable = full history)</li>
+</ul>
+<p>The split-flap aesthetic is a bonus.</p>
+<h2 id="try-it-yourself">Try It Yourself</h2>
+<p>The plugin is open source:
+<a href="https://github.com/ducks/discourse-transit-tracker">ducks/discourse-transit-tracker</a></p>
+<p>Clone it, run the Amtrak import (no API key required), and see what
+Discourse topics can become when you push them beyond forum discussions.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-discourse-comments-in-typescript&#x2F;">Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 27, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">I rewrote the Discourse embedded comments API client from Rust&#x2F;WASM to pure TypeScript. The bundle went from 742 KB to 18 KB.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;how-a-friends-gif-broke-our-filesystem&#x2F;">How Jennifer Aniston and Friends Cost Us 377GB and Broke ext4 Hardlinks</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 23, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A backup deduplication fix, filesystem hardlink limits, and the Jennifer Aniston reaction GIF that stress-tested our infrastructure.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-discourse-embedded-comments&#x2F;">Building Embedded Discourse Comments with Rust and WASM</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 14, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">An experiment in creating a drop-in comment widget for static sites using Rust compiled to WebAssembly, talking to Discourse&#x27;s REST API.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/wasm">#wasm</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-stats-evolution&#x2F;">Invite Tree to Invite Stats - How A Simple Tree Flourished Into A Full Moderation Plugin</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 05, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">How a simple visualization plugin evolved into a moderation tool.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-tree&#x2F;">Visualizing Discourse Invite Trees</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 03, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A simple Discourse plugin that visualizes who invited whom as an ASCII tree, inspired by Lobsters.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

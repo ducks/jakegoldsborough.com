@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Decoding deeply nested course data by resolving schema maps within schema maps to extract readable information about disc golf courses including layouts, holes, and amenities.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Reverse Engineering A Unique Data Structure - Part 3, Course &amp; Course Details">
+    <meta property="og:description" content="Decoding deeply nested course data by resolving schema maps within schema maps to extract readable information about disc golf courses including layouts, holes, and amenities.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;reverse-engineering-unique-data-structure-pt-3&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Reverse Engineering A Unique Data Structure - Part 3, Course &amp; Course Details">
+    <meta name="twitter:description" content="Decoding deeply nested course data by resolving schema maps within schema maps to extract readable information about disc golf courses including layouts, holes, and amenities.">
+
+    <title>Reverse Engineering A Unique Data Structure - Part 3, Course &amp; Course Details - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Reverse Engineering A Unique Data Structure - Part 3, Course &amp; Course Details</h1>
+      <div class="meta">
+        
+        <p>Sep 03, 2025</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/apis">#APIs</a></p>
+          
+          <p><a href="/tags/typescript">#typescript</a></p>
+          
+        </div>
+      
+
+      <p>Second part of the series, Search, can be found here:
+<a href="/blog/2025/reverse-engineering-unique-data-structure-pt-2/">Search for Places and Courses</a></p>
+<p>In the previous two posts, we learned how to <code>GET</code>, scrub, and parse <code>Courses</code>
+data, as well as how to use the search endpoint for <code>Places</code> and <code>Courses</code>.</p>
+<h4 id="viewing-a-specific-course">Viewing a Specific Course</h4>
+<p>In this post, we will build on the previous data and show how to find the endpoint
+for a specific course and drill down into more data. We'll focus on the
+<code>courseDetails</code>, using the beloved Maple Hill as our example:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>{
+</span><span>  &quot;_id&quot;: &quot;M6vT9WAEmtFKRFr2v&quot;,
+</span><span>  &quot;name&quot;: &quot;Maple Hill&quot;,
+</span><span>  &quot;ratingCount&quot;: 10064,
+</span><span>  &quot;ratingAverage&quot;: 4.899286515846228,
+</span><span>  &quot;locationText&quot;: &quot;Leicester, MA&quot;,
+</span><span>  &quot;courseId&quot;: 1523,
+</span><span>  &quot;shortId&quot;: &quot;lCej&quot;,
+</span><span>  &quot;highlights&quot;: [
+</span><span>    {
+</span><span>      &quot;score&quot;: 2.803980588912964,
+</span><span>      &quot;path&quot;: &quot;name&quot;,
+</span><span>      &quot;texts&quot;: [
+</span><span>        {
+</span><span>          &quot;value&quot;: &quot;Maple&quot;,
+</span><span>          &quot;type&quot;: &quot;hit&quot;
+</span><span>        },
+</span><span>        {
+</span><span>          &quot;value&quot;: &quot; &quot;,
+</span><span>          &quot;type&quot;: &quot;text&quot;
+</span><span>        },
+</span><span>        {
+</span><span>          &quot;value&quot;: &quot;Hill&quot;,
+</span><span>          &quot;type&quot;: &quot;hit&quot;
+</span><span>        }
+</span><span>      ]
+</span><span>    }
+</span><span>  ],
+</span><span>  &quot;searchScore&quot;: 15.834041595458984,
+</span><span>  &quot;autocompleteScore&quot;: 16.079005921251294
+</span><span>}
+</span></code></pre>
+<p>The URL for a course will be a slugified course name, plus the <code>shortId</code>.
+For Maple Hill, this URL is:
+<code>https://myfrisbee.com/courses/maple-hill-lCej.data</code></p>
+<p>Based on observation, spaces become dashes, and special characters are removed
+when generating the slug.</p>
+<p>For example, Keith L. Christner Family DG Course becomes
+keith-l-christner-family-dg-course.</p>
+<h4 id="inspecting-the-data">Inspecting the Data</h4>
+<p>The response from this endpoint is <strong>massive</strong>--so much so that Firefox
+truncates it in the Network tab. I had to use curl and save the file locally
+just to inspect it.</p>
+<p>Again, we are greeted by a large array of mixed types. The more I'm reading and
+learning, it seems like this may not actually be done for any kind of
+obfuscation, but for performance or a client side hydration strategy. The
+response is very large but it's a full page of data and probably replaces
+multiple API calls.</p>
+<p>This time, the response goes even deeper: it includes a schema map of schema
+maps, where keys don't point directly to data, but to other schema maps that
+must be resolved first.</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>&quot;routes/courses/$slug/index&quot;,
+</span><span>  {
+</span><span>    &quot;_3&quot;: 143
+</span><span>  },
+</span><span>  {
+</span><span>    &quot;_144&quot;: 145,
+</span><span>    &quot;_335&quot;: 336,
+</span><span>    &quot;_343&quot;: 344,
+</span><span>    &quot;_24719&quot;: 24720,
+</span><span>    &quot;_24957&quot;: 24958,
+</span><span>    &quot;_25013&quot;: 25014,
+</span><span>    &quot;_25150&quot;: 25151,
+</span><span>    &quot;_25410&quot;: 25411,
+</span><span>    &quot;_25435&quot;: 25436,
+</span><span>    &quot;_25481&quot;: 25482,
+</span><span>    &quot;_25513&quot;: -7,
+</span><span>    &quot;_25514&quot;: 25515
+</span><span>  },
+</span></code></pre>
+<p>The second object is just full of references to other references. If you follow
+each one of those schema maps, we can sometimes get the location of each
+field's key and value. Often times, there are just more schema maps to follow.
+Here is a small snippet:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>&quot;smartLayouts&quot;: [345, 3534, 12323, 13767, 14131, 14506, 19520, 22543],
+</span><span>&quot;classicLayouts&quot;: [24721],
+</span><span>&quot;reviews&quot;: [24959, 24981, 24992, 25002],
+</span><span>&quot;photos&quot;: [25015, 25083, 25097, 25107, 25128],
+</span><span>&quot;nearbyCourses&quot;: [25152, 25226, 25280, 25344],
+</span></code></pre>
+<p>Going to <code>array[345]</code>, we get this:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>{
+</span><span>  &quot;_66&quot;: 346,
+</span><span>  &quot;_84&quot;: 85,
+</span><span>  &quot;_347&quot;: 348,
+</span><span>  &quot;_349&quot;: 350,
+</span><span>  &quot;_72&quot;: 3505,
+</span><span>  &quot;_3506&quot;: 195,
+</span><span>  &quot;_3507&quot;: 3508,
+</span><span>  &quot;_147&quot;: 256,
+</span><span>  &quot;_3509&quot;: 3510,
+</span><span>  &quot;_3511&quot;: 3512,
+</span><span>  &quot;_3513&quot;: 3514,
+</span><span>  &quot;_3515&quot;: 3516,
+</span><span>  &quot;_3517&quot;: 3518,
+</span><span>  &quot;_104&quot;: 3519,
+</span><span>  &quot;_167&quot;: 3520,
+</span><span>  &quot;_3521&quot;: 131,
+</span><span>  &quot;_3522&quot;: 320,
+</span><span>  &quot;_3523&quot;: 3524,
+</span><span>  &quot;_3525&quot;: 3526,
+</span><span>  &quot;_3527&quot;: 2679,
+</span><span>  &quot;_3528&quot;: 679,
+</span><span>  &quot;_3529&quot;: 3530,
+</span><span>  &quot;_396&quot;: 3531
+</span><span>}
+</span></code></pre>
+<p>Going to some of those references leads to actual data, but again, often times
+it's just more mappings.</p>
+<p>Now that it makes sense manually, let's write some code to do it programmatically.</p>
+<p>At a high level, the flow is:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>const schemaMap = resolveCourseSchemaMapSchema(data);
+</span><span>const courseDetailsSchema = schemaMap.courseDetail;
+</span><span>const courseDetails = resolveKeyAndValueNames(courseDetailsSchema, mockCourse);
+</span></code></pre>
+<ol>
+<li>Break the big array down into a schema map of schema maps</li>
+<li>Pass that <code>courseDetailsSchema</code> and our original array to <code>resolveKeyAndValueNames</code></li>
+</ol>
+<h4 id="resolving-a-course-s-details-structure">Resolving a Course's Details Structure</h4>
+<p>The function below does 3 important things:</p>
+<ul>
+<li>finds our route key label. this key seems to precede the schema map.</li>
+<li>follows the next pointer to the schema map schema map</li>
+<li>passes that to <code>resolveKeyAndValueNames</code> to resolve each set of key/values</li>
+</ul>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>export function resolveCourseSchemaMapSchema(data: any[]) {
+</span><span>  for (let i = 0; i &lt; data.length - 2; i++) {
+</span><span>    const label = data[i];
+</span><span>    const pointerMap = data[i + 1];
+</span><span>    const schemaMap = data[i + 2];
+</span><span>
+</span><span>    if (
+</span><span>      label === &quot;routes/courses/$slug/index&quot; &amp;&amp;
+</span><span>      typeof pointerMap === &quot;object&quot; &amp;&amp;
+</span><span>      typeof schemaMap === &quot;object&quot; &amp;&amp;
+</span><span>      Object.keys(pointerMap).length === 1
+</span><span>    ) {
+</span><span>      const pointerIndex = Object.values(pointerMap)[0];
+</span><span>      const referencedMap = data[pointerIndex];
+</span><span>
+</span><span>      if (typeof referencedMap === &quot;object&quot;) {
+</span><span>        return resolveKeyAndValueNames(referencedMap, data);
+</span><span>      }
+</span><span>    }
+</span><span>  }
+</span><span>}
+</span></code></pre>
+<p>That leaves us with a decoded schema object, where each field (like
+<code>courseDetail</code>, <code>reviews</code>, <code>smartLayouts</code>) still contains schema references or
+arrays of indexes:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>{
+</span><span>  courseDetail: {
+</span><span>    _66: 67,
+</span><span>    _68: 69,
+</span><span>    _146: 131,
+</span><span>    _147: 148,
+</span><span>    _72: 73,
+</span><span>    _149: 109,
+</span><span>    _150: 151,
+</span><span>    _152: 108,
+</span><span>    _84: 85,
+</span><span>    _153: 154,
+</span><span>    _96: 97,
+</span><span>    _155: 156,
+</span><span>    _158: 159,
+</span><span>    _160: 161,
+</span><span>    _162: 163,
+</span><span>    _164: 165,
+</span><span>    _102: 172,
+</span><span>    _110: 111,
+</span><span>    _130: 131,
+</span><span>    _174: 175,
+</span><span>    _176: 177,
+</span><span>    _180: 181,
+</span><span>    _184: 185,
+</span><span>    _56: 302,
+</span><span>    _303: 304,
+</span><span>    _305: 131,
+</span><span>    _132: 7,
+</span><span>    _133: 131,
+</span><span>    _306: 307,
+</span><span>    _308: 309,
+</span><span>    _310: 311,
+</span><span>    _312: 313,
+</span><span>    _314: 315,
+</span><span>    _316: 317,
+</span><span>    _318: 319,
+</span><span>    _134: 131,
+</span><span>    _323: 324,
+</span><span>    _328: 21,
+</span><span>    _329: 330,
+</span><span>    _331: 7,
+</span><span>    _332: 131,
+</span><span>    _333: 7,
+</span><span>    _334: 7
+</span><span>  },
+</span><span>  normalizedCourseTraffic: { _337: 338 },
+</span><span>  smartLayouts: [
+</span><span>      345,  3534,
+</span><span>    12323, 13767,
+</span><span>    14131, 14506,
+</span><span>    19520, 22543
+</span><span>  ],
+</span><span>  classicLayouts: [ 24721 ],
+</span><span>  reviews: [ 24959, 24981, 24992, 25002 ],
+</span><span>  photos: [ 25015, 25083, 25097, 25107, 25128 ],
+</span><span>  nearbyCourses: [ 25152, 25226, 25280, 25344 ],
+</span><span>  nearbyStores: [ 25412, 25424 ],
+</span><span>  events: [ 25437, 25460, 25470 ],
+</span><span>  badges: [
+</span><span>    25483, 25494, 25498,
+</span><span>    25500, 25505, 25506,
+</span><span>    25508, 25509, 25511,
+</span><span>    25512
+</span><span>  ],
+</span><span>  globalLayoutAverages: undefined,
+</span><span>  userStatus: &#39;loggedOut&#39;
+</span><span>}
+</span></code></pre>
+<p>Next is our core function. We take the <code>courseDetail</code> schema map and pass it
+and our original data array to <code>resolveKeyAndValueNames</code> to resolve the
+actual values.</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>/**
+</span><span> * Resolves a schema map where both keys and values are index references into the data array.
+</span><span> */
+</span><span>export function resolveKeyAndValueNames(schema: Record&lt;string, number&gt;, data: any[]): Record&lt;string, any&gt; {
+</span><span>  const result: Record&lt;string, any&gt; = {};
+</span><span>  for (const rawKey in schema) {
+</span><span>    const keyIndex = parseInt(rawKey.replace(/^_/, &quot;&quot;), 10);
+</span><span>    const valIndex = schema[rawKey];
+</span><span>
+</span><span>    const fieldName = data[keyIndex];
+</span><span>    if (typeof fieldName !== &quot;string&quot;) {
+</span><span>      throw new Error(`Expected string field name at index ${keyIndex}, got: ${typeof fieldName}`);
+</span><span>    }
+</span><span>
+</span><span>    result[fieldName] = data[valIndex];
+</span><span>  }
+</span><span>  return result;
+</span><span>}
+</span></code></pre>
+<p>We are now left with a nicely formatted and readable object of values:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>{
+</span><span>  &quot;_id&quot;: &quot;M6vT9WAEmtFKRFr2v&quot;,
+</span><span>  &quot;holeCount&quot;: 18,
+</span><span>  &quot;isPay&quot;: true,
+</span><span>  &quot;status&quot;: &quot;Active&quot;,
+</span><span>  &quot;name&quot;: &quot;Maple Hill&quot;,
+</span><span>  &quot;latitude&quot;: 42.276001,
+</span><span>  &quot;website&quot;: &quot;http://maplehilldiscgolf.com&quot;,
+</span><span>  &quot;longitude&quot;: -71.895699,
+</span><span>  &quot;courseId&quot;: 1523,
+</span><span>  &quot;country&quot;: &quot;United States&quot;,
+</span><span>  &quot;availabilityStatus&quot;: &quot;available&quot;,
+</span><span>  &quot;landType&quot;: [157],
+</span><span>  &quot;targetType&quot;: &quot;basket&quot;,
+</span><span>  &quot;targetTypeDescription&quot;: &quot;Black Hole Portal, Black Hole Gravity Version 2&quot;,
+</span><span>  &quot;availabilityTypeDescription&quot;: &quot;Closed the Sunday before Thanksgiving to New Years for Christmas Tree Season. &quot;,
+</span><span>  &quot;conditions&quot;: {
+</span><span>    &quot;_104&quot;: 166,
+</span><span>    &quot;_167&quot;: -5,
+</span><span>    &quot;_168&quot;: 169,
+</span><span>    &quot;_170&quot;: 171
+</span><span>  },
+</span><span>  &quot;location&quot;: {
+</span><span>    &quot;_104&quot;: 105,
+</span><span>    &quot;_106&quot;: 173
+</span><span>  },
+</span><span>  &quot;shortId&quot;: &quot;lCej&quot;,
+</span><span>  &quot;hasBathroom&quot;: true,
+</span><span>  &quot;propertyType&quot;: &quot;dedicated&quot;,
+</span><span>  &quot;activeTargetTypes&quot;: [178, 179],
+</span><span>  &quot;activeTeeTypes&quot;: [182, 183],
+</span><span>  &quot;layoutConfiguration&quot;: {
+</span><span>    &quot;_186&quot;: 187,
+</span><span>    &quot;_223&quot;: 224,
+</span><span>    &quot;_251&quot;: 252,
+</span><span>    &quot;_289&quot;: 290,
+</span><span>    &quot;_299&quot;: 300,
+</span><span>    &quot;_301&quot;: -5
+</span><span>  },
+</span><span>  &quot;timezone&quot;: &quot;America/New_York&quot;,
+</span><span>  &quot;otherFees&quot;: &quot;$5 Walker fee for those not playing&quot;,
+</span><span>  &quot;isSmartLayoutEnabled&quot;: true,
+</span><span>  &quot;hasDrinkingWater&quot;: false,
+</span><span>  &quot;isDogFriendly&quot;: true,
+</span><span>  &quot;amenitiesRating&quot;: 4.754434159544442,
+</span><span>  &quot;designRating&quot;: 4.920076530755979,
+</span><span>  &quot;sceneryRating&quot;: 4.923442842581462,
+</span><span>  &quot;signageRating&quot;: 4.747814409366677,
+</span><span>  &quot;teeRating&quot;: 4.882374770235053,
+</span><span>  &quot;upkeepRating&quot;: 4.891556089317444,
+</span><span>  &quot;difficultyBins&quot;: [320, 321, 322],
+</span><span>  &quot;isCartFriendly&quot;: true,
+</span><span>  &quot;contactInfo&quot;: {
+</span><span>    &quot;_325&quot;: 326,
+</span><span>    &quot;_327&quot;: 326
+</span><span>  },
+</span><span>  &quot;accessTypeDescription&quot;: &quot;&quot;,
+</span><span>  &quot;accessibility&quot;: &quot;notAccessible&quot;,
+</span><span>  &quot;byob&quot;: false,
+</span><span>  &quot;dedicatedTargets&quot;: true,
+</span><span>  &quot;hasAvailabilityRestrictions&quot;: false,
+</span><span>  &quot;underConstruction&quot;: false
+</span><span>}
+</span></code></pre>
+<p>Note: Some fields like <code>conditions</code>, <code>location</code>, and <code>layoutConfiguration</code> are
+still partially encoded -- they contain their own schema maps or references that
+need to be decoded separately using <code>resolveKeyAndValueNames</code>. We'll cover
+those in a future post when we dive deeper into layout and field-level data.</p>
+<h4 id="summary">Summary</h4>
+<p>In this post, we decoded the structure of MyFrisbee's <code>courseDetails</code> payloads by:</p>
+<ul>
+<li>Resolving the <code>"routes/courses/$slug/index"</code> entry</li>
+<li>Using <code>resolveCourseSchemaMapSchema</code> to get a field-labeled schema</li>
+<li>Running that through <code>resolveKeyAndValueNames</code> to extract readable values</li>
+</ul>
+<p>This pattern gives us a fully usable course object with real field names. While
+some nested fields (like <code>conditions</code> or <code>layoutConfiguration</code>) still require
+additional decoding, we now have the tools to confidently work with MyFrisbee's
+structured course data.</p>
+<h4 id="next-time">Next Time</h4>
+<p>In the next post, we'll go one level deeper--resolving nested layout data like
+hole-by-hole distances and tee types.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;reverse-engineering-unique-data-structure-pt-2&#x2F;">Reverse Engineering A Unique Data Structure - Part 2, Search</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 30, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">Discovering and using search endpoints for places and courses that return well-formed data, making it easy to find specific locations and query disc golf course information.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/apis">#APIs</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;reverse-engineering-unique-data-structure-pt-1&#x2F;">Reverse Engineering A Unique Data Structure - Part 1, Courses</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 27, 2025</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Uncovering how a Remix-based disc golf app encodes course data in obfuscated arrays using index maps and schema maps, then writing TypeScript to parse it into usable objects.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/apis">#APIs</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;fairway-client-not-fair-enough&#x2F;">Fairway Client Not Fair Enough for MyFrisbee</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 06, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">The story of building an open source library to access public MyFrisbee data endpoints, receiving a takedown request despite working with user-submitted information, and the disappointment that followed.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                      <p><a href="/tags/apis">#APIs</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-discourse-comments-in-typescript&#x2F;">Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 27, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">I rewrote the Discourse embedded comments API client from Rust&#x2F;WASM to pure TypeScript. The bundle went from 742 KB to 18 KB.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;reverse-engineering-unique-data-structure-pt-2&#x2F;">Reverse Engineering A Unique Data Structure - Part 2, Search</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 30, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">Discovering and using search endpoints for places and courses that return well-formed data, making it easy to find specific locations and query disc golf course information.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/apis">#APIs</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Part 2 covers implementing topic pinning, building a modular service architecture, and creating an expiration system with background jobs.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Building Yaks: A Virtual Currency System for Discourse (Part 2: Features and Expiration)">
+    <meta property="og:description" content="Part 2 covers implementing topic pinning, building a modular service architecture, and creating an expiration system with background jobs.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-yaks-virtual-currency-part-2&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Building Yaks: A Virtual Currency System for Discourse (Part 2: Features and Expiration)">
+    <meta name="twitter:description" content="Part 2 covers implementing topic pinning, building a modular service architecture, and creating an expiration system with background jobs.">
+
+    <title>Building Yaks: A Virtual Currency System for Discourse (Part 2: Features and Expiration) - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Building Yaks: A Virtual Currency System for Discourse (Part 2: Features and Expiration)</h1>
+      <div class="meta">
+        
+        <p>Oct 17, 2025</p>
+        
+        <p>6 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/discourse">#discourse</a></p>
+          
+          <p><a href="/tags/ruby">#ruby</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <p>In <a href="/blog/2025/building-yaks-virtual-currency-part-1">Part 1</a>, I covered
+the backend architecture for Yaks: wallets, transactions, and the service
+layer. The database models were in place, but the system could only apply
+one feature (post highlighting) and had no way to clean up expired features.</p>
+<p>Part 2 covers:</p>
+<ul>
+<li>Implementing topic pinning (our second feature)</li>
+<li>Refactoring the service layer to be truly modular</li>
+<li>Building an expiration system with background jobs</li>
+<li>Starting the admin configuration UI</li>
+</ul>
+<p><img src="/images/spend-yaks.png" alt="Spend Yaks button on topic footer" /></p>
+<p><img src="/images/spend-yaks-2.png" alt="Spend Yaks modal showing available features" /></p>
+<h2 id="topic-pinning">Topic Pinning</h2>
+<p>Topic pinning lets users spend Yaks to pin their topic to the top of its
+category for a configurable duration. This uses Discourse's native pinning
+mechanism, but requires currency to access.</p>
+<h3 id="why-this-feature-matters">Why This Feature Matters</h3>
+<p>Forums prioritize content by recency. Older discussions get buried. Topic
+pinning gives users a way to temporarily boost visibility for important
+discussions without needing moderator intervention.</p>
+<p>The constraint is time. After the configured duration expires, the pin is
+removed and the topic returns to normal sorting.</p>
+<h3 id="the-service-architecture-problem">The Service Architecture Problem</h3>
+<p>When implementing topic pinning, I hit an architectural issue. The existing
+<code>YakFeatureService.apply_feature</code> method was post-centric:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#b48ead;">def </span><span style="color:#bf616a;">self</span><span>.</span><span style="color:#8fa1b3;">apply_feature</span><span>(</span><span style="color:#bf616a;">user</span><span>, </span><span style="color:#bf616a;">feature_key</span><span>, </span><span style="color:#bf616a;">related_post</span><span>, </span><span style="color:#bf616a;">feature_data</span><span>: {})
+</span><span>  </span><span style="color:#65737e;"># ... validation logic ...
+</span><span>
+</span><span>  feature_use = </span><span style="color:#ebcb8b;">YakFeatureUse</span><span>.create!(
+</span><span>    </span><span style="color:#a3be8c;">user:</span><span> user,
+</span><span>    </span><span style="color:#a3be8c;">yak_feature:</span><span> feature,
+</span><span>    </span><span style="color:#a3be8c;">related_post:</span><span> related_post,  </span><span style="color:#65737e;"># Always requires a post
+</span><span>    </span><span style="color:#a3be8c;">feature_data:</span><span> feature_data
+</span><span>  )
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>This design assumed every feature applies to a post. But topic pinning
+applies to a topic, not a post. I could hack around it by passing
+<code>related_post.topic</code>, but that's wrong. The service should support both
+contexts.</p>
+<p>Looking at the implementation, the issue was clear. The service wasn't
+modular at all. It was built for posts and only posts. Adding topic
+support meant refactoring the core design.</p>
+<h3 id="refactoring-the-service">Refactoring the Service</h3>
+<p>The fix was adding support for both posts and topics:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#65737e;"># Old (post-centric)
+</span><span style="color:#b48ead;">def </span><span style="color:#bf616a;">self</span><span>.</span><span style="color:#8fa1b3;">apply_feature</span><span>(</span><span style="color:#bf616a;">user</span><span>, </span><span style="color:#bf616a;">feature_key</span><span>, </span><span style="color:#bf616a;">related_post</span><span>, </span><span style="color:#bf616a;">feature_data</span><span>: {})
+</span><span>
+</span><span style="color:#65737e;"># New (modular, all keyword)
+</span><span style="color:#b48ead;">def </span><span style="color:#bf616a;">self</span><span>.</span><span style="color:#8fa1b3;">apply_feature</span><span>(
+</span><span>  </span><span style="color:#bf616a;">user</span><span>:,
+</span><span>  </span><span style="color:#bf616a;">feature_key</span><span>:,
+</span><span>  </span><span style="color:#bf616a;">related_post</span><span>: </span><span style="color:#d08770;">nil</span><span>,
+</span><span>  </span><span style="color:#bf616a;">related_topic</span><span>: </span><span style="color:#d08770;">nil</span><span>,
+</span><span>  </span><span style="color:#bf616a;">feature_data</span><span>: {}
+</span><span>)
+</span></code></pre>
+<p>Now the service accepts either a post or a topic (or neither, for
+user-level features like custom flair). Making all parameters keyword
+arguments forces explicit call sites, which prevents mistakes when you have
+multiple optional params.</p>
+<p>Validation got context-specific methods:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#b48ead;">def </span><span style="color:#bf616a;">self</span><span>.</span><span style="color:#8fa1b3;">can_apply_to_post?</span><span>(</span><span style="color:#bf616a;">feature_key</span><span>, </span><span style="color:#bf616a;">post</span><span>, </span><span style="color:#bf616a;">user</span><span>)
+</span><span>  </span><span style="color:#b48ead;">return </span><span style="color:#d08770;">false </span><span style="color:#b48ead;">if</span><span> post.trashed? || post.deleted_at.present?
+</span><span>  </span><span style="color:#b48ead;">return </span><span style="color:#d08770;">false </span><span style="color:#b48ead;">if</span><span> post.user_id != user.id
+</span><span>
+</span><span>  </span><span style="color:#65737e;"># Check for existing active feature
+</span><span>  !</span><span style="color:#ebcb8b;">YakFeatureUse</span><span>.exists?(
+</span><span>    </span><span style="color:#a3be8c;">user:</span><span> user,
+</span><span>    </span><span style="color:#a3be8c;">yak_feature: </span><span style="color:#ebcb8b;">YakFeature</span><span>.find_by(</span><span style="color:#a3be8c;">feature_key:</span><span> feature_key),
+</span><span>    </span><span style="color:#a3be8c;">related_post:</span><span> post,
+</span><span>    </span><span style="color:#a3be8c;">expires_at: </span><span style="color:#ebcb8b;">Time</span><span>.zone.now..</span><span style="color:#96b5b4;">Float</span><span>::INFINITY
+</span><span>  )
+</span><span style="color:#b48ead;">end
+</span><span>
+</span><span style="color:#b48ead;">def </span><span style="color:#bf616a;">self</span><span>.</span><span style="color:#8fa1b3;">can_apply_to_topic?</span><span>(</span><span style="color:#bf616a;">feature_key</span><span>, </span><span style="color:#bf616a;">topic</span><span>, </span><span style="color:#bf616a;">user</span><span>)
+</span><span>  </span><span style="color:#b48ead;">return </span><span style="color:#d08770;">false </span><span style="color:#b48ead;">if</span><span> topic.closed || topic.archived
+</span><span>  </span><span style="color:#b48ead;">return </span><span style="color:#d08770;">false </span><span style="color:#b48ead;">if</span><span> topic.user_id != user.id
+</span><span>
+</span><span>  </span><span style="color:#65737e;"># Check for existing active feature
+</span><span>  !</span><span style="color:#ebcb8b;">YakFeatureUse</span><span>.exists?(
+</span><span>    </span><span style="color:#a3be8c;">user:</span><span> user,
+</span><span>    </span><span style="color:#a3be8c;">yak_feature: </span><span style="color:#ebcb8b;">YakFeature</span><span>.find_by(</span><span style="color:#a3be8c;">feature_key:</span><span> feature_key),
+</span><span>    </span><span style="color:#a3be8c;">related_topic:</span><span> topic,
+</span><span>    </span><span style="color:#a3be8c;">expires_at: </span><span style="color:#ebcb8b;">Time</span><span>.zone.now..</span><span style="color:#96b5b4;">Float</span><span>::INFINITY
+</span><span>  )
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>This pattern will scale. When we add user-level features (custom flair),
+we'll add <code>can_apply_to_user?</code> without touching the core service logic.</p>
+<h3 id="integrating-with-discourse-s-topic-pinning">Integrating with Discourse's Topic Pinning</h3>
+<p>Discourse has built-in topic pinning. The <code>Topic</code> model has an
+<code>update_pinned</code> method:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span>duration = feature.duration_hours.hours
+</span><span>topic.update_pinned(</span><span style="color:#d08770;">true</span><span>, </span><span style="color:#d08770;">false</span><span>, duration.from_now.</span><span style="color:#96b5b4;">to_s</span><span>)
+</span></code></pre>
+<p>Three parameters:</p>
+<ol>
+<li><code>pinned</code> - Enable or disable the pin</li>
+<li><code>global</code> - Pin globally (across all categories) or just in this topic's
+category</li>
+<li><code>pinned_until</code> - When to automatically unpin (must be a string timestamp)</li>
+</ol>
+<p>The third parameter is critical. It must be a string, not a Time object.
+This caught me during implementation:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#65737e;"># Wrong (creates YakFeatureUse but topic doesn&#39;t actually pin)
+</span><span>topic.update_pinned(</span><span style="color:#d08770;">true</span><span>, </span><span style="color:#d08770;">false</span><span>, feature.duration_hours.hours.from_now)
+</span><span>
+</span><span style="color:#65737e;"># Correct
+</span><span>topic.update_pinned(</span><span style="color:#d08770;">true</span><span>, </span><span style="color:#d08770;">false</span><span>, feature.duration_hours.hours.from_now.</span><span style="color:#96b5b4;">to_s</span><span>)
+</span></code></pre>
+<p>The feature use was being created, the Yaks were being deducted, but the
+topic wasn't pinning. The issue was the timestamp format. <code>update_pinned</code>
+silently fails if you pass a Time object instead of a string.</p>
+<h2 id="expiration-system">Expiration System</h2>
+<p>Features need to expire. Each feature has a configurable duration stored in
+the database. We need a way to clean up expired features and undo their
+effects.</p>
+<h3 id="the-architecture">The Architecture</h3>
+<p>The system has three parts:</p>
+<ol>
+<li><strong>Regular Job</strong>: <code>ExpireYakFeature</code> - Handles a single expiration</li>
+<li><strong>Scheduled Job</strong>: <code>CleanupExpiredYakFeatures</code> - Finds expired features
+and queues regular jobs</li>
+<li><strong>Service Method</strong>: <code>YakFeatureService.expire_feature</code> - Business logic
+for expiration</li>
+</ol>
+<p>The primary expiration mechanism runs at creation time. When a feature use
+is created, the expiration job is scheduled to run exactly when it expires:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#b48ead;">def </span><span style="color:#bf616a;">self</span><span>.</span><span style="color:#8fa1b3;">apply_feature</span><span>(...)
+</span><span>  feature_use = </span><span style="color:#ebcb8b;">YakFeatureUse</span><span>.create!(...)
+</span><span>
+</span><span>  </span><span style="color:#b48ead;">if</span><span> feature_use.expires_at
+</span><span>    </span><span style="color:#ebcb8b;">Jobs</span><span>.enqueue_at(feature_use.expires_at, </span><span style="color:#a3be8c;">:expire_yak_feature</span><span>,
+</span><span>      </span><span style="color:#a3be8c;">feature_use_id:</span><span> feature_use.id)
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span>
+</span><span>  </span><span style="color:#65737e;"># ...
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>This is efficient. No polling. The job runs exactly when needed.</p>
+<h3 id="the-scheduled-job">The Scheduled Job</h3>
+<p>Runs hourly to find expired features:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#b48ead;">module </span><span>Jobs
+</span><span>  </span><span style="color:#b48ead;">class </span><span style="color:#ebcb8b;">CleanupExpiredYakFeatures </span><span style="color:#eff1f5;">&lt; </span><span style="color:#a3be8c;">::Jobs::Scheduled
+</span><span>    every </span><span style="color:#d08770;">1</span><span>.hour
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">execute</span><span>(</span><span style="color:#bf616a;">args</span><span>)
+</span><span>      expired_features = </span><span style="color:#bf616a;">YakFeatureUse
+</span><span>        .where(&quot;</span><span style="color:#a3be8c;">expires_at IS NOT NULL AND expires_at &lt;= ?</span><span>&quot;, </span><span style="color:#ebcb8b;">Time</span><span>.zone.now)
+</span><span>        .where(</span><span style="color:#a3be8c;">expired: </span><span style="color:#d08770;">false</span><span>)
+</span><span>
+</span><span>      expired_features.find_each </span><span style="color:#b48ead;">do </span><span>|</span><span style="color:#bf616a;">feature_use</span><span>|
+</span><span>        </span><span style="color:#ebcb8b;">Jobs</span><span>.enqueue(</span><span style="color:#a3be8c;">:expire_yak_feature</span><span>, </span><span style="color:#a3be8c;">feature_use_id:</span><span> feature_use.id)
+</span><span>      </span><span style="color:#b48ead;">end
+</span><span>
+</span><span>      { </span><span style="color:#a3be8c;">processed:</span><span> expired_features.count }
+</span><span>    </span><span style="color:#b48ead;">end
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>It queries for expired features (where <code>expires_at</code> is in the past) and
+queues a job for each one.</p>
+<p>This hourly cleanup job is a safety net. If the server restarts before a
+scheduled job runs, or if something goes wrong with job scheduling, the
+cleanup job catches it. It's backup, not the primary mechanism.</p>
+<p>Why <code>find_each</code> instead of <code>each</code>? Performance. <code>find_each</code> loads records
+in batches (1000 by default) instead of loading everything into memory. If
+you have 10,000 expired features, <code>each</code> would load all 10,000 at once.
+<code>find_each</code> loads 1000, processes them, loads the next 1000.</p>
+<h3 id="the-regular-job">The Regular Job</h3>
+<p>Processes one expiration:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#b48ead;">module </span><span>Jobs
+</span><span>  </span><span style="color:#b48ead;">class </span><span style="color:#ebcb8b;">ExpireYakFeature </span><span style="color:#eff1f5;">&lt; </span><span style="color:#a3be8c;">::Jobs::Base
+</span><span>    </span><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">execute</span><span>(</span><span style="color:#bf616a;">args</span><span>)
+</span><span>      feature_use = </span><span style="color:#ebcb8b;">YakFeatureUse</span><span>.find_by(</span><span style="color:#a3be8c;">id:</span><span> args[</span><span style="color:#a3be8c;">:feature_use_id</span><span>])
+</span><span>      </span><span style="color:#b48ead;">return unless</span><span> feature_use
+</span><span>
+</span><span>      </span><span style="color:#ebcb8b;">YakFeatureService</span><span>.expire_feature(feature_use)
+</span><span>    </span><span style="color:#b48ead;">end
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>Why a separate job? Fault tolerance. If one expiration fails (database
+error, bug in the expiration logic), it doesn't stop the others from
+processing.</p>
+<h3 id="the-service-method">The Service Method</h3>
+<p>Handles the business logic:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#b48ead;">def </span><span style="color:#bf616a;">self</span><span>.</span><span style="color:#8fa1b3;">expire_feature</span><span>(</span><span style="color:#bf616a;">feature_use</span><span>)
+</span><span>  feature_key = feature_use.yak_feature.feature_key
+</span><span>
+</span><span>  </span><span style="color:#b48ead;">case</span><span> feature_key
+</span><span>  </span><span style="color:#b48ead;">when </span><span>&quot;</span><span style="color:#a3be8c;">post_highlight</span><span>&quot;
+</span><span>    remove_post_highlight(feature_use.related_post)
+</span><span>  </span><span style="color:#b48ead;">when </span><span>&quot;</span><span style="color:#a3be8c;">topic_pin</span><span>&quot;
+</span><span>    unpin_topic(feature_use.related_topic)
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span>
+</span><span>  feature_use.update!(</span><span style="color:#a3be8c;">expired: </span><span style="color:#d08770;">true</span><span>)
+</span><span style="color:#b48ead;">end
+</span><span>
+</span><span style="color:#8fa1b3;">private
+</span><span>
+</span><span style="color:#b48ead;">def </span><span style="color:#bf616a;">self</span><span>.</span><span style="color:#8fa1b3;">remove_post_highlight</span><span>(</span><span style="color:#bf616a;">post</span><span>)
+</span><span>  </span><span style="color:#b48ead;">return unless</span><span> post
+</span><span>
+</span><span>  features = post.custom_fields[&quot;</span><span style="color:#a3be8c;">yak_features</span><span>&quot;] || {}
+</span><span>  features.delete(&quot;</span><span style="color:#a3be8c;">highlight</span><span>&quot;)
+</span><span>
+</span><span>  </span><span style="color:#b48ead;">if</span><span> features.empty?
+</span><span>    post.custom_fields.delete(&quot;</span><span style="color:#a3be8c;">yak_features</span><span>&quot;)
+</span><span>  </span><span style="color:#b48ead;">else
+</span><span>    post.custom_fields[&quot;</span><span style="color:#a3be8c;">yak_features</span><span>&quot;] = features
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span>
+</span><span>  post.save_custom_fields
+</span><span style="color:#b48ead;">end
+</span><span>
+</span><span style="color:#b48ead;">def </span><span style="color:#bf616a;">self</span><span>.</span><span style="color:#8fa1b3;">unpin_topic</span><span>(</span><span style="color:#bf616a;">topic</span><span>)
+</span><span>  </span><span style="color:#b48ead;">return unless</span><span> topic
+</span><span>  topic.update_pinned(</span><span style="color:#d08770;">false</span><span>, </span><span style="color:#d08770;">false</span><span>, </span><span style="color:#d08770;">nil</span><span>)
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>Expiration removes the visual effects and marks the feature use as expired.</p>
+<p>Why mark as expired instead of deleting? Audit trail. Users can see their
+feature history. Admins can debug issues. Refunds are easier because you
+have the original feature use record.</p>
+<h2 id="frontend-integration">Frontend Integration</h2>
+<p>The frontend needed two things:</p>
+<ol>
+<li>A "Spend Yaks" button on topics</li>
+<li>Context-aware modal that shows appropriate features</li>
+</ol>
+<h3 id="topic-footer-button">Topic Footer Button</h3>
+<p>Discourse has an API for adding buttons to topic footers:</p>
+<pre data-lang="javascript" style="background-color:#2b303b;color:#c0c5ce;" class="language-javascript "><code class="language-javascript" data-lang="javascript"><span style="color:#b48ead;">import </span><span>{ </span><span style="color:#bf616a;">withPluginApi </span><span>} </span><span style="color:#b48ead;">from </span><span>&quot;</span><span style="color:#a3be8c;">discourse/lib/plugin-api</span><span>&quot;;
+</span><span>
+</span><span style="color:#b48ead;">export default </span><span>{
+</span><span>  name: &quot;</span><span style="color:#a3be8c;">yak-topic-actions</span><span>&quot;,
+</span><span>  </span><span style="color:#8fa1b3;">initialize</span><span>() {
+</span><span>    </span><span style="color:#8fa1b3;">withPluginApi</span><span>((</span><span style="color:#bf616a;">api</span><span>) </span><span style="color:#b48ead;">=&gt; </span><span>{
+</span><span>      </span><span style="color:#bf616a;">api</span><span>.</span><span style="color:#8fa1b3;">registerTopicFooterButton</span><span>({
+</span><span>        id: &quot;</span><span style="color:#a3be8c;">yak-spend</span><span>&quot;,
+</span><span>        icon: &quot;</span><span style="color:#a3be8c;">coins</span><span>&quot;,
+</span><span>        label: &quot;</span><span style="color:#a3be8c;">yaks.topic_action.spend</span><span>&quot;,
+</span><span>        </span><span style="color:#8fa1b3;">action</span><span>() {
+</span><span>          </span><span style="color:#b48ead;">const </span><span style="color:#bf616a;">modal </span><span>= </span><span style="color:#8fa1b3;">getOwner</span><span>(</span><span style="color:#bf616a;">this</span><span>).</span><span style="color:#8fa1b3;">lookup</span><span>(&quot;</span><span style="color:#a3be8c;">service:modal</span><span>&quot;);
+</span><span>          </span><span style="color:#bf616a;">modal</span><span>.</span><span style="color:#8fa1b3;">show</span><span>(</span><span style="color:#bf616a;">SpendYaksModal</span><span>, {
+</span><span>            model: {
+</span><span>              topic: </span><span style="color:#bf616a;">this</span><span>.</span><span style="color:#bf616a;">topic</span><span>,
+</span><span>            },
+</span><span>          });
+</span><span>        },
+</span><span>        </span><span style="color:#8fa1b3;">dropdown</span><span>() {
+</span><span>          </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">this</span><span>.</span><span style="color:#bf616a;">site</span><span>.</span><span style="color:#bf616a;">mobileView</span><span>;
+</span><span>        },
+</span><span>        classNames: [&quot;</span><span style="color:#a3be8c;">yak-spend</span><span>&quot;],
+</span><span>        dependentKeys: [&quot;</span><span style="color:#a3be8c;">topic.closed</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">topic.archived</span><span>&quot;],
+</span><span>        </span><span style="color:#8fa1b3;">displayed</span><span>() {
+</span><span>          </span><span style="color:#b48ead;">return </span><span>(
+</span><span>            </span><span style="color:#bf616a;">this</span><span>.</span><span style="color:#bf616a;">currentUser </span><span>&amp;&amp;
+</span><span>            </span><span style="color:#bf616a;">this</span><span>.</span><span style="color:#bf616a;">topic</span><span>.</span><span style="color:#bf616a;">user_id </span><span>=== </span><span style="color:#bf616a;">this</span><span>.</span><span style="color:#bf616a;">currentUser</span><span>.id &amp;&amp;
+</span><span>            !</span><span style="color:#bf616a;">this</span><span>.</span><span style="color:#bf616a;">topic</span><span>.closed &amp;&amp;
+</span><span>            !</span><span style="color:#bf616a;">this</span><span>.</span><span style="color:#bf616a;">topic</span><span>.</span><span style="color:#bf616a;">archived
+</span><span>          );
+</span><span>        },
+</span><span>      });
+</span><span>    });
+</span><span>  },
+</span><span>};
+</span></code></pre>
+<p>The <code>displayed()</code> function controls visibility. The button only shows if:</p>
+<ul>
+<li>User is logged in</li>
+<li>User owns the topic</li>
+<li>Topic isn't closed or archived</li>
+</ul>
+<h3 id="context-aware-modal">Context-Aware Modal</h3>
+<p>The modal needed to work for both posts and topics:</p>
+<pre data-lang="javascript" style="background-color:#2b303b;color:#c0c5ce;" class="language-javascript "><code class="language-javascript" data-lang="javascript"><span style="color:#b48ead;">export default class </span><span style="color:#ebcb8b;">SpendYaksModal </span><span style="color:#b48ead;">extends </span><span style="color:#a3be8c;">Component </span><span style="color:#eff1f5;">{
+</span><span style="color:#eff1f5;">  </span><span style="color:#b48ead;">get </span><span style="color:#8fa1b3;">isPostContext</span><span>() </span><span style="color:#eff1f5;">{
+</span><span style="color:#eff1f5;">    </span><span style="color:#b48ead;">return </span><span>!!</span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">args</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">model</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">post</span><span style="color:#eff1f5;">;
+</span><span style="color:#eff1f5;">  }
+</span><span style="color:#eff1f5;">
+</span><span style="color:#eff1f5;">  </span><span style="color:#b48ead;">get </span><span style="color:#8fa1b3;">isTopicContext</span><span>() </span><span style="color:#eff1f5;">{
+</span><span style="color:#eff1f5;">    </span><span style="color:#b48ead;">return </span><span>!!</span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">args</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">model</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">topic </span><span>&amp;&amp; !</span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">args</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">model</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">post</span><span style="color:#eff1f5;">;
+</span><span style="color:#eff1f5;">  }
+</span><span style="color:#eff1f5;">
+</span><span style="color:#eff1f5;">  </span><span style="color:#b48ead;">get </span><span style="color:#8fa1b3;">postFeatures</span><span>() </span><span style="color:#eff1f5;">{
+</span><span style="color:#eff1f5;">    </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">allFeatures</span><span style="color:#eff1f5;">.</span><span style="color:#8fa1b3;">filter</span><span style="color:#eff1f5;">(</span><span>(</span><span style="color:#bf616a;">f</span><span>) </span><span style="color:#b48ead;">=&gt; </span><span style="color:#bf616a;">f</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">category </span><span>=== &quot;</span><span style="color:#a3be8c;">post</span><span>&quot;</span><span style="color:#eff1f5;">);
+</span><span style="color:#eff1f5;">  }
+</span><span style="color:#eff1f5;">
+</span><span style="color:#eff1f5;">  </span><span style="color:#b48ead;">get </span><span style="color:#8fa1b3;">topicFeatures</span><span>() </span><span style="color:#eff1f5;">{
+</span><span style="color:#eff1f5;">    </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">allFeatures</span><span style="color:#eff1f5;">.</span><span style="color:#8fa1b3;">filter</span><span style="color:#eff1f5;">(</span><span>(</span><span style="color:#bf616a;">f</span><span>) </span><span style="color:#b48ead;">=&gt; </span><span style="color:#bf616a;">f</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">category </span><span>=== &quot;</span><span style="color:#a3be8c;">topic</span><span>&quot;</span><span style="color:#eff1f5;">);
+</span><span style="color:#eff1f5;">  }
+</span><span style="color:#eff1f5;">
+</span><span style="color:#eff1f5;">  </span><span style="color:#b48ead;">get </span><span style="color:#8fa1b3;">availableFeatures</span><span>() </span><span style="color:#eff1f5;">{
+</span><span style="color:#eff1f5;">    </span><span style="color:#b48ead;">if </span><span style="color:#eff1f5;">(</span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">isPostContext</span><span style="color:#eff1f5;">) </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">postFeatures</span><span style="color:#eff1f5;">;
+</span><span style="color:#eff1f5;">    </span><span style="color:#b48ead;">if </span><span style="color:#eff1f5;">(</span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">isTopicContext</span><span style="color:#eff1f5;">) </span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">this</span><span style="color:#eff1f5;">.</span><span style="color:#bf616a;">topicFeatures</span><span style="color:#eff1f5;">;
+</span><span style="color:#eff1f5;">    </span><span style="color:#b48ead;">return </span><span style="color:#eff1f5;">[];
+</span><span style="color:#eff1f5;">  }
+</span><span style="color:#eff1f5;">}
+</span></code></pre>
+<p>One modal, two contexts. The UI adapts based on whether you clicked "Spend
+Yaks" on a post or a topic.</p>
+<h2 id="admin-ui-in-progress">Admin UI (In Progress)</h2>
+<p>The final piece is admin configuration. Currently, features and purchase
+packages are hardcoded. They need to be editable in the UI.</p>
+<h3 id="database-backed-packages">Database-Backed Packages</h3>
+<p>Created a <code>yak_packages</code> table:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span>create_table </span><span style="color:#a3be8c;">:yak_packages </span><span style="color:#b48ead;">do </span><span>|</span><span style="color:#bf616a;">t</span><span>|
+</span><span>  t.string </span><span style="color:#a3be8c;">:name</span><span>, </span><span style="color:#a3be8c;">null: </span><span style="color:#d08770;">false
+</span><span>  t.text </span><span style="color:#a3be8c;">:description
+</span><span>  t.integer </span><span style="color:#a3be8c;">:price_cents</span><span>, </span><span style="color:#a3be8c;">null: </span><span style="color:#d08770;">false</span><span>, </span><span style="color:#a3be8c;">default: </span><span style="color:#d08770;">0
+</span><span>  t.integer </span><span style="color:#a3be8c;">:yaks</span><span>, </span><span style="color:#a3be8c;">null: </span><span style="color:#d08770;">false</span><span>, </span><span style="color:#a3be8c;">default: </span><span style="color:#d08770;">0
+</span><span>  t.integer </span><span style="color:#a3be8c;">:bonus_yaks</span><span>, </span><span style="color:#a3be8c;">null: </span><span style="color:#d08770;">false</span><span>, </span><span style="color:#a3be8c;">default: </span><span style="color:#d08770;">0
+</span><span>  t.boolean </span><span style="color:#a3be8c;">:enabled</span><span>, </span><span style="color:#a3be8c;">null: </span><span style="color:#d08770;">false</span><span>, </span><span style="color:#a3be8c;">default: </span><span style="color:#d08770;">true
+</span><span>  t.integer </span><span style="color:#a3be8c;">:position</span><span>, </span><span style="color:#a3be8c;">null: </span><span style="color:#d08770;">false</span><span>, </span><span style="color:#a3be8c;">default: </span><span style="color:#d08770;">0
+</span><span>  t.timestamps
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>Price is stored as cents (integers) instead of dollars (floats) to avoid
+floating-point precision issues. A $5.00 package is 500 cents.</p>
+<p>The model has helper methods:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#b48ead;">class </span><span style="color:#ebcb8b;">YakPackage </span><span style="color:#eff1f5;">&lt; </span><span style="color:#a3be8c;">ActiveRecord::Base
+</span><span>  </span><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">total_yaks
+</span><span>    yaks + bonus_yaks
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span>
+</span><span>  </span><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">price_usd
+</span><span>    price_cents / </span><span style="color:#d08770;">100.0
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span>
+</span><span>  </span><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">price_usd=</span><span>(</span><span style="color:#bf616a;">usd</span><span>)
+</span><span>    </span><span style="color:#bf616a;">self</span><span>.price_cents = (usd.</span><span style="color:#96b5b4;">to_f </span><span>* </span><span style="color:#d08770;">100</span><span>).</span><span style="color:#96b5b4;">to_i
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>This lets you work in dollars in the UI but store as cents in the database.</p>
+<h3 id="crud-endpoints">CRUD Endpoints</h3>
+<p>Added REST endpoints to the admin controller:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">packages
+</span><span>  packages = </span><span style="color:#ebcb8b;">YakPackage</span><span>.ordered
+</span><span>  render </span><span style="color:#a3be8c;">json: </span><span>{ </span><span style="color:#a3be8c;">packages:</span><span> packages.map { |</span><span style="color:#bf616a;">p</span><span>| serialize_package(</span><span style="color:#96b5b4;">p</span><span>) } }
+</span><span style="color:#b48ead;">end
+</span><span>
+</span><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">create_package
+</span><span>  package = </span><span style="color:#ebcb8b;">YakPackage</span><span>.</span><span style="color:#8fa1b3;">new</span><span>(package_params)
+</span><span>  </span><span style="color:#b48ead;">if</span><span> package.save
+</span><span>    render </span><span style="color:#a3be8c;">json: </span><span>{ </span><span style="color:#a3be8c;">package:</span><span> serialize_package(package) }
+</span><span>  </span><span style="color:#b48ead;">else
+</span><span>    render_json_error(package.errors.full_messages.join(&quot;</span><span style="color:#a3be8c;">, </span><span>&quot;))
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span style="color:#b48ead;">end
+</span><span>
+</span><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">update_package
+</span><span>  package = </span><span style="color:#ebcb8b;">YakPackage</span><span>.find(params[</span><span style="color:#a3be8c;">:id</span><span>])
+</span><span>  </span><span style="color:#b48ead;">if</span><span> package.update(package_params)
+</span><span>    render </span><span style="color:#a3be8c;">json: </span><span>{ </span><span style="color:#a3be8c;">package:</span><span> serialize_package(package) }
+</span><span>  </span><span style="color:#b48ead;">else
+</span><span>    render_json_error(package.errors.full_messages.join(&quot;</span><span style="color:#a3be8c;">, </span><span>&quot;))
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span style="color:#b48ead;">end
+</span><span>
+</span><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">delete_package
+</span><span>  package = </span><span style="color:#ebcb8b;">YakPackage</span><span>.find(params[</span><span style="color:#a3be8c;">:id</span><span>])
+</span><span>  package.destroy!
+</span><span>  render </span><span style="color:#a3be8c;">json:</span><span> success_json
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>Standard Rails REST pattern. The admin can create, edit, and delete
+packages without touching code.</p>
+<h3 id="admin-ui-structure">Admin UI Structure</h3>
+<p>The UI follows Discourse's admin plugin pattern (inspired by the Chat
+plugin):</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>admin/assets/javascripts/discourse/
+</span><span>├── routes/admin-plugins/show/discourse-yaks-management/
+</span><span>├── controllers/admin-plugins/show/discourse-yaks-management/
+</span><span>├── templates/admin/plugins/show/discourse-yaks-management/
+</span><span>└── initializers/yaks-admin-plugin-configuration-nav.js
+</span></code></pre>
+<p>The structure creates tabs:</p>
+<ol>
+<li><strong>Settings</strong> - Site settings (automatic)</li>
+<li><strong>Management</strong> - Custom UI for packages, features, stats</li>
+</ol>
+<p>The templates use Discourse's admin components:</p>
+<pre data-lang="hbs" style="background-color:#2b303b;color:#c0c5ce;" class="language-hbs "><code class="language-hbs" data-lang="hbs"><span>&lt;</span><span style="color:#bf616a;">div </span><span style="color:#d08770;">class=</span><span>&quot;</span><span style="color:#a3be8c;">admin-config-page</span><span>&quot;&gt;
+</span><span>  &lt;</span><span style="color:#bf616a;">div </span><span style="color:#d08770;">class=</span><span>&quot;</span><span style="color:#a3be8c;">admin-plugin-config-page</span><span>&quot;&gt;
+</span><span>    &lt;</span><span style="color:#bf616a;">div </span><span style="color:#d08770;">class=</span><span>&quot;</span><span style="color:#a3be8c;">d-page-header</span><span>&quot;&gt;
+</span><span>      &lt;</span><span style="color:#bf616a;">div </span><span style="color:#d08770;">class=</span><span>&quot;</span><span style="color:#a3be8c;">d-page-header__title-row</span><span>&quot;&gt;
+</span><span>        &lt;</span><span style="color:#bf616a;">h1 </span><span style="color:#d08770;">class=</span><span>&quot;</span><span style="color:#a3be8c;">d-page-header__title</span><span>&quot;&gt;Yak Management&lt;/</span><span style="color:#bf616a;">h1</span><span>&gt;
+</span><span>      &lt;/</span><span style="color:#bf616a;">div</span><span>&gt;
+</span><span>      &lt;</span><span style="color:#bf616a;">p </span><span style="color:#d08770;">class=</span><span>&quot;</span><span style="color:#a3be8c;">d-page-header__description</span><span>&quot;&gt;
+</span><span>        Manage your virtual currency system. Configure purchase packages
+</span><span>        and premium features.
+</span><span>      &lt;/</span><span style="color:#bf616a;">p</span><span>&gt;
+</span><span>    &lt;/</span><span style="color:#bf616a;">div</span><span>&gt;
+</span><span>
+</span><span>    &lt;</span><span style="color:#bf616a;">div </span><span style="color:#d08770;">class=</span><span>&quot;</span><span style="color:#a3be8c;">admin-plugin-config-page__content</span><span>&quot;&gt;
+</span><span>      </span><span style="color:#65737e;">&lt;!-- Tables for stats, packages, features --&gt;
+</span><span>    &lt;/</span><span style="color:#bf616a;">div</span><span>&gt;
+</span><span>  &lt;/</span><span style="color:#bf616a;">div</span><span>&gt;
+</span><span>&lt;/</span><span style="color:#bf616a;">div</span><span>&gt;
+</span></code></pre>
+<p>This matches Discourse's standard admin page structure. Using the
+framework's components ensures consistency with the rest of the admin area.</p>
+<h3 id="current-status">Current Status</h3>
+<p>The admin UI backend is complete (CRUD endpoints, modals, tables), but the
+tab navigation isn't working yet. The Settings tab appears, but the
+Management tab doesn't. This is a routing issue, not a data issue.</p>
+<p>The tables work when accessed directly. The functionality is there. The
+navigation just needs debugging.</p>
+<h2 id="what-s-next">What's Next</h2>
+<p>The immediate task is fixing the admin UI tab navigation. Once that's
+working, admins will have full control over the system configuration:</p>
+<ul>
+<li>Add/edit/delete purchase packages (price, Yak amounts, bonus structure)</li>
+<li>Configure feature costs and durations (how many Yaks, how long they last)</li>
+<li>View system statistics (total wallets, Yaks in circulation, active
+features)</li>
+</ul>
+<p>After that:</p>
+<ul>
+<li>Implement the earning system (reward quality posts based on configurable
+criteria)</li>
+<li>Build the remaining features (post pin, post boost, custom flair)</li>
+<li>Add purchase flow integration (Stripe for buying Yaks with real money)</li>
+</ul>
+<p>The plugin is functional. Two features work end-to-end. The expiration
+system is running. The architecture is modular enough to add new features
+without major refactoring.</p>
+<p>Part 3 will cover the earning system and completing the admin UI.</p>
+<p>The code is on GitHub: <a href="https://github.com/ducks/discourse-yaks">ducks/discourse-yaks</a></p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-discourse-comments-in-typescript&#x2F;">Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 27, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">I rewrote the Discourse embedded comments API client from Rust&#x2F;WASM to pure TypeScript. The bundle went from 742 KB to 18 KB.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;how-a-friends-gif-broke-our-filesystem&#x2F;">How Jennifer Aniston and Friends Cost Us 377GB and Broke ext4 Hardlinks</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 23, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A backup deduplication fix, filesystem hardlink limits, and the Jennifer Aniston reaction GIF that stress-tested our infrastructure.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-discourse-embedded-comments&#x2F;">Building Embedded Discourse Comments with Rust and WASM</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 14, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">An experiment in creating a drop-in comment widget for static sites using Rust compiled to WebAssembly, talking to Discourse&#x27;s REST API.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/wasm">#wasm</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-stats-evolution&#x2F;">Invite Tree to Invite Stats - How A Simple Tree Flourished Into A Full Moderation Plugin</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 05, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">How a simple visualization plugin evolved into a moderation tool.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-tree&#x2F;">Visualizing Discourse Invite Trees</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 03, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A simple Discourse plugin that visualizes who invited whom as an ASCII tree, inspired by Lobsters.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

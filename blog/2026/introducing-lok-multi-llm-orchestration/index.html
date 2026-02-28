@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="When one AI isn&#x27;t enough. Lok is a CLI tool that coordinates multiple LLM backends, routing tasks to the right model and letting them debate each other.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Introducing Lok: A Local Multi-LLM Orchestration Control Plane">
+    <meta property="og:description" content="When one AI isn&#x27;t enough. Lok is a CLI tool that coordinates multiple LLM backends, routing tasks to the right model and letting them debate each other.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;introducing-lok-multi-llm-orchestration&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Introducing Lok: A Local Multi-LLM Orchestration Control Plane">
+    <meta name="twitter:description" content="When one AI isn&#x27;t enough. Lok is a CLI tool that coordinates multiple LLM backends, routing tasks to the right model and letting them debate each other.">
+
+    <title>Introducing Lok: A Local Multi-LLM Orchestration Control Plane - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Introducing Lok: A Local Multi-LLM Orchestration Control Plane</h1>
+      <div class="meta">
+        
+        <p>Jan 24, 2026</p>
+        
+        <p>6 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+        </div>
+      
+
+      <p>Large language models are getting better, but they're also getting more
+specialized. Some are fast and direct for pattern matching. Others are slower
+but excel at deep, multi-step reasoning. If you work on real codebases, you've
+probably felt the pain: no single model is "best" for every task, and switching
+between tools manually is a constant tax.</p>
+<p>That's the problem Lok solves.</p>
+<h2 id="the-brain-that-controls-the-arms-you-already-have">The Brain That Controls the Arms You Already Have</h2>
+<p>Lok is a local orchestration layer that coordinates multiple LLM backends
+through one control plane. It wraps existing CLIs like OpenAI's Codex and
+Google's Gemini, treating them as pluggable backends with a unified interface.</p>
+<p>The key insight: model choice isn't a preference anymore. It's part of the
+engineering workflow. When your toolchain includes multiple LLMs, you need
+orchestration.</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">lok</span><span> hunt .          </span><span style="color:#65737e;"># Bug hunt with smart backend selection
+</span><span style="color:#bf616a;">lok</span><span> audit .         </span><span style="color:#65737e;"># Security audit
+</span><span style="color:#bf616a;">lok</span><span> team &quot;</span><span style="color:#a3be8c;">analyze</span><span>&quot;  </span><span style="color:#65737e;"># Coordinated multi-model analysis
+</span><span style="color:#bf616a;">lok</span><span> debate &quot;</span><span style="color:#a3be8c;">async?</span><span>&quot; </span><span style="color:#65737e;"># Let the models argue
+</span><span style="color:#bf616a;">lok</span><span> spawn &quot;</span><span style="color:#a3be8c;">task</span><span>&quot;    </span><span style="color:#65737e;"># Parallel agents on subtasks
+</span></code></pre>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>                            ┌─────────────┐
+</span><span>                            │    USER     │
+</span><span>                            │   (task)    │
+</span><span>                            └──────┬──────┘
+</span><span>                                   │
+</span><span>                                   ▼
+</span><span>            ┌──────────────────────────────────────────┐
+</span><span>            │           CONDUCTOR (BRAIN)              │
+</span><span>            │                                          │
+</span><span>            │  • Analyze task complexity               │
+</span><span>            │  • Break into parallel subtasks          │
+</span><span>            │  • Assign backends via delegator         │
+</span><span>            └──────────────────┬───────────────────────┘
+</span><span>                               │
+</span><span>      ┌────────────────────────┼────────────────────────┐
+</span><span>      │                        │                        │
+</span><span>      ▼                        ▼                        ▼
+</span><span>┌───────────┐            ┌───────────┐            ┌───────────┐
+</span><span>│  AGENT 1  │            │  AGENT 2  │            │  AGENT 3  │
+</span><span>│ &quot;frontend&quot;│            │ &quot;backend&quot; │            │ &quot;database&quot;│
+</span><span>│  [CODEX]  │            │ [GEMINI]  │            │  [CODEX]  │
+</span><span>└─────┬─────┘            └─────┬─────┘            └─────┬─────┘
+</span><span>      │                        │                        │
+</span><span>      │     ══ PARALLEL EXECUTION ══                    │
+</span><span>      │                        │                        │
+</span><span>      └────────────────────────┼────────────────────────┘
+</span><span>                               │
+</span><span>                               ▼
+</span><span>            ┌──────────────────────────────────────────┐
+</span><span>            │         SUMMARIZATION PHASE              │
+</span><span>            │                                          │
+</span><span>            │  • Collect all agent outputs             │
+</span><span>            │  • Report success/failure per agent      │
+</span><span>            │  • Aggregate into final summary          │
+</span><span>            └──────────────────────────────────────────┘
+</span></code></pre>
+<h2 id="mode-comparison">Mode Comparison</h2>
+<table><thead><tr><th>Mode</th><th>Backends Used</th><th>Execution</th><th>Use Case</th></tr></thead><tbody>
+<tr><td>smart</td><td>1 (best fit)</td><td>Single call</td><td>Fast, targeted tasks</td></tr>
+<tr><td>team</td><td>1-3</td><td>Sequential</td><td>Analysis + optional peer review</td></tr>
+<tr><td>debate</td><td>2+</td><td>3 rounds</td><td>High-stakes decisions</td></tr>
+<tr><td>spawn</td><td>2-4</td><td>Parallel</td><td>Complex tasks with subtasks</td></tr>
+</tbody></table>
+<h2 id="smart-delegation-the-right-tool-for-the-job">Smart Delegation: The Right Tool for the Job</h2>
+<p>Not every task requires the most expensive, reasoning-heavy model. Conversely,
+complex security audits shouldn't be handled by a model optimized for speed.</p>
+<p>Lok's delegator (<code>src/delegation.rs</code>) routes tasks based on keyword matching and
+task classification:</p>
+<ul>
+<li><strong>N+1 queries, code smells, dead code</strong>: fast, pattern-matching models (Codex, Claude Haiku)</li>
+<li><strong>Security audits, architecture reviews</strong>: thorough, investigative models (Gemini, o1)</li>
+<li><strong>General questions</strong>: whatever's available (first responsive backend)</li>
+</ul>
+<p>The routing logic is straightforward: task descriptions are tokenized and matched
+against known patterns. If the task contains "security", "audit", "vulnerability",
+it routes to investigative models. If it contains "find", "search", "pattern", it
+routes to fast models. No ML involved - just conditional routing based on task
+characteristics.</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">lok</span><span> smart &quot;</span><span style="color:#a3be8c;">Find N+1 queries</span><span>&quot;           </span><span style="color:#65737e;"># Routes to Codex
+</span><span style="color:#bf616a;">lok</span><span> smart &quot;</span><span style="color:#a3be8c;">Security audit</span><span>&quot;              </span><span style="color:#65737e;"># Routes to Gemini
+</span><span style="color:#bf616a;">lok</span><span> suggest &quot;</span><span style="color:#a3be8c;">Find SQL injection</span><span>&quot;        </span><span style="color:#65737e;"># Shows routing decision without running
+</span></code></pre>
+<p><strong>When routing fails</strong>: If the chosen backend is unavailable, Lok falls back to
+the next-best available backend. If all backends fail, you get a clear error
+message listing what's offline.</p>
+<h2 id="debate-mode-built-in-skepticism">Debate Mode: Built-In Skepticism</h2>
+<p>Single-model answers are often too confident. Debate mode turns that into a
+feature by making backends disagree on purpose.</p>
+<p>In <code>lok debate</code>, each backend responds in multiple rounds. They see each other's
+answers and can challenge them. Round 1 is initial positions. Round 2 is
+responses to each other's positions. Round 3 is final synthesis by a judge
+model that weighs all perspectives.</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">lok</span><span> debate &quot;</span><span style="color:#a3be8c;">What&#39;s the best way to handle auth?</span><span>&quot;
+</span></code></pre>
+<p><strong>How synthesis works</strong>: The judge model receives all responses with their
+round numbers and prompts: "Given these competing perspectives, identify points
+of agreement, highlight unresolved disagreements, and synthesize a final
+recommendation that acknowledges tradeoffs."</p>
+<p>This catches two failure modes:</p>
+<ul>
+<li><strong>False confidence</strong>: A single model confidently recommending an antipattern</li>
+<li><strong>Blind spots</strong>: One model missing a constraint that another catches</li>
+</ul>
+<p>The cost is 3x the API calls and 2-4x the latency. Use it for decisions where
+being wrong is expensive.</p>
+<h2 id="team-mode-coordinated-analysis">Team Mode: Coordinated Analysis</h2>
+<p>Team mode combines smart delegation with optional debate. It orchestrates the
+backends like a small group:</p>
+<ol>
+<li>Choose the best available backend for the task</li>
+<li>If debate is enabled, ask others to review or challenge</li>
+<li>Synthesize a final result</li>
+</ol>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">lok</span><span> team &quot;</span><span style="color:#a3be8c;">Analyze this codebase for issues</span><span>&quot;
+</span><span style="color:#bf616a;">lok</span><span> team</span><span style="color:#bf616a;"> --debate </span><span>&quot;</span><span style="color:#a3be8c;">Should we use async here?</span><span>&quot;
+</span></code></pre>
+<p>This gives you both the speed of a model that's good at the task and the rigor
+of peer review. In practice, it feels like having a lead engineer and two
+reviewers that don't get tired.</p>
+<h2 id="spawn-mode-parallel-agent-execution">Spawn Mode: Parallel Agent Execution</h2>
+<p>Spawn takes the coordination further. Instead of routing a single task to the
+best backend, it breaks a complex task into parallel subtasks and runs multiple
+agents simultaneously.</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">lok</span><span> spawn &quot;</span><span style="color:#a3be8c;">Build a todo app with frontend and backend</span><span>&quot;
+</span></code></pre>
+<p>The flow:</p>
+<ol>
+<li><strong>Plan</strong>: An LLM breaks the task into 2-4 independent subtasks</li>
+<li><strong>Delegate</strong>: Each subtask gets assigned to the best available backend</li>
+<li><strong>Execute</strong>: All agents run in parallel with shared context</li>
+<li><strong>Summarize</strong>: Results are collected and aggregated</li>
+</ol>
+<p>You can also specify agents manually:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">lok</span><span> spawn &quot;</span><span style="color:#a3be8c;">Build an app</span><span>&quot; \
+</span><span style="color:#bf616a;">  --agent </span><span>&quot;</span><span style="color:#a3be8c;">api:Build REST endpoints</span><span>&quot; \
+</span><span style="color:#bf616a;">  --agent </span><span>&quot;</span><span style="color:#a3be8c;">ui:Build React components</span><span>&quot; \
+</span><span style="color:#bf616a;">  --agent </span><span>&quot;</span><span style="color:#a3be8c;">db:Design the schema</span><span>&quot;
+</span></code></pre>
+<p>This is the conductor pattern in CLI form. A brain that plans, delegates to
+specialized workers, and synthesizes results. The same pattern that makes
+human teams effective, applied to LLM orchestration.</p>
+<h2 id="the-naming-story">The Naming Story</h2>
+<p>"Lok" has two meanings, both relevant.</p>
+<p><strong>Locomotive</strong> (Swedish/German: lokomotiv). Lok has a <code>conduct</code> command, and the
+metaphor is intentional: a conductor sends trained models down the tracks. The
+pun on "trained" models is deliberate.</p>
+<p><strong>Sanskrit/Hindi लोक</strong> ("world" or "people"), as in Lok Sabha, the People's
+Assembly. Lok's philosophy is a collection of agents working together, not a
+single monolithic mind.</p>
+<p>The name captures both the engineering (orchestration, routing, coordination)
+and the philosophy (collective intelligence, multiple perspectives).</p>
+<h2 id="configuration-encode-your-team-s-knowledge">Configuration: Encode Your Team's Knowledge</h2>
+<p>Lok works out of the box, but gets more powerful with <code>lok.toml</code>:</p>
+<pre data-lang="toml" style="background-color:#2b303b;color:#c0c5ce;" class="language-toml "><code class="language-toml" data-lang="toml"><span>[tasks.hunt]
+</span><span style="color:#bf616a;">description </span><span>= &quot;</span><span style="color:#a3be8c;">Find bugs and code issues</span><span>&quot;
+</span><span style="color:#bf616a;">backends </span><span>= [&quot;</span><span style="color:#a3be8c;">codex</span><span>&quot;]
+</span><span style="color:#bf616a;">prompts </span><span>= [
+</span><span>  { </span><span style="color:#bf616a;">name </span><span>= &quot;</span><span style="color:#a3be8c;">n+1</span><span>&quot;, </span><span style="color:#bf616a;">prompt </span><span>= &quot;</span><span style="color:#a3be8c;">Search for N+1 query issues...</span><span>&quot; },
+</span><span>  { </span><span style="color:#bf616a;">name </span><span>= &quot;</span><span style="color:#a3be8c;">dead-code</span><span>&quot;, </span><span style="color:#bf616a;">prompt </span><span>= &quot;</span><span style="color:#a3be8c;">Find unused code...</span><span>&quot; },
+</span><span>]
+</span><span>
+</span><span>[tasks.audit]
+</span><span style="color:#bf616a;">description </span><span>= &quot;</span><span style="color:#a3be8c;">Security audit</span><span>&quot;
+</span><span style="color:#bf616a;">backends </span><span>= [&quot;</span><span style="color:#a3be8c;">gemini</span><span>&quot;]
+</span><span style="color:#bf616a;">prompts </span><span>= [
+</span><span>  { </span><span style="color:#bf616a;">name </span><span>= &quot;</span><span style="color:#a3be8c;">injection</span><span>&quot;, </span><span style="color:#bf616a;">prompt </span><span>= &quot;</span><span style="color:#a3be8c;">Find SQL injection...</span><span>&quot; },
+</span><span>  { </span><span style="color:#bf616a;">name </span><span>= &quot;</span><span style="color:#a3be8c;">auth</span><span>&quot;, </span><span style="color:#bf616a;">prompt </span><span>= &quot;</span><span style="color:#a3be8c;">Find auth bypass...</span><span>&quot; },
+</span><span>]
+</span></code></pre>
+<p>This isn't just configuration. It's a way to encode your team's knowledge about
+which model to trust for what. Tasks become repeatable workflows, not one-off
+experiments.</p>
+<h2 id="why-this-matters">Why This Matters</h2>
+<p>We're moving away from the era of "Prompt Engineering" and into the era of Flow
+Engineering. The quality of an AI output is no longer determined solely by how
+clever your prompt is, but by the architecture of the workflow that processes
+it.</p>
+<p>By formalizing these flows into a CLI tool, Lok brings determinism and
+reliability to AI interactions:</p>
+<ol>
+<li><strong>Higher signal, lower noise</strong>: Smart delegation keeps the right model on the
+right task</li>
+<li><strong>Built-in skepticism</strong>: Debate and team modes catch errors and broaden
+coverage</li>
+<li><strong>Parallel execution</strong>: Spawn mode runs multiple agents simultaneously,
+turning sequential workflows into concurrent ones</li>
+<li><strong>Repeatable workflows</strong>: Tasks like <code>lok hunt</code> become part of your
+engineering rhythm</li>
+<li><strong>Local control plane</strong>: No hidden SaaS layer, no opaque routing. You can see
+and customize how it chooses backends</li>
+</ol>
+<h2 id="before-and-after-a-real-example">Before and After: A Real Example</h2>
+<p><strong>Without Lok:</strong></p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#65737e;"># Manual workflow for finding Rails performance issues
+</span><span style="color:#bf616a;">$</span><span> claude &quot;</span><span style="color:#a3be8c;">Find N+1 queries in app/controllers</span><span>&quot;
+</span><span style="color:#65737e;"># Review output, switch tools
+</span><span style="color:#bf616a;">$</span><span> gemini &quot;</span><span style="color:#a3be8c;">Are there better caching strategies?</span><span>&quot;
+</span><span style="color:#65737e;"># Manually synthesize both answers
+</span><span style="color:#65737e;"># Total time: 5-10 minutes of context switching
+</span></code></pre>
+<p><strong>With Lok:</strong></p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#65737e;"># Single command, automatic backend selection and synthesis
+</span><span style="color:#bf616a;">$</span><span> lok team</span><span style="color:#bf616a;"> --debate </span><span>&quot;</span><span style="color:#a3be8c;">Analyze Rails app for performance issues</span><span>&quot;
+</span><span style="color:#65737e;"># Codex finds N+1 queries (fast, pattern-matching)
+</span><span style="color:#65737e;"># Gemini suggests caching strategies (thorough, investigative)
+</span><span style="color:#65737e;"># Judge model synthesizes into prioritized action items
+</span><span style="color:#65737e;"># Total time: 2 minutes, no context switching
+</span></code></pre>
+<p>The value isn't just speed - it's that you get both the exhaustive pattern
+matching and the strategic recommendations in one pass, with built-in
+skepticism from debate mode catching false positives.</p>
+<h2 id="getting-started">Getting Started</h2>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#65737e;"># Check what backends you have
+</span><span style="color:#bf616a;">lok</span><span> doctor
+</span><span>
+</span><span style="color:#65737e;"># Ask all backends
+</span><span style="color:#bf616a;">lok</span><span> ask &quot;</span><span style="color:#a3be8c;">Find performance issues</span><span>&quot;
+</span><span>
+</span><span style="color:#65737e;"># Let them debate
+</span><span style="color:#bf616a;">lok</span><span> debate &quot;</span><span style="color:#a3be8c;">Best approach for caching?</span><span>&quot;
+</span><span>
+</span><span style="color:#65737e;"># Smart routing
+</span><span style="color:#bf616a;">lok</span><span> smart &quot;</span><span style="color:#a3be8c;">Find N+1 queries</span><span>&quot;
+</span><span>
+</span><span style="color:#65737e;"># Parallel agents
+</span><span style="color:#bf616a;">lok</span><span> spawn &quot;</span><span style="color:#a3be8c;">Build a REST API with tests</span><span>&quot;
+</span></code></pre>
+<p>Lok doesn't replace your LLMs. It coordinates them. That means you keep the
+tools you already trust and add orchestration on top.</p>
+<p><strong>Performance characteristics</strong>: Smart routing adds ~50-100ms overhead for task
+classification. Debate mode runs 3 rounds sequentially, so expect 3x the
+single-model latency. Spawn mode runs agents in parallel, so wall-clock time is
+determined by the slowest agent, not the sum of all agents.</p>
+<p>The source is at <a href="https://github.com/ducks/lok">github.com/ducks/lok</a>. It's
+Rust, it's fast, and it's the brain that makes your AI arms work together.</p>
+<hr />
+<p>Next: <a href="/blog/2026/lok-workflows-and-local-llms">Part 2: Workflows and Local LLMs</a></p>
+
+
+      
+        
+        
+
+        
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;ai-problems-are-human-problems&#x2F;">AI Problems Are Just Human Problems Amplified</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 23, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">AI fatigue, perfectionism vs non-determinism, and garbage in&#x2F;garbage out. These are not new problems. AI just makes them obvious faster.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;llm-mux-workflow-orchestration&#x2F;">llm-mux: Why I Rebuilt Lok</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 11, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok got 300+ installs, then I rewrote it. The abstractions were wrong. llm-mux has roles, teams, and proper apply&#x2F;verify. Here&#x27;s why.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;finna-multi-model-spec-implement&#x2F;">finna: Multi-Model Debate, Spec, and Implement</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 10, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A standalone tool that takes an idea, debates it across Claude, Codex, and Gemini, creates a roadmap, writes specs, and implements. Planning and execution in one pipeline.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-json-parser-multi-llm&#x2F;">Building a JSON Parser with Multi-LLM Orchestration (Part 1)</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 07, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Using lok to orchestrate four LLMs debating design decisions, then synthesizing specs for a Rust JSON parser. The debate phase surfaced edge cases no single model would have caught.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-spec-multi-agent-planning&#x2F;">Lok Part 5: Multi-Agent Planning with lok spec</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 06, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lok gains a spec command that turns task descriptions into structured implementation plans. Multiple LLMs propose, debate, and converge on a roadmap before any code gets written.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

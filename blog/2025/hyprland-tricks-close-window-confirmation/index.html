@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Adding a simple Wofi confirmation dialog to Hyprland&#x27;s window close keybind to prevent accidentally closing important windows with a quick Yes&#x2F;No prompt.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Hyprland Tricks - Close Window Keybind With Confirmation Window">
+    <meta property="og:description" content="Adding a simple Wofi confirmation dialog to Hyprland&#x27;s window close keybind to prevent accidentally closing important windows with a quick Yes&#x2F;No prompt.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;hyprland-tricks-close-window-confirmation&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Hyprland Tricks - Close Window Keybind With Confirmation Window">
+    <meta name="twitter:description" content="Adding a simple Wofi confirmation dialog to Hyprland&#x27;s window close keybind to prevent accidentally closing important windows with a quick Yes&#x2F;No prompt.">
+
+    <title>Hyprland Tricks - Close Window Keybind With Confirmation Window - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Hyprland Tricks - Close Window Keybind With Confirmation Window</h1>
+      <div class="meta">
+        
+        <p>Jul 28, 2025</p>
+        
+        <p>1 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/hyprland">#hyprland</a></p>
+          
+        </div>
+      
+
+      <p>By default, <code>hyprctl dispatch killactive</code> will instantly close your focused
+window. If you're like me and have ever yanked a terminal or browser window
+when you weren't ready, this tiny script adds a "Yes/No" confirmation window
+using Wofi.</p>
+<p><img src="/images/wofi-close-window-dialog.png" alt="A dialog showing a yes or no confirmation selection" /></p>
+<h3 id="create-the-script">Create the Script</h3>
+<p>For me, I will be adding this to <code>~/dotfiles/hypr/scripts/hypr-confirm-close</code>.</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>#!/usr/bin/env bash
+</span><span># prompt &quot;Close window?&quot; with Yes/No via wofi
+</span><span>choice=$(printf &quot;Yes\nNo&quot; \
+</span><span>  | wofi --dmenu --prompt=&quot;Close window?&quot; --lines=5)
+</span><span>[ &quot;$choice&quot; = &quot;Yes&quot; ] &amp;&amp; hyprctl dispatch killactive
+</span></code></pre>
+<p>Remember to make it executable.
+<code>chmod +x ~/dotfiles/hypr/scripts/hypr-confirm-close</code></p>
+<h3 id="bind-the-key">Bind the Key</h3>
+<p>In your <code>hyprland.conf</code>:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>bind = $mod, q, exec, bash, ~/.config/hypr/scripts/hypr-confirm-close
+</span></code></pre>
+<p>The filepath is different here because it will get copied from our <code>~/dotfiles</code>
+dir to the normal <code>~/.config</code> directory.</p>
+<p>Reload:</p>
+<p><code>hyprctl reload</code></p>
+<h3 id="summary">Summary</h3>
+<p>Now <code>MOD+q</code> pops up a two-line menu and only when you select "Yes" will your
+window be closed.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

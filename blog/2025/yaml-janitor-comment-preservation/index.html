@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="How I built a YAML linter that preserves comments, validated 1,736 production files, and published it to RubyGems">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Building yaml-janitor: Solving the Comment Preservation Problem">
+    <meta property="og:description" content="How I built a YAML linter that preserves comments, validated 1,736 production files, and published it to RubyGems">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;yaml-janitor-comment-preservation&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Building yaml-janitor: Solving the Comment Preservation Problem">
+    <meta name="twitter:description" content="How I built a YAML linter that preserves comments, validated 1,736 production files, and published it to RubyGems">
+
+    <title>Building yaml-janitor: Solving the Comment Preservation Problem - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Building yaml-janitor: Solving the Comment Preservation Problem</h1>
+      <div class="meta">
+        
+        <p>Nov 14, 2025</p>
+        
+        <p>3 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/ruby">#ruby</a></p>
+          
+          <p><a href="/tags/yaml">#yaml</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+          <p><a href="/tags/devops">#devops</a></p>
+          
+        </div>
+      
+
+      <p>For the past five years, there's been an intermittent problem at work:
+sometimes, when editing YAML configuration files with automated tools, comments
+get destroyed. The comments contain critical context like why certain values
+exist or what not to change, so losing them causes real problems when trying to
+maintain infrastructure configuration.</p>
+<p>A coworker tried to solve this in 2021 by building tooling around
+psych-pure, a pure Ruby YAML parser that can preserve comments. But
+psych-pure wasn't stable enough at the time, so the project stalled.</p>
+<p>Fast forward to 2025, and I happened to be looking through devops topics and
+stumbled upon this one. This seemed like the perfect opportunity to revisit the
+comment preservation problem.</p>
+<h2 id="the-initial-validation">The Initial Validation</h2>
+<p>I started by writing a simple validation script using psych-pure to check
+if our production YAML files could survive a round-trip: load the file,
+dump it back out, and verify the semantics stayed the same.</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#8fa1b3;">require </span><span>&#39;</span><span style="color:#a3be8c;">psych/pure</span><span>&#39;
+</span><span>
+</span><span>yaml_content = </span><span style="color:#ebcb8b;">File</span><span>.read(&#39;</span><span style="color:#a3be8c;">config.yml</span><span>&#39;)
+</span><span>loaded = </span><span style="color:#ebcb8b;">Psych</span><span>::</span><span style="color:#ebcb8b;">Pure</span><span>.</span><span style="color:#96b5b4;">load</span><span>(yaml_content, </span><span style="color:#a3be8c;">comments: </span><span style="color:#d08770;">true</span><span>)
+</span><span>dumped = </span><span style="color:#ebcb8b;">Psych</span><span>::</span><span style="color:#ebcb8b;">Pure</span><span>.dump(loaded)
+</span><span>
+</span><span style="color:#65737e;"># Verify semantics match
+</span><span>original_data = </span><span style="color:#ebcb8b;">Psych</span><span>::</span><span style="color:#ebcb8b;">Pure</span><span>.</span><span style="color:#96b5b4;">load</span><span>(yaml_content)
+</span><span>dumped_data = </span><span style="color:#ebcb8b;">Psych</span><span>::</span><span style="color:#ebcb8b;">Pure</span><span>.</span><span style="color:#96b5b4;">load</span><span>(dumped)
+</span><span>
+</span><span style="color:#b48ead;">if</span><span> original_data == dumped_data
+</span><span>  </span><span style="color:#96b5b4;">puts </span><span>&quot;</span><span style="color:#a3be8c;">✅ Semantics preserved</span><span>&quot;
+</span><span style="color:#b48ead;">else
+</span><span>  </span><span style="color:#96b5b4;">puts </span><span>&quot;</span><span style="color:#a3be8c;">❌ MISMATCH</span><span>&quot;
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>I ran this against 1,736 production YAML files across two repositories.
+The good news: no corrupt YAML! Most files validated successfully, with
+only a handful failing due to using patterns that are technically invalid
+per the YAML spec (though the C implementation of Psych accepts them
+anyway).</p>
+<h2 id="building-yaml-janitor">Building yaml-janitor</h2>
+<p>With validation working, I built a proper linter around psych-pure. The
+key challenge was that while psych-pure preserves comments when loading,
+its built-in dump function doesn't give enough control over formatting.
+I needed custom formatting rules like consistent indentation and compact
+array notation.</p>
+<p>Here's what yaml-janitor fixes:</p>
+<pre data-lang="yaml" style="background-color:#2b303b;color:#c0c5ce;" class="language-yaml "><code class="language-yaml" data-lang="yaml"><span style="color:#65737e;"># Before: mixed indentation, explicit array format
+</span><span style="color:#bf616a;">config</span><span>:
+</span><span>    </span><span style="color:#65737e;"># Database settings
+</span><span>    </span><span style="color:#bf616a;">database</span><span>:
+</span><span>      </span><span style="color:#bf616a;">host</span><span>: </span><span style="color:#a3be8c;">localhost
+</span><span>        </span><span style="color:#bf616a;">port</span><span>: </span><span style="color:#d08770;">5432
+</span><span>    </span><span style="color:#bf616a;">features</span><span>:
+</span><span>      -
+</span><span>        </span><span style="color:#bf616a;">name</span><span>: </span><span style="color:#a3be8c;">caching
+</span><span>        </span><span style="color:#bf616a;">enabled</span><span>: </span><span style="color:#d08770;">true
+</span><span>
+</span><span style="color:#65737e;"># After: consistent indentation, compact arrays
+</span><span style="color:#bf616a;">config</span><span>:
+</span><span>  </span><span style="color:#65737e;"># Database settings
+</span><span>  </span><span style="color:#bf616a;">database</span><span>:
+</span><span>    </span><span style="color:#bf616a;">host</span><span>: </span><span style="color:#a3be8c;">localhost
+</span><span>    </span><span style="color:#bf616a;">port</span><span>: </span><span style="color:#d08770;">5432
+</span><span>  </span><span style="color:#bf616a;">features</span><span>:
+</span><span>    - </span><span style="color:#bf616a;">name</span><span>: </span><span style="color:#a3be8c;">caching
+</span><span>      </span><span style="color:#bf616a;">enabled</span><span>: </span><span style="color:#d08770;">true
+</span></code></pre>
+<p>The solution was to build a custom emitter that walks the loaded data
+structure and outputs formatted YAML while preserving all comments:</p>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#b48ead;">class </span><span style="color:#ebcb8b;">Emitter
+</span><span style="color:#eff1f5;">  </span><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">initialize</span><span>(</span><span style="color:#bf616a;">node</span><span>, </span><span style="color:#bf616a;">config</span><span>)
+</span><span>    @</span><span style="color:#bf616a;">node </span><span>= node
+</span><span>    @</span><span style="color:#bf616a;">config </span><span>= config
+</span><span>    @</span><span style="color:#bf616a;">output </span><span>= []
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span>
+</span><span>  </span><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">emit
+</span><span>    emit_comments(get_comments(@</span><span style="color:#bf616a;">node</span><span>, </span><span style="color:#a3be8c;">:leading</span><span>), </span><span style="color:#d08770;">0</span><span>)
+</span><span>    emit_document(@</span><span style="color:#bf616a;">node</span><span>)
+</span><span>    @</span><span style="color:#bf616a;">output</span><span>.join(&quot;</span><span style="color:#96b5b4;">\n</span><span>&quot;) + &quot;</span><span style="color:#96b5b4;">\n</span><span>&quot;
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span>
+</span><span>  </span><span style="color:#b48ead;">def </span><span style="color:#8fa1b3;">emit_mapping</span><span>(</span><span style="color:#bf616a;">hash</span><span>, </span><span style="color:#bf616a;">indent</span><span>)
+</span><span>    entries = </span><span style="color:#96b5b4;">hash</span><span>.</span><span style="color:#96b5b4;">respond_to?</span><span>(</span><span style="color:#a3be8c;">:psych_keys</span><span>) ?
+</span><span>      </span><span style="color:#96b5b4;">hash</span><span>.psych_keys.map { |</span><span style="color:#bf616a;">pk</span><span>| [pk.key_node, pk.value_node] } :
+</span><span>      </span><span style="color:#96b5b4;">hash</span><span>.</span><span style="color:#96b5b4;">to_a
+</span><span>
+</span><span>    entries.each_with_index </span><span style="color:#b48ead;">do </span><span>|(</span><span style="color:#bf616a;">key</span><span>, </span><span style="color:#bf616a;">value</span><span>), </span><span style="color:#bf616a;">index</span><span>|
+</span><span>      emit_comments(get_comments(key, </span><span style="color:#a3be8c;">:leading</span><span>), indent)
+</span><span>      key_str = scalar_to_string(key)
+</span><span>
+</span><span>      </span><span style="color:#b48ead;">case</span><span> value
+</span><span>      </span><span style="color:#b48ead;">when </span><span style="color:#96b5b4;">Hash</span><span>, </span><span style="color:#96b5b4;">Array
+</span><span>        @</span><span style="color:#bf616a;">output </span><span>&lt;&lt; &quot;#{&#39; &#39; * indent}#{key_str}</span><span style="color:#a3be8c;">:</span><span>&quot;
+</span><span>        emit_node(value, indent + indentation)
+</span><span>      </span><span style="color:#b48ead;">else
+</span><span>        value_str = scalar_to_string(value)
+</span><span>        @</span><span style="color:#bf616a;">output </span><span>&lt;&lt; &quot;#{&#39; &#39; * indent}#{key_str}</span><span style="color:#a3be8c;">: </span><span>#{value_str}&quot;
+</span><span>      </span><span style="color:#b48ead;">end
+</span><span>
+</span><span>      emit_comments(get_comments(key, </span><span style="color:#a3be8c;">:trailing</span><span>), indent)
+</span><span>    </span><span style="color:#b48ead;">end
+</span><span>  </span><span style="color:#b48ead;">end
+</span><span style="color:#b48ead;">end
+</span></code></pre>
+<p>This gave me complete control over formatting while preserving every
+comment. The emitter handles:</p>
+<ul>
+<li>Consistent indentation (2 or 4 spaces)</li>
+<li>Compact array format (dash on same line as first key)</li>
+<li>Comment placement (leading and trailing)</li>
+<li>Blank lines between top-level sections</li>
+</ul>
+<h2 id="production-testing">Production Testing</h2>
+<p>I tested yaml-janitor on a production file with mixed 2-space and 4-space
+indentation:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#65737e;"># Backup original
+</span><span style="color:#bf616a;">cp</span><span> pipeline.yaml /tmp/pipeline_backup.yaml
+</span><span>
+</span><span style="color:#65737e;"># Fix with yaml-janitor
+</span><span style="color:#bf616a;">yaml-janitor --fix --indentation</span><span> 2 pipeline.yaml
+</span><span>
+</span><span style="color:#65737e;"># Verify semantics preserved
+</span><span style="color:#bf616a;">ruby -ryaml -e </span><span>&quot;
+</span><span style="color:#a3be8c;">  orig = YAML.load_file(&#39;/tmp/pipeline_backup.yaml&#39;)
+</span><span style="color:#a3be8c;">  fixed = YAML.load_file(&#39;pipeline.yaml&#39;)
+</span><span style="color:#a3be8c;">  puts orig == fixed ? &#39;✅ Semantics preserved&#39; : &#39;❌ MISMATCH&#39;
+</span><span>&quot;
+</span><span style="color:#65737e;"># Output: ✅ Semantics preserved
+</span></code></pre>
+<p>The fix worked perfectly. Consistent indentation, all comments preserved,
+and semantics verified to be identical.</p>
+<h2 id="configuration-system">Configuration System</h2>
+<p>I added a configuration file system so teams can standardize their YAML
+formatting:</p>
+<pre data-lang="yaml" style="background-color:#2b303b;color:#c0c5ce;" class="language-yaml "><code class="language-yaml" data-lang="yaml"><span style="color:#65737e;"># .yaml-janitor.yml
+</span><span style="color:#bf616a;">indentation</span><span>: </span><span style="color:#d08770;">2
+</span><span style="color:#bf616a;">line_width</span><span>: </span><span style="color:#d08770;">80
+</span><span style="color:#bf616a;">sequence_indent</span><span>: </span><span style="color:#d08770;">false
+</span><span>
+</span><span style="color:#bf616a;">rules</span><span>:
+</span><span>  </span><span style="color:#bf616a;">consistent_indentation</span><span>:
+</span><span>    </span><span style="color:#bf616a;">enabled</span><span>: </span><span style="color:#d08770;">true
+</span><span>  </span><span style="color:#bf616a;">multiline_certificate</span><span>:
+</span><span>    </span><span style="color:#bf616a;">enabled</span><span>: </span><span style="color:#d08770;">true
+</span></code></pre>
+<p>The CLI supports both config files and command-line overrides:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">yaml-janitor --config</span><span> .yaml-janitor.yml files/*.yml
+</span><span style="color:#bf616a;">yaml-janitor --fix --indentation</span><span> 2 config.yml
+</span></code></pre>
+<h2 id="publishing-to-rubygems">Publishing to RubyGems</h2>
+<p>Once the linter was working, I published it to RubyGems so anyone could
+use it. I set up automated publishing with GitHub Actions and RubyGems
+trusted publishing (no API keys needed):</p>
+<pre data-lang="yaml" style="background-color:#2b303b;color:#c0c5ce;" class="language-yaml "><code class="language-yaml" data-lang="yaml"><span style="color:#bf616a;">name</span><span>: </span><span style="color:#a3be8c;">Publish to RubyGems
+</span><span style="color:#d08770;">on</span><span>:
+</span><span>  </span><span style="color:#bf616a;">push</span><span>:
+</span><span>    </span><span style="color:#bf616a;">tags</span><span>:
+</span><span>      - &#39;</span><span style="color:#a3be8c;">v*</span><span>&#39;
+</span><span style="color:#bf616a;">jobs</span><span>:
+</span><span>  </span><span style="color:#bf616a;">publish</span><span>:
+</span><span>    </span><span style="color:#bf616a;">runs-on</span><span>: </span><span style="color:#a3be8c;">ubuntu-latest
+</span><span>    </span><span style="color:#bf616a;">permissions</span><span>:
+</span><span>      </span><span style="color:#bf616a;">contents</span><span>: </span><span style="color:#a3be8c;">read
+</span><span>      </span><span style="color:#bf616a;">id-token</span><span>: </span><span style="color:#a3be8c;">write
+</span><span>    </span><span style="color:#bf616a;">steps</span><span>:
+</span><span>      - </span><span style="color:#bf616a;">uses</span><span>: </span><span style="color:#a3be8c;">actions/checkout@v4
+</span><span>      - </span><span style="color:#bf616a;">uses</span><span>: </span><span style="color:#a3be8c;">ruby/setup-ruby@v1
+</span><span>        </span><span style="color:#bf616a;">with</span><span>:
+</span><span>          </span><span style="color:#bf616a;">ruby-version</span><span>: &#39;</span><span style="color:#a3be8c;">3.3</span><span>&#39;
+</span><span>          </span><span style="color:#bf616a;">bundler-cache</span><span>: </span><span style="color:#d08770;">true
+</span><span>      - </span><span style="color:#bf616a;">uses</span><span>: </span><span style="color:#a3be8c;">rubygems/release-gem@v1
+</span></code></pre>
+<p>The release process is now fully automated:</p>
+<ol>
+<li>Update version number (date-based: YYYYMMDD)</li>
+<li>Run <code>bundle install</code> to update lockfile</li>
+<li>Commit and push to main</li>
+<li>Create and push tag: <code>git tag v20251113 &amp;&amp; git push origin v20251113</code></li>
+<li>GitHub Actions automatically publishes to RubyGems</li>
+</ol>
+<h2 id="results">Results</h2>
+<p>yaml-janitor is now published and available on RubyGems:</p>
+<pre data-lang="bash" style="background-color:#2b303b;color:#c0c5ce;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#bf616a;">gem</span><span> install yaml-janitor
+</span><span style="color:#bf616a;">yaml-janitor --help
+</span></code></pre>
+<p>Production validation results:</p>
+<ul>
+<li>Scanned 1,736 YAML files</li>
+<li>Found 0 corrupt files</li>
+<li>Fixed widespread formatting inconsistencies</li>
+<li>Preserved all comments during fixes</li>
+</ul>
+<p>People are already using it to lint their YAML configurations.</p>
+<h2 id="the-five-year-solution">The Five-Year Solution</h2>
+<p>The problem my coworker identified in 2021 is finally solved. Teams can
+now safely automate YAML editing without losing critical context in
+comments. The infrastructure was already there, it just needed psych-pure
+to stabilize and someone to finish building the tooling.</p>
+<p>yaml-janitor is open source and available on
+<a href="https://github.com/ducks/yaml-janitor">GitHub</a> and
+<a href="https://rubygems.org/gems/yaml-janitor">RubyGems</a>. If you've ever had
+to choose between manual YAML editing and losing your comments, check
+it out.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-stats-evolution&#x2F;">Invite Tree to Invite Stats - How A Simple Tree Flourished Into A Full Moderation Plugin</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 05, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">How a simple visualization plugin evolved into a moderation tool.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-tree&#x2F;">Visualizing Discourse Invite Trees</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 03, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A simple Discourse plugin that visualizes who invited whom as an ASCII tree, inspired by Lobsters.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-the-guest-spot-part-2&#x2F;">Building The Guest Spot: Part 2 - Two Refactors</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 26, 2025</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Two major refactors: custom model to Topics, then custom feed to plugin outlets. Less code, more features, better maintainability.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/ember">#ember</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-the-guest-spot-part-1&#x2F;">Building The Guest Spot: Part 1 - My First Community</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 25, 2025</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">Building an Instagram-style showcase for tattoo artists using Discourse. My first attempt at helping build a community from scratch.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/community">#community</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-yaks-virtual-currency-part-4&#x2F;">Building Yaks: A Virtual Currency System for Discourse (Part 4: Custom Titles and Earning System)</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 19, 2025</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">Implementing custom user titles and the Yaks earning system. This post covers serializer overrides for titles and building a complete earning system with rate limiting, trust level requirements, and real-time balance updates.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

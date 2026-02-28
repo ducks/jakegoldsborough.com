@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - github</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/github/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Sat, 24 May 2025 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Deploying a Zola static site to a custom domain with Github Actions</title>
+          <pubDate>Sat, 24 May 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/deploying-static-site-zola-github-actions/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/deploying-static-site-zola-github-actions/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/deploying-static-site-zola-github-actions/">&lt;p&gt;As I&#x27;ve been searching for a new gig, I&#x27;ve gotten the urge to write a bit more
+about some of the stuff I&#x27;m up to to help make myself stand out. I really like
+using the fewest tools as needed so I knew a static site generator was what I
+wanted. I also like to use Rust based tools when possible.&lt;&#x2F;p&gt;
+&lt;p&gt;Searching for Rust static site generators lead me to
+&lt;a href=&quot;https:&#x2F;&#x2F;www.getzola.org&#x2F;&quot;&gt;Zola&lt;&#x2F;a&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;Some of the top advertised features are no dependencies, blazingly fast,
+and easy to use. Those sound great to me.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;set-up-zola-site&quot;&gt;Set up Zola site&lt;&#x2F;h3&gt;
+&lt;p&gt;While this isn&#x27;t a few blown Zola tutorial, I did want to include a few things.&lt;&#x2F;p&gt;
+&lt;p&gt;After installing Zola, you can simply run &lt;code&gt;zola init myblog&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;You&#x27;ll be asked a few questions and a base site will be setup for you.&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;├── config.toml
+&lt;&#x2F;span&gt;&lt;span&gt;├── content
+&lt;&#x2F;span&gt;&lt;span&gt;├── sass
+&lt;&#x2F;span&gt;&lt;span&gt;├── static
+&lt;&#x2F;span&gt;&lt;span&gt;├── templates
+&lt;&#x2F;span&gt;&lt;span&gt;└── themes
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Without going too deep, your CommonMark pages will go in &lt;code&gt;content&lt;&#x2F;code&gt;, Tera&#x2F;HTML
+templates in &lt;code&gt;templates&lt;&#x2F;code&gt;, and any css&#x2F;js&#x2F;images or other static content will go
+in &lt;code&gt;static&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;SASS is enabled by default but can be disabled. I am not currently using SASS
+personally.&lt;&#x2F;p&gt;
+&lt;p&gt;Running &lt;code&gt;zola build&lt;&#x2F;code&gt; will build the site and output it a directory called &lt;code&gt;public&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;Here is a link to a complete overview:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;www.getzola.org&#x2F;documentation&#x2F;getting-started&#x2F;overview&#x2F;&quot;&gt;https:&#x2F;&#x2F;www.getzola.org&#x2F;documentation&#x2F;getting-started&#x2F;overview&#x2F;&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;push-to-github-create-github-actions-workflow&quot;&gt;Push to Github &amp;amp; Create Github Actions workflow&lt;&#x2F;h3&gt;
+&lt;p&gt;After getting your content written, site styled, and ready for deployment, it&#x27;s time to
+push to Github. Create a repo and push it to a &lt;code&gt;main&lt;&#x2F;code&gt; branch (exclude the &lt;code&gt;public&lt;&#x2F;code&gt;
+directory).&lt;&#x2F;p&gt;
+&lt;p&gt;Next, we will setup the actual workflow to take our input files, setup zola,
+build the site, and commit it to the correct branch.&lt;&#x2F;p&gt;
+&lt;p&gt;Create a file at &lt;code&gt;.github&#x2F;workflows&#x2F;deploy.yml&lt;&#x2F;code&gt; and insert this:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;name: Deploy Zola to GitHub Pages
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;on:
+&lt;&#x2F;span&gt;&lt;span&gt;  push:
+&lt;&#x2F;span&gt;&lt;span&gt;    branches: [main]
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;jobs:
+&lt;&#x2F;span&gt;&lt;span&gt;  build-deploy:
+&lt;&#x2F;span&gt;&lt;span&gt;    runs-on: ubuntu-latest
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    steps:
+&lt;&#x2F;span&gt;&lt;span&gt;    - name: Check out source
+&lt;&#x2F;span&gt;&lt;span&gt;      uses: actions&#x2F;checkout@v4
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    - name: Install Zola
+&lt;&#x2F;span&gt;&lt;span&gt;      run: |
+&lt;&#x2F;span&gt;&lt;span&gt;        curl -L https:&#x2F;&#x2F;github.com&#x2F;getzola&#x2F;zola&#x2F;releases&#x2F;download&#x2F;v0.20.0&#x2F;zola-v0.20.0-x86_64-unknown-linux-gnu.tar.gz -o zola.tar.gz
+&lt;&#x2F;span&gt;&lt;span&gt;        tar -xzf zola.tar.gz
+&lt;&#x2F;span&gt;&lt;span&gt;        sudo mv zola &#x2F;usr&#x2F;local&#x2F;bin&#x2F;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    - name: Build site
+&lt;&#x2F;span&gt;&lt;span&gt;      run: zola build
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;    - name: Deploy to GitHub Pages
+&lt;&#x2F;span&gt;&lt;span&gt;      uses: peaceiris&#x2F;actions-gh-pages@v3
+&lt;&#x2F;span&gt;&lt;span&gt;      with:
+&lt;&#x2F;span&gt;&lt;span&gt;        github_token: ${{ secrets.GITHUB_TOKEN }}
+&lt;&#x2F;span&gt;&lt;span&gt;        publish_dir: .&#x2F;public
+&lt;&#x2F;span&gt;&lt;span&gt;        publish_branch: gh-pages
+&lt;&#x2F;span&gt;&lt;span&gt;        force_orphan: true
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This setups up a workflow that:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;watches for pushes to main branch&lt;&#x2F;li&gt;
+&lt;li&gt;checks out the zola source and installs it&lt;&#x2F;li&gt;
+&lt;li&gt;builds your site using zola build&lt;&#x2F;li&gt;
+&lt;li&gt;uses github pages plugin to push &lt;code&gt;public&lt;&#x2F;code&gt; output dir to a &lt;code&gt;gh-pages&lt;&#x2F;code&gt; branch&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;You will also need to go to your repos settings and look for the actions section
+to enable write permissions.&lt;&#x2F;p&gt;
+&lt;p&gt;Push this up and watch the build by going to your repo and clicking the &quot;Actions&quot;
+tab. You will see a workflow that you can click into and see build and deploy
+jobs.&lt;&#x2F;p&gt;
+&lt;p&gt;If everything goes well, you can now  visit your site by filling in your values:&lt;&#x2F;p&gt;
+&lt;p&gt;https:&#x2F;&#x2F;${username}.github.io&#x2F;${repo}&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;add-custom-domain-optional&quot;&gt;Add Custom Domain (optional)&lt;&#x2F;h3&gt;
+&lt;p&gt;After you have the initial workflow working, you will need to configure some
+Github settings for a custom domain.&lt;&#x2F;p&gt;
+&lt;p&gt;First, run &lt;code&gt;echo &quot;yourdomain.com&quot; &amp;gt; static&#x2F;CNAME&lt;&#x2F;code&gt; and commit this file.
+Next, go to your Github repo&#x27;s &quot;Pages&quot; setting and add the domain name.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;configure-dns-optional&quot;&gt;Configure DNS (optional)&lt;&#x2F;h3&gt;
+&lt;p&gt;If using a custom domain, you will also need to setup DNS. Go to your domain
+settings and add 4 A records for Github pages:&lt;&#x2F;p&gt;
+&lt;pre style=&quot;background-color:#2b303b;color:#c0c5ce;&quot;&gt;&lt;code&gt;&lt;span&gt;A	@	185.199.108.153
+&lt;&#x2F;span&gt;&lt;span&gt;A	@	185.199.109.153
+&lt;&#x2F;span&gt;&lt;span&gt;A	@	185.199.110.153
+&lt;&#x2F;span&gt;&lt;span&gt;A	@	185.199.111.153
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Setup any subdirectories you might want.&lt;&#x2F;p&gt;
+&lt;p&gt;You may need to give this step some extra time to update before you can
+see your new site at your custom URL. Other times it&#x27;s nearly instant so your
+results may vary.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;profit&quot;&gt;Profit&lt;&#x2F;h3&gt;
+&lt;p&gt;That&#x27;s basically it for a basic setup. You should now have a static site
+setup at a custom domain that gets automatically built by just pushing a branch.&lt;&#x2F;p&gt;
+&lt;p&gt;While simple, this is a complete setup that let&#x27;s you create and deploy content
+to your own URL with ease.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

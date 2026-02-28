@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Discovering and fixing a missing credential source implementation in the AWS Ruby SDK where documentation promised Environment support but the code didn&#x27;t deliver.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Contributing to the AWS Ruby SDK: When Documentation and Implementation Don&#x27;t Match">
+    <meta property="og:description" content="Discovering and fixing a missing credential source implementation in the AWS Ruby SDK where documentation promised Environment support but the code didn&#x27;t deliver.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;contributing-to-aws-sdk-ruby&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Contributing to the AWS Ruby SDK: When Documentation and Implementation Don&#x27;t Match">
+    <meta name="twitter:description" content="Discovering and fixing a missing credential source implementation in the AWS Ruby SDK where documentation promised Environment support but the code didn&#x27;t deliver.">
+
+    <title>Contributing to the AWS Ruby SDK: When Documentation and Implementation Don&#x27;t Match - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Contributing to the AWS Ruby SDK: When Documentation and Implementation Don&#x27;t Match</h1>
+      <div class="meta">
+        
+        <p>Aug 23, 2025</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/aws">#aws</a></p>
+          
+          <p><a href="/tags/ruby">#ruby</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <h3 id="the-problem">The Problem</h3>
+<p>I was working on some IAM role configuration at work when our Discourse
+deployment started failing with AWS credential errors. The error was
+frustrating because according to the AWS documentation, everything should have
+been working perfectly.</p>
+<p>The deployment was trying to use <code>credential_source = Environment</code> in the AWS
+config, which is a standard approach documented in the AWS CLI guide. But for
+some reason, the Ruby SDK wasn't picking up the credentials.</p>
+<h3 id="the-investigation">The Investigation</h3>
+<p>Like any good debugging session, I started by tracing through the credential
+chain. The AWS Ruby SDK has a pretty clear credential resolution process, so I
+dug into the source code to see what was happening.</p>
+<p>That's when I found something interesting: the AWS CLI documentation clearly
+shows <code>Environment</code> as a supported credential source, but when I looked at the
+Ruby SDK implementation, that option was completely missing.</p>
+<p>Here are the <a href="https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-role.html">docs</a></p>
+<p>Here's what I found in the <a href="https://github.com/aws/aws-sdk-ruby/blob/version-3/gems/aws-sdk-core/lib/aws-sdk-core/shared_config.rb#L362">SDK</a>:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>case credential_source
+</span><span>  when &#39;Ec2InstanceMetadata&#39;
+</span><span>    # ... implementation exists
+</span><span>  when &#39;EcsContainer&#39;
+</span><span>    # ... implementation exists
+</span><span>  when &#39;Environment&#39;
+</span><span>    # ... nothing here! end
+</span></code></pre>
+<p>The CLI supports it, the documentation says it should work, but the Ruby SDK
+just... doesn't implement it.</p>
+<h3 id="the-solution">The Solution</h3>
+<p>This felt like a classic case where implementation lagged behind documentation.
+Since I needed this working for our deployment, I decided to contribute the
+missing functionality back to the project.</p>
+<p>The fix was actually pretty straightforward once I understood the pattern:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>when &#39;Environment&#39;
+</span><span>  Aws::Credentials.new(
+</span><span>    ENV[&#39;AWS_ACCESS_KEY_ID&#39;],
+</span><span>    ENV[&#39;AWS_SECRET_ACCESS_KEY&#39;],
+</span><span>    ENV[&#39;AWS_SESSION_TOKEN&#39;]
+</span><span>  )
+</span></code></pre>
+<p>I added comprehensive tests to make sure it worked correctly and that I wasn't
+breaking any of the existing 20,000+ tests in the project.</p>
+<h3 id="the-contribution">The Contribution</h3>
+<p><a href="https://github.com/aws/aws-sdk-ruby/pull/3283">https://github.com/aws/aws-sdk-ruby/pull/3283</a></p>
+<p>Here's the thing - I don't really know Ruby that well. But the codebase was
+well-organized and the patterns were clear enough that I could understand what
+needed to happen.</p>
+<p>I submitted the PR with:</p>
+<ul>
+<li>The missing implementation</li>
+<li>Proper test coverage</li>
+<li>Clear documentation of what was being added</li>
+</ul>
+<h3 id="the-response">The Response</h3>
+<p>The response from the AWS team was exactly what you hope for in open source:</p>
+<blockquote>
+<p>"Hey, thanks for opening a PR. I agree that we should support this and I may
+make some changes to this PR as well."</p>
+</blockquote>
+<p>That's maintainer gold right there - acknowledgment that the gap was real and
+willingness to collaborate on getting it merged.</p>
+<h3 id="what-i-learned">What I Learned</h3>
+<p>This whole experience reinforced a few things for me:</p>
+<p>Documentation gaps happen: Even in well-maintained projects like the AWS SDKs,
+there can be mismatches between what's documented and what's implemented.</p>
+<p>Don't let unfamiliar languages stop you: I was able to contribute meaningfully
+to a Ruby project despite not being a Ruby developer. Good code organization
+and clear patterns make this possible.</p>
+<p>Small changes can have big impact: This was maybe 10 lines of actual code, but
+it unblocked our deployment and will help other developers who hit the same
+issue.</p>
+<h3 id="the-bigger-picture">The Bigger Picture</h3>
+<p>This kind of contribution is exactly why I love working as a generalist.
+Instead of saying "that's not my language" or "someone else should fix the AWS
+SDK," I could trace the problem to its source and ship a fix.</p>
+<p>The best part? Our Discourse deployment should work now, and hopefully other
+developers won't hit this same roadblock in the future.</p>
+<h3 id="update">Update</h3>
+<p>Since writing this, the change has been expanded with additional tests and
+<a href="https://github.com/aws/aws-sdk-ruby/pull/3283">approved by the maintainers</a>.
+It's really rewarding to see a small contribution grow into something that's
+now part of the SDK itself. This is a great reminder that even small fixes
+matter -- they can make life easier for the next developer who comes along.</p>
+<h3 id="the-saga-continues">The Saga Continues</h3>
+<p>This turned out to be just the beginning. After getting the feature merged, I
+discovered it didn't actually work due to credential chain precedence issues.
+Read more in <a href="/blog/2025/contributing-to-aws-sdk-ruby-pt2/">Part
+2</a>
+and <a href="/blog/2025/contributing-to-aws-sdk-ruby-pt3/">Part
+3</a>.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;contributing-to-aws-sdk-ruby-pt3&#x2F;">AWS SDK Ruby Part 3: When &quot;Working as Intended&quot; Means &quot;Broken by Design&quot;</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 14, 2025</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">The conclusion to the AWS credential chain saga, where maintainers close a valid bug report, the feature remains broken, and we learn about the politics of backward compatibility in open source.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/aws">#aws</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;contributing-to-aws-sdk-ruby-pt2&#x2F;">Going off the Rails on the AWS Credential Chain</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 04, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Uncovering a deeper architectural issue in the AWS Ruby SDK where credential chain precedence prevented role assumption from working correctly with environment variable source credentials.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/aws">#aws</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;yaml-janitor-comment-preservation&#x2F;">Building yaml-janitor: Solving the Comment Preservation Problem</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 14, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">How I built a YAML linter that preserves comments, validated 1,736 production files, and published it to RubyGems</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/yaml">#yaml</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                      <p><a href="/tags/devops">#devops</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-stats-evolution&#x2F;">Invite Tree to Invite Stats - How A Simple Tree Flourished Into A Full Moderation Plugin</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 05, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">How a simple visualization plugin evolved into a moderation tool.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-tree&#x2F;">Visualizing Discourse Invite Trees</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 03, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A simple Discourse plugin that visualizes who invited whom as an ASCII tree, inspired by Lobsters.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

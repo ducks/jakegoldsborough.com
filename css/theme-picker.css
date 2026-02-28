@@ -1,0 +1,43 @@
+.theme-picker {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 1.5rem;
+  color: var(--fg);
+  padding-right: var(--spacing);
+
+  label {
+    margin-left: 0.75rem;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  input[type="radio"] {
+    display: none;
+  }
+
+  span {
+    font-weight: normal;
+    color: var(--fg);
+  }
+
+  input[value="light"] + span::before {
+    content: "light";
+  }
+
+  input[value="dark"] + span::before {
+    content: "dark";
+  }
+
+  input:not(:checked) + span {
+    text-decoration: underline;
+  }
+
+  input:checked + span {
+    font-weight: bold;
+  }
+
+  .theme-picker noscript label {
+    display: inline;
+  }
+}

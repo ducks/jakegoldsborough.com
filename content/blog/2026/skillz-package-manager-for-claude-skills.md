@@ -389,7 +389,6 @@ The `shell.nix` includes Rust tooling and git. That's all you need.
 
 The core loop works: create, search, install, update. What's missing:
 
-- Semantic versioning (currently timestamp-based)
 - Dependency resolution (skill A requires skill B)
 - Rollback to previous versions
 

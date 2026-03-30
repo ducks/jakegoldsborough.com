@@ -10,11 +10,47 @@ taxonomies:
     - ai
 ---
 
-Claude Code lets you write custom skills. Drop a `SKILL.md` file in `~/.claude/skills/` and Claude can invoke it. Skills are just markdown files with instructions for Claude to follow.
+Claude Code has a skill system. You write a markdown file with instructions, drop it in `~/.claude/skills/`, and Claude learns a new workflow. The skill persists across sessions. You don't re-paste prompts every time.
 
-The problem: there's no distribution mechanism. Someone publishes a useful skill to GitHub. You want to use it. Your options are: clone the repo, copy the files, symlink manually, or write a script.
+The problem: there's no way to share skills. Someone builds a useful skill (daily notes, API doc generation, database migrations). You want it. Your options: clone the repo, copy files manually, symlink, write a script to manage it.
 
-That's skillz. Install skills from GitHub with one command.
+That's why I built skillz. It's a package manager for Claude Code skills. Install from GitHub, track updates, share your own.
+
+## What is a Skill?
+
+A skill is a markdown file that tells Claude Code how to perform a specific task. When invoked, Claude reads the skill file and follows its instructions.
+
+Example skill (`daily-notes/SKILL.md`):
+
+```markdown
+# Daily Notes Skill
+
+Generate a daily note with structured sections.
+
+## Instructions
+
+When the user invokes this skill:
+
+1. Get today's date in YYYY-MM-DD format
+2. Create a file at `~/notes/YYYY/YYYY-MM-DD.md`
+3. Add these sections:
+   - ## Tasks
+   - ## Meeting Notes
+   - ## Ideas
+4. Confirm the file was created
+
+## Usage
+
+User says: "create today's note"
+You respond by creating the structured markdown file.
+```
+
+That's it. Skills are prompts, but packaged for reuse. Claude Code loads all skills from `~/.claude/skills/` on startup. When you ask Claude to "create today's note", it knows how to do it.
+
+Skills vs alternatives:
+- **Prompt libraries**: Skills live in your filesystem, Claude loads them automatically
+- **Copy/paste snippets**: Skills persist across sessions, no need to re-paste
+- **Claude Projects**: Projects are context, skills are executable workflows
 
 ## Usage
 
@@ -76,15 +112,24 @@ If `SKILL.md` isn't found in either location, the install fails. Everything else
 
 ## Why Not Just Clone?
 
-You could `git clone` skills manually. That works. But then:
+You could `git clone` skills manually. Or use Claude Projects. Or maintain a prompt library. Why skillz?
 
-- You manage paths yourself
-- You remember where each skill came from
-- You track which repos you've cloned vs symlinked
-- You handle updates by pulling or re-cloning
-- There's no list of what's installed
+**vs manual git clone:**
+- skillz tracks what's installed and where it came from
+- Updates are `skillz update`, not `cd ~/.claude/skills/foo && git pull`
+- Consistent paths, clean uninstall
 
-skillz solves the boring part: keeping skills in a standard location, tracking what you installed, removing cleanly when you're done.
+**vs Claude Projects:**
+- Projects are context (files, notes, docs)
+- Skills are executable workflows
+- Skills work across all conversations, not just one project
+
+**vs prompt libraries:**
+- Prompt libraries require copy/paste every session
+- Skills load automatically on Claude Code startup
+- Skills can include helper scripts and templates
+
+skillz solves distribution and lifecycle management. Everything else is out of scope.
 
 ## Tracking and Updates
 
@@ -175,6 +220,39 @@ skillz search automation
 
 Results are sorted by stars and include repository descriptions and install commands. The search uses GitHub's repository API (no authentication required, though you can set `GITHUB_TOKEN` for higher rate limits).
 
+## Full Example: Installing and Using a Skill
+
+Find a skill:
+
+```bash
+$ skillz search "daily notes"
+Found 3 skill repositories:
+
+  alice/daily-journal - ⭐ 24
+    Automated daily note generation with templates
+    https://github.com/alice/daily-journal
+    Install: skillz install https://github.com/alice/daily-journal
+```
+
+Install it:
+
+```bash
+$ skillz install github:alice/daily-journal
+Cloning repository...
+Validating SKILL.md...
+✓ Installed daily-journal to ~/.claude/skills/daily-journal
+```
+
+Now restart Claude Code (or it loads on next session). Ask Claude:
+
+```
+You: "create today's daily note"
+Claude: I'll create your daily note using the daily-journal skill.
+        Created: ~/notes/2026/2026-03-30.md with task, meeting, and ideas sections.
+```
+
+The skill taught Claude a new workflow. No copy/paste, no re-explaining. It just works.
+
 ## Configuration
 
 Config lives at `~/.config/skillz/config.toml`:
@@ -215,15 +293,53 @@ src/
 
 Clap handles the CLI. The rest is file operations and process spawning.
 
-## What It Doesn't Do
+## Skill Structure Reference
 
-skillz doesn't:
-- Manage dependencies between skills
-- Host a centralized registry (uses GitHub directly)
-- Track semantic versions (uses timestamps)
-- Execute skills (that's Claude Code's job)
+A valid skill repository contains:
 
-It solves distribution: creating, finding, installing, and updating skills. Everything else is out of scope.
+**Required:**
+- `SKILL.md` - The skill prompt
+
+**Optional:**
+- `README.md` - Installation/usage docs for humans
+- Helper scripts (e.g., `generate-report.sh`)
+- Templates or data files
+
+The `SKILL.md` format is freeform markdown. Common patterns:
+
+```markdown
+# Skill Name
+
+Brief description.
+
+## Instructions
+
+Step-by-step instructions for Claude to follow.
+
+## Usage
+
+Example invocations that trigger this skill.
+
+## Examples
+
+Input/output examples.
+```
+
+No JSON schema, no version field, no manifest. Just markdown. Claude reads it, follows it.
+
+## What This Actually Solves
+
+skillz is not about prompts. It's about infrastructure for reusable AI workflows.
+
+Skills are prompts, but:
+- They persist across sessions
+- They compose (one skill can reference another)
+- They version (via git)
+- They distribute (via GitHub)
+
+This is package management for AI instructions. The same way you `npm install` a library instead of copying code, you `skillz install` a workflow instead of re-pasting prompts.
+
+skillz handles distribution. Claude Code handles execution. Together, they make AI workflows shareable.
 
 ## The GitHub Release Workflow
 
@@ -271,15 +387,14 @@ The `shell.nix` includes Rust tooling and git. That's all you need.
 
 ## What's Next
 
-The core features are shipping: create, search, install, validate, update, track.
+The core loop works: create, search, install, update. What's missing:
 
-Future versions could add:
-- Semantic versioning (instead of timestamps)
-- Dependency management (if one skill needs another)
+- Dependency resolution (skill A requires skill B)
 - Rollback to previous versions
-- Local path installation (copy instead of clone)
 
-The foundation is working. The rest is iteration.
+The foundation is solid. Now it's about making skills composable.
+
+If you build skills, publish them to GitHub. If you use skills, install with skillz. The ecosystem grows when workflows are shareable.
 
 ## Links
 

@@ -82,7 +82,7 @@ description = "Claude Code skill package manager"
 tech = ["rust", "clap"]
 
 [preferences.code]
-tabs_or_spaces = "tabs"
+tabs_or_spaces = "spaces"
 testing_philosophy = "integration-over-unit"
 
 [boundaries]

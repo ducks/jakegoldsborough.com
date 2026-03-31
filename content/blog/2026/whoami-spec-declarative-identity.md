@@ -1,6 +1,6 @@
 ---
 title: "whoami: making identity a spec"
-date: 2026-03-30
+date: 2026-03-31
 description: "We made infrastructure declarative. We made workflows declarative. Identity is next. A structured format for describing yourself as a source of truth, not a projection."
 taxonomies:
   tags:
@@ -16,7 +16,7 @@ We have resumes. We have GitHub profiles. We have bios. We have LinkedIn. We hav
 
 But none of it is composable. None of it is structured in a way that machines can actually use.
 
-And more importantly, none of it feels true.
+And more importantly, none of it feels true. A resume is what you think will pass filters. A bio is what you think sounds impressive. None of them are just you, described plainly.
 
 ## The Problem
 
@@ -94,49 +94,50 @@ This isn't meant to be complete. It's meant to be composable.
 
 ## Why This Matters
 
-Once identity is structured, things get interesting.
+Once identity is structured, you derive views from it instead of rewriting yourself.
 
-You can:
-- Generate a resume
-- Generate a cover letter
-- Generate a bio
-- Generate a personal site
-- Feed it into an LLM for context
-- Match people based on shared traits
+Your `boundaries.yes` becomes your personal README:
 
-Instead of rewriting yourself every time, you derive different views from the same core.
+> I ship early and iterate. I prefer boring technology. I value explicit over implicit.
 
-This is the same idea as:
-- JOBL for resumes
-- ARF for reasoning
-- Nix for systems
+Your `communication.style` becomes context for AI tools:
 
-Define once. Project everywhere.
+> Jake prefers direct communication with no fluff. Treat him as a technical peer, not someone who needs encouragement.
+
+Your `technical.languages.primary` becomes a skills section:
+
+> Primary languages: Rust, TypeScript, Bash
+
+Same source. Different projections. You maintain one canonical file and generate everything else from it.
+
+This is the same pattern as Nix for systems or Terraform for infrastructure. Define once. Project everywhere.
 
 ## What It Looks Like
 
-The spec defines optional sections:
+The spec is optional sections around a version field:
 
-**Identity:**
-- Person (name, roles, pronouns)
-- Communication preferences
-- Technical stack
+```toml
+version = "20260330"
 
-**Work:**
-- Active projects
-- Domains of expertise
-- Learning goals
+[person]              # who you are
+[communication]       # how you work with others
+[technical]           # your stack
+[preferences]         # code style, architecture choices
+[projects]            # what you're building
+[boundaries]          # hard constraints and principles
+```
 
-**Preferences:**
-- Code style
-- Architecture choices
-- Documentation approach
+Everything is optional except `version`. Start minimal:
 
-**Boundaries:**
-- Hard constraints ("no")
-- Guiding principles ("yes")
+```toml
+version = "20260330"
 
-Everything is optional except the version field. Start minimal, expand as needed.
+[person]
+name = "Your Name"
+roles = ["your role"]
+```
+
+Expand as needed. Add sections when they're useful.
 
 ## The CLI Tool
 
@@ -184,25 +185,17 @@ Something local-first. Something you own. Something you can version.
 
 ## Use Cases
 
-**For developers:**
-- Feed your profile to Claude Code as context
-- Generate project READMEs that match your style
-- Onboard to new teams faster (they can read your preferences)
+**What works today:**
 
-**For AI workflows:**
-- Give LLMs persistent context about how you work
-- No more re-explaining your stack every conversation
-- Skills can reference your technical preferences
+Store your preferences in one place. Version control your identity with git. Share your `whoami.toml` in dotfiles. Run `whoami show` to see your profile formatted.
 
-**For teams:**
-- Share profiles in dotfiles
-- Match collaborators by technical overlap
-- Understand communication styles upfront
+**What's being built:**
 
-**For yourself:**
-- Version control your identity (see how you've changed)
-- Generate different artifacts from one source
-- Stop rewriting the same information everywhere
+Claude Code integration to load your profile as context automatically. Resume and bio generators that read your `whoami.toml`. Team profile templates for specific domains.
+
+**What could exist:**
+
+Match collaborators by technical overlap. Generate onboarding docs from team profiles. Create project READMEs that match your documented style. Feed your preferences to any AI tool that supports the spec.
 
 ## Current Status
 

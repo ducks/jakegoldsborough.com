@@ -86,7 +86,7 @@ It took one session to get a compiling binary. 16 files, about 1,200 lines
 of Rust. Here's the structure:
 
 ```
-claude-rs/src/
+claux/src/
   main.rs          # CLI entrypoint (clap)
   cli.rs           # Arg parsing
   config.rs        # Layered TOML config + API key resolution
@@ -179,8 +179,8 @@ Each tool is its own file, its own struct. The registry holds
 version reads from a `reqwest` byte stream, splits on newlines, parses JSON
 events. Same logic, async instead of blocking.
 
-**Config layering.** Global `~/.claude-rs/config.toml` plus project
-`.claude-rs.toml`. API key resolution: direct value → command → environment
+**Config layering.** Global `~/.config/claux/config.toml` plus project
+`.claux.toml`. API key resolution: direct value → command → environment
 variable. This pattern appears in both the Claude Code source and my own
 projects. It's just correct.
 
@@ -237,4 +237,4 @@ scratch. Part 2 will cover the design patterns worth stealing.
 
 ---
 
-Source: [github.com/ducks/claude-rs](https://github.com/ducks/claude-rs)
+Source: [github.com/ducks/claux](https://github.com/ducks/claux)

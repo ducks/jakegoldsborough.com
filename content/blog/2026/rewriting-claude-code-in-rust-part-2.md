@@ -1,6 +1,6 @@
 ---
 title: "Rewriting Claude Code in Rust, Part 2: Sessions, Commands, and Permissions"
-date: 2026-04-01
+date: 2026-04-02
 description: "claux gets session management, compaction, model switching, and an interactive permission system. Three phases in one sitting."
 taxonomies:
   tags:

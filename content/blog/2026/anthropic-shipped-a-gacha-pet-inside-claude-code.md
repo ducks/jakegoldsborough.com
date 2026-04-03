@@ -9,11 +9,16 @@ taxonomies:
     - dev
 ---
 
-On April 1st, 2026, a rainbow `/buddy` appeared in Claude Code's interface for
-about 15 seconds when you started a session. No explanation. No documentation.
-Just a shimmer of color and it was gone.
+I was reading through the Claude Code source — the TypeScript that leaked via a
+source map in the npm package on March 31st — and found a `buddy/` directory.
+Six files. Sprites, types, a PRNG roller, a system prompt hook. A complete
+virtual pet system buried inside a coding tool.
 
-If you typed `/buddy`, you hatched a companion.
+The directory had nothing to do with the CLI's core functionality. No tool
+dispatch, no query engine, no permission system. Just... companions.
+
+I typed `/buddy` in my next Claude Code session. A dragon named Bristle appeared
+next to my input box.
 
 ## What It Is
 

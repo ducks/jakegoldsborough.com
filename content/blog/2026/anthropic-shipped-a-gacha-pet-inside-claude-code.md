@@ -221,3 +221,19 @@ required zero new dependencies. It doesn't affect performance. The feature
 flag means it compiles out of builds that don't include it.
 
 And now there's a dragon named Bristle watching me type this.
+
+## What I Did About It
+
+I liked the system enough to rip it out and build my own version.
+[terminalgotchi](https://github.com/ducks/terminalgotchi) is a standalone
+Rust CLI that uses the same deterministic roll system -- same PRNG, same salt,
+same species and rarity tiers -- but adds something the original doesn't have:
+growth.
+
+Your companion's stats increase based on your actual dev activity. A shell hook
+watches your commands and maps them to XP. `cargo test` feeds DEBUGGING.
+`git commit` feeds PATIENCE. `rm -rf` feeds CHAOS. The creature evolves based
+on how you work.
+
+The buddy system in Claude Code is static. Your roll is your roll. terminalgotchi
+lets the roll be the starting point.

@@ -1,6 +1,6 @@
 ---
 title: "Rewriting Claude Code in Rust, Part 3: TUI, Agents, and Multi-Provider"
-date: 2026-04-01
+date: 2026-04-04
 description: "claux gets a ratatui TUI, sub-agents, and support for any OpenAI-compatible endpoint. One session, start to finish."
 taxonomies:
   tags:

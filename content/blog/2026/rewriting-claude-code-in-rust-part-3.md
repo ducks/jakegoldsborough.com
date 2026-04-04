@@ -23,7 +23,7 @@ The inline REPL was functional but crude. Print prompt, read line, stream
 tokens, repeat. No scroll, no layout, no visual distinction between you and
 the assistant.
 
-Claude Code's original UI is React + Ink — React components rendered to the
+Claude Code's original UI is React + Ink -- React components rendered to the
 terminal. That's not happening in Rust. The equivalent is ratatui, which
 gives you a layout engine, widgets, and an alternate-screen buffer.
 
@@ -62,7 +62,7 @@ palette because that's what I use everywhere.
 The challenge with a terminal UI and an async LLM client is that you can't
 `await` the API call and poll terminal events at the same time from the same
 thread. The inline REPL solved this by spawning the display as a tokio task
-and driving the engine on the main thread. The TUI can't do that — it needs
+and driving the engine on the main thread. The TUI can't do that -- it needs
 to own the terminal.
 
 The solution: drive the streaming loop manually with `tokio::select!`. One
@@ -104,7 +104,7 @@ the input box turns yellow and shows the tool name with `(y)es / (n)o /
 
 928 lines for the TUI module. Two files: `tui/mod.rs` (app state, event loop,
 streaming driver) and `tui/ui.rs` (layout and rendering). The rendering is
-naive — no markdown parsing, no syntax highlighting, no word wrap. But it
+naive -- no markdown parsing, no syntax highlighting, no word wrap. But it
 works and it's fast.
 
 Upgrading to Rust 1.88 was required because ratatui 0.29's dependencies
@@ -151,14 +151,14 @@ Three key decisions:
 3. **Own context.** The sub-agent starts with a fresh message history and its
    own system prompt. It doesn't see the parent conversation.
 
-Cost tracking flows back — the agent's token usage is appended to its output
+Cost tracking flows back -- the agent's token usage is appended to its output
 so you can see what it spent.
 
 ### Auto-Compact
 
 Phase 5 also added auto-compaction. Before each `submit`, the engine checks
 if the message count exceeds 80. If so, it runs the same compaction logic as
-`/compact` — summarizes the conversation via the API and replaces history with
+`/compact` -- summarizes the conversation via the API and replaces history with
 the summary.
 
 This is the dumb version of what Claude Code does. Their compaction pipeline
@@ -193,11 +193,11 @@ pub trait Provider: Send + Sync {
 
 Two implementations:
 
-- **AnthropicProvider** — the existing client, extracted into its own file.
+- **AnthropicProvider** -- the existing client, extracted into its own file.
   Uses `x-api-key` or `Authorization: Bearer` depending on whether you're
   using an API key or OAuth from `claude login`.
 
-- **OpenAICompatProvider** — speaks the `/v1/chat/completions` streaming
+- **OpenAICompatProvider** -- speaks the `/v1/chat/completions` streaming
   format. Works with Ollama, vLLM, LMStudio, OpenAI, or any hosted endpoint.
 
 The hard part was message format conversion. Anthropic and OpenAI structure
@@ -228,7 +228,7 @@ openai_provider_name = "hosted"
 ```
 
 If `openai_base_url` is set, it uses the OpenAI-compatible provider. Otherwise
-Anthropic. The `_cmd` fields run via `sh -c` and capture stdout — works with
+Anthropic. The `_cmd` fields run via `sh -c` and capture stdout -- works with
 1Password, Vault, or any secret manager that has a CLI.
 
 I tested this against a hosted Qwen 3.5 122B model. Streaming, tool execution,
@@ -257,7 +257,7 @@ because I built it first and kept it for pipe compatibility, but in practice
 you'd always use `--tui` or `-p`.
 
 **Add tests from Phase 1.** We bolted on 60 tests at the end. They all passed,
-which means they weren't catching regressions — they were documenting existing
+which means they weren't catching regressions -- they were documenting existing
 behavior. Tests written alongside the code would have caught the `$()` config
 issue before it hit production.
 

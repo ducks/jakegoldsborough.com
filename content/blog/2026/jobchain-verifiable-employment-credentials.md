@@ -180,6 +180,7 @@ The infrastructure is there. Now it needs to be used.
 ## Links
 
 - [Jobchain on GitHub](https://github.com/ducks/jobchain)
+- [Jobchain Documentation](https://ducks.github.io/jobchain/) -- implementation guide and spec
 - [JOBL](https://jobl.dev) -- structured resume format (companion project)
 - [whoami-spec](https://github.com/ducks/whoami-spec) -- declarative identity
 - [finna](https://github.com/ducks/finna) -- multi-model debate and implement

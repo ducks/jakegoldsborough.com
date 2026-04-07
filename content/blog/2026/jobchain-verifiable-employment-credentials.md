@@ -9,9 +9,9 @@ taxonomies:
     - specifications
 ---
 
-Someone on the fediverse responded to my [whoami-spec post](/blog/2026/whoami-spec-declarative-identity/) asking about verifiable credentials. Their point: we should be able to prove employment history with cryptographic signatures, not chiselled PDFs that ATSes shred back into text.
+[Michał Fita responded to my whoami-spec post](https://hachyderm.io/@michalfita@mastodon.social/116330706279023796) asking about verifiable credentials. His point: we should be able to prove employment history with cryptographic signatures, not chiselled PDFs that ATSes shred back into text.
 
-They were right about the problem. But every previous attempt at this (Blockcerts, LinkedIn verified credentials, W3C VCs) died because it's a three-sided marketplace. Employers have to issue credentials. Employees have to hold them. ATSes have to consume them. Nobody wants to go first.
+He was right about the problem. But every previous attempt at this (Blockcerts, LinkedIn verified credentials, W3C VCs) died because it's a three-sided marketplace. Employers have to issue credentials. Employees have to hold them. ATSes have to consume them. Nobody wants to go first.
 
 I built the tooling anyway.
 

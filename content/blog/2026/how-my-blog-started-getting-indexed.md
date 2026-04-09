@@ -1,6 +1,7 @@
 ---
 title: "How my blog started getting indexed"
 date: 2026-04-09
+description: "Two months of consistent publishing got me indexed by Google, DuckDuckGo, Bing, ChatGPT, and Perplexity. No SEO, no backlinks, no keywords. Just technical writing with real titles, internal links, and clean structure."
 taxonomies:
   tags:
     - dev

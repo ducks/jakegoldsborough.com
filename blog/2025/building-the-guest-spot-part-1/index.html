@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Building an Instagram-style showcase for tattoo artists using Discourse. My first attempt at helping build a community from scratch.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Building The Guest Spot: Part 1 - My First Community">
+    <meta property="og:description" content="Building an Instagram-style showcase for tattoo artists using Discourse. My first attempt at helping build a community from scratch.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-the-guest-spot-part-1&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Building The Guest Spot: Part 1 - My First Community">
+    <meta name="twitter:description" content="Building an Instagram-style showcase for tattoo artists using Discourse. My first attempt at helping build a community from scratch.">
+
+    <title>Building The Guest Spot: Part 1 - My First Community - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Building The Guest Spot: Part 1 - My First Community</h1>
+      <div class="meta">
+        
+        <p>Oct 25, 2025</p>
+        
+        <p>7 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/discourse">#discourse</a></p>
+          
+          <p><a href="/tags/ruby">#ruby</a></p>
+          
+          <p><a href="/tags/community">#community</a></p>
+          
+        </div>
+      
+
+      <p>I'm not exactly a social butterfly. I can enjoy small groups of like minded people
+talking about our interests but small talk really drains me. I'm much happier
+with a computer, book, or just sitting out in the woods.</p>
+<p>Since joining Discourse a few months ago, I've been learning the platform by
+building weird experiments. A transit departure board. A virtual currency
+system. Tools that push Discourse in directions it wasn't designed for. But
+they've all been technical exercises. Solo projects. Learning by doing, but
+doing alone.</p>
+<p>The Guest Spot is different. This is my first time helping build something for
+an actual community of people. Real artists who will (hopefully) use this
+thing. Not just me poking at APIs and seeing what breaks.</p>
+<p>It's exciting. And a little terrifying.</p>
+<h2 id="how-the-idea-evolved">How The Idea Evolved</h2>
+<p>The original concept was simple: a private forum for tattoo artists. A place
+where people in the industry could talk shop, share techniques, discuss
+challenges. No clients. No tourists. Just professionals.</p>
+<p>But then I started thinking about how artists actually share their work.
+Instagram. Almost every tattoo artist is on Instagram. It's where they build
+their portfolio, attract clients, establish their style. But they don't own any
+of it. The algorithm decides who sees their posts. Instagram decides what gets
+buried or promoted. If Instagram changes the rules or shuts down tomorrow, years
+of work disappears.</p>
+<p>What if artists could have both? A professional forum for discussion and a
+public showcase for their work. Same platform, same data, but they own it all.
+No algorithm deciding what gets seen. No corporate platform that could pull the
+rug out.</p>
+<p>That's when the concept clicked: build the Instagram-style feed as the front
+door, with the private forum as the main room. Artists get a beautiful public
+portfolio plus a real community space. All on infrastructure they control.</p>
+<h2 id="what-is-the-guest-spot">What Is The Guest Spot?</h2>
+<p>The result: an Instagram-style public showcase for tattoo artists, powered by
+Discourse.</p>
+<p>Artists can post photos of their work in a clean, visual feed. Pinned posts
+appear in a horizontal carousel at the top. Recent work flows down below in a
+responsive grid. Click any image and you get a full detail page with all the
+context.</p>
+<p>And if you've been vetted, behind the public feed is a private, invite-only
+Discourse forum. The showcase is the front door. The forum is where the real
+community happens. Artists can discuss techniques, share experiences, ask
+questions. It's gated access because tattoo culture values quality and trust.</p>
+<p>Think of it as Instagram's visual presentation meets forum depth, with Discourse
+handling both sides.</p>
+<h2 id="why-discourse-makes-sense-here">Why Discourse Makes Sense Here</h2>
+<p>Discourse isn't Instagram. It's not designed to be a photo showcase. But it has
+everything we need to build one:</p>
+<p>Custom fields store image URLs and captions. Categories and tags organize
+content. The permission system handles public showcase vs private forum.</p>
+<p>Most importantly, Discourse is built for communities. The forum infrastructure
+is already there. We're just adding a pretty front door.</p>
+<p>And unlike Instagram, artists own everything. The database, the images, the
+content. They can export it all. No algorithm. No corporate overlord. Just their
+work, on their terms.</p>
+<h2 id="what-i-ve-built-so-far">What I've Built So Far</h2>
+<p>Backend is straightforward Rails stuff:</p>
+<ul>
+<li><code>GuestSpotPost</code> model with image URLs (stored as arrays), captions, and
+pinned status</li>
+<li>Migrations for the database schema</li>
+<li>Controllers that handle CRUD operations and serve JSON to the frontend</li>
+<li>Serializers that package post data with user info</li>
+</ul>
+<p>Frontend is where it gets interesting. Modern Discourse uses Glimmer components,
+which are Ember's latest component format. Template and logic live in the same
+<code>.gjs</code> file:</p>
+<pre data-lang="javascript" class="language-javascript "><code class="language-javascript" data-lang="javascript">export default class GuestSpotPostCard extends Component {
+  get firstImage() {
+    return this.args.post.image_urls?.[0];
+  }
+
+  &lt;template&gt;
+    &lt;LinkTo @route=&quot;guest-spot-post&quot; @model={{@post.id}} class=&quot;guest-spot-post-card&quot;&gt;
+      {{#if this.firstImage}}
+        &lt;img src={{this.firstImage}} alt={{@post.caption}} class=&quot;post-image&quot; &#x2F;&gt;
+      {{&#x2F;if}
+
+      &lt;div class=&quot;post-meta&quot;&gt;
+        &lt;div class=&quot;post-author&quot;&gt;
+          {{avatar @post.user imageSize=&quot;small&quot;}}
+          &lt;span class=&quot;username&quot;&gt;{{@post.user.username}}&lt;&#x2F;span&gt;
+        &lt;&#x2F;div&gt;
+
+        {{#if @post.caption}}
+          &lt;p class=&quot;post-caption&quot;&gt;{{@post.caption}}&lt;&#x2F;p&gt;
+        {{&#x2F;if}}
+
+        {{#if @post.pinned}}
+          &lt;span class=&quot;pinned-badge&quot;&gt;Featured&lt;&#x2F;span&gt;
+        {{&#x2F;if}}
+      &lt;&#x2F;div&gt;
+    &lt;&#x2F;LinkTo&gt;
+  &lt;&#x2F;template&gt;
+}
+</code></pre>
+<p>The card is a link. Click it, you go to the full post page. The whole thing is
+wrapped in a <code>LinkTo</code> component so the entire card is interactive.</p>
+<h2 id="the-feed-page">The Feed Page</h2>
+<p><img src="/images/guest-spot-mobile-1.png" alt="A mobile friendly layout of feed with tattoo posts from artists" /></p>
+<p>Two sections: pinned posts in a horizontal carousel, recent posts in a
+responsive grid.</p>
+<p>The carousel uses CSS flexbox with <code>scroll-snap-type: x mandatory</code> so it feels
+smooth on mobile. On phones, each card takes up 80% of the viewport width. On
+tablets, 250px. On desktop, 300px. Pure CSS, no JavaScript.</p>
+<p>The grid uses CSS Grid with <code>auto-fill</code> and <code>minmax()</code>:</p>
+<pre data-lang="scss" class="language-scss "><code class="language-scss" data-lang="scss">.posts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.5rem;
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+}
+</code></pre>
+<p>On phones, we force a single column so cards stay large enough to see the artwork clearly. On tablets and desktops, it flows naturally based on available space.</p>
+<h2 id="the-post-page">The Post Page</h2>
+<p><img src="/images/guest-spot-mobile-2.png" alt="A single page post of a tattoo showing cool birds" /></p>
+<p>Click any card and you get the full post view. It's designed to let the artwork breathe while keeping all the important context visible.</p>
+<p>The layout is simple:</p>
+<ul>
+<li>Back link at the top (returns to feed)</li>
+<li>Full-size image(s) with <code>object-fit: contain</code> so nothing gets cropped</li>
+<li>Artist info (avatar + username)</li>
+<li>Full caption with preserved line breaks</li>
+<li>Pinned badge if applicable</li>
+</ul>
+<p>Images are wrapped in a card design with rounded corners and subtle shadow. On mobile, padding reduces and max image height adjusts so everything fits nicely on smaller screens. The whole page uses the same responsive breakpoints as the feed (768px for tablets, 480px for phones).</p>
+<p>All contained in a centered column with max-width of 900px. Clean, focused, lets the work be the star.</p>
+<h2 id="hiding-the-sidebar">Hiding the Sidebar</h2>
+<p>Guest Spot has its own route at <code>/guest-spot</code>. But Discourse has a persistent
+sidebar. For a public showcase, that doesn't make sense. Artists posting work
+shouldn't see forum navigation.</p>
+<p>First attempt: route lifecycle hooks.</p>
+<pre data-lang="javascript" class="language-javascript "><code class="language-javascript" data-lang="javascript">export default class GuestSpotFeedRoute extends DiscourseRoute {
+  activate() {
+    super.activate(...arguments);
+    const appController = this.controllerFor(&quot;application&quot;);
+    appController.set(&quot;showSidebar&quot;, false);
+    document.body.classList.add(&quot;guest-spot-page&quot;);
+  }
+
+  deactivate() {
+    const appController = this.controllerFor(&quot;application&quot;);
+    appController.set(&quot;showSidebar&quot;, true);
+    document.body.classList.remove(&quot;guest-spot-page&quot;);
+    super.deactivate(...arguments);
+  }
+}
+</code></pre>
+<p>This hides the sidebar. But the hamburger button (<code>.header-sidebar-toggle</code>)
+stays visible. Users can toggle it back. Not ideal.</p>
+<p>CSS didn't work. Setting controller properties didn't work. So I got pragmatic:
+DOM manipulation via an initializer.</p>
+<pre data-lang="javascript" class="language-javascript "><code class="language-javascript" data-lang="javascript">export default {
+  name: &quot;hide-sidebar-toggle-on-guest-spot&quot;,
+
+  initialize() {
+    withPluginApi(&quot;0.8&quot;, (api) =&gt; {
+      api.onPageChange((url) =&gt; {
+        const toggle = document.querySelector(&quot;.header-sidebar-toggle&quot;);
+        if (toggle) {
+          if (url.startsWith(&quot;&#x2F;guest-spot&quot;)) {
+            toggle.style.display = &quot;none&quot;;
+          } else {
+            toggle.style.display = &quot;&quot;;
+          }
+        }
+      });
+    });
+  },
+};
+</code></pre>
+<p>Is it hacky? Yes. Does it work? Also yes. Sometimes pragmatic beats perfect.</p>
+<h2 id="mobile-responsive">Mobile Responsive</h2>
+<p>Mobile-first isn't just a buzzword here. It's critical. Tattoo artists live on their phones. They're checking Instagram between clients, browsing artist portfolios while waiting for appointments, posting fresh work right after finishing a piece. If this doesn't work perfectly on a phone, it doesn't work at all.</p>
+<p>The entire layout is mobile-first. Every component has media queries for tablet and phone breakpoints.</p>
+<p>Carousel cards shrink to 80% viewport width on phones so you can see part of the next card (scroll hint). Grid forces a single column on small screens so cards don't get comically tiny. Post detail pages reduce padding and image heights so everything fits nicely without excessive scrolling.</p>
+<p>All CSS. No JavaScript calculating widths or handling resize events. The browser does the work, which means it's fast and doesn't drain battery with constant calculations.</p>
+<h2 id="what-s-next">What's Next</h2>
+<p>This is Part 1. We've got the public showcase working. But there's more to
+build:</p>
+<ul>
+<li>Post creation UI (artists need to upload images and write captions)</li>
+<li>Admin controls (pin/unpin posts from the feed)</li>
+<li>User profile pages (view all posts by a specific artist)</li>
+<li>Comments system integration (if we want interaction on posts)</li>
+</ul>
+<p>But most importantly: actually launching this for a real community. Getting
+feedback from artists. Seeing if this makes sense to people who aren't me.</p>
+<p>That's the scary part. Building code is easy. Building for people? That's where
+it gets real.</p>
+<p>Part 2 will cover the creation flow and admin tools. Stay tuned.</p>
+<p>If you want to see the code, it's on GitHub:
+<a href="https://github.com/ducks/discourse-guest-spot">discourse-guest-spot</a></p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-discourse-comments-in-typescript&#x2F;">Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 27, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">I rewrote the Discourse embedded comments API client from Rust&#x2F;WASM to pure TypeScript. The bundle went from 742 KB to 18 KB.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;how-a-friends-gif-broke-our-filesystem&#x2F;">How Jennifer Aniston and Friends Cost Us 377GB and Broke ext4 Hardlinks</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 23, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A backup deduplication fix, filesystem hardlink limits, and the Jennifer Aniston reaction GIF that stress-tested our infrastructure.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-discourse-embedded-comments&#x2F;">Building Embedded Discourse Comments with Rust and WASM</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 14, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">An experiment in creating a drop-in comment widget for static sites using Rust compiled to WebAssembly, talking to Discourse&#x27;s REST API.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/wasm">#wasm</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-stats-evolution&#x2F;">Invite Tree to Invite Stats - How A Simple Tree Flourished Into A Full Moderation Plugin</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 05, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">How a simple visualization plugin evolved into a moderation tool.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-tree&#x2F;">Visualizing Discourse Invite Trees</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 03, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A simple Discourse plugin that visualizes who invited whom as an ASCII tree, inspired by Lobsters.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

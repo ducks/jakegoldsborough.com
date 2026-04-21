@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="A coffee roaster built production planning software with Claude. I handled the infrastructure. What this collaboration reveals about AI-enabled development.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="When Your Coffee Roaster Builds the First Version">
+    <meta property="og:description" content="A coffee roaster built production planning software with Claude. I handled the infrastructure. What this collaboration reveals about AI-enabled development.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;when-your-coffee-roaster-builds-the-first-version&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="When Your Coffee Roaster Builds the First Version">
+    <meta name="twitter:description" content="A coffee roaster built production planning software with Claude. I handled the infrastructure. What this collaboration reveals about AI-enabled development.">
+
+    <title>When Your Coffee Roaster Builds the First Version - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>When Your Coffee Roaster Builds the First Version</h1>
+      <div class="meta">
+        
+        <p>Mar 16, 2026</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/svelte">#svelte</a></p>
+          
+          <p><a href="/tags/infrastructure">#infrastructure</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <p>A coffee roaster needed production planning software. Instead of writing a spec and hiring someone to build it, they opened Claude and built it themselves.</p>
+<p>Single-page app with 2000 lines of React.  It featured batch calculations, leftover tracking, CSV import, production snapshots and it worked.</p>
+<p>Then they asked me to help make it production-ready: multi-tenant SaaS, proper deployment, migrations, backups, the infrastructure layer.</p>
+<p>The result is <a href="https://github.com/ducks/beanledger">BeanLedger</a>, and the collaboration pattern is worth examining.</p>
+<h2 id="what-they-built">What They Built</h2>
+<p>The coffee roaster understood their domain completely. They knew:</p>
+<ul>
+<li>How roast loss percentages affect batch calculations</li>
+<li>When to track leftovers vs when to start fresh</li>
+<li>What information matters on a pick list</li>
+<li>How production snapshots should restore state</li>
+</ul>
+<p>They used Claude to translate that knowledge into working code. The business logic was sound. The UI matched their workflow. The calculations were correct.</p>
+<p>What was missing was everything around the edges:</p>
+<ul>
+<li>Multi-tenancy (it was single-user)</li>
+<li>Authentication and session management</li>
+<li>Database migrations</li>
+<li>Deployment automation</li>
+<li>Production monitoring</li>
+<li>Backup/restore</li>
+</ul>
+<p>This is the division of labor that emerged: they own features, I own infrastructure.</p>
+<h2 id="the-architecture">The Architecture</h2>
+<p>BeanLedger is a SvelteKit app with PostgreSQL, designed for multi-tenant SaaS:</p>
+<pre><code>├── src&#x2F;
+│   ├── routes&#x2F;
+│   │   ├── api&#x2F;           # REST endpoints with tenant isolation
+│   │   ├── login&#x2F;         # Auth flow
+│   │   └── +page.svelte   # Main app
+│   ├── lib&#x2F;
+│   │   ├── components&#x2F;    # Svelte 5 components
+│   │   ├── types.ts       # TypeScript interfaces
+│   │   └── calc.ts        # Batch calculation logic
+│   └── hooks.server.ts    # Tenant middleware
+├── migrations&#x2F;            # SQL migrations
+└── schema.sql            # Database schema
+</code></pre>
+<h3 id="tenant-isolation">Tenant Isolation</h3>
+<p>Every API request requires authentication. The session middleware injects tenant context:</p>
+<pre data-lang="typescript" class="language-typescript "><code class="language-typescript" data-lang="typescript">&#x2F;&#x2F; hooks.server.ts
+export const handle = async ({ event, resolve }) =&gt; {
+  const sessionId = event.cookies.get(&#x27;session_id&#x27;);
+  if (!sessionId) return resolve(event);
+
+  const session = await db.get(&#x27;SELECT * FROM sessions WHERE id = ?&#x27;, sessionId);
+  if (!session) return resolve(event);
+
+  const user = await db.get(&#x27;SELECT * FROM users WHERE id = ?&#x27;, session.user_id);
+  event.locals.user = user;
+  event.locals.tenant_id = user.tenant_id;
+
+  return resolve(event);
+};
+</code></pre>
+<p>All database queries filter by <code>tenant_id</code>. The roast groups, products, and orders are scoped to the authenticated tenant.</p>
+<h3 id="production-snapshots">Production Snapshots</h3>
+<p>One of the best features the roaster designed: production date tracking with snapshots.</p>
+<p>When you switch dates, the app saves the current state (orders + leftovers) and tries to restore a snapshot for the new date. If no snapshot exists, it loads fresh data.</p>
+<pre data-lang="typescript" class="language-typescript "><code class="language-typescript" data-lang="typescript">async function handleProductionDateChange(newDate: string) {
+  const oldDate = previousDate;
+  if (oldDate === newDate) return;
+
+  &#x2F;&#x2F; Save current state before switching
+  if (orders.length &gt; 0 &amp;&amp; oldDate) {
+    await saveSnapshot(oldDate);
+  }
+
+  previousDate = newDate;
+
+  &#x2F;&#x2F; Try to load snapshot for new date
+  const snapshot = await loadSnapshot(newDate);
+  if (snapshot) {
+    await restoreFromSnapshot(snapshot);
+  } else {
+    await loadData();
+  }
+}
+</code></pre>
+<p>This lets roasters plan multiple production days in advance without losing their work when switching between dates.</p>
+<h3 id="batch-calculations">Batch Calculations</h3>
+<p>The core calculation logic stayed largely intact from the original React version. It's domain knowledge, not infrastructure:</p>
+<pre data-lang="typescript" class="language-typescript "><code class="language-typescript" data-lang="typescript">export function calcGroup(
+  group: RoastGroup,
+  orders: Order[],
+  products: Product[],
+  leftover: number,
+  batchOverrides: Record&lt;string, number&gt; = {}
+): GroupCalc {
+  const batchWeight = batchOverrides[group.batch_type] ?? 20;
+  const roastLossPct = group.roast_loss_pct ?? 0;
+  const roastFactor = Math.max(0.001, 1 - roastLossPct &#x2F; 100);
+
+  &#x2F;&#x2F; Sum all ordered products for this group
+  const items = products
+    .filter(p =&gt; p.group_id === group.id)
+    .map(p =&gt; {
+      const totalQty = orders
+        .filter(o =&gt; o.product_id === p.id)
+        .reduce((s, o) =&gt; s + o.qty, 0);
+      return { ...p, totalQty, totalLbs: totalQty * p.lbs };
+    })
+    .filter(p =&gt; p.totalQty &gt; 0);
+
+  const totalLbs = items.reduce((s, i) =&gt; s + i.totalLbs, 0);
+  const neededRoasted = Math.max(0, totalLbs - leftover);
+  const neededGreen = roastLossPct &gt; 0 ? neededRoasted &#x2F; roastFactor : neededRoasted;
+  const batches = neededGreen &#x2F; batchWeight;
+
+  return {
+    totalLbs,
+    needed: neededGreen,
+    neededRoasted,
+    batches,
+    batchesUp: Math.ceil(batches),
+    batchWeight,
+    roastFactor,
+    roastLossPct,
+    items
+  };
+}
+</code></pre>
+<p>This code came from someone who understands roast loss percentages and batch planning. I didn't need to learn the domain. I just needed to make it multi-tenant and deployable.</p>
+<h2 id="what-i-added">What I Added</h2>
+<h3 id="authentication">Authentication</h3>
+<p>Built a simple session-based auth system with bcrypt-hashed passwords:</p>
+<pre data-lang="typescript" class="language-typescript "><code class="language-typescript" data-lang="typescript">&#x2F;&#x2F; api&#x2F;auth&#x2F;login&#x2F;+server.ts
+const user = await db.get(&#x27;SELECT * FROM users WHERE username = ?&#x27;, username);
+if (!user || !(await bcrypt.compare(password, user.password))) {
+  return json({ error: &#x27;Invalid credentials&#x27; }, { status: 401 });
+}
+
+const sessionId = crypto.randomUUID();
+await db.run(
+  &#x27;INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)&#x27;,
+  sessionId,
+  user.id,
+  new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+);
+
+cookies.set(&#x27;session_id&#x27;, sessionId, { path: &#x27;&#x2F;&#x27;, httpOnly: true, maxAge: 30 * 24 * 60 * 60 });
+return json({ success: true });
+</code></pre>
+<p>No OAuth, no JWT. Just session cookies and server-side validation. Simple works.</p>
+<h3 id="database-migrations">Database Migrations</h3>
+<p>Migrations live in <code>migrations/</code> and run automatically on startup if needed. The deploy script checks for new migrations and restarts the service:</p>
+<pre data-lang="sql" class="language-sql "><code class="language-sql" data-lang="sql">-- migrations&#x2F;001_initial_schema.sql
+CREATE TABLE IF NOT EXISTS tenants (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE,
+  email TEXT NOT NULL,
+  password TEXT NOT NULL,
+  tenant_id TEXT NOT NULL REFERENCES tenants(id),
+  created_at TEXT NOT NULL
+);
+
+-- ... more tables
+</code></pre>
+<p>The deploy script handles versioning and restarts:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">#!&#x2F;bin&#x2F;bash
+CURRENT_VERSION=$(cat &#x2F;opt&#x2F;beanledger&#x2F;VERSION 2&gt;&#x2F;dev&#x2F;null || echo &quot;none&quot;)
+LATEST_VERSION=$(curl -s https:&#x2F;&#x2F;api.github.com&#x2F;repos&#x2F;ducks&#x2F;beanledger&#x2F;releases&#x2F;latest | jq -r .tag_name)
+
+if [ &quot;$CURRENT_VERSION&quot; = &quot;$LATEST_VERSION&quot; ]; then
+  echo &quot;Already running latest version&quot;
+  exit 0
+fi
+
+# Download, extract, restart
+curl -L &quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;beanledger&#x2F;releases&#x2F;download&#x2F;$LATEST_VERSION&#x2F;beanledger.tar.gz&quot; | tar xz
+systemctl restart beanledger
+echo &quot;$LATEST_VERSION&quot; &gt; &#x2F;opt&#x2F;beanledger&#x2F;VERSION
+</code></pre>
+<h3 id="deployment">Deployment</h3>
+<p>The production stack is straightforward:</p>
+<ul>
+<li><strong>SvelteKit</strong> in Node adapter mode (not static)</li>
+<li><strong>PostgreSQL</strong> for data</li>
+<li><strong>Systemd</strong> for process management</li>
+<li><strong>Caddy</strong> for TLS and reverse proxy</li>
+</ul>
+<p>No Docker, no Kubernetes. Systemd service file:</p>
+<pre data-lang="ini" class="language-ini "><code class="language-ini" data-lang="ini">[Unit]
+Description=BeanLedger Production Planner
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=beanledger
+WorkingDirectory=&#x2F;opt&#x2F;beanledger
+Environment=NODE_ENV=production
+Environment=DATABASE_URL=&#x2F;var&#x2F;lib&#x2F;beanledger&#x2F;db.sqlite
+ExecStart=&#x2F;usr&#x2F;bin&#x2F;node build&#x2F;index.js
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+</code></pre>
+<h2 id="what-this-division-reveals">What This Division Reveals</h2>
+<p>The coffee roaster can now ship features. They understand the domain, they can articulate requirements to Claude, and they get working code.</p>
+<p>What they don't need to think about:</p>
+<ul>
+<li>How tenant isolation works</li>
+<li>Where sessions are stored</li>
+<li>How migrations run</li>
+<li>How deploys happen</li>
+<li>How backups work</li>
+</ul>
+<p>That's my layer.</p>
+<p>This is different from traditional client work. Usually I'm translating requirements into code. Here, the client is writing code and I'm building the platform it runs on.</p>
+<p>AI didn't eliminate the need for engineering. It shifted the boundary.</p>
+<p>The roaster went from "I need software" to "I built the features, can you make it production-ready?" That's a meaningful change.</p>
+<h2 id="what-works">What Works</h2>
+<ul>
+<li><strong>CSV import</strong> with inline group creation (no context switching to Catalog)</li>
+<li><strong>Production snapshots</strong> that save/restore daily plans automatically</li>
+<li><strong>Dynamic batch types</strong> - users define their own batch sizes, not hardcoded</li>
+<li><strong>Multi-tenant</strong> - multiple roasters can use the same deployment</li>
+<li><strong>Pick lists</strong> with package size summaries and roast group breakdowns</li>
+</ul>
+<h2 id="what-doesn-t">What Doesn't</h2>
+<ul>
+<li><strong>No API</strong> - It's a web app, no programmatic access</li>
+<li><strong>Limited reports</strong> - Just basic CSV export, no analytics</li>
+<li><strong>No mobile app</strong> - Responsive web only</li>
+<li><strong>Single database</strong> - No read replicas or sharding (doesn't need it yet)</li>
+</ul>
+<h2 id="reflections">Reflections</h2>
+<p>The best part of this project was watching someone with domain expertise build software directly. They didn't need to translate "how batch calculations work" into a spec for me to implement. They knew it, and they told Claude.</p>
+<p>The boundary between developer and non-developer is blurring. Not because everyone needs to learn to code, but because AI is good enough at the translation layer that domain knowledge can drive implementation.</p>
+<p>What still requires engineering judgment:</p>
+<ul>
+<li>Multi-tenancy architecture</li>
+<li>Security and authentication</li>
+<li>Deployment and reliability</li>
+<li>Database design and migrations</li>
+<li>Production monitoring</li>
+</ul>
+<p>Those aren't going away. But the surface area of "things only developers can build" is shrinking.</p>
+<p>BeanLedger works. It's in production. The person who built most of the features isn't a software engineer.</p>
+<p>That's new.</p>
+<h2 id="links">Links</h2>
+<ul>
+<li><a href="https://github.com/ducks/beanledger">BeanLedger on GitHub</a></li>
+</ul>
+
+
+      
+        
+        
+
+        
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;inside-claude-codes-team-memory-sync&#x2F;">Inside Claude Code&#x27;s Team Memory Sync Engine</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 05, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">How Claude Code shares knowledge across your team: a file watcher, delta sync, secret scanner, and optimistic concurrency -- all hidden behind a directory you didn&#x27;t know existed.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-3&#x2F;">Rewriting Claude Code in Rust, Part 3: TUI, Agents, and Multi-Provider</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 04, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets a ratatui TUI, sub-agents, and support for any OpenAI-compatible endpoint. One session, start to finish.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;anthropic-shipped-a-gacha-pet-inside-claude-code&#x2F;">Anthropic Shipped a Gacha Pet Inside Claude Code</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 03, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Hidden in the Claude Code source: a complete virtual pet system with 18 species, rarity tiers, stats, animated ASCII sprites, and a soul generated by Claude itself.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-2&#x2F;">Rewriting Claude Code in Rust, Part 2: Sessions, Commands, and Permissions</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 02, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets session management, compaction, model switching, and an interactive permission system. Three phases in one sitting.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-with-claude&#x2F;">Rewriting Claude Code in Rust, With Claude</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 01, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Claude Code&#x27;s TypeScript source leaked via a source map. I read the architecture and rewrote the core in Rust. Using Claude. Here&#x27;s Part 1.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

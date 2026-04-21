@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="What if your employer signed a machine-verifiable reference letter when you started, not when you left? Jobchain issues W3C Verifiable Credentials with Ed25519 signatures. No blockchain, no platform, no PDF.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Jobchain: Verifiable Employment Credentials">
+    <meta property="og:description" content="What if your employer signed a machine-verifiable reference letter when you started, not when you left? Jobchain issues W3C Verifiable Credentials with Ed25519 signatures. No blockchain, no platform, no PDF.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;jobchain-verifiable-employment-credentials&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Jobchain: Verifiable Employment Credentials">
+    <meta name="twitter:description" content="What if your employer signed a machine-verifiable reference letter when you started, not when you left? Jobchain issues W3C Verifiable Credentials with Ed25519 signatures. No blockchain, no platform, no PDF.">
+
+    <title>Jobchain: Verifiable Employment Credentials - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Jobchain: Verifiable Employment Credentials</h1>
+      <div class="meta">
+        
+        <p>Apr 06, 2026</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/specifications">#specifications</a></p>
+          
+        </div>
+      
+
+      <p><a href="https://hachyderm.io/@michalfita@mastodon.social/116330706279023796">Michał Fita responded to my whoami-spec post</a> asking about verifiable credentials. His point: we should be able to prove employment history with cryptographic signatures, not chiselled PDFs that ATSes shred back into text.</p>
+<p>He was right about the problem. But every previous attempt at this (Blockcerts, LinkedIn verified credentials, W3C VCs) died because it's a three-sided marketplace. Employers have to issue credentials. Employees have to hold them. ATSes have to consume them. Nobody wants to go first.</p>
+<p>I built the tooling anyway.</p>
+<h2 id="the-problem">The Problem</h2>
+<p>The employment verification pipeline is absurd:</p>
+<ol>
+<li>You write a resume (self-attested, no proof)</li>
+<li>You export to PDF (formatting lottery)</li>
+<li>An ATS OCRs it back to text (lossy, error-prone)</li>
+<li>A background check company calls your old employer (slow, expensive)</li>
+<li>Someone confirms dates over the phone (binary pass/fail)</li>
+</ol>
+<p>Every step degrades information. The structured data you started with becomes an unstructured phone call. There has to be a better way.</p>
+<h2 id="the-fix">The Fix</h2>
+<p>Public key cryptography. Same thing that makes HTTPS work.</p>
+<p>Your employer has a keypair. They sign a JSON document saying you worked there. Anyone can verify the signature by checking the public key hosted on the employer's domain.</p>
+<p>No blockchain. No platform. No account to create. DNS is the trust anchor.</p>
+<h2 id="how-it-works">How It Works</h2>
+<p>Three commands:</p>
+<h3 id="1-employer-creates-an-identity">1. Employer creates an identity</h3>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">$ jobchain init --org &quot;Discourse&quot; --domain discourse.org
+
+Initialized jobchain identity for Discourse
+  DID: did:web:discourse.org
+  Next: host did.json at https:&#x2F;&#x2F;discourse.org&#x2F;.well-known&#x2F;did.json
+</code></pre>
+<p>This generates an Ed25519 keypair and a <a href="https://www.w3.org/TR/did-core/">DID document</a>. The public key lives at a well-known URL on the company's domain. If you control <code>discourse.org</code>, you control the identity. No certificate authority, no third party.</p>
+<h3 id="2-employer-issues-a-credential">2. Employer issues a credential</h3>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">$ echo &#x27;{&quot;title&quot;:&quot;Infrastructure Engineer&quot;,&quot;company&quot;:&quot;Discourse&quot;,&quot;start&quot;:&quot;2024-03&quot;}&#x27; \
+  | jobchain issue --domain discourse.org
+
+{
+  &quot;@context&quot;: [&quot;https:&#x2F;&#x2F;www.w3.org&#x2F;2018&#x2F;credentials&#x2F;v1&quot;],
+  &quot;type&quot;: [&quot;VerifiableCredential&quot;, &quot;EmploymentCredential&quot;],
+  &quot;issuer&quot;: &quot;did:web:discourse.org&quot;,
+  &quot;credentialSubject&quot;: {
+    &quot;type&quot;: &quot;EmploymentRecord&quot;,
+    &quot;title&quot;: &quot;Infrastructure Engineer&quot;,
+    &quot;company&quot;: &quot;Discourse&quot;,
+    &quot;start&quot;: &quot;2024-03&quot;
+  },
+  &quot;proof&quot;: {
+    &quot;type&quot;: &quot;Ed25519Signature2020&quot;,
+    &quot;proofValue&quot;: &quot;z4jH8n...&quot;
+  }
+}
+</code></pre>
+<p>That's a <a href="https://www.w3.org/TR/vc-data-model/">W3C Verifiable Credential</a>. Structured JSON, signed with Ed25519. Hand the <code>.vc.json</code> file to the employee.</p>
+<h3 id="3-anyone-verifies">3. Anyone verifies</h3>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">$ jobchain verify --input jake-discourse.vc.json
+
+VALID -- credential signature verified
+  Issuer:  did:web:discourse.org
+  Subject: Infrastructure Engineer at Discourse
+  Issued:  2026-04-02
+</code></pre>
+<p>The verify command fetches the public key from <code>discourse.org/.well-known/did.json</code> and checks the signature. No account needed. No API key. Just math.</p>
+<h2 id="the-wallet-is-a-git-repo">The Wallet Is a Git Repo</h2>
+<p>Your "wallet" is a folder of <code>.vc.json</code> files. Host it anywhere. GitHub Pages, Netlify, your own server.</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">$ jobchain wallet build --dir .&#x2F;credentials --out .&#x2F;site
+</code></pre>
+<p>This generates an HTML site with your credentials and a machine-readable <code>index.json</code> manifest. Hiring managers see a clean page. ATS systems consume structured JSON. Same data, two views.</p>
+<p>The wallet is static files. Push to a repo, deploy to Pages. Done.</p>
+<h2 id="why-not-blockchain">Why Not Blockchain</h2>
+<p>This comes up immediately, so let me address it.</p>
+<p>Blockchain solves one problem jobchain doesn't: persistence after the issuer disappears. If <code>discourse.org</code> goes dark, the public key is gone and nobody can verify old credentials.</p>
+<p>But blockchain adds massive complexity for that edge case. Consensus mechanisms, gas fees, infrastructure dependencies. And the social problem (getting employers to issue credentials) doesn't change regardless of the storage layer.</p>
+<p>For now, DNS is the trust anchor. If persistence matters later, there are simpler solutions: key archival services, IPFS pinning, or embedding the public key in the credential itself.</p>
+<h2 id="amendments">Amendments</h2>
+<p>Credentials aren't static. You get promoted. You change teams. Jobchain supports amendments: signed updates linked to the original credential via content hash.</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">$ jobchain amend --credential jake-discourse.vc.json \
+    --domain discourse.org \
+    --patch &#x27;{&quot;title&quot;:&quot;Senior Infrastructure Engineer&quot;}&#x27; \
+    --effective-date 2025-06
+</code></pre>
+<p>Each amendment is independently verifiable. The chain forms a linked list: original credential, then amendments, each signed and hash-linked to its predecessor.</p>
+<h2 id="what-this-is-not">What This Is Not</h2>
+<p>It's not a platform. There's no service to sign up for, no data to hand over.</p>
+<p>It's not self-attested. Only the employer's private key can produce a valid signature.</p>
+<p>It's not a resume replacement. <a href="https://jobl.dev">JOBL</a> handles the self-authored resume. Jobchain handles what others can confirm about you. They complement each other.</p>
+<h2 id="the-architecture">The Architecture</h2>
+<p>Jobchain is a Cargo workspace with three crates:</p>
+<ul>
+<li><strong>jobchain-core</strong>: credential types, Ed25519 signing, DID documents, amendment chains</li>
+<li><strong>jobchain-verify</strong>: signature verification only, kept slim for future WASM compilation</li>
+<li><strong>jobchain-cli</strong>: the <code>jobchain</code> binary</li>
+</ul>
+<p>131 tests. All passing.</p>
+<p>The verify crate is deliberately lightweight. No HTTP client, no file I/O, no CLI dependencies. The plan is to compile it to WASM so the wallet can verify credentials in-browser without a server.</p>
+<h2 id="what-i-actually-used-to-build-this">What I Actually Used to Build This</h2>
+<p>I used <a href="/blog/2026/finna-multi-model-spec-implement/">finna</a> to architect and implement it. Claude and Gemini debated the architecture, generated 16 implementation specs, then Claude implemented each spec as a feature branch. The whole thing -- keypair generation, DID documents, credential signing, verification, amendments, adapter traits, wallet generator, CLI, 131 tests -- was implemented in one session.</p>
+<p>I reviewed the output, fixed a few things, and it worked end to end. That's a different kind of project kickstart than I'm used to.</p>
+<h2 id="the-hard-part">The Hard Part</h2>
+<p>The tooling exists. The hard part is adoption.</p>
+<p>Someone has to go first. An employer has to host a <code>did.json</code> and issue a credential. An employee has to publish their wallet. A hiring manager has to check it.</p>
+<p>I work at a smaller company. We could try it. The ask is small: host one JSON file, run one command when someone joins or leaves. Frame it as a signed reference letter that's machine-verifiable.</p>
+<p>That's the next step.</p>
+<h2 id="current-status">Current Status</h2>
+<p>Working CLI with all Phase 1 features:</p>
+<ul>
+<li><code>jobchain init</code> -- generate org identity</li>
+<li><code>jobchain issue</code> -- sign employment credentials</li>
+<li><code>jobchain verify</code> -- check signatures (offline or via DID resolution)</li>
+<li><code>jobchain amend</code> -- signed amendments to existing credentials</li>
+<li><code>jobchain wallet build</code> -- static site generator</li>
+</ul>
+<p>What's missing:</p>
+<ul>
+<li>Actual adoption by an employer</li>
+<li>HR tool adapters (BambooHR, Gusto, etc.)</li>
+<li>WASM verification in the wallet</li>
+<li>A real-world credential issued by a real company</li>
+</ul>
+<p>The infrastructure is there. Now it needs to be used.</p>
+<h2 id="links">Links</h2>
+<ul>
+<li><a href="https://github.com/ducks/jobchain">Jobchain on GitHub</a></li>
+<li><a href="https://ducks.github.io/jobchain/">Jobchain Documentation</a> -- implementation guide and spec</li>
+<li><a href="https://jobl.dev">JOBL</a> -- structured resume format (companion project)</li>
+<li><a href="https://github.com/ducks/whoami-spec">whoami-spec</a> -- declarative identity</li>
+<li><a href="https://github.com/ducks/finna">finna</a> -- multi-model debate and implement</li>
+</ul>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-3&#x2F;">Rewriting Claude Code in Rust, Part 3: TUI, Agents, and Multi-Provider</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 04, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets a ratatui TUI, sub-agents, and support for any OpenAI-compatible endpoint. One session, start to finish.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-2&#x2F;">Rewriting Claude Code in Rust, Part 2: Sessions, Commands, and Permissions</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 02, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets session management, compaction, model switching, and an interactive permission system. Three phases in one sitting.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-with-claude&#x2F;">Rewriting Claude Code in Rust, With Claude</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 01, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Claude Code&#x27;s TypeScript source leaked via a source map. I read the architecture and rewrote the core in Rust. Using Claude. Here&#x27;s Part 1.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;whoami-spec-declarative-identity&#x2F;">whoami: making identity a spec</a></h3>
+                  <div class="meta">
+                    
+                    <p>Mar 31, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">We made infrastructure declarative. We made workflows declarative. Identity is next. A structured format for describing yourself as a source of truth, not a projection.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/specifications">#specifications</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;skillz-package-manager-for-claude-skills&#x2F;">skillz: A Package Manager for Claude Code Skills</a></h3>
+                  <div class="meta">
+                    
+                    <p>Mar 30, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">Claude Code has a skill system. There&#x27;s no package manager for it. So I built one. 200 lines of Rust, installs from GitHub, published to crates.io.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/cli">#cli</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

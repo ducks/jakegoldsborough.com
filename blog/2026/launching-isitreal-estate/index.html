@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="A site where people leave reviews for addresses they have actually visited, so you know before you go whether a listing is real.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="isitreal.estate: Crowd-Sourced Reviews for Real Estate Listings">
+    <meta property="og:description" content="A site where people leave reviews for addresses they have actually visited, so you know before you go whether a listing is real.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;launching-isitreal-estate&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="isitreal.estate: Crowd-Sourced Reviews for Real Estate Listings">
+    <meta name="twitter:description" content="A site where people leave reviews for addresses they have actually visited, so you know before you go whether a listing is real.">
+
+    <title>isitreal.estate: Crowd-Sourced Reviews for Real Estate Listings - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>isitreal.estate: Crowd-Sourced Reviews for Real Estate Listings</h1>
+      <div class="meta">
+        
+        <p>Apr 18, 2026</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/svelte">#svelte</a></p>
+          
+          <p><a href="/tags/self-hosting">#self-hosting</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <p>Most real estate listings lie. Not always in big ways, but enough that
+anyone who has hunted for an apartment or a house knows the feeling -
+you drive 40 minutes, the front yard is a dump, the photos were from
+2018, the "washer/dryer included" means hookups in a damp basement,
+and the agent shrugs.</p>
+<p>There is no shared layer of truth for listings. Every renter and buyer
+does the same recon work from scratch.</p>
+<p>So I built <a href="https://isitreal.estate">isitreal.estate</a> - crowd-sourced
+reviews tied to physical addresses, not listings. Listings come and go.
+Addresses stay.</p>
+<h2 id="the-idea">The Idea</h2>
+<p>Think Waze, but for house hunting.</p>
+<p>You search an address. You see what other people found when they
+visited. Photos they took. Whether the listing photos matched reality.
+A rating. A date.</p>
+<p>If the address has never been reviewed, you can be the first. After
+you visit, leave a review with photos. Over time, bad actors
+accumulate a visible history tied to the properties they list.</p>
+<h2 id="data-model">Data Model</h2>
+<p>The anchor entity is the address, not the listing. A listing is
+ephemeral - taken down, renamed, relisted with new photos. An
+address has GPS coordinates and does not move.</p>
+<pre><code>addresses
+  id, street, city, state, zip, country, lat, lng
+
+reviews
+  id, address_id, user_id,
+  listing_accurate (yes&#x2F;partially&#x2F;no),
+  rating (1-5), body, visited_at
+
+review_photos
+  id, review_id, filename, path
+
+votes
+  id, review_id, user_id, vote (accurate&#x2F;not_accurate)
+</code></pre>
+<p>Reviews carry photos. Votes let readers weigh reviews by what the
+community agreed was useful or not. A user's credibility score is
+derived from how often their reviews align with votes over time.</p>
+<h2 id="the-stack">The Stack</h2>
+<ul>
+<li><strong>Framework</strong>: SvelteKit 5 (runes)</li>
+<li><strong>Database</strong>: PostgreSQL</li>
+<li><strong>Auth</strong>: Session-based, scrypt hashing</li>
+<li><strong>Maps</strong>: Leaflet + OpenStreetMap tiles</li>
+<li><strong>Geocoding</strong>: Nominatim (OSM, free)</li>
+<li><strong>Photos</strong>: Disk storage, behind a configurable <code>UPLOAD_DIR</code></li>
+<li><strong>Deployment</strong>: NixOS on my VPS, Caddy reverse proxy, systemd</li>
+</ul>
+<p>Nothing exotic. The most interesting choice was OSM + Nominatim
+instead of Google Maps - no API key, no billing, no surprise bills if
+someone shares the site somewhere.</p>
+<h2 id="deployment">Deployment</h2>
+<p>The deploy is declarative and lives in my <code>pond-nix</code> repo. A new
+curbside release builds a tarball on GitHub Actions; a NixOS service
+fetches it on rebuild; systemd runs <code>node build</code>; Caddy handles TLS.</p>
+<p>The first deploy broke for a boring but interesting reason. The
+systemd unit tried to bind-mount a writable uploads directory into
+the Nix store path, which is read-only. systemd refused:</p>
+<pre><code>Failed to create destination mount point node
+&#x27;&#x2F;nix&#x2F;store&#x2F;...&#x2F;source&#x2F;uploads&#x27;:
+Read-only file system
+</code></pre>
+<p>Rather than patching the Nix module to copy the app out of the store,
+I made the upload directory configurable in the app itself:</p>
+<pre data-lang="ts" class="language-ts "><code class="language-ts" data-lang="ts">export const UPLOAD_DIR = process.env.UPLOAD_DIR || &#x27;uploads&#x27;;
+</code></pre>
+<p>Both the write path (<code>src/lib/photos.ts</code>) and the read path
+(<code>src/routes/uploads/[...path]/+server.ts</code>) import the same constant,
+so they never drift. In dev it defaults to <code>./uploads</code>. In production
+the systemd unit sets <code>UPLOAD_DIR=/var/lib/curbside/uploads</code> and the
+BindPaths goes away entirely.</p>
+<p>Cleaner than fighting the Nix store. And it unblocks moving uploads
+off the VPS to R2 later with the same interface.</p>
+<h2 id="what-works">What Works</h2>
+<ul>
+<li>Signup, login, session auth</li>
+<li>Address search with geocoding</li>
+<li>Address detail page with reviews, photos, stats</li>
+<li>Review submission with photo uploads</li>
+<li>Accurate / not-accurate voting</li>
+<li>User profile pages</li>
+<li>Admin role for moderation</li>
+</ul>
+<h2 id="what-doesn-t-yet">What Doesn't (Yet)</h2>
+<ul>
+<li>Map view on the homepage is basic</li>
+<li>No autocomplete on address search yet</li>
+<li>Photo storage lives on the VPS; needs to move to object storage</li>
+<li>No rate limiting on review creation</li>
+<li>Credibility scoring is naive</li>
+</ul>
+<h2 id="reflections">Reflections</h2>
+<p>The technical work was the easy part. SvelteKit + Postgres + systemd
+is well-trodden ground. The real question is whether enough people
+will leave reviews to reach the tipping point where the site is
+actually useful when you search an address.</p>
+<p>That is the honest problem with any crowd-sourced trust network. It is
+worthless until it crosses some critical mass, and valuable after. The
+middle is long and quiet.</p>
+<p>So I am seeding with real reviews of real addresses I know, and
+opening it up to see what happens. If you have ever been burned by a
+fake listing, leave a review.</p>
+<h2 id="links">Links</h2>
+<ul>
+<li><a href="https://isitreal.estate">isitreal.estate</a></li>
+<li><a href="https://github.com/ducks/isitreal.estate">curbside (app source)</a></li>
+<li><a href="https://github.com/ducks/pond-nix">pond-nix (deploy config)</a></li>
+</ul>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;when-your-coffee-roaster-builds-the-first-version&#x2F;">When Your Coffee Roaster Builds the First Version</a></h3>
+                  <div class="meta">
+                    
+                    <p>Mar 16, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">A coffee roaster built production planning software with Claude. I handled the infrastructure. What this collaboration reveals about AI-enabled development.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/svelte">#svelte</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;real-declarative-infrastructure-nixos&#x2F;">From Bash Scripts to NixOS: Real Declarative Infrastructure on a VPS</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 18, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Converting a bash script + systemd-based VPS to NixOS for truly declarative infrastructure. No more update scripts or edge cases, just configuration.nix.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/self-hosting">#self-hosting</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;running-infrastructure-with-systemd&#x2F;">Running VPS Infrastructure with Systemd</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 10, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Declarative VPS infrastructure using systemd services. Running Gitea, Woodpecker CI, Scrob, and GoatCounter with automated deployment scripts.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/self-hosting">#self-hosting</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/systemd">#systemd</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-scrob-self-hosted-scrobbling&#x2F;">Building Scrob: A Self-Hosted Music Scrobbling Server</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 02, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Built a self-hosted scrobbling server with Rust and PostgreSQL to track listening history without relying on Last.fm, featuring public profiles and automated deployment.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/self-hosting">#self-hosting</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;when-your-coffee-roaster-builds-the-first-version&#x2F;">When Your Coffee Roaster Builds the First Version</a></h3>
+                  <div class="meta">
+                    
+                    <p>Mar 16, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">A coffee roaster built production planning software with Claude. I handled the infrastructure. What this collaboration reveals about AI-enabled development.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/svelte">#svelte</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Two major refactors: custom model to Topics, then custom feed to plugin outlets. Less code, more features, better maintainability.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Building The Guest Spot: Part 2 - Two Refactors">
+    <meta property="og:description" content="Two major refactors: custom model to Topics, then custom feed to plugin outlets. Less code, more features, better maintainability.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-the-guest-spot-part-2&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Building The Guest Spot: Part 2 - Two Refactors">
+    <meta name="twitter:description" content="Two major refactors: custom model to Topics, then custom feed to plugin outlets. Less code, more features, better maintainability.">
+
+    <title>Building The Guest Spot: Part 2 - Two Refactors - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Building The Guest Spot: Part 2 - Two Refactors</h1>
+      <div class="meta">
+        
+        <p>Oct 26, 2025</p>
+        
+        <p>6 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/discourse">#discourse</a></p>
+          
+          <p><a href="/tags/ruby">#ruby</a></p>
+          
+          <p><a href="/tags/ember">#ember</a></p>
+          
+        </div>
+      
+
+      <p>In <a href="/blog/2025/building-the-guest-spot-part-1/">Part 1</a>, I built an Instagram-style showcase using a custom <code>GuestSpotPost</code> model. It worked. But it also meant maintaining a parallel data structure instead of leveraging what Discourse already provides.</p>
+<p>This post covers two major refactors: first from custom models to Discourse Topics, then from custom feed infrastructure to plugin outlets. Each time, less code gave me more features.</p>
+<h2 id="why-refactor">Why Refactor?</h2>
+<p>The custom model approach had problems:</p>
+<ul>
+<li>Duplicate logic: Comments, moderation, spam protection already exist for Topics</li>
+<li>Extra maintenance: Every time Discourse updates, potential breakage</li>
+<li>Missing features: No native file upload, no revision history, no trust levels</li>
+<li>More code: Separate serializers, separate permissions, separate everything</li>
+</ul>
+<p>Discourse Topics already have everything we need:</p>
+<ul>
+<li>First post holds the caption and images</li>
+<li>Title can be auto-generated</li>
+<li>Categories handle public vs private</li>
+<li>Pinning is built-in</li>
+<li>Commenting works out of the box</li>
+</ul>
+<p>The showcase is just a custom view of Topics in the "Public Feed" category.</p>
+<h2 id="the-refactor">The Refactor</h2>
+<h3 id="backend-changes">Backend Changes</h3>
+<p>Deleted the entire <code>GuestSpotPost</code> model and migrations. Instead, the controller now works with Topics:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby"># app&#x2F;controllers&#x2F;guest_spot&#x2F;posts_controller.rb
+def index
+  category_id = CategoryHelper.public_feed_category_id
+
+  topics = Topic
+    .where(category_id: category_id)
+    .where(deleted_at: nil)
+    .includes(:user, posts: :uploads)
+    .order(created_at: :desc)
+    .limit(50)
+
+  pinned_topics = Topic
+    .where(category_id: category_id)
+    .where(deleted_at: nil)
+    .where.not(pinned_at: nil)
+    .includes(:user, posts: :uploads)
+    .order(created_at: :desc)
+
+  render json: {
+    posts: serialize_data(topics, GuestSpotPostSerializer),
+    pinned: serialize_data(pinned_topics, GuestSpotPostSerializer)
+  }
+end
+</code></pre>
+<p>The serializer extracts what we need from Topics:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby"># app&#x2F;serializers&#x2F;guest_spot_post_serializer.rb
+class GuestSpotPostSerializer &lt; ApplicationSerializer
+  attributes :id, :user_id, :username, :caption, :image_urls, :created_at, :pinned
+
+  def caption
+    object.first_post&amp;.raw || &quot;&quot;
+  end
+
+  def image_urls
+    object.first_post.uploads.map { |upload| UrlHelper.absolute(upload.url) }
+  end
+
+  def pinned
+    object.pinned_at.present?
+  end
+end
+</code></pre>
+<p>Caption is the post content. Images come from uploads. Pinned status is the native <code>pinned_at</code> field.</p>
+<h3 id="creating-posts">Creating Posts</h3>
+<p>Instead of <code>GuestSpotPost.create</code>, we use <code>TopicCreator</code>:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby">def create
+  category_id = CategoryHelper.public_feed_category_id
+  title = &quot;@#{current_user.username} - #{Time.now.to_i}&quot;
+
+  topic_creator = TopicCreator.new(
+    current_user,
+    Guardian.new(current_user),
+    category: category_id,
+    title: title,
+    raw: params[:caption] || &quot;&quot;
+  )
+
+  topic = topic_creator.create
+  render_serialized(topic, GuestSpotPostSerializer)
+end
+</code></pre>
+<p>Auto-generated titles keep them unique. The caption goes in the first post's raw content. Image uploads attach automatically through Discourse's existing upload system.</p>
+<h3 id="frontend-changes">Frontend Changes</h3>
+<p>Frontend barely changed. The serializer provides the same JSON structure, so components worked as-is. The only update was changing <code>@post.id</code> to reference topic IDs instead of custom model IDs.</p>
+<h3 id="what-this-got-us">What This Got Us</h3>
+<p>The refactor from custom models to Topics gave us:</p>
+<ul>
+<li>Comments work natively (no custom implementation)</li>
+<li>Moderation tools work (flags, hiding, deleting)</li>
+<li>File uploads work (native uploader)</li>
+<li>Revision history works (edit tracking)</li>
+<li>Trust levels work (spam protection)</li>
+<li>All for free, by using what Discourse already provides</li>
+</ul>
+<p>But I still had a custom feed with its own routes, controllers, and serializers. That was the next problem to solve.</p>
+<h2 id="going-native-deleting-the-custom-feed">Going Native: Deleting the Custom Feed</h2>
+<p>In Part 1, I built a custom <code>GuestSpotPost</code> model. Then I realized that was
+overkill and refactored to use Discourse Topics. But I kept the custom feed
+with its own routes, controllers, and serializers.</p>
+<p>After implementing that custom feed, I realized there was an uncomfortable
+disconnect. Users would browse an Instagram-style feed, click a post, and
+suddenly land in Discourse's standard topic view. The context switch was jarring.</p>
+<p>The question became: why maintain a custom feed at all? If the custom model
+was unnecessary, maybe the custom feed was too.</p>
+<p>Discourse already has everything we need:</p>
+<ul>
+<li>Category pages show topic lists</li>
+<li>Category permissions control who can post and who can view</li>
+<li>Native pinning highlights featured content</li>
+<li>Theme system allows extensive visual customization</li>
+</ul>
+<p>Instead of maintaining a parallel feed system, we could just make the Public
+Feed category look great using plugin outlets.</p>
+<h3 id="the-deletion">The Deletion</h3>
+<p>I deleted the entire custom feed infrastructure:</p>
+<p><strong>Removed (1,078 lines)</strong>:</p>
+<ul>
+<li>Custom feed routes and controllers (<code>guest_spot/feed_controller.rb</code>,
+<code>guest_spot/posts_controller.rb</code>)</li>
+<li>Custom post serializer (<code>guest_spot_post_serializer.rb</code>)</li>
+<li>All custom Ember components (<code>guest-spot-feed.gjs</code>,
+<code>guest-spot-post-card.gjs</code>)</li>
+<li>Custom route definitions and templates</li>
+<li>Multiple initializers for hiding UI elements</li>
+</ul>
+<p><strong>Added (264 lines)</strong>:</p>
+<ul>
+<li>Single plugin outlet connector:
+<code>assets/javascripts/discourse/connectors/topic-list-item/guest-spot-item.gjs</code></li>
+<li>CSS Grid layout for responsive cards</li>
+</ul>
+<p>Net result: 814 fewer lines of code.</p>
+<h3 id="plugin-outlets-the-right-pattern">Plugin Outlets: The Right Pattern</h3>
+<p>Discourse provides plugin outlets - extension points where plugins can inject
+custom HTML. There are two types:</p>
+<p><strong>Regular outlets</strong> inject content but Discourse still renders the default
+elements. <strong>Wrapper outlets</strong> completely replace the template.</p>
+<p>I used the <code>topic-list-item</code> wrapper outlet to completely replace how topics
+display in the Public Feed category:</p>
+<pre data-lang="javascript" class="language-javascript "><code class="language-javascript" data-lang="javascript">import Component from &quot;@glimmer&#x2F;component&quot;;
+import avatar from &quot;discourse&#x2F;helpers&#x2F;avatar&quot;;
+import replaceEmoji from &quot;discourse&#x2F;helpers&#x2F;replace-emoji&quot;;
+import formatDate from &quot;discourse&#x2F;helpers&#x2F;format-date&quot;;
+
+export default class GuestSpotItem extends Component {
+  get isPublicFeed() {
+    return this.args.outletArgs?.topic?.category?.slug === &quot;public-feed&quot;;
+  }
+
+  get truncatedExcerpt() {
+    const excerpt = this.args.outletArgs?.topic?.excerpt || &quot;&quot;;
+    if (excerpt.length &lt;= 50) {
+      return excerpt;
+    }
+    return excerpt.substring(0, 50) + &quot;...&quot;;
+  }
+
+  &lt;template&gt;
+    {{#if this.isPublicFeed}}
+      &lt;td class=&quot;topic-list-data guest-spot-card&quot;&gt;
+        &lt;div class=&quot;guest-spot-author&quot;&gt;
+          &lt;a href=&quot;&#x2F;u&#x2F;{{this.args.outletArgs.topic.creator.username}}&quot;&gt;
+            {{avatar this.args.outletArgs.topic.creator imageSize=&quot;medium&quot;}}
+            &lt;span class=&quot;username&quot;&gt;
+              {{this.args.outletArgs.topic.creator.username}}
+            &lt;&#x2F;span&gt;
+          &lt;&#x2F;a&gt;
+        &lt;&#x2F;div&gt;
+
+        &lt;div class=&quot;guest-spot-image&quot;&gt;
+          &lt;a href={{this.args.outletArgs.topic.url}}&gt;
+            &lt;img src={{this.args.outletArgs.topic.image_url}} alt=&quot;&quot; &#x2F;&gt;
+          &lt;&#x2F;a&gt;
+        &lt;&#x2F;div&gt;
+
+        &lt;div class=&quot;guest-spot-excerpt&quot;&gt;
+          {{replaceEmoji this.truncatedExcerpt}}
+        &lt;&#x2F;div&gt;
+
+        &lt;div class=&quot;guest-spot-metadata&quot;&gt;
+          &lt;div class=&quot;meta-item&quot;&gt;
+            Views: {{this.args.outletArgs.topic.views}}
+          &lt;&#x2F;div&gt;
+          &lt;div class=&quot;meta-item&quot;&gt;
+            Replies: {{this.args.outletArgs.topic.posts_count}}
+          &lt;&#x2F;div&gt;
+          &lt;div class=&quot;meta-item&quot;&gt;
+            Posted: {{formatDate this.args.outletArgs.topic.createdAt
+            leaveAgo=true}}
+          &lt;&#x2F;div&gt;
+        &lt;&#x2F;div&gt;
+      &lt;&#x2F;td&gt;
+    {{else}}
+      {{@default}}
+    {{&#x2F;if}}
+  &lt;&#x2F;template&gt;
+}
+</code></pre>
+<p>The component checks if we're in the public-feed category. If yes, render the
+custom card layout. If no, render the default (<code>{{@default}}</code>).</p>
+<h3 id="css-grid-for-responsive-layout">CSS Grid for Responsive Layout</h3>
+<p>Instead of JavaScript handling the layout, CSS Grid does all the work:</p>
+<pre data-lang="scss" class="language-scss "><code class="language-scss" data-lang="scss">.category-public-feed {
+  .topic-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+
+    @media (max-width: 480px) {
+      grid-template-columns: 1fr;
+    }
+
+    tr.topic-list-item {
+      display: flex;
+      flex-direction: column;
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--primary-very-low);
+      transition: transform 0.2s;
+
+      &amp;:hover {
+        transform: translateY(-2px);
+      }
+    }
+  }
+}
+</code></pre>
+<p>On mobile, it collapses to a single column. On tablet and desktop, it flows
+naturally based on available space.</p>
+<p><img src="/images/guest-spot-mobile-3.png" alt="Mobile view of The Guest Spot showing a nature image from Tattoo Mike" /></p>
+<p><img src="/images/guest-spot-feed-1.png" alt="Desktop view of The Guest Spot showing a grid of tattoo pictures" /></p>
+<h3 id="discovery-process">Discovery Process</h3>
+<p>Finding the right plugin outlet took some research. I used <code>rg</code> to search
+Discourse core for available outlets:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">rg &quot;PluginOutlet&quot; app&#x2F;assets&#x2F;javascripts&#x2F;discourse&#x2F;app&#x2F;components&#x2F; \
+  | grep topic-list
+</code></pre>
+<p>Found several candidates:</p>
+<ul>
+<li><code>topic-list-before-link</code> - Injects before the title link (still renders
+default content)</li>
+<li><code>topic-list-after-title</code> - Injects after the title (still renders default
+content)</li>
+<li><code>topic-list-item</code> - Wrapper outlet (replaces entire template)</li>
+</ul>
+<p>The wrapper outlet was key. Regular outlets would have shown both my custom
+card and the default topic row, creating duplicate content.</p>
+<h3 id="what-works-now">What Works Now</h3>
+<p>The native approach gives us:</p>
+<ul>
+<li>Comments work out of the box (no custom implementation needed)</li>
+<li>All Discourse features work (moderation, flags, bookmarks, etc.)</li>
+<li>814 fewer lines of code to maintain</li>
+<li>Better mobile support (Grid automatically adapts)</li>
+<li>No custom API (no serializers, controllers, or routes)</li>
+<li>Pin/unpin still works (using Discourse's native pinning)</li>
+</ul>
+<p>The showcase is now just "a really nicely styled Discourse category" instead
+of "a custom app built on top of Discourse."</p>
+<h2 id="vibe-coding-pros-and-cons">Vibe Coding: Pros and Cons</h2>
+<p>This project is a perfect example of "vibe coding" - building something by
+feel, iterating quickly, and learning what works through trial and error.</p>
+<p>I started with a custom model because that felt right. Then I realized Topics
+already did everything I needed. I built a custom feed because I wanted full
+control. Then I realized plugin outlets gave me that control without the
+maintenance burden.</p>
+<p><strong>The downside</strong>: I went too fast and tried too much. Each iteration meant
+throwing away code. The custom model, the custom feed infrastructure - all
+that work ended up deleted. If I'd researched Discourse patterns first, I
+could have gone straight to the plugin outlet approach.</p>
+<p><strong>The upside</strong>: I learned way more by doing it wrong first. I understand why
+wrapper outlets exist, because I felt the pain of duplicate content with
+regular outlets. I understand why Discourse's native features are powerful,
+because I tried to rebuild them and saw how much work that is.</p>
+<p>Fast iteration meant I could course-correct. I wasn't six months into building
+a custom ORM before realizing Topics existed. I was a few days in, so
+refactoring didn't hurt. The velocity of vibe coding let me try ideas, see
+them fail, and pivot quickly.</p>
+<p>The final result is simple and maintainable. It took three iterations to get
+there, but each iteration taught me something. Now I know how to not do things,
+which is just as valuable as knowing how to do them.</p>
+<p>The code is on GitHub: <a href="https://github.com/ducks/discourse-guest-spot">discourse-guest-spot</a></p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-discourse-comments-in-typescript&#x2F;">Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 27, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">I rewrote the Discourse embedded comments API client from Rust&#x2F;WASM to pure TypeScript. The bundle went from 742 KB to 18 KB.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;how-a-friends-gif-broke-our-filesystem&#x2F;">How Jennifer Aniston and Friends Cost Us 377GB and Broke ext4 Hardlinks</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 23, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A backup deduplication fix, filesystem hardlink limits, and the Jennifer Aniston reaction GIF that stress-tested our infrastructure.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-discourse-embedded-comments&#x2F;">Building Embedded Discourse Comments with Rust and WASM</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 14, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">An experiment in creating a drop-in comment widget for static sites using Rust compiled to WebAssembly, talking to Discourse&#x27;s REST API.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/wasm">#wasm</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-stats-evolution&#x2F;">Invite Tree to Invite Stats - How A Simple Tree Flourished Into A Full Moderation Plugin</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 05, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">How a simple visualization plugin evolved into a moderation tool.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-tree&#x2F;">Visualizing Discourse Invite Trees</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 03, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A simple Discourse plugin that visualizes who invited whom as an ASCII tree, inspired by Lobsters.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Fixing footer playback progress, implementing unit tests, and setting up GitHub Actions CI for the Rust TUI music player.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Shelltrax Part 2: Footer, Tests, and CI">
+    <meta property="og:description" content="Fixing footer playback progress, implementing unit tests, and setting up GitHub Actions CI for the Rust TUI music player.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;shelltrax-part-2-footer-tests-ci&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Shelltrax Part 2: Footer, Tests, and CI">
+    <meta name="twitter:description" content="Fixing footer playback progress, implementing unit tests, and setting up GitHub Actions CI for the Rust TUI music player.">
+
+    <title>Shelltrax Part 2: Footer, Tests, and CI - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Shelltrax Part 2: Footer, Tests, and CI</h1>
+      <div class="meta">
+        
+        <p>Oct 29, 2025</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/tui">#tui</a></p>
+          
+          <p><a href="/tags/ci">#ci</a></p>
+          
+        </div>
+      
+
+      <p>In <a href="https://jakegoldsborough.com/blog/2025/introducing-shelltrax/">Part 1</a>, I built the core of shelltrax</p>
+<ul>
+<li>a TUI music player in Rust. It had library navigation, file browsing,
+audio playback, and a footer with song info and status. One big problem though,
+the footer would stop updating after the first song and I really wanted to fix
+that.</li>
+</ul>
+<p>This post covers three improvements: implementing a proper footer with
+playback progress, adding unit tests for the tricky bits, and setting up CI
+to keep code quality high.</p>
+<h2 id="running-with-a-limp">Running With A Limp</h2>
+<p>The footer existed from early on (progress bar, time display, track info), but
+it had a critical bug: when autoplay advanced to the next track, the progress
+bar wouldn't reset. It would either keep counting from where the previous song left
+off, showing wrong times and eventually overflowing past 100% or it would just
+reset back to 0 and not progress. Whatever it did, it didn't work.</p>
+<p>The bug was in <code>play_next_track()</code>. It would set <code>playback_start</code> and
+<code>current_track</code>, but it wouldn't reset <code>paused_duration</code> or <code>paused_at</code>. If
+you paused the first song for 30 seconds, that 30 seconds would carry over to
+every subsequent song, throwing off the footer display completely.</p>
+<h2 id="consolidation-begin-playback">Consolidation: begin_playback()</h2>
+<p>The solution was extracting the timer reset logic into a dedicated method:</p>
+<pre data-lang="rust" class="language-rust "><code class="language-rust" data-lang="rust">pub fn begin_playback(&amp;mut self, track: &amp;LibraryTrack) {
+    self.current_track = Some(track.clone());
+    self.playback_start = Some(Instant::now());
+    self.paused_duration = Duration::ZERO;
+    self.paused_at = None;
+    self.playback_duration = track.duration.unwrap_or(0);
+}
+</code></pre>
+<p>Now <code>play_next_track()</code> calls <code>begin_playback()</code> instead of manually setting
+fields. This ensures all timing state resets properly when advancing to the
+next song, whether manually or via autoplay.</p>
+<h2 id="implementation-tracking-time-correctly">Implementation: Tracking Time Correctly</h2>
+<p>The app needs to track multiple timing values:</p>
+<pre data-lang="rust" class="language-rust "><code class="language-rust" data-lang="rust">pub struct App {
+    pub playback_start: Option&lt;Instant&gt;,
+    pub playback_duration: u64,
+    pub paused_at: Option&lt;Instant&gt;,
+    pub paused_duration: Duration,
+    &#x2F;&#x2F; ... other fields
+}
+</code></pre>
+<p>When a song starts, we record <code>playback_start</code>. When the user pauses, we
+record <code>paused_at</code>. When they unpause, we add the pause duration to
+<code>paused_duration</code> and clear <code>paused_at</code>.</p>
+<p>The footer calculation looks like this:</p>
+<pre data-lang="rust" class="language-rust "><code class="language-rust" data-lang="rust">let elapsed = if let Some(paused_at) = app.paused_at {
+    paused_at.duration_since(start)
+} else {
+    now.duration_since(start)
+};
+
+let adjusted = elapsed.saturating_sub(app.paused_duration);
+</code></pre>
+<p>If currently paused, elapsed time is frozen at the pause moment. Otherwise,
+it's the time since playback started. Then we subtract all the accumulated
+pause time to get the actual playback position.</p>
+<p>The <code>saturating_sub</code> is important. Without it, if <code>paused_duration</code> somehow
+exceeded <code>elapsed</code> (race condition, clock skew, whatever), you'd get an
+underflow panic. <code>saturating_sub</code> clamps to zero instead.</p>
+<h2 id="layout-three-lines-of-footer">Layout: Three Lines of Footer</h2>
+<p>The footer uses a vertical layout with three lines:</p>
+<pre data-lang="rust" class="language-rust "><code class="language-rust" data-lang="rust">let layout = Layout::default()
+    .direction(Direction::Vertical)
+    .constraints([
+        Constraint::Length(1),  &#x2F;&#x2F; Progress bar
+        Constraint::Length(1),  &#x2F;&#x2F; Time display
+        Constraint::Length(1),  &#x2F;&#x2F; Track info
+    ])
+    .split(inner);
+</code></pre>
+<p>Line 1 is a <code>Gauge</code> widget showing the ratio of elapsed to total time. Line 2
+shows <code>MM:SS / MM:SS</code>. Line 3 shows <code>Artist - Title - Album</code>.</p>
+<p>The progress bar ratio:</p>
+<pre data-lang="rust" class="language-rust "><code class="language-rust" data-lang="rust">let ratio = if total.as_secs_f64() &gt; 0.0 {
+    adjusted.as_secs_f64() &#x2F; total.as_secs_f64()
+} else {
+    0.0
+};
+</code></pre>
+<p>Clamp it to <code>1.0</code> max so the gauge doesn't overflow if the elapsed time
+somehow exceeds the track duration (can happen with malformed metadata).</p>
+<h2 id="testing-what-actually-needs-tests">Testing: What Actually Needs Tests?</h2>
+<p>I'm not a fan of testing UI rendering code. It's tedious, fragile, and
+doesn't catch the bugs that matter. What I do test is the state management
+logic that the UI depends on.</p>
+<p>For shelltrax, the critical logic is:</p>
+<ul>
+<li>Playback state transitions (playing, paused, stopped)</li>
+<li>Time tracking during pause/unpause cycles</li>
+<li>Library state management (artist/album hierarchy)</li>
+</ul>
+<p>I added two test modules: one in <code>app.rs</code> for playback logic, one in
+<code>library.rs</code> for library state.</p>
+<h3 id="testing-playback-state">Testing Playback State</h3>
+<p>Four tests in <code>app.rs</code>:</p>
+<p><strong>test_begin_playback_resets_timers:</strong></p>
+<pre data-lang="rust" class="language-rust "><code class="language-rust" data-lang="rust">#[test]
+fn test_begin_playback_resets_timers() {
+    let mut app = App::new();
+
+    app.playback_start = Some(Instant::now());
+    app.paused_duration = Duration::from_secs(10);
+    app.paused_at = Some(Instant::now());
+
+    let track = create_test_track(&quot;test&quot;, 180);
+    app.begin_playback(&amp;track);
+
+    assert!(app.playback_start.is_some());
+    assert_eq!(app.paused_duration, Duration::ZERO);
+    assert!(app.paused_at.is_none());
+}
+</code></pre>
+<p>When starting a new track, all the timing state should reset. If it didn't,
+the footer would show stale pause data from the previous song.</p>
+<p><strong>test_toggle_pause_accumulates_paused_duration:</strong></p>
+<pre data-lang="rust" class="language-rust "><code class="language-rust" data-lang="rust">#[test]
+fn test_toggle_pause_accumulates_paused_duration() {
+    let mut app = App::new();
+
+    let start = Instant::now();
+    app.paused_at = Some(start);
+    app.paused_duration = Duration::from_secs(5);
+
+    app.toggle_pause();  &#x2F;&#x2F; Unpause
+
+    std::thread::sleep(Duration::from_millis(100));
+
+    app.toggle_pause();  &#x2F;&#x2F; Pause again
+
+    assert!(app.paused_at.is_none());
+    assert!(app.paused_duration &gt; Duration::from_secs(5));
+}
+</code></pre>
+<p>This test verifies that pausing multiple times accumulates the total paused
+duration. The <code>sleep</code> is gross but necessary to test time-based logic without
+mocking the clock (which would require dependency injection, which is
+overkill for a hobby project).</p>
+<h3 id="testing-library-state">Testing Library State</h3>
+<p>Six tests in <code>library.rs</code> covering the artist/album/track hierarchy:</p>
+<p><strong>test_add_tracks_creates_structure:</strong></p>
+<pre data-lang="rust" class="language-rust "><code class="language-rust" data-lang="rust">#[test]
+fn test_add_tracks_creates_structure() {
+    let mut lib = LibraryState::new();
+
+    let tracks = vec![
+        create_test_track(&quot;Artist A&quot;, &quot;Album 1&quot;, &quot;Track 1&quot;, 1),
+        create_test_track(&quot;Artist A&quot;, &quot;Album 1&quot;, &quot;Track 2&quot;, 2),
+        create_test_track(&quot;Artist B&quot;, &quot;Album 2&quot;, &quot;Track 3&quot;, 1),
+    ];
+
+    lib.add_tracks(tracks);
+
+    assert_eq!(lib.artists.len(), 2);
+    assert_eq!(lib.artists[0].name, &quot;Artist A&quot;);
+    assert_eq!(lib.artists[0].albums.len(), 1);
+    assert_eq!(lib.artists[0].albums[0].tracks.len(), 2);
+}
+</code></pre>
+<p>This validates the library builds the correct tree structure when adding
+tracks. If the grouping logic broke, you'd end up with duplicate artists or
+albums in the wrong places.</p>
+<p><strong>test_visible_tracks_for_album:</strong></p>
+<pre data-lang="rust" class="language-rust "><code class="language-rust" data-lang="rust">#[test]
+fn test_visible_tracks_for_album() {
+    let mut lib = LibraryState::new();
+
+    lib.add_tracks(vec![
+        create_test_track(&quot;Artist&quot;, &quot;Album 1&quot;, &quot;Track 1&quot;, 1),
+        create_test_track(&quot;Artist&quot;, &quot;Album 1&quot;, &quot;Track 2&quot;, 2),
+        create_test_track(&quot;Artist&quot;, &quot;Album 2&quot;, &quot;Track 3&quot;, 1),
+    ]);
+
+    lib.selection = Some(LibrarySelection::Album {
+        artist_index: 0,
+        album_index: 0,
+    });
+    let tracks = lib.visible_tracks();
+
+    assert_eq!(tracks.len(), 2);
+    assert_eq!(tracks[0].title, &quot;Track 1&quot;);
+    assert_eq!(tracks[1].title, &quot;Track 2&quot;);
+}
+</code></pre>
+<p>The <code>visible_tracks</code> method returns different results depending on whether
+an artist or an album is selected. This test ensures album selection filters
+correctly.</p>
+<h2 id="ci-keeping-code-quality-high">CI: Keeping Code Quality High</h2>
+<p>GitHub Actions makes CI trivial for Rust projects. The workflow file:</p>
+<pre data-lang="yaml" class="language-yaml "><code class="language-yaml" data-lang="yaml">name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions&#x2F;checkout@v4
+
+    - name: install rust
+      uses: dtolnay&#x2F;rust-toolchain@stable
+      with:
+        components: clippy
+
+    - name: cache dependencies
+      uses: actions&#x2F;cache@v4
+      with:
+        path: |
+          ~&#x2F;.cargo&#x2F;bin&#x2F;
+          ~&#x2F;.cargo&#x2F;registry&#x2F;index&#x2F;
+          ~&#x2F;.cargo&#x2F;registry&#x2F;cache&#x2F;
+          ~&#x2F;.cargo&#x2F;git&#x2F;db&#x2F;
+          target&#x2F;
+        key: ${{ runner.os }}-cargo-${{ hashFiles(&#x27;**&#x2F;Cargo.lock&#x27;) }}
+
+    - name: install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libasound2-dev
+
+    - name: run tests
+      run: cargo test --verbose
+
+    - name: run clippy
+      run: cargo clippy -- -D warnings
+</code></pre>
+<p>The important bits:</p>
+<p><strong>Dependency caching:</strong> Without caching, every CI run would download and
+compile all dependencies from scratch. With caching, subsequent runs reuse
+compiled dependencies, dropping build time from several minutes to under 30
+seconds.</p>
+<p><strong>System dependencies:</strong> The audio libraries (cpal, rodio) need ALSA headers
+to compile. <code>libasound2-dev</code> provides those on Ubuntu.</p>
+<p><strong>Clippy with <code>-D warnings</code>:</strong> This flag treats all warnings as errors. It's
+strict, but it keeps code quality high. If clippy suggests a fix, you either
+apply it or add an explicit <code>#[allow(...)]</code> annotation explaining why you're
+ignoring it.</p>
+<h2 id="results">Results</h2>
+<p>The footer works. Tests pass. CI keeps the codebase clean. Shelltrax now
+feels like a real music player instead of a tech demo.</p>
+<p>Running <code>cargo test</code> shows 10 passing tests:</p>
+<pre><code>running 10 tests
+test app::tests::test_begin_playback_resets_timers ... ok
+test app::tests::test_toggle_pause_accumulates_paused_duration ... ok
+test app::tests::test_toggle_pause_cycles_state ... ok
+test app::tests::test_toggle_pause_sets_paused_at ... ok
+test library::tests::test_add_tracks_creates_structure ... ok
+test library::tests::test_toggle_expanded ... ok
+test library::tests::test_track_by_path_finds_track ... ok
+test library::tests::test_track_by_path_returns_none_for_missing ... ok
+test library::tests::test_visible_tracks_for_album ... ok
+test library::tests::test_visible_tracks_for_artist ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured
+</code></pre>
+<p>And <code>cargo clippy</code> stays green with zero warnings.</p>
+<h2 id="what-s-next">What's Next?</h2>
+<p>The core functionality is solid, but there are still features I want:</p>
+<ul>
+<li>config system</li>
+<li>seeking</li>
+<li>better metadata handling</li>
+<li>vi keybindings</li>
+</ul>
+<p>But for now, shelltrax does what I needed it to do: play music in the
+terminal with a proper UI that shows what's happening.</p>
+<p><strong>Code</strong>: <a href="https://github.com/ducks/shelltrax">github.com/ducks/shelltrax</a></p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;jobchain-verifiable-employment-credentials&#x2F;">Jobchain: Verifiable Employment Credentials</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 06, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">What if your employer signed a machine-verifiable reference letter when you started, not when you left? Jobchain issues W3C Verifiable Credentials with Ed25519 signatures. No blockchain, no platform, no PDF.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/specifications">#specifications</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-3&#x2F;">Rewriting Claude Code in Rust, Part 3: TUI, Agents, and Multi-Provider</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 04, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets a ratatui TUI, sub-agents, and support for any OpenAI-compatible endpoint. One session, start to finish.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-2&#x2F;">Rewriting Claude Code in Rust, Part 2: Sessions, Commands, and Permissions</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 02, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets session management, compaction, model switching, and an interactive permission system. Three phases in one sitting.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-with-claude&#x2F;">Rewriting Claude Code in Rust, With Claude</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 01, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Claude Code&#x27;s TypeScript source leaked via a source map. I read the architecture and rewrote the core in Rust. Using Claude. Here&#x27;s Part 1.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;whoami-spec-declarative-identity&#x2F;">whoami: making identity a spec</a></h3>
+                  <div class="meta">
+                    
+                    <p>Mar 31, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">We made infrastructure declarative. We made workflows declarative. Identity is next. A structured format for describing yourself as a source of truth, not a projection.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/specifications">#specifications</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

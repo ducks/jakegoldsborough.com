@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Lok got 300+ installs, then I rewrote it. The abstractions were wrong. llm-mux has roles, teams, and proper apply&#x2F;verify. Here&#x27;s why.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="llm-mux: Why I Rebuilt Lok">
+    <meta property="og:description" content="Lok got 300+ installs, then I rewrote it. The abstractions were wrong. llm-mux has roles, teams, and proper apply&#x2F;verify. Here&#x27;s why.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;llm-mux-workflow-orchestration&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="llm-mux: Why I Rebuilt Lok">
+    <meta name="twitter:description" content="Lok got 300+ installs, then I rewrote it. The abstractions were wrong. llm-mux has roles, teams, and proper apply&#x2F;verify. Here&#x27;s why.">
+
+    <title>llm-mux: Why I Rebuilt Lok - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>llm-mux: Why I Rebuilt Lok</h1>
+      <div class="meta">
+        
+        <p>Feb 11, 2026</p>
+        
+        <p>3 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+        </div>
+      
+
+      <p>Lok hit 317 cargo installs. People were using it. So naturally I rewrote it from
+scratch.</p>
+<p>That's not as chaotic as it sounds. Lok grew organically from "query multiple
+LLMs" to "run workflows" to "apply edits" to "create GitHub issues." Each feature
+bolted onto the side. The codebase worked but the abstractions were wrong.</p>
+<p>llm-mux is what lok should have been from the start.</p>
+<h2 id="what-was-wrong">What Was Wrong</h2>
+<p>Lok conflates backends with tasks. When you write <code>backend = "claude"</code> in a
+workflow step, you're coupling your workflow to a specific model. Want to swap
+Claude for Gemini? Edit every step.</p>
+<p>Lok also has no concept of project context. A Rust project needs <code>cargo test</code>
+for verification. A Node project needs <code>npm test</code>. In lok, you hardcode these
+per-workflow. Switch projects, rewrite workflows.</p>
+<p>The apply_edits feature was bolted on late. It works but there's no retry loop,
+no structured verification, no rollback without git-agent.</p>
+<h2 id="roles">Roles</h2>
+<p>llm-mux introduces roles. Instead of hardcoding backends:</p>
+<pre data-lang="toml" class="language-toml "><code class="language-toml" data-lang="toml"># lok style - backend hardcoded
+[[steps]]
+name = &quot;analyze&quot;
+backend = &quot;claude&quot;
+prompt = &quot;Find bugs&quot;
+</code></pre>
+<p>You declare what kind of task it is:</p>
+<pre data-lang="toml" class="language-toml "><code class="language-toml" data-lang="toml"># llm-mux style - role-based
+[[steps]]
+name = &quot;analyze&quot;
+type = &quot;query&quot;
+role = &quot;analyzer&quot;
+prompt = &quot;Find bugs&quot;
+</code></pre>
+<p>Then configure which backends handle which roles:</p>
+<pre data-lang="toml" class="language-toml "><code class="language-toml" data-lang="toml">[roles.analyzer]
+description = &quot;Code analysis tasks&quot;
+backends = [&quot;claude&quot;, &quot;codex&quot;]
+execution = &quot;parallel&quot;
+
+[roles.quick]
+description = &quot;Fast local checks&quot;
+backends = [&quot;qwen&quot;]
+execution = &quot;first&quot;
+</code></pre>
+<p>Swapping backends is a config change, not a workflow rewrite. The workflow says
+"I need analysis." The config decides who does analysis.</p>
+<h2 id="teams">Teams</h2>
+<p>Teams add project context:</p>
+<pre data-lang="toml" class="language-toml "><code class="language-toml" data-lang="toml">[teams.rust]
+description = &quot;Rust projects&quot;
+detect = [&quot;Cargo.toml&quot;]
+verify = &quot;cargo clippy &amp;&amp; cargo test&quot;
+
+[teams.rust.roles.analyzer]
+backends = [&quot;claude&quot;, &quot;codex&quot;]
+</code></pre>
+<p>When llm-mux detects <code>Cargo.toml</code>, it activates the rust team. Verification
+commands come from the team. Role mappings can be overridden per-team.</p>
+<p>Same workflow, different projects, correct tooling.</p>
+<h2 id="http-backends">HTTP Backends</h2>
+<p>Lok only does CLI. You shell out to <code>claude</code>, <code>codex</code>, <code>ollama run</code>. Each query
+spawns a process.</p>
+<p>llm-mux supports both CLI and HTTP:</p>
+<pre data-lang="toml" class="language-toml "><code class="language-toml" data-lang="toml">[backends.claude]
+command = &quot;claude&quot;
+args = [&quot;-p&quot;, &quot;--&quot;]
+
+[backends.openai]
+command = &quot;https:&#x2F;&#x2F;api.openai.com&#x2F;v1&quot;
+model = &quot;gpt-4&quot;
+api_key = &quot;${OPENAI_API_KEY}&quot;
+
+[backends.local]
+command = &quot;http:&#x2F;&#x2F;localhost:11434&#x2F;v1&quot;
+model = &quot;llama3&quot;
+</code></pre>
+<p>If the command starts with <code>http</code>, it's HTTP. Otherwise CLI. HTTP is faster for
+high-volume workflows. No process overhead. Proper streaming. Rate limit handling.</p>
+<h2 id="apply-and-verify">Apply and Verify</h2>
+<p>Lok's apply_edits was a boolean flag. llm-mux has a real system:</p>
+<pre data-lang="toml" class="language-toml "><code class="language-toml" data-lang="toml">[[steps]]
+name = &quot;fix&quot;
+type = &quot;apply&quot;
+source = &quot;steps.analyze&quot;
+verify = &quot;cargo test&quot;
+verify_retries = 3
+verify_retry_prompt = &quot;Fix failed: {{ error }}. Try again.&quot;
+rollback_on_failure = true
+</code></pre>
+<p>The flow:</p>
+<ol>
+<li>Parse edits from source step</li>
+<li>Apply edits</li>
+<li>Run verification</li>
+<li>If it fails and retries remain, show error to LLM, try again</li>
+<li>If all retries fail, rollback</li>
+</ol>
+<p>The retry loop is the difference. Instead of failing on first bad edit, llm-mux
+shows the error and asks for a fix. Most failures are small mistakes a second
+attempt catches.</p>
+<p>Rollback uses git stash. No external tooling.</p>
+<h2 id="an-example">An Example</h2>
+<p>The rust-audit workflow runs four parallel audits and writes structured docs:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">llm-mux run rust-audit
+llm-mux run rust-audit outdir=reports&#x2F;feb-audit
+</code></pre>
+<p>Output:</p>
+<pre><code>docs&#x2F;audit&#x2F;
+├── README.md          # Summary table
+├── 01-safety.md       # Memory safety
+├── 02-performance.md  # Perf issues
+├── 03-errors.md       # Error handling
+└── 04-idioms.md       # Patterns
+</code></pre>
+<p>Each audit is its own query step. Each saves to a file. The final step synthesizes
+a summary. The <code>outdir</code> argument makes it reusable.</p>
+<h2 id="what-llm-mux-is-not">What llm-mux Is Not</h2>
+<p>llm-mux is not a replacement for lok's CLI commands. There's no <code>llm-mux ask</code> or
+<code>llm-mux hunt</code>. It's purely a workflow runner.</p>
+<p>If you want quick one-off queries, use lok. If you want structured multi-step
+pipelines with proper abstractions, use llm-mux.</p>
+<p>I'm keeping both. They solve different problems.</p>
+<h2 id="what-doesn-t-work-yet">What Doesn't Work Yet</h2>
+<p>The template system is powerful but error messages are cryptic. A typo in a Jinja
+variable gives you a wall of minijinja internals.</p>
+<p>HTTP backend streaming works but the progress output is ugly. You see chunks
+arrive but it's not as clean as the CLI backend output.</p>
+<p>Team auto-detection is basic. It looks for files but doesn't understand monorepos
+or nested projects yet.</p>
+<h2 id="getting-started">Getting Started</h2>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">cargo install llm-mux
+llm-mux doctor
+llm-mux run rust-audit
+</code></pre>
+<p>Config goes in <code>~/.config/llm-mux/config.toml</code>. Workflows go in
+<code>.llm-mux/workflows/</code> or <code>~/.config/llm-mux/workflows/</code>.</p>
+<p>Source at <a href="https://github.com/ducks/llm-mux">github.com/ducks/llm-mux</a>.</p>
+<hr />
+<p>Lok was the prototype. llm-mux is the product. The 317 people using lok helped
+me figure out what the abstractions should be.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;inside-claude-codes-team-memory-sync&#x2F;">Inside Claude Code&#x27;s Team Memory Sync Engine</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 05, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">How Claude Code shares knowledge across your team: a file watcher, delta sync, secret scanner, and optimistic concurrency -- all hidden behind a directory you didn&#x27;t know existed.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-3&#x2F;">Rewriting Claude Code in Rust, Part 3: TUI, Agents, and Multi-Provider</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 04, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets a ratatui TUI, sub-agents, and support for any OpenAI-compatible endpoint. One session, start to finish.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;anthropic-shipped-a-gacha-pet-inside-claude-code&#x2F;">Anthropic Shipped a Gacha Pet Inside Claude Code</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 03, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Hidden in the Claude Code source: a complete virtual pet system with 18 species, rarity tiers, stats, animated ASCII sprites, and a soul generated by Claude itself.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-2&#x2F;">Rewriting Claude Code in Rust, Part 2: Sessions, Commands, and Permissions</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 02, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets session management, compaction, model switching, and an interactive permission system. Three phases in one sitting.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-with-claude&#x2F;">Rewriting Claude Code in Rust, With Claude</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 01, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Claude Code&#x27;s TypeScript source leaked via a source map. I read the architecture and rewrote the core in Rust. Using Claude. Here&#x27;s Part 1.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

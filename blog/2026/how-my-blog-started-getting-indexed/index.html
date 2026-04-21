@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Two months of consistent publishing got me indexed by Google, DuckDuckGo, Bing, ChatGPT, and Perplexity. No SEO, no backlinks, no keywords. Just technical writing with real titles, internal links, and clean structure.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="How my blog started getting indexed">
+    <meta property="og:description" content="Two months of consistent publishing got me indexed by Google, DuckDuckGo, Bing, ChatGPT, and Perplexity. No SEO, no backlinks, no keywords. Just technical writing with real titles, internal links, and clean structure.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;how-my-blog-started-getting-indexed&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="How my blog started getting indexed">
+    <meta name="twitter:description" content="Two months of consistent publishing got me indexed by Google, DuckDuckGo, Bing, ChatGPT, and Perplexity. No SEO, no backlinks, no keywords. Just technical writing with real titles, internal links, and clean structure.">
+
+    <title>How my blog started getting indexed - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>How my blog started getting indexed</h1>
+      <div class="meta">
+        
+        <p>Apr 09, 2026</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+          <p><a href="/tags/writing">#writing</a></p>
+          
+        </div>
+      
+
+      <p>I write this blog primarily for myself - to think through problems, document decisions, and have a record of what I built and why. I don't optimize for search traffic. But about two months after I started publishing consistently, something unexpected happened: search engines started sending people here. Google, DuckDuckGo, Bing, ChatGPT, Perplexity.</p>
+<p>Not a flood. Maybe 20-30 visitors a day from search. But those visitors are finding specific technical posts about problems they're trying to solve. The kind of traffic that actually matters.</p>
+<p>I didn't do SEO. I didn't build backlinks. I didn't write "10 tips" posts or target keywords. What I did do, almost accidentally, was follow a few patterns that apparently work.</p>
+<h2 id="what-actually-worked">What Actually Worked</h2>
+<h3 id="1-publishing-consistently">1. Publishing consistently</h3>
+<p>I've published 47 posts since January 2026. That's roughly one every 2-3 days. Not because I'm following a content calendar, but because I'm building things and writing about them as I go.</p>
+<p>Each post is a surface. Search engines index surfaces. More surfaces = more ways to be found.</p>
+<h3 id="2-writing-real-titles">2. Writing real titles</h3>
+<p>My titles describe the actual content. Not "Improve Your Workflow with This One Trick" but "Rewriting Claude Code in Rust (Part 2)". Specific, descriptive, ungameable.</p>
+<p>Turns out that when someone searches for "claude code rust", a post with those exact words in the title ranks. Obvious in hindsight.</p>
+<h3 id="3-internal-linking">3. Internal linking</h3>
+<p>I link between related posts constantly. When I mention a project I've written about before, I link to it. When I reference a concept from another post, I link to it.</p>
+<p>This creates a web. Google's crawler follows links. A well-linked collection of pages signals that this is a coherent body of work, not random blog spam.</p>
+<h3 id="4-clean-simple-structure">4. Clean, simple structure</h3>
+<p>My site is static HTML generated by Zola. No JavaScript frameworks, no client-side routing, no dynamic content. Just semantic HTML with proper headings, paragraphs, and code blocks.</p>
+<p>Crawlers love this. Fast pages, clear structure, no obstacles.</p>
+<h3 id="5-code-blocks-and-technical-depth">5. Code blocks and technical depth</h3>
+<p>Most of my posts include code examples, file paths, implementation details. These are extremely specific signals. If someone searches for a particular function name or error message, and I've written about it, search engines can match that query to my content precisely.</p>
+<h2 id="what-didn-t-matter">What Didn't Matter</h2>
+<p>I don't have a sitemap (though Zola can generate one, I haven't enabled it). I have minimal visitor tracking but that's it. I don't track keyword density or optimize meta descriptions. I post on the fediverse but not as a promotion strategy.</p>
+<p>None of that seems to matter for this kind of technical writing. The content itself is the SEO.</p>
+<h2 id="the-pattern">The Pattern</h2>
+<p>What I've accidentally done is create a growing surface area of well-structured, interconnected technical content. Each new post adds another surface that search engines can index. Each internal link strengthens the web.</p>
+<p>I'm not trying to rank for "best programming language" or other high-competition terms. I'm documenting niche problems and implementations. The long tail. And the long tail is where technical blogs actually get found.</p>
+<h2 id="why-this-matters">Why This Matters</h2>
+<p>This blog is a byproduct of my work. Writing these posts helps me think. Publishing them creates a permanent record. The fact that they also get found by people solving similar problems is a side effect - but it's a useful one.</p>
+<p>It means the work compounds. Not just for me (as a reference and thinking tool) but for others who stumble across it via search.</p>
+<p>That's the model I'm optimizing for. Not traffic. Not engagement. Just clear documentation of real work, published consistently, with enough structure that search engines can surface it when someone needs it.</p>
+<h2 id="what-i-m-going-to-keep-doing">What I'm Going to Keep Doing</h2>
+<ul>
+<li>Publishing consistently as I build</li>
+<li>Writing descriptive titles</li>
+<li>Linking between related posts</li>
+<li>Using semantic HTML and clear structure</li>
+<li>Including code examples and technical details</li>
+</ul>
+<p>That's it. No keyword research, no backlink campaigns, no growth hacking. Just building and documenting in public, with enough consistency that it accumulates into a corpus worth indexing.</p>
+<p>The blog is working exactly how I want it to. The search traffic is proof that the model scales.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;inside-claude-codes-team-memory-sync&#x2F;">Inside Claude Code&#x27;s Team Memory Sync Engine</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 05, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">How Claude Code shares knowledge across your team: a file watcher, delta sync, secret scanner, and optimistic concurrency -- all hidden behind a directory you didn&#x27;t know existed.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-3&#x2F;">Rewriting Claude Code in Rust, Part 3: TUI, Agents, and Multi-Provider</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 04, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets a ratatui TUI, sub-agents, and support for any OpenAI-compatible endpoint. One session, start to finish.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;anthropic-shipped-a-gacha-pet-inside-claude-code&#x2F;">Anthropic Shipped a Gacha Pet Inside Claude Code</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 03, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Hidden in the Claude Code source: a complete virtual pet system with 18 species, rarity tiers, stats, animated ASCII sprites, and a soul generated by Claude itself.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-2&#x2F;">Rewriting Claude Code in Rust, Part 2: Sessions, Commands, and Permissions</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 02, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets session management, compaction, model switching, and an interactive permission system. Three phases in one sitting.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-with-claude&#x2F;">Rewriting Claude Code in Rust, With Claude</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 01, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Claude Code&#x27;s TypeScript source leaked via a source map. I read the architecture and rewrote the core in Rust. Using Claude. Here&#x27;s Part 1.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

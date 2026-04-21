@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Converting postgres-manager from fire-and-forget MessageBus to synchronous HTTP APIs to eliminate message replay issues and gain operational visibility.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Replacing MessageBus Pub&#x2F;Sub with REST APIs: Fixing Production Outages">
+    <meta property="og:description" content="Converting postgres-manager from fire-and-forget MessageBus to synchronous HTTP APIs to eliminate message replay issues and gain operational visibility.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;replacing-messagebus-with-http-apis&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Replacing MessageBus Pub&#x2F;Sub with REST APIs: Fixing Production Outages">
+    <meta name="twitter:description" content="Converting postgres-manager from fire-and-forget MessageBus to synchronous HTTP APIs to eliminate message replay issues and gain operational visibility.">
+
+    <title>Replacing MessageBus Pub&#x2F;Sub with REST APIs: Fixing Production Outages - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Replacing MessageBus Pub&#x2F;Sub with REST APIs: Fixing Production Outages</h1>
+      <div class="meta">
+        
+        <p>Oct 27, 2025</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+
+      <p>We're converting one of our infrastructure services from MessageBus pub/sub to
+a synchronous REST API. This isn't a protocol change or upgrade - both
+architectures use HTTP. This is about replacing fire-and-forget asynchronous
+messaging with request/response patterns that provide immediate feedback.</p>
+<p>The control plane manages hundreds of Discourse forums across multiple data
+centers. It needs to orchestrate PostgreSQL user and database creation across
+these distributed clusters.</p>
+<h2 id="the-problem">The Problem</h2>
+<p>Our <code>postgres-manager</code> service handles PostgreSQL user and database lifecycle
+for Discourse hosted sites. It was built using <code>ServiceSkeleton</code>, a Ruby
+framework for message-driven services, subscribing to MessageBus channels for
+commands.</p>
+<p>MessageBus uses HTTP long-polling for pub/sub messaging. Publishers send
+messages to channels, subscribers open long-lived HTTP connections and wait for
+messages to arrive. It works well for many use cases, but we've hit two
+critical problems:</p>
+<ol>
+<li>
+<p>No feedback mechanism. When the control plane published a message like
+"create database for site X", it had no way to know if the operation succeeded
+or failed. The message was sent and forgotten.</p>
+</li>
+<li>
+<p>Message replay on restarts. MessageBus keeps a backlog of messages. When
+postgres-manager restarts, it replays unacknowledged messages, causing duplicate
+operations. We've had multiple production outages from databases being recreated
+or users being decommissioned twice.</p>
+</li>
+</ol>
+<p>The message replay issue is the immediate trigger, but the lack of feedback is
+the underlying architectural problem. We need synchronous request/response
+patterns with immediate success/failure feedback.</p>
+<h2 id="the-solution-rest-api-with-request-response">The Solution: REST API with Request/Response</h2>
+<p>We're converting postgres-manager to a Sinatra HTTP service that responds
+synchronously to requests. Instead of subscribing to MessageBus channels, it
+will expose REST endpoints:</p>
+<ul>
+<li><code>POST /databases</code> - Create database and user</li>
+<li><code>DELETE /databases/:username</code> - Decommission database</li>
+<li><code>POST /users</code> - Create user (triggers sync)</li>
+<li><code>DELETE /users/:username</code> - Decommission user</li>
+<li><code>POST /sync</code> - Sync all databases/users from control plane</li>
+</ul>
+<p>Each endpoint will return an immediate response with proper HTTP status codes:
+200 for success, 401 for auth failures, 400 for bad parameters, 500 for server
+errors.</p>
+<h2 id="implementation">Implementation</h2>
+<h3 id="before-serviceskeleton-with-messagebus">Before: ServiceSkeleton with MessageBus</h3>
+<p>The old implementation used ServiceSkeleton to subscribe to MessageBus:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby">message_bus = MessageBus::HTTPClient.new(
+  config.control_plane_base_url,
+  headers: { &quot;Discourse-Access-Token&quot; =&gt; config.control_plane_token }
+)
+
+message_bus.subscribe(config.message_bus_channel) do |message|
+  case message[&quot;type&quot;]
+  when &quot;create_user&quot;, &quot;create_db&quot;, &quot;sync&quot;
+    sync
+  when &quot;decommission_db&quot;
+    decommission_db(message[&quot;dbname&quot;])
+  when &quot;decommission_user&quot;
+    decommission_user(message[&quot;username&quot;])
+  end
+end
+</code></pre>
+<p>The control plane would publish messages:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby">PostgresManagerPublisher.create_db(owner, cluster_name)
+# Fire and forget - no response
+</code></pre>
+<h3 id="after-sinatra-http-service">After: Sinatra HTTP Service</h3>
+<p>The new implementation uses Sinatra with proper HTTP patterns:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby">before do
+  return if [&quot;&#x2F;health&quot;, &quot;&#x2F;metrics&quot;].include?(request.path_info)
+
+  auth_header = request.env[&quot;HTTP_AUTHORIZATION&quot;]
+  if !auth_header || !auth_header.start_with?(&quot;Bearer &quot;)
+    halt 401, json(error: &quot;Unauthorized&quot;, code: &quot;AUTH_REQUIRED&quot;)
+  end
+
+  token = auth_header.sub(&quot;Bearer &quot;, &quot;&quot;)
+  if token != config[:api_key]
+    halt 401, json(error: &quot;Unauthorized&quot;, code: &quot;INVALID_TOKEN&quot;)
+  end
+end
+
+post &quot;&#x2F;databases&quot; do
+  body = parse_json_body
+  cluster = body[&quot;cluster&quot;]
+  username = body[&quot;username&quot;]
+
+  if cluster != config[:container_name]
+    halt 400, json(
+      error: &quot;Cluster mismatch&quot;,
+      code: &quot;CLUSTER_MISMATCH&quot;,
+      expected: config[:container_name],
+      received: cluster
+    )
+  end
+
+  sync
+
+  json(
+    status: &quot;success&quot;,
+    message: &quot;Database sync completed&quot;,
+    cluster: cluster
+  )
+end
+
+delete &quot;&#x2F;databases&#x2F;:username&quot; do
+  username = params[&quot;username&quot;]
+  decommission_db(username)
+
+  json(
+    status: &quot;success&quot;,
+    message: &quot;Database decommissioned&quot;,
+    username: username
+  )
+end
+</code></pre>
+<p>The control plane will make HTTP requests and get immediate responses:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby">PostgresManagerHttpClient.create_db(owner, cluster_name)
+# Returns { &quot;status&quot; =&gt; &quot;success&quot;, &quot;message&quot; =&gt; &quot;...&quot; }
+# Or raises PostgresManagerError on failure
+</code></pre>
+<h2 id="http-client-with-proper-error-handling">HTTP Client with Proper Error Handling</h2>
+<p>The new HTTP client provides clear error handling:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby">class PostgresManagerHttpClient
+  class PostgresManagerError &lt; StandardError; end
+  class PostgresManagerTimeout &lt; PostgresManagerError; end
+  class PostgresManagerAuthError &lt; PostgresManagerError; end
+
+  def self.create_db(owner, cluster_name)
+    call_postgres_manager(
+      cluster_name: cluster_name,
+      method: :post,
+      path: &quot;&#x2F;databases&quot;,
+      body: { cluster: cluster_name, username: owner, action: &quot;create&quot; }
+    )
+  end
+
+  private
+
+  def self.call_postgres_manager(cluster_name:, method:, path:, body: nil)
+    api_key = ENV[&quot;POSTGRES_MANAGER_API_KEY&quot;]
+    raise &quot;POSTGRES_MANAGER_API_KEY not configured&quot; if !api_key
+
+    base_url = ENV[&quot;POSTGRES_MANAGER_BASE_URL&quot;] ||
+               &quot;http:&#x2F;&#x2F;postgres-manager-#{cluster_name}:9105&quot;
+
+    uri = URI(&quot;#{base_url}#{path}&quot;)
+
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.open_timeout = 5
+    http.read_timeout = 30
+
+    request = case method
+    when :post then Net::HTTP::Post.new(uri)
+    when :delete then Net::HTTP::Delete.new(uri)
+    end
+
+    request[&quot;Authorization&quot;] = &quot;Bearer #{api_key}&quot;
+    request[&quot;Content-Type&quot;] = &quot;application&#x2F;json&quot;
+    request.body = body.to_json if body
+
+    begin
+      response = http.request(request)
+
+      case response.code.to_i
+      when 200..299
+        return nil if response.body.to_s.empty?
+        JSON.parse(response.body)
+      when 401
+        raise PostgresManagerAuthError,
+              &quot;Authentication failed: #{response.body}&quot;
+      when 400..499
+        raise PostgresManagerError,
+              &quot;Client error (#{response.code}): #{response.body}&quot;
+      when 500..599
+        raise PostgresManagerError,
+              &quot;Server error (#{response.code}): #{response.body}&quot;
+      end
+    rescue Net::OpenTimeout, Net::ReadTimeout
+      raise PostgresManagerTimeout,
+            &quot;Request timed out for #{uri}&quot;
+    rescue Errno::ECONNREFUSED
+      raise PostgresManagerError,
+            &quot;Connection refused to #{uri}&quot;
+    end
+  end
+end
+</code></pre>
+<h2 id="testing-strategy-unit-and-integration-tests">Testing Strategy: Unit and Integration Tests</h2>
+<p>The HTTP service has a test suite with 54 tests covering both unit and
+integration testing:</p>
+<h3 id="unit-tests-16-tests-no-postgresql-required">Unit Tests (16 tests, no PostgreSQL required)</h3>
+<p>Unit tests use WebMock to stub external dependencies:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby">it &quot;makes POST request to &#x2F;databases with correct parameters&quot; do
+  stub_request(:post, &quot;#{base_url}&#x2F;databases&quot;)
+    .with(
+      body: { cluster: &quot;flex001&quot;, username: &quot;example&quot;,
+              action: &quot;create&quot; }.to_json,
+      headers: { &quot;Authorization&quot; =&gt; &quot;Bearer test-api-key&quot; }
+    )
+    .to_return(
+      status: 200,
+      body: { status: &quot;success&quot;, message: &quot;Database sync completed&quot; }.to_json
+    )
+
+  result = PostgresManagerHttpClient.create_db(&quot;example&quot;, &quot;flex001&quot;)
+  expect(result[&quot;status&quot;]).to eq(&quot;success&quot;)
+end
+</code></pre>
+<p>These tests run fast (under 1 second) and validate HTTP client logic, metrics
+tracking, and configuration handling without requiring PostgreSQL.</p>
+<h3 id="integration-tests-38-tests-with-real-postgresql">Integration Tests (38 tests, with real PostgreSQL)</h3>
+<p>Integration tests use Docker to automatically start/stop PostgreSQL and test
+real database operations:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby">it &#x27;creates database and user&#x27; do
+  multisite_config = {
+    &quot;example&quot; =&gt; {
+      &quot;username&quot; =&gt; &quot;example&quot;,
+      &quot;password&quot; =&gt; &quot;test123&quot;,
+      &quot;database&quot; =&gt; &quot;example_discourse&quot;
+    }
+  }
+
+  stub_request(:get, &quot;http:&#x2F;&#x2F;mothership.test&#x2F;api&#x2F;multisite_config?container_name=test-cluster&quot;)
+    .to_return(status: 200, body: JSON.dump(multisite_config))
+
+  result = sync.perform
+
+  # Verify in actual PostgreSQL
+  sync.database.with_db(&#x27;postgres&#x27;) do |db|
+    user_result = db.exec_params(&#x27;SELECT usename FROM pg_user WHERE usename = $1&#x27;, [&#x27;example&#x27;])
+    expect(user_result.ntuples).to eq(1)
+
+    db_result = db.exec_params(&#x27;SELECT datname FROM pg_database WHERE datname = $1&#x27;, [&#x27;example_discourse&#x27;])
+    expect(db_result.ntuples).to eq(1)
+  end
+end
+</code></pre>
+<h3 id="idempotency-tests">Idempotency Tests</h3>
+<p>Critical tests verify the service handles message replay scenarios that caused
+production outages:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby">it &#x27;handles rapid duplicate creates (race condition simulation)&#x27; do
+  threads = 2.times.map do
+    Thread.new do
+      begin
+        database.create(test_db, test_user)
+      rescue PG::DuplicateDatabase
+        # Expected - one thread wins, other gets duplicate error
+      end
+    end
+  end
+  threads.each(&amp;:join)
+
+  # Verify only one database created
+  database.with_db(&#x27;postgres&#x27;) do |db|
+    result = db.exec_params(&#x27;SELECT datname FROM pg_database WHERE datname = $1&#x27;, [test_db])
+    expect(result.ntuples).to eq(1)
+  end
+end
+</code></pre>
+<p>These tests validate that calling create operations multiple times (as happens
+during message replay) doesn't cause crashes or duplicate resources.</p>
+<h2 id="migration-strategy">Migration Strategy</h2>
+<p>We can't switch all clusters at once. The migration strategy:</p>
+<ol>
+<li>Deploy HTTP version alongside MessageBus - Run both in separate
+containers</li>
+<li>Test HTTP version manually - Verify endpoints work, check metrics</li>
+<li>Switch control plane to HTTP - Deploy control plane changes, monitor logs</li>
+<li>Clean up MessageBus - Stop old containers, remove environment variables</li>
+</ol>
+<p>Both services can run simultaneously during migration, and rollback is just
+reverting the control plane code and restarting services.</p>
+<h2 id="expected-results">Expected Results</h2>
+<ul>
+<li>No more duplicate operations from message replay</li>
+<li>Immediate visibility into success/failure</li>
+<li>Proper error handling with retries</li>
+<li>Easy to test with curl or standard HTTP tools</li>
+<li>Can be load balanced through standard proxies</li>
+<li>Standard HTTP monitoring and metrics</li>
+</ul>
+<h2 id="outcomes">Outcomes</h2>
+<ol>
+<li>
+<p>Fire-and-forget messaging has hidden costs. The lack of feedback makes
+debugging production issues extremely difficult. We don't know if operations
+fail until customers complain.</p>
+</li>
+<li>
+<p>Message replay is a feature until it's a bug. MessageBus's backlog replay is
+useful for reliable message delivery, but causes havoc when operations aren't
+idempotent.</p>
+</li>
+<li>
+<p>Different HTTP patterns, same protocol. Both MessageBus (HTTP long-polling)
+and our REST API use HTTP for transport, but serve fundamentally different
+communication patterns. MessageBus uses HTTP to implement pub/sub messaging
+(asynchronous, one-to-many), while REST implements request/response
+(synchronous, one-to-one). The choice isn't HTTP vs something else - it's
+choosing the right messaging pattern for your use case.</p>
+</li>
+<li>
+<p>Testing gets easier with simpler patterns. The old MessageBus setup requires
+a full environment. The HTTP version can be tested with simple request/response
+stubs.</p>
+</li>
+</ol>
+<h2 id="summary">Summary</h2>
+<p>This migration will take our infrastructure service from fire-and-forget
+messaging to synchronous request/response patterns. The expected result: no more
+duplicate operations, immediate feedback on success/failure, and much simpler
+debugging. Sometimes the solution isn't choosing new technology - it's choosing
+the right pattern for your use case.</p>
+<h2 id="current-status">Current Status</h2>
+<p>The HTTP service implementation is complete and tested:</p>
+<ul>
+<li>Modular architecture with 6 separated modules (Config, Database, User,
+Client, Sync, Metrics)</li>
+<li>Test suite (16 unit tests, 38 integration, all passing)</li>
+<li>RuboCop clean (zero offenses)</li>
+<li>Security fixes (parameterized queries, retry limits)</li>
+<li>GitHub Actions CI configured and passing</li>
+</ul>
+<p>The service is production-ready and awaiting deployment to test clusters. Once
+validated with real PostgreSQL operations and monitored for stability, we'll
+proceed with gradual rollout to production infrastructure.</p>
+
+
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

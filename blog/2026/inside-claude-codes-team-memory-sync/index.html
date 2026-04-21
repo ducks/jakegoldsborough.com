@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="How Claude Code shares knowledge across your team: a file watcher, delta sync, secret scanner, and optimistic concurrency -- all hidden behind a directory you didn&#x27;t know existed.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Inside Claude Code&#x27;s Team Memory Sync Engine">
+    <meta property="og:description" content="How Claude Code shares knowledge across your team: a file watcher, delta sync, secret scanner, and optimistic concurrency -- all hidden behind a directory you didn&#x27;t know existed.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;inside-claude-codes-team-memory-sync&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Inside Claude Code&#x27;s Team Memory Sync Engine">
+    <meta name="twitter:description" content="How Claude Code shares knowledge across your team: a file watcher, delta sync, secret scanner, and optimistic concurrency -- all hidden behind a directory you didn&#x27;t know existed.">
+
+    <title>Inside Claude Code&#x27;s Team Memory Sync Engine - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Inside Claude Code&#x27;s Team Memory Sync Engine</h1>
+      <div class="meta">
+        
+        <p>Apr 05, 2026</p>
+        
+        <p>7 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+        </div>
+      
+
+      <p>Most people using Claude Code don't know it has a shared memory system. A
+directory on disk that syncs to Anthropic's servers, merges with your
+teammates' memories, and gets injected into every conversation. No git
+involved. No manual sharing. It just works.</p>
+<p>I found it while reading the leaked source. A <code>teamMemorySync/</code> directory
+with six files: a sync engine, a file watcher, a secret scanner, type
+definitions, a path validator, and prompt integration. About 800 lines of
+TypeScript implementing a real-time collaborative knowledge base inside a
+CLI tool.</p>
+<h2 id="what-team-memory-is">What Team Memory Is</h2>
+<p>Team memory is a flat key-value store scoped per repository. Keys are file
+paths like <code>MEMORY.md</code> or <code>patterns.md</code>. Values are UTF-8 content, typically
+markdown. It lives at:</p>
+<pre><code>~&#x2F;.claude&#x2F;projects&#x2F;&lt;project-hash&gt;&#x2F;memory&#x2F;team&#x2F;
+</code></pre>
+<p>Every authenticated user in your organization who works in the same repo
+shares this directory. When one person writes a memory file, it syncs to the
+server and gets pulled into everyone else's session.</p>
+<p>The system prompt tells Claude about both memory directories:</p>
+<blockquote>
+<p>You have a persistent, file-based memory system with two directories: a
+private directory at <code>&lt;auto-path&gt;</code> and a shared team directory at
+<code>&lt;team-path&gt;</code>.</p>
+</blockquote>
+<p>Claude reads the team <code>MEMORY.md</code> index at session start and can access any
+file in the team directory. When it saves a memory, it decides whether to
+put it in private or team based on the content type.</p>
+<h2 id="the-sync-engine">The Sync Engine</h2>
+<p>The sync logic in <code>teamMemorySync/index.ts</code> handles three operations: pull,
+push, and hash comparison.</p>
+<h3 id="pull-server-to-local">Pull (server to local)</h3>
+<p>On session start, Claude Code fetches the team memory for your repo:</p>
+<pre><code>GET &#x2F;api&#x2F;claude_code&#x2F;team_memory?repo={owner&#x2F;repo}
+</code></pre>
+<p>The response includes all entries (key-value pairs), per-entry SHA-256
+checksums, a version number, and an overall checksum. Server wins -- pull
+overwrites local files. If the server returns a 304 (ETag matches), nothing
+happens.</p>
+<h3 id="push-local-to-server">Push (local to server)</h3>
+<p>When you edit a team memory file, the watcher triggers a push. But it
+doesn't upload everything -- it computes a delta:</p>
+<ol>
+<li>Hash each local file with SHA-256</li>
+<li>Compare against <code>serverChecksums</code> (cached from the last pull/push)</li>
+<li>Only upload files whose hash differs</li>
+</ol>
+<pre><code>PUT &#x2F;api&#x2F;claude_code&#x2F;team_memory?repo={owner&#x2F;repo}
+</code></pre>
+<p>The PUT uses upsert semantics -- keys not in the request are preserved on
+the server. This means pushing a single changed file doesn't delete
+everything else.</p>
+<p>There's also a body size cap of 200KB per request. If the delta exceeds
+that, it splits into sequential PUTs. Each one merges safely because of
+the upsert semantics.</p>
+<h3 id="conflict-resolution">Conflict Resolution</h3>
+<p>Optimistic concurrency via ETags. Every push includes the last-known
+checksum as <code>If-Match</code>. If someone else pushed in between, you get a
+412 Precondition Failed.</p>
+<p>The conflict resolution is clever. Instead of pulling the full content
+(potentially 300KB), it fetches just the checksums:</p>
+<pre><code>GET &#x2F;api&#x2F;claude_code&#x2F;team_memory?repo={owner&#x2F;repo}&amp;view=hashes
+</code></pre>
+<p>This returns per-key hashes without the actual content. The client updates
+its <code>serverChecksums</code> map, recomputes the delta, and retries the push
+with the new ETag. Up to 2 conflict retries before giving up.</p>
+<h2 id="the-file-watcher">The File Watcher</h2>
+<p>A <code>fs.watch</code> on the team memory directory, debounced at 2 seconds. When
+a file changes:</p>
+<ol>
+<li>Wait 2s for more changes (debounce)</li>
+<li>If a push is already in progress, mark <code>hasPendingChanges</code></li>
+<li>When the current push finishes, if <code>hasPendingChanges</code>, push again</li>
+<li>On permanent failure (auth error, too many entries), suppress the
+watcher to prevent infinite retry loops</li>
+</ol>
+<p>The watcher is careful about one edge case: when a pull writes server
+content to local files, those writes trigger watch events. Without
+suppression, you'd get a pull-then-immediate-push loop. The watcher
+skips events during pull operations.</p>
+<h2 id="the-secret-scanner">The Secret Scanner</h2>
+<p>Before any push, every file is scanned for credentials. The scanner uses
+30+ regex patterns adapted from gitleaks (MIT licensed), covering:</p>
+<ul>
+<li><strong>Cloud providers</strong>: AWS access keys, GCP API keys, Azure AD secrets,
+DigitalOcean tokens</li>
+<li><strong>AI APIs</strong>: Anthropic keys (<code>sk-ant-api03-...</code>), OpenAI keys, HuggingFace
+tokens</li>
+<li><strong>Version control</strong>: GitHub PATs/OAuth/app tokens, GitLab PATs/deploy tokens</li>
+<li><strong>Communication</strong>: Slack bot/user/app tokens, Twilio, SendGrid</li>
+<li><strong>Dev tools</strong>: NPM tokens, PyPI upload tokens, HashiCorp TF tokens,
+Databricks, Pulumi, Postman</li>
+<li><strong>Payment</strong>: Stripe keys, Shopify tokens</li>
+<li><strong>Crypto</strong>: PEM private key blocks</li>
+</ul>
+<p>Files with detected secrets are silently skipped -- not uploaded, not
+deleted locally, not reported to the server. The push result includes which
+files were skipped and why, so the system can inform the user.</p>
+<p>The patterns are curated for near-zero false positives. They only match
+distinctive prefixes (<code>ghp_</code>, <code>sk-ant-</code>, <code>xoxb-</code>, <code>AKIA</code>, etc.) rather
+than generic keyword patterns. The comment in the source:</p>
+<blockquote>
+<p>Uses a curated subset of high-confidence rules from gitleaks -- only
+rules with distinctive prefixes that have near-zero false-positive
+rates are included. Generic keyword-context rules are omitted.</p>
+</blockquote>
+<p>One interesting detail: the Anthropic API key pattern assembles its prefix
+at runtime (<code>['sk', 'ant', 'api'].join('-')</code>) so the literal string doesn't
+appear in the compiled bundle. They have an internal <code>excluded-strings.txt</code>
+check that greps build output for sensitive strings -- the secret scanner
+would trip its own detection if the prefix were hardcoded.</p>
+<h2 id="path-safety">Path Safety</h2>
+<p>Team memory files arrive from the server with relative paths as keys. The
+path validator in <code>teamMemPaths.ts</code> prevents directory traversal attacks:</p>
+<ul>
+<li>Rejects paths containing <code>..</code> after normalization</li>
+<li>Resolves symlinks and checks the canonical path stays inside the team
+memory directory</li>
+<li>Rejects absolute paths</li>
+<li>Throws a <code>PathTraversalError</code> if a key would escape the sandbox</li>
+</ul>
+<p>This matters because the server response drives file writes. A malicious
+or compromised server could theoretically send a key like
+<code>../../../.bashrc</code> -- the path validator prevents that.</p>
+<h2 id="how-claude-uses-it">How Claude Uses It</h2>
+<p>The team memory directory gets loaded into the system prompt alongside the
+private memory. Claude sees both and is instructed on when to use each:</p>
+<ul>
+<li><strong>Private memories</strong>: things specific to one user (preferences, role,
+feedback on how to work with them)</li>
+<li><strong>Team memories</strong>: shared project knowledge (architecture decisions,
+patterns, conventions, ongoing initiatives)</li>
+</ul>
+<p>The prompt is explicit about what NOT to put in team memory:</p>
+<blockquote>
+<p>You MUST avoid saving sensitive data within shared team memories. For
+example, never save API keys or user credentials.</p>
+</blockquote>
+<p>When Claude writes a memory, it chooses the directory based on content type.
+User preferences go private. Project patterns go team. The two indexes
+(<code>MEMORY.md</code> in each directory) are both loaded into context.</p>
+<h2 id="size-limits">Size Limits</h2>
+<ul>
+<li><strong>Per file</strong>: 250KB max (filtered client-side before upload)</li>
+<li><strong>Per PUT body</strong>: 200KB (splits into sequential requests if exceeded)</li>
+<li><strong>Entry count</strong>: server-enforced, tunable per-org (no client-side default)</li>
+<li><strong>API timeout</strong>: 30 seconds</li>
+</ul>
+<p>When the server rejects a push for too many entries, it returns a structured
+413 with the limit:</p>
+<pre data-lang="json" class="language-json "><code class="language-json" data-lang="json">{
+  &quot;error&quot;: {
+    &quot;details&quot;: {
+      &quot;error_code&quot;: &quot;team_memory_too_many_entries&quot;,
+      &quot;max_entries&quot;: 100,
+      &quot;received_entries&quot;: 142
+    }
+  }
+}
+</code></pre>
+<p>The client caches the <code>max_entries</code> value and truncates on subsequent pushes.</p>
+<h2 id="requirements">Requirements</h2>
+<p>Team memory requires:</p>
+<ul>
+<li>OAuth authentication (not API key, not Bedrock/Vertex)</li>
+<li><code>user:inference</code> and <code>user:profile</code> scopes</li>
+<li>A git repo with a remote (used to derive <code>owner/repo</code> slug)</li>
+</ul>
+<p>It's designed for Claude.ai Team and Enterprise plans, but works for Pro/Max
+too. Bedrock and Vertex users are excluded -- the sync endpoint requires
+first-party Anthropic auth.</p>
+<h2 id="what-s-interesting-about-it">What's Interesting About It</h2>
+<p>The engineering is solid but the concept is what stands out. Most AI coding
+tools treat each session as isolated. Your context disappears when you close
+the terminal. If your teammate learned something useful, you have to
+rediscover it.</p>
+<p>Team memory makes knowledge accumulate. One person documents a tricky API
+pattern, and every future conversation in that repo -- by anyone on the
+team -- gets that context. Without checking anything into git, without
+sharing a doc, without telling anyone. The AI just knows because the
+team taught it.</p>
+<p>The secret scanner is the paranoid layer that makes this possible. Shared
+memory across a team is a liability if it leaks credentials. Scanning
+before upload, with patterns that match real secret formats instead of
+guessing from keywords, is the right approach.</p>
+<p>The sync engine is pragmatic. Server wins on pull. Upsert on push. ETag
+for conflicts. No CRDT, no operational transform, no fancy merge. Just
+"last write wins per key" with checksums to avoid unnecessary uploads.
+For markdown files that humans edit infrequently, it's the right level
+of complexity.</p>
+<hr />
+<p>Found by reading the Claude Code source that leaked via npm source maps on
+March 31, 2026. The team memory system lives in
+<code>src/services/teamMemorySync/</code> and <code>src/memdir/teamMemPaths.ts</code>.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-3&#x2F;">Rewriting Claude Code in Rust, Part 3: TUI, Agents, and Multi-Provider</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 04, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets a ratatui TUI, sub-agents, and support for any OpenAI-compatible endpoint. One session, start to finish.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;anthropic-shipped-a-gacha-pet-inside-claude-code&#x2F;">Anthropic Shipped a Gacha Pet Inside Claude Code</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 03, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Hidden in the Claude Code source: a complete virtual pet system with 18 species, rarity tiers, stats, animated ASCII sprites, and a soul generated by Claude itself.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-2&#x2F;">Rewriting Claude Code in Rust, Part 2: Sessions, Commands, and Permissions</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 02, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets session management, compaction, model switching, and an interactive permission system. Three phases in one sitting.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-with-claude&#x2F;">Rewriting Claude Code in Rust, With Claude</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 01, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Claude Code&#x27;s TypeScript source leaked via a source map. I read the architecture and rewrote the core in Rust. Using Claude. Here&#x27;s Part 1.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;whoami-spec-declarative-identity&#x2F;">whoami: making identity a spec</a></h3>
+                  <div class="meta">
+                    
+                    <p>Mar 31, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">We made infrastructure declarative. We made workflows declarative. Identity is next. A structured format for describing yourself as a source of truth, not a projection.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/specifications">#specifications</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

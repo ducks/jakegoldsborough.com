@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Claude Code has a skill system. There&#x27;s no package manager for it. So I built one. 200 lines of Rust, installs from GitHub, published to crates.io.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="skillz: A Package Manager for Claude Code Skills">
+    <meta property="og:description" content="Claude Code has a skill system. There&#x27;s no package manager for it. So I built one. 200 lines of Rust, installs from GitHub, published to crates.io.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;skillz-package-manager-for-claude-skills&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="skillz: A Package Manager for Claude Code Skills">
+    <meta name="twitter:description" content="Claude Code has a skill system. There&#x27;s no package manager for it. So I built one. 200 lines of Rust, installs from GitHub, published to crates.io.">
+
+    <title>skillz: A Package Manager for Claude Code Skills - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>skillz: A Package Manager for Claude Code Skills</h1>
+      <div class="meta">
+        
+        <p>Mar 30, 2026</p>
+        
+        <p>7 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/cli">#cli</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+        </div>
+      
+
+      <p>Claude Code has a skill system. You write a markdown file with instructions, drop it in <code>~/.claude/skills/</code>, and Claude learns a new workflow. The skill persists across sessions. You don't re-paste prompts every time.</p>
+<p>The problem: there's no way to share skills. Someone builds a useful skill (daily notes, API doc generation, database migrations). You want it. Your options: clone the repo, copy files manually, symlink, write a script to manage it.</p>
+<p>That's why I built skillz. It's a package manager for Claude Code skills. Install from GitHub, track updates, share your own.</p>
+<h2 id="what-is-a-skill">What is a Skill?</h2>
+<p>A skill is a markdown file that tells Claude Code how to perform a specific task. When invoked, Claude reads the skill file and follows its instructions.</p>
+<p>Example skill (<code>daily-notes/SKILL.md</code>):</p>
+<pre data-lang="markdown" class="language-markdown "><code class="language-markdown" data-lang="markdown"># Daily Notes Skill
+
+Generate a daily note with structured sections.
+
+## Instructions
+
+When the user invokes this skill:
+
+1. Get today&#x27;s date in YYYY-MM-DD format
+2. Create a file at `~&#x2F;notes&#x2F;YYYY&#x2F;YYYY-MM-DD.md`
+3. Add these sections:
+   - ## Tasks
+   - ## Meeting Notes
+   - ## Ideas
+4. Confirm the file was created
+
+## Usage
+
+User says: &quot;create today&#x27;s note&quot;
+You respond by creating the structured markdown file.
+</code></pre>
+<p>That's it. Skills are prompts, but packaged for reuse. Claude Code loads all skills from <code>~/.claude/skills/</code> on startup. When you ask Claude to "create today's note", it knows how to do it.</p>
+<p>Skills vs alternatives:</p>
+<ul>
+<li><strong>Prompt libraries</strong>: Skills live in your filesystem, Claude loads them automatically</li>
+<li><strong>Copy/paste snippets</strong>: Skills persist across sessions, no need to re-paste</li>
+<li><strong>Claude Projects</strong>: Projects are context, skills are executable workflows</li>
+</ul>
+<h2 id="usage">Usage</h2>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash"># Create a new skill from template
+skillz new my-skill
+
+# Search for skills on GitHub
+skillz search &quot;daily notes&quot;
+
+# Install from GitHub
+skillz install github:user&#x2F;repo
+
+# Install from a URL
+skillz install https:&#x2F;&#x2F;github.com&#x2F;user&#x2F;repo
+
+# List installed skills with sync timestamps
+skillz list
+
+# Update a specific skill
+skillz update repo
+
+# Update all skills
+skillz update
+
+# Auto-sync on startup (quiet mode for scripts)
+skillz update --auto
+
+# Remove a skill
+skillz remove repo
+
+# Configure install location
+skillz config set skills-dir ~&#x2F;.dotfiles&#x2F;claude&#x2F;skills
+</code></pre>
+<p>Skills install to <code>~/.claude/skills/</code> by default. Claude Code reads from there automatically. Change the location if you keep skills in dotfiles.</p>
+<h2 id="how-it-works">How It Works</h2>
+<p>A skill repository needs a <code>SKILL.md</code> file. That's it. No manifest, no metadata, no version field. The file defines what the skill does.</p>
+<p>skillz supports two layouts:</p>
+<ol>
+<li><strong>Flat layout</strong>: <code>SKILL.md</code> at the repository root (standard skills)</li>
+<li><strong>Plugin layout</strong>: <code>skills/*/SKILL.md</code> (Claude Code <code>.claude-plugin</code> directory structure)</li>
+</ol>
+<p>The flat layout takes precedence if both exist. This means skillz can install both standalone skills and full Claude Code plugins that include multiple skills in the <code>skills/</code> directory.</p>
+<p>When you run <code>skillz install github:user/repo</code>, it:</p>
+<ol>
+<li>Clones the repository to a temp location</li>
+<li>Verifies <code>SKILL.md</code> exists (checks both layouts)</li>
+<li>Runs validation checks</li>
+<li>Moves the repo to <code>~/.claude/skills/repo</code></li>
+<li>Removes the <code>.git</code> directory</li>
+<li>Records the install in the registry</li>
+</ol>
+<p>If <code>SKILL.md</code> isn't found in either location, the install fails. Everything else is optional. If there's a <code>README.md</code>, it comes along. If there are helper scripts, they come along. The only requirement is that markdown file.</p>
+<h2 id="why-not-just-clone">Why Not Just Clone?</h2>
+<p>You could <code>git clone</code> skills manually. Or use Claude Projects. Or maintain a prompt library. Why skillz?</p>
+<p><strong>vs manual git clone:</strong></p>
+<ul>
+<li>skillz tracks what's installed and where it came from</li>
+<li>Updates are <code>skillz update</code>, not <code>cd ~/.claude/skills/foo &amp;&amp; git pull</code></li>
+<li>Consistent paths, clean uninstall</li>
+</ul>
+<p><strong>vs Claude Projects:</strong></p>
+<ul>
+<li>Projects are context (files, notes, docs)</li>
+<li>Skills are executable workflows</li>
+<li>Skills work across all conversations, not just one project</li>
+</ul>
+<p><strong>vs prompt libraries:</strong></p>
+<ul>
+<li>Prompt libraries require copy/paste every session</li>
+<li>Skills load automatically on Claude Code startup</li>
+<li>Skills can include helper scripts and templates</li>
+</ul>
+<p>skillz solves distribution and lifecycle management. Everything else is out of scope.</p>
+<h2 id="tracking-and-updates">Tracking and Updates</h2>
+<p>skillz maintains a registry at <code>~/.config/skillz/registry.toml</code> that tracks:</p>
+<ul>
+<li>Source URL for each skill</li>
+<li>Installation timestamp</li>
+<li>Last sync timestamp</li>
+</ul>
+<p>When you run <code>skillz list</code>, you see when each skill was installed and last updated:</p>
+<pre><code>Installed skills in &#x2F;home&#x2F;user&#x2F;.claude&#x2F;skills:
+
+  daily-notes - https:&#x2F;&#x2F;github.com&#x2F;user&#x2F;daily-notes
+    installed: 2026-03-25  |  last synced: 2026-03-30
+
+  api-docs - https:&#x2F;&#x2F;github.com&#x2F;user&#x2F;api-docs
+    installed: 2026-03-28  |  last synced: 2026-03-28
+</code></pre>
+<p>Running <code>skillz update</code> pulls the latest version from GitHub and updates the sync timestamp. Update a specific skill or update all at once.</p>
+<h2 id="skill-validation">Skill Validation</h2>
+<p>Every install and update runs validation checks:</p>
+<p><strong>Basic checks:</strong></p>
+<ul>
+<li>SKILL.md exists</li>
+<li>Valid UTF-8 encoding</li>
+<li>Non-empty content</li>
+<li>Contains markdown headings</li>
+<li>File size under 1MB (warns if larger)</li>
+</ul>
+<p><strong>Malicious command detection:</strong></p>
+<p>skillz scans for dangerous patterns and warns before installation:</p>
+<ul>
+<li>Destructive rm commands (<code>rm -rf /</code>, <code>~</code>, <code>*</code>)</li>
+<li>Pipe to shell from internet (<code>curl | bash</code>, <code>wget | sh</code>)</li>
+<li>Fork bombs</li>
+<li>Disk fill operations (<code>dd if=/dev/zero</code>)</li>
+<li>Dangerous permissions (<code>chmod 777</code>)</li>
+<li>System file modifications (<code>/etc/</code>, <code>/bin/</code>)</li>
+<li>Crypto mining indicators</li>
+<li>Network listeners</li>
+<li><code>eval</code> with variable expansion</li>
+<li><code>sudo</code> without explanation</li>
+</ul>
+<p>If validation warnings appear during install, you're prompted to continue or cancel. Updates show warnings but proceed automatically.</p>
+<p>Example:</p>
+<pre><code>Validation warnings:
+  ⚠ Line 23: Potentially dangerous command: rm -rf * (Attempts to delete all files recursively)
+  ⚠ Line 45: sudo command without explanation - verify this is necessary
+
+Proceed with installation? The skill will still work, but you should review these warnings.
+Continue? [y&#x2F;N]
+</code></pre>
+<p>This won't catch everything, but it filters obvious red flags.</p>
+<h2 id="creating-skills">Creating Skills</h2>
+<p><code>skillz new</code> scaffolds a new skill repository:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">skillz new my-skill
+</code></pre>
+<p>This creates:</p>
+<ul>
+<li><code>SKILL.md</code> with template sections (what it does, usage, instructions, examples)</li>
+<li><code>README.md</code> with installation instructions</li>
+<li><code>.gitignore</code></li>
+<li>Initialized git repository</li>
+</ul>
+<p>After creating, edit <code>SKILL.md</code> with your skill prompt, commit to GitHub, and install with <code>skillz install github:username/my-skill</code>.</p>
+<h2 id="searching-for-skills">Searching for Skills</h2>
+<p><code>skillz search</code> queries GitHub for Claude Code skills:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">skillz search &quot;daily notes&quot;
+skillz search automation
+</code></pre>
+<p>Results are sorted by stars and include repository descriptions and install commands. The search uses GitHub's repository API (no authentication required, though you can set <code>GITHUB_TOKEN</code> for higher rate limits).</p>
+<h2 id="full-example-installing-and-using-a-skill">Full Example: Installing and Using a Skill</h2>
+<p>Find a skill:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">$ skillz search &quot;daily notes&quot;
+Found 3 skill repositories:
+
+  alice&#x2F;daily-journal - ⭐ 24
+    Automated daily note generation with templates
+    https:&#x2F;&#x2F;github.com&#x2F;alice&#x2F;daily-journal
+    Install: skillz install https:&#x2F;&#x2F;github.com&#x2F;alice&#x2F;daily-journal
+</code></pre>
+<p>Install it:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">$ skillz install github:alice&#x2F;daily-journal
+Cloning repository...
+Validating SKILL.md...
+✓ Installed daily-journal to ~&#x2F;.claude&#x2F;skills&#x2F;daily-journal
+</code></pre>
+<p>Now restart Claude Code (or it loads on next session). Ask Claude:</p>
+<pre><code>You: &quot;create today&#x27;s daily note&quot;
+Claude: I&#x27;ll create your daily note using the daily-journal skill.
+        Created: ~&#x2F;notes&#x2F;2026&#x2F;2026-03-30.md with task, meeting, and ideas sections.
+</code></pre>
+<p>The skill taught Claude a new workflow. No copy/paste, no re-explaining. It just works.</p>
+<h2 id="configuration">Configuration</h2>
+<p>Config lives at <code>~/.config/skillz/config.toml</code>:</p>
+<pre data-lang="toml" class="language-toml "><code class="language-toml" data-lang="toml">skills_dir = &quot;~&#x2F;.claude&#x2F;skills&quot;
+</code></pre>
+<p>Change <code>skills_dir</code> if you sync skills via dotfiles or want them elsewhere. The path expands <code>~</code> correctly.</p>
+<h2 id="publishing">Publishing</h2>
+<p>The package is on crates.io as <code>skillz-rs</code> (the name "skillz" was taken). The binary is still called <code>skillz</code>.</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">cargo install skillz-rs
+</code></pre>
+<p>That gets you the CLI. No runtime dependencies, no config required. If you have Claude Code installed, skillz works.</p>
+<h2 id="why-rust">Why Rust</h2>
+<p>I wanted a single static binary with no dependencies. The tool does file operations, runs git commands, and calls GitHub's API. Rust's standard library handles all of that. No external HTTP clients needed—curl does the GitHub requests.</p>
+<p>The codebase is compact:</p>
+<pre><code>src&#x2F;
+├── main.rs        # CLI and command dispatch
+├── config.rs      # TOML config management
+├── registry.rs    # Skill tracking
+├── install.rs     # GitHub cloning
+├── update.rs      # Skill updates
+├── search.rs      # GitHub API search
+├── new.rs         # Skill scaffolding
+└── validate.rs    # Validation and malicious command detection
+</code></pre>
+<p>Clap handles the CLI. The rest is file operations and process spawning.</p>
+<h2 id="skill-structure-reference">Skill Structure Reference</h2>
+<p>A valid skill repository contains:</p>
+<p><strong>Required:</strong></p>
+<ul>
+<li><code>SKILL.md</code> - The skill prompt</li>
+</ul>
+<p><strong>Optional:</strong></p>
+<ul>
+<li><code>README.md</code> - Installation/usage docs for humans</li>
+<li>Helper scripts (e.g., <code>generate-report.sh</code>)</li>
+<li>Templates or data files</li>
+</ul>
+<p>The <code>SKILL.md</code> format is freeform markdown. Common patterns:</p>
+<pre data-lang="markdown" class="language-markdown "><code class="language-markdown" data-lang="markdown"># Skill Name
+
+Brief description.
+
+## Instructions
+
+Step-by-step instructions for Claude to follow.
+
+## Usage
+
+Example invocations that trigger this skill.
+
+## Examples
+
+Input&#x2F;output examples.
+</code></pre>
+<p>No JSON schema, no version field, no manifest. Just markdown. Claude reads it, follows it.</p>
+<h2 id="what-this-actually-solves">What This Actually Solves</h2>
+<p>skillz is not about prompts. It's about infrastructure for reusable AI workflows.</p>
+<p>Skills are prompts, but:</p>
+<ul>
+<li>They persist across sessions</li>
+<li>They compose (one skill can reference another)</li>
+<li>They version (via git)</li>
+<li>They distribute (via GitHub)</li>
+</ul>
+<p>This is package management for AI instructions. The same way you <code>npm install</code> a library instead of copying code, you <code>skillz install</code> a workflow instead of re-pasting prompts.</p>
+<p>skillz handles distribution. Claude Code handles execution. Together, they make AI workflows shareable.</p>
+<h2 id="the-github-release-workflow">The GitHub Release Workflow</h2>
+<p>The release process runs through a Makefile:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">make release
+</code></pre>
+<p>That:</p>
+<ol>
+<li>Bumps the version to today's date (<code>YYYYMMDD.0.X</code>)</li>
+<li>Creates a release branch</li>
+<li>Merges to main with a tag</li>
+<li>Pushes to GitHub</li>
+</ol>
+<p>GitHub Actions picks up the tag and builds a Linux x86_64 binary. The binary attaches to the release. Users can download it directly or install via cargo.</p>
+<p>Publishing to crates.io is separate:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">make publish
+</code></pre>
+<p>This was intentional. GitHub releases build binaries. Crates.io distributes source. Keeping them separate means one can fail without blocking the other. If the crates.io publish hits a rate limit, the GitHub release still ships.</p>
+<h2 id="installing-from-source">Installing From Source</h2>
+<p>If you don't want cargo:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">git clone https:&#x2F;&#x2F;github.com&#x2F;jakegoldsborough&#x2F;skillz
+cd skillz
+cargo build --release
+.&#x2F;target&#x2F;release&#x2F;skillz --help
+</code></pre>
+<p>Or use Nix:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">nix-shell
+cargo build --release
+</code></pre>
+<p>The <code>shell.nix</code> includes Rust tooling and git. That's all you need.</p>
+<h2 id="what-s-next">What's Next</h2>
+<p>The core loop works: create, search, install, update. What's missing:</p>
+<ul>
+<li>Dependency resolution (skill A requires skill B)</li>
+<li>Rollback to previous versions</li>
+</ul>
+<p>The foundation is solid. Now it's about making skills composable.</p>
+<p>If you build skills, publish them to GitHub. If you use skills, install with skillz. The ecosystem grows when workflows are shareable.</p>
+<h2 id="links">Links</h2>
+<ul>
+<li><a href="https://github.com/ducks/skillz">skillz on GitHub</a></li>
+<li><a href="https://crates.io/crates/skillz-rs">skillz-rs on crates.io</a></li>
+</ul>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;jobchain-verifiable-employment-credentials&#x2F;">Jobchain: Verifiable Employment Credentials</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 06, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">What if your employer signed a machine-verifiable reference letter when you started, not when you left? Jobchain issues W3C Verifiable Credentials with Ed25519 signatures. No blockchain, no platform, no PDF.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/specifications">#specifications</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-3&#x2F;">Rewriting Claude Code in Rust, Part 3: TUI, Agents, and Multi-Provider</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 04, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets a ratatui TUI, sub-agents, and support for any OpenAI-compatible endpoint. One session, start to finish.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-2&#x2F;">Rewriting Claude Code in Rust, Part 2: Sessions, Commands, and Permissions</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 02, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets session management, compaction, model switching, and an interactive permission system. Three phases in one sitting.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-with-claude&#x2F;">Rewriting Claude Code in Rust, With Claude</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 01, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Claude Code&#x27;s TypeScript source leaked via a source map. I read the architecture and rewrote the core in Rust. Using Claude. Here&#x27;s Part 1.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;whoami-spec-declarative-identity&#x2F;">whoami: making identity a spec</a></h3>
+                  <div class="meta">
+                    
+                    <p>Mar 31, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">We made infrastructure declarative. We made workflows declarative. Identity is next. A structured format for describing yourself as a source of truth, not a projection.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/specifications">#specifications</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

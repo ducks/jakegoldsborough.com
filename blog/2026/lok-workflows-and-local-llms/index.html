@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Declarative multi-step pipelines and Ollama integration. The workflow system that&#x27;s also a plugin system.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Lok Part 2: Workflows and Local LLMs">
+    <meta property="og:description" content="Declarative multi-step pipelines and Ollama integration. The workflow system that&#x27;s also a plugin system.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lok-workflows-and-local-llms&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Lok Part 2: Workflows and Local LLMs">
+    <meta name="twitter:description" content="Declarative multi-step pipelines and Ollama integration. The workflow system that&#x27;s also a plugin system.">
+
+    <title>Lok Part 2: Workflows and Local LLMs - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Lok Part 2: Workflows and Local LLMs</h1>
+      <div class="meta">
+        
+        <p>Jan 25, 2026</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+        </div>
+      
+
+      <p>Since <a href="/blog/2026/introducing-lok-multi-llm-orchestration/">introducing Lok</a>, two
+features emerged from actual use: local LLM support via Ollama, and a declarative
+workflow engine. Both solve real problems I hit while using the tool.</p>
+<h2 id="ollama-local-llms-without-the-api-tax">Ollama: Local LLMs Without the API Tax</h2>
+<p>Cloud APIs are great until they're not. Rate limits, quota exhaustion, latency
+spikes, privacy concerns. Sometimes you just want to run a model locally and not
+worry about any of that.</p>
+<p>Ollama runs LLMs on your machine via a simple HTTP API. Lok now supports it as a
+first-class backend:</p>
+<pre data-lang="toml" class="language-toml "><code class="language-toml" data-lang="toml"># ~&#x2F;.config&#x2F;lok&#x2F;lok.toml
+[backends.ollama]
+enabled = true
+command = &quot;http:&#x2F;&#x2F;localhost:11434&quot;
+model = &quot;llama3.2&quot;
+</code></pre>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">lok ask --backend ollama &quot;Explain this function&quot;
+</code></pre>
+<p>The implementation is straightforward. Ollama exposes a <code>/api/chat</code> endpoint that
+accepts JSON. No CLI binary to shell out to, no stdout parsing. Just HTTP.</p>
+<pre data-lang="rust" class="language-rust "><code class="language-rust" data-lang="rust">async fn chat(&amp;self, prompt: &amp;str) -&gt; Result&lt;String&gt; {
+    let request = ChatRequest {
+        model: self.model.clone(),
+        messages: vec![ChatMessage {
+            role: &quot;user&quot;.to_string(),
+            content: prompt.to_string(),
+        }],
+        stream: false,
+    };
+
+    let response = self.client
+        .post(format!(&quot;{}&#x2F;api&#x2F;chat&quot;, self.base_url))
+        .json(&amp;request)
+        .send()
+        .await?;
+
+    &#x2F;&#x2F; Parse response...
+}
+</code></pre>
+<p><strong>When to use Ollama:</strong></p>
+<ul>
+<li>Privacy-sensitive codebases that can't hit external APIs</li>
+<li>Avoiding rate limits during intensive analysis sessions</li>
+<li>Cost control (no per-token billing)</li>
+<li>Offline development environments</li>
+</ul>
+<p><strong>Trade-offs:</strong></p>
+<ul>
+<li>Slower than cloud APIs on most hardware</li>
+<li>Model quality depends on what you can run locally</li>
+<li>Requires Ollama running as a daemon</li>
+</ul>
+<p>In practice, I use Ollama for synthesis steps where I'm combining outputs from
+faster cloud models. The final summarization doesn't need to be fast, it needs
+to be private and reliable.</p>
+<h2 id="workflows-declarative-multi-step-pipelines">Workflows: Declarative Multi-Step Pipelines</h2>
+<p>Single-shot LLM calls are useful, but real analysis often requires multiple
+passes. First a fast scan, then a deep investigation, then synthesis. Doing this
+manually means copy-pasting outputs between commands.</p>
+<p>Workflows solve this by defining multi-step pipelines in TOML:</p>
+<pre data-lang="toml" class="language-toml "><code class="language-toml" data-lang="toml"># ~&#x2F;.config&#x2F;lok&#x2F;workflows&#x2F;security-review.toml
+name = &quot;security-review&quot;
+description = &quot;Multi-pass security review with synthesis&quot;
+
+[[steps]]
+name = &quot;initial-scan&quot;
+backend = &quot;codex&quot;
+prompt = &quot;Find obvious security issues: injection, auth bypass, hardcoded secrets&quot;
+
+[[steps]]
+name = &quot;deep-audit&quot;
+backend = &quot;claude&quot;
+depends_on = [&quot;initial-scan&quot;]
+prompt = &quot;&quot;&quot;
+Review these findings and investigate deeper:
+{{ steps.initial-scan.output }}
+&quot;&quot;&quot;
+
+[[steps]]
+name = &quot;synthesize&quot;
+backend = &quot;ollama&quot;
+depends_on = [&quot;initial-scan&quot;, &quot;deep-audit&quot;]
+prompt = &quot;&quot;&quot;
+Combine into a prioritized report:
+Initial: {{ steps.initial-scan.output }}
+Deep: {{ steps.deep-audit.output }}
+&quot;&quot;&quot;
+</code></pre>
+<p>Run it with:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">lok run security-review
+</code></pre>
+<p>The output:</p>
+<pre><code>Running workflow: security-review
+Multi-pass security review with synthesis
+==================================================
+
+[step] initial-scan
+  ✓ (2.3s)
+[step] deep-audit
+  ✓ (8.1s)
+[step] synthesize
+  ✓ (4.2s)
+
+==================================================
+
+Results:
+
+[OK] initial-scan (2.3s)
+
+  Found 5 potential issues:
+  1. src&#x2F;api&#x2F;auth.rs:45 - SQL string interpolation
+  ...
+
+[OK] deep-audit (8.1s)
+
+  Investigated the SQL interpolation finding...
+  ...
+
+[OK] synthesize (4.2s)
+
+  ## Security Review Summary
+
+  ### Critical (1)
+  - SQL injection in auth.rs...
+</code></pre>
+<h3 id="variable-interpolation">Variable Interpolation</h3>
+<p>The <code>{{ steps.NAME.output }}</code> syntax passes previous step outputs into subsequent
+prompts. The workflow engine does a simple regex replacement before sending the
+prompt to the backend.</p>
+<p>This is the key feature that makes workflows useful. Without it, you'd need
+manual copy-paste between steps. With it, you can build arbitrary pipelines
+where each step builds on previous results.</p>
+<h3 id="dependency-resolution">Dependency Resolution</h3>
+<p>Steps declare dependencies with <code>depends_on</code>. The engine performs a topological
+sort to determine execution order. Steps without dependencies can run in
+parallel (though the current implementation runs sequentially for simplicity).</p>
+<pre data-lang="toml" class="language-toml "><code class="language-toml" data-lang="toml">[[steps]]
+name = &quot;patterns&quot;
+backend = &quot;codex&quot;
+prompt = &quot;Find code patterns&quot;
+
+[[steps]]
+name = &quot;dead-code&quot;
+backend = &quot;codex&quot;
+prompt = &quot;Find dead code&quot;
+
+[[steps]]
+name = &quot;synthesize&quot;
+backend = &quot;claude&quot;
+depends_on = [&quot;patterns&quot;, &quot;dead-code&quot;]
+prompt = &quot;&quot;&quot;
+Combine findings:
+Patterns: {{ steps.patterns.output }}
+Dead code: {{ steps.dead-code.output }}
+&quot;&quot;&quot;
+</code></pre>
+<p>The first two steps have no dependencies, so they could run concurrently. The
+third step waits for both to complete before running.</p>
+<h3 id="conditional-execution">Conditional Execution</h3>
+<p>Steps can include a <code>when</code> clause for conditional execution:</p>
+<pre data-lang="toml" class="language-toml "><code class="language-toml" data-lang="toml">[[steps]]
+name = &quot;emergency-fix&quot;
+backend = &quot;claude&quot;
+depends_on = [&quot;scan&quot;]
+when = &quot;steps.scan.output contains &#x27;critical&#x27;&quot;
+prompt = &quot;Propose immediate fixes for critical issues...&quot;
+</code></pre>
+<p>If the condition isn't met, the step is skipped with a <code>[skip]</code> message. This
+keeps workflows from doing unnecessary work.</p>
+<h3 id="workflow-discovery">Workflow Discovery</h3>
+<p>Workflows are loaded from two locations:</p>
+<ul>
+<li><code>.lok/workflows/</code> in the current directory (project-local)</li>
+<li><code>~/.config/lok/workflows/</code> (global)</li>
+</ul>
+<p>Project-local workflows override global ones with the same name. This lets you
+define team-wide workflows globally while allowing project-specific overrides.</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">lok workflow list
+</code></pre>
+<pre><code>Available workflows:
+
+  security-review (global)
+    Multi-pass security review with synthesis
+    3 steps
+
+  code-quality (global)
+    Multi-backend code quality analysis
+    3 steps
+
+  rails-audit (local)
+    Rails-specific security checks
+    4 steps
+</code></pre>
+<h2 id="the-plugin-system-realization">The Plugin System Realization</h2>
+<p>Here's the thing I didn't plan: workflows are plugins.</p>
+<p>When you define a workflow, you're creating a reusable command. <code>lok run security-review</code> isn't calling a built-in feature. It's loading a TOML file and
+executing it. The "plugin" is just configuration.</p>
+<p>This means:</p>
+<ul>
+<li>No compilation needed to add new capabilities</li>
+<li>Share workflows by copying TOML files</li>
+<li>Customize existing workflows without touching Rust code</li>
+<li>Version control your workflows alongside your code</li>
+</ul>
+<p>A future <code>lok workflow install</code> could fetch workflows from URLs:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">lok workflow install https:&#x2F;&#x2F;example.com&#x2F;rails-audit.toml
+lok run rails-audit
+</code></pre>
+<p>The plugin system is the workflow system. No separate concepts needed.</p>
+<h2 id="the-real-conductor-your-llm-session">The Real Conductor: Your LLM Session</h2>
+<p>Here's the pattern that actually works best: use your existing LLM as the
+conductor, and call lok as a tool.</p>
+<p>I run Claude Code as my daily driver. When I need multi-model analysis, I don't
+switch to <code>lok conduct</code>. I just ask Claude to use lok:</p>
+<pre><code>Me: Find performance issues in this codebase
+
+Claude: [runs: lok ask --backend codex &quot;Find N+1 queries and performance issues&quot;]
+
+Claude: I found 3 N+1 queries in the controllers. Let me get a second
+        opinion on the caching strategy...
+
+Claude: [runs: lok ask --backend gemini &quot;Review caching approach in lib&#x2F;cache.rb&quot;]
+
+Claude: Based on both analyses, here&#x27;s what I&#x27;d prioritize...
+</code></pre>
+<p>The LLM session becomes the orchestration layer. It sees results, reasons about
+them, decides when to query other backends. No need for lok to implement its own
+multi-round conversation loop.</p>
+<p>This works because lok is just a command. It doesn't try to be a chat interface
+or maintain conversation state. It does one thing: send a prompt to backends and
+return results. The intelligence stays in the LLM that's already running.</p>
+<p>The workflow engine complements this. For repeatable multi-step analysis, define
+a workflow. For exploratory work where you need to reason about intermediate
+results, let your LLM call lok directly.</p>
+<h2 id="putting-it-together">Putting It Together</h2>
+<p>Here's my actual workflow for auditing a new codebase:</p>
+<pre><code>Me: Audit this codebase for security issues
+
+Claude: [runs: lok run security-review]
+
+Claude: The workflow found 5 issues. The SQL interpolation in auth.rs
+        looks serious. Let me investigate...
+
+Claude: [runs: lok ask --backend gemini &quot;Is the SQL in auth.rs:45 exploitable?&quot;]
+
+Claude: Gemini confirms it&#x27;s exploitable. I&#x27;ll draft a fix...
+</code></pre>
+<p>Workflows handle the repeatable multi-step analysis. Claude handles the
+reasoning and follow-up questions. Lok is just the interface to multiple
+backends. Each layer does what it's good at.</p>
+<h2 id="what-s-next">What's Next</h2>
+<p>The dead code that <code>lok hunt</code> found in its own codebase still needs cleanup.
+There's also the question of parallel step execution in workflows, which would
+make multi-backend pipelines faster.</p>
+<p>But the core loop is solid: define workflows in TOML, run them with one command,
+get multi-model analysis without the manual coordination tax.</p>
+<p>The source is at <a href="https://github.com/ducks/lok">github.com/ducks/lok</a>.</p>
+<hr />
+<p>Previous: <a href="/blog/2026/introducing-lok-multi-llm-orchestration">Introducing Lok</a> |
+Next: <a href="/blog/2026/lok-dogfooding-and-code-review">Part 3: Dogfooding and Code Review</a></p>
+
+
+      
+        
+        
+
+        
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;inside-claude-codes-team-memory-sync&#x2F;">Inside Claude Code&#x27;s Team Memory Sync Engine</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 05, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">How Claude Code shares knowledge across your team: a file watcher, delta sync, secret scanner, and optimistic concurrency -- all hidden behind a directory you didn&#x27;t know existed.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-3&#x2F;">Rewriting Claude Code in Rust, Part 3: TUI, Agents, and Multi-Provider</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 04, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets a ratatui TUI, sub-agents, and support for any OpenAI-compatible endpoint. One session, start to finish.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;anthropic-shipped-a-gacha-pet-inside-claude-code&#x2F;">Anthropic Shipped a Gacha Pet Inside Claude Code</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 03, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Hidden in the Claude Code source: a complete virtual pet system with 18 species, rarity tiers, stats, animated ASCII sprites, and a soul generated by Claude itself.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-2&#x2F;">Rewriting Claude Code in Rust, Part 2: Sessions, Commands, and Permissions</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 02, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets session management, compaction, model switching, and an interactive permission system. Three phases in one sitting.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-with-claude&#x2F;">Rewriting Claude Code in Rust, With Claude</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 01, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Claude Code&#x27;s TypeScript source leaked via a source map. I read the architecture and rewrote the core in Rust. Using Claude. Here&#x27;s Part 1.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

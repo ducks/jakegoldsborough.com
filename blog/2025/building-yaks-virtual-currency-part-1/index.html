@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Building a virtual currency plugin for Discourse. Part 1 covers the backend architecture: wallets, transactions, features, and the service layer that ties it together.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Building Yaks: A Virtual Currency System for Discourse (Part 1: Backend Architecture)">
+    <meta property="og:description" content="Building a virtual currency plugin for Discourse. Part 1 covers the backend architecture: wallets, transactions, features, and the service layer that ties it together.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;building-yaks-virtual-currency-part-1&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Building Yaks: A Virtual Currency System for Discourse (Part 1: Backend Architecture)">
+    <meta name="twitter:description" content="Building a virtual currency plugin for Discourse. Part 1 covers the backend architecture: wallets, transactions, features, and the service layer that ties it together.">
+
+    <title>Building Yaks: A Virtual Currency System for Discourse (Part 1: Backend Architecture) - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Building Yaks: A Virtual Currency System for Discourse (Part 1: Backend Architecture)</h1>
+      <div class="meta">
+        
+        <p>Oct 11, 2025</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/discourse">#discourse</a></p>
+          
+          <p><a href="/tags/ruby">#ruby</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <p>I'm building a virtual currency system for Discourse. Users earn and spend
+"Yaks" on premium post features like colored highlighting, pinned posts, and
+custom user flair.</p>
+<p><img src="/images/yaks-wallet.png" alt="Image showing 1000 Yaks in wallet" /></p>
+<p><img src="/images/yaks-highlighted-post-1.png" alt="Post highlighting with purple border" /></p>
+<p>This is Part 1 of a series documenting the development. This post focuses on
+the backend architecture. Future posts will cover the frontend UI, earning
+mechanisms, and feature implementations.</p>
+<h2 id="why-yaks">Why Yaks?</h2>
+<p>The name works on two levels. First, "yak" as a verb means to talk or chat
+persistently. Forums are where people yak.</p>
+<p>Second, "yak shaving" is programmer slang for doing a seemingly pointless
+series of tasks. Unfortunately, sometimes, talking (arguing) with people online
+can feel apparently useless. The name acknowledges that.</p>
+<h2 id="why-virtual-currency">Why Virtual Currency?</h2>
+<p>Forums have moderation tools and permission systems, but they're binary: you
+can do something or you can't. Virtual currency adds a middle layer where users
+can temporarily access premium features by spending earned currency.</p>
+<p>The use cases:</p>
+<ul>
+<li>Highlight important posts with colored borders</li>
+<li>Pin your post to the top of a topic for 24 hours</li>
+<li>Add custom flair next to your username</li>
+<li>Boost your post in feeds and search results</li>
+</ul>
+<p>These aren't permissions. They're temporary, purchasable upgrades.</p>
+<h2 id="the-data-model">The Data Model</h2>
+<p>The system has four core models:</p>
+<h3 id="yakwallet">YakWallet</h3>
+<p>Each user has a wallet that tracks their balance and lifetime totals:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby">class YakWallet &lt; ActiveRecord::Base
+  belongs_to :user
+  has_many :yak_transactions
+
+  validates :balance, numericality: { greater_than_or_equal_to: 0 }
+  validates :lifetime_earned, numericality: { greater_than_or_equal_to: 0 }
+  validates :lifetime_spent, numericality: { greater_than_or_equal_to: 0 }
+end
+</code></pre>
+<p>The wallet is the source of truth for a user's currency. Every earn, spend, and
+refund goes through it.</p>
+<h3 id="yaktransaction">YakTransaction</h3>
+<p>Every balance change is logged. This creates an immutable audit trail:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby">class YakTransaction &lt; ActiveRecord::Base
+  belongs_to :user
+  belongs_to :yak_wallet
+
+  enum transaction_type: { earn: 0, spend: 1, refund: 2 }
+end
+</code></pre>
+<p>Transactions include:</p>
+<ul>
+<li>Amount (positive for earn/refund, negative for spend)</li>
+<li>Type (earn, spend, refund)</li>
+<li>Source (where it came from: <code>stripe_purchase</code>, <code>quality_post</code>,
+<code>feature_post_highlight</code>)</li>
+<li>Description (human-readable explanation)</li>
+<li>Metadata (JSON field for additional context)</li>
+<li>Related post/topic (if applicable)</li>
+</ul>
+<p>Why log everything? Transparency. Users can see exactly where their Yaks went.
+Admins can debug balance issues. Refunds are straightforward because you have
+the original transaction ID.</p>
+<h3 id="yakfeature">YakFeature</h3>
+<p>Features define what users can spend Yaks on:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby">class YakFeature &lt; ActiveRecord::Base
+  has_many :yak_feature_uses
+
+  validates :feature_key, presence: true, uniqueness: true
+  validates :cost, numericality: { greater_than: 0 }
+  validates :category, inclusion: { in: %w[post user topic] }
+end
+</code></pre>
+<p>Each feature has:</p>
+<ul>
+<li>A unique key (<code>post_highlight</code>, <code>post_pin</code>)</li>
+<li>Display name and description</li>
+<li>Cost in Yaks</li>
+<li>Category (post, user, topic)</li>
+<li>Settings (duration, default values, constraints)</li>
+</ul>
+<p>Currently implemented:</p>
+<ul>
+<li><strong>Post Highlighting</strong> (25 Yaks): Colored border and background (gold, blue,
+red, green, purple)</li>
+</ul>
+<p>Planned features:</p>
+<ul>
+<li><strong>Post Pin</strong> (50 Yaks): Pin to top of topic for 24 hours</li>
+<li><strong>Custom Flair</strong> (100 Yaks): Custom text next to username for 30 days</li>
+<li><strong>Post Boost</strong> (30 Yaks): Priority in feeds for 72 hours</li>
+</ul>
+<p>The cost is per feature, not per variation. Post highlighting costs 25 Yaks
+regardless of which color you choose.</p>
+<h3 id="yakfeatureuse">YakFeatureUse</h3>
+<p>When a user purchases a feature, we create a YakFeatureUse record:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby">class YakFeatureUse &lt; ActiveRecord::Base
+  belongs_to :user
+  belongs_to :yak_feature
+  belongs_to :yak_transaction
+  belongs_to :related_post, class_name: &quot;Post&quot;, optional: true
+  belongs_to :related_topic, class_name: &quot;Topic&quot;, optional: true
+
+  scope :active, -&gt; { where(&quot;expires_at IS NULL OR expires_at &gt; ?&quot;, Time.zone.now) }
+end
+</code></pre>
+<p>This tracks:</p>
+<ul>
+<li>Who applied the feature</li>
+<li>Which feature was applied</li>
+<li>What post/topic it was applied to</li>
+<li>When it expires (if applicable)</li>
+<li>Feature-specific data (color choice, custom text, etc.)</li>
+</ul>
+<p>The <code>active</code> scope makes it easy to query currently active features and clean
+up expired ones.</p>
+<h2 id="the-service-layer">The Service Layer</h2>
+<p>Business logic lives in services, not controllers. Controllers handle HTTP,
+services handle business rules.</p>
+<h3 id="what-are-services">What Are Services?</h3>
+<p>Discourse has a standardized service pattern using <code>Service::Base</code>. Services
+define:</p>
+<ul>
+<li><strong>Contracts</strong>: Input validation using schemas</li>
+<li><strong>Policies</strong>: Preconditions that must be true</li>
+<li><strong>Steps</strong>: The actual execution flow</li>
+</ul>
+<p>Example structure:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby">class MyService &lt; Service::Base
+  contract do
+    attribute :user_id, :integer
+    validates :user_id, presence: true
+  end
+
+  policy :user_exists
+  step :do_work
+
+  private
+
+  def user_exists
+    User.exists?(id: contract.user_id)
+  end
+
+  def do_work
+    # actual logic
+  end
+end
+</code></pre>
+<p>This pattern separates validation, authorization, and execution. If the
+contract fails, the service returns an error before hitting any business logic.
+If a policy fails, execution stops.</p>
+<h3 id="yakfeatureservice">YakFeatureService</h3>
+<p>The Yaks plugin currently uses a simpler service pattern (a plain Ruby class
+with class methods) because the logic is straightforward. It could be
+refactored to <code>Service::Base</code> if validation becomes more complex.</p>
+<p>The service handles:</p>
+<ol>
+<li>Validating the feature exists and is enabled</li>
+<li>Checking the user can afford it</li>
+<li>Checking the feature can be applied (no duplicate active uses)</li>
+<li>Creating the transaction</li>
+<li>Creating the feature use record</li>
+<li>Applying the visual effects</li>
+</ol>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby">def self.apply_feature(user, feature_key, related_post: nil, feature_data: {})
+  feature = YakFeature.enabled.find_by(feature_key: feature_key)
+  return { success: false, error: &quot;Feature not found&quot; } unless feature
+
+  return { success: false, error: &quot;Insufficient balance&quot; } unless feature.affordable_by?(user)
+
+  wallet = YakWallet.for_user(user)
+
+  transaction = wallet.spend_yaks(
+    feature.cost,
+    feature_key,
+    &quot;Applied #{feature.feature_name}&quot;,
+    related_post_id: related_post&amp;.id,
+    metadata: feature_data
+  )
+
+  return { success: false, error: &quot;Insufficient balance&quot; } unless transaction
+
+  feature_use = YakFeatureUse.create!(
+    user: user,
+    yak_feature: feature,
+    yak_transaction: transaction,
+    related_post: related_post,
+    expires_at: calculate_expiration(feature),
+    feature_data: feature_data
+  )
+
+  apply_feature_effects(feature_key, related_post, feature_data)
+
+  { success: true, feature_use: feature_use, new_balance: user.yak_balance }
+end
+</code></pre>
+<p>Why put this in a service instead of the controller? Because controllers should
+handle HTTP concerns (params, rendering, status codes). Business logic
+(validating affordability, deducting currency, applying effects) belongs in a
+service.</p>
+<p>This makes testing easier. You can test the business logic without setting up
+HTTP requests. You can reuse the service from rake tasks, background jobs, or
+the Rails console.</p>
+<h3 id="the-double-balance-check">The Double Balance Check</h3>
+<p>Notice the service checks affordability twice:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby"># First check
+return { success: false, error: &quot;Insufficient balance&quot; } unless feature.affordable_by?(user)
+
+wallet = YakWallet.for_user(user)
+
+# Second check (wallet.spend_yaks returns nil if balance insufficient)
+transaction = wallet.spend_yaks(...)
+return { success: false, error: &quot;Insufficient balance&quot; } unless transaction
+</code></pre>
+<p>Why check twice? Race conditions.</p>
+<p>Between the first check and the actual spend, another request could deduct from
+the user's balance. Without the second check, you could end up with negative
+balances.</p>
+<p>The first check is an optimization (fail fast before loading the wallet). The
+second check is correctness (verify balance inside the database transaction).</p>
+<p>The wallet's <code>spend_yaks</code> method uses ActiveRecord transactions:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby">def spend_yaks(amount, feature_key, description, options = {})
+  return nil if amount &lt;= 0 || balance &lt; amount
+
+  transaction do
+    decrement!(:balance, amount)
+    increment!(:lifetime_spent, amount)
+    yak_transactions.create!(...)
+  end
+end
+</code></pre>
+<p>If the balance check fails inside the transaction, it returns <code>nil</code> and nothing
+is deducted. This prevents concurrent requests from causing overdrafts.</p>
+<h2 id="applying-features">Applying Features</h2>
+<p>Features modify post custom fields:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby">def self.apply_feature_effects(feature_key, post, feature_data)
+  current_features = post.custom_fields[&quot;yak_features&quot;] || {}
+
+  case feature_key
+  when &quot;post_highlight&quot;
+    current_features[&quot;highlight&quot;] = {
+      enabled: true,
+      color: feature_data[:color] || &quot;gold&quot;,
+      applied_at: Time.zone.now.to_i
+    }
+  when &quot;post_pin&quot;
+    current_features[&quot;pinned&quot;] = { enabled: true, applied_at: Time.zone.now.to_i }
+  end
+
+  post.custom_fields[&quot;yak_features&quot;] = current_features
+  post.save_custom_fields
+end
+</code></pre>
+<p>Custom fields are Discourse's way of extending models without migrations. The
+<code>yak_features</code> field stores a JSON object with all active features on a post.</p>
+<p>This data gets serialized to the frontend:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby">add_to_serializer(
+  :post,
+  :yak_features,
+  include_condition: -&gt; { object.custom_fields[&quot;yak_features&quot;].present? }
+) do
+  object.custom_fields[&quot;yak_features&quot;]
+end
+</code></pre>
+<p>The frontend can then read <code>post.yak_features.highlight.color</code> and apply the
+appropriate CSS.</p>
+<h2 id="current-state">Current State</h2>
+<p>The backend is complete:</p>
+<ul>
+<li>Wallet management with balance tracking</li>
+<li>Transaction logging with full audit trail</li>
+<li>Feature definitions with costs and durations</li>
+<li>Service layer for applying features</li>
+<li>Custom field serialization for the frontend</li>
+</ul>
+<p>What's missing:</p>
+<ul>
+<li>Frontend UI for viewing balance and purchasing features</li>
+<li>Earning mechanisms (quality posts, admin grants, purchases)</li>
+<li>Feature expiration cleanup job</li>
+<li>Admin dashboard for managing features and viewing stats</li>
+</ul>
+<h2 id="next-steps">Next Steps</h2>
+<p>Part 2 will cover building the frontend UI: displaying the user's balance,
+browsing available features, and adding a "spend Yaks" button to posts.</p>
+<p>Part 3 will cover earning mechanisms and the admin dashboard.</p>
+<p>The code is on GitHub: <a href="https://github.com/ducks/discourse-yaks">ducks/discourse-yaks</a></p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-discourse-comments-in-typescript&#x2F;">Rewriting discourse-comments in TypeScript: Dropping WASM for a 97% Smaller Bundle</a></h3>
+                  <div class="meta">
+                    
+                    <p>Feb 27, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">I rewrote the Discourse embedded comments API client from Rust&#x2F;WASM to pure TypeScript. The bundle went from 742 KB to 18 KB.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/typescript">#typescript</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;how-a-friends-gif-broke-our-filesystem&#x2F;">How Jennifer Aniston and Friends Cost Us 377GB and Broke ext4 Hardlinks</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 23, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A backup deduplication fix, filesystem hardlink limits, and the Jennifer Aniston reaction GIF that stress-tested our infrastructure.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/linux">#linux</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-discourse-embedded-comments&#x2F;">Building Embedded Discourse Comments with Rust and WASM</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 14, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">An experiment in creating a drop-in comment widget for static sites using Rust compiled to WebAssembly, talking to Discourse&#x27;s REST API.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/wasm">#wasm</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-stats-evolution&#x2F;">Invite Tree to Invite Stats - How A Simple Tree Flourished Into A Full Moderation Plugin</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 05, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">How a simple visualization plugin evolved into a moderation tool.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;discourse-invite-tree&#x2F;">Visualizing Discourse Invite Trees</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 03, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A simple Discourse plugin that visualizes who invited whom as an ASCII tree, inspired by Lobsters.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

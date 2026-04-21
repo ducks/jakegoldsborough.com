@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="A standalone tool that takes an idea, debates it across Claude, Codex, and Gemini, creates a roadmap, writes specs, and implements. Planning and execution in one pipeline.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="finna: Multi-Model Debate, Spec, and Implement">
+    <meta property="og:description" content="A standalone tool that takes an idea, debates it across Claude, Codex, and Gemini, creates a roadmap, writes specs, and implements. Planning and execution in one pipeline.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;finna-multi-model-spec-implement&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="finna: Multi-Model Debate, Spec, and Implement">
+    <meta name="twitter:description" content="A standalone tool that takes an idea, debates it across Claude, Codex, and Gemini, creates a roadmap, writes specs, and implements. Planning and execution in one pipeline.">
+
+    <title>finna: Multi-Model Debate, Spec, and Implement - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>finna: Multi-Model Debate, Spec, and Implement</h1>
+      <div class="meta">
+        
+        <p>Feb 10, 2026</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+        </div>
+      
+
+      <p>Lok's <code>spec</code> command was useful but felt too coupled to the rest of the tool.
+I wanted something standalone: give it an idea, get specs and code. No
+configuration files, no backend setup, just a single binary that orchestrates
+the models I already have installed.</p>
+<p>That's finna.</p>
+<h2 id="the-problem-with-just-build-it">The Problem with "Just Build It"</h2>
+<p>When you ask an LLM to build something, it starts coding immediately. Maybe it
+picks a good architecture, maybe it doesn't. By the time you see the output,
+you're committed to whatever approach it chose. If the foundation is wrong,
+you're either refactoring generated code or starting over.</p>
+<p>The fix is to separate planning from execution. But not just any planning. A
+plan that multiple models have debated and agreed on, written down in files you
+can review before any code gets generated.</p>
+<h2 id="the-pipeline">The Pipeline</h2>
+<p>finna runs four stages:</p>
+<pre><code>idea → debate → roadmap → spec → implement
+</code></pre>
+<ol>
+<li><strong>Debate</strong>: Claude, Codex, and Gemini independently analyze the idea</li>
+<li><strong>Consensus</strong>: Claude synthesizes the proposals into a unified approach</li>
+<li><strong>Roadmap</strong>: Break the consensus into ordered, dependency-aware steps</li>
+<li><strong>Spec</strong>: Write detailed implementation specs for each step</li>
+<li><strong>Implement</strong>: Models propose edits, Claude synthesizes, changes applied</li>
+</ol>
+<p>Each stage reads from the previous stage's output. Everything lands in <code>.finna/</code>
+so you can review, edit, or re-run individual stages.</p>
+<h2 id="usage">Usage</h2>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash"># Run all stages
+finna &quot;Add JWT authentication to the API&quot;
+
+# Or run stages separately
+finna debate &quot;Add JWT authentication&quot;    # debate → roadmap
+finna spec                                # roadmap → specs
+finna implement                           # specs → code
+
+# Target specific steps
+finna spec --step auth-middleware
+finna implement --step auth-middleware
+</code></pre>
+<h2 id="a-real-example-toml-parser">A Real Example: TOML Parser</h2>
+<p>I ran finna on building a TOML parser from scratch:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">finna debate &quot;write a toml parser in rust from scratch, no dependencies&quot;
+</code></pre>
+<p>Three models debated the architecture. They converged on a lexer-first approach
+with recursive descent parsing. The roadmap came out as 30 steps with proper
+dependency ordering:</p>
+<pre><code>.finna&#x2F;
+├── consensus.json
+├── roadmap.arf
+└── specs&#x2F;
+    ├── 01-project-scaffold&#x2F;spec.arf
+    ├── 02-error-types&#x2F;spec.arf
+    ├── 03-token-types&#x2F;spec.arf
+    ...
+    ├── 16-lexer-integration&#x2F;spec.arf
+    ├── 17-parser-core&#x2F;spec.arf
+    ...
+    └── 30-edge-cases&#x2F;spec.arf
+</code></pre>
+<p>The roadmap groups work into phases: scaffold and types (1-5), lexer (6-16),
+parser (17-25), public API and tests (26-30). Each step declares its
+dependencies so they can't run out of order.</p>
+<p>Running <code>finna spec</code> generates detailed ARF specs for each step. Here's the
+spec for lexing basic strings:</p>
+<pre data-lang="toml" class="language-toml "><code class="language-toml" data-lang="toml">order = 10
+what = &quot;Implement lexing for double-quoted basic strings with full escape support&quot;
+why = &quot;Basic strings are TOML&#x27;s primary string format. The lexer must process
+  escapes at lex time and detect unterminated strings with precise error
+  locations.&quot;
+how = &quot;&quot;&quot;
+1. Add lex_basic_string() method
+2. Main loop: consume until closing quote or error
+3. Implement lex_escape_sequence() for \t, \n, \r, \\, \&quot;, \uXXXX, \UXXXXXXXX
+4. Implement lex_unicode_escape() with validation
+5. Wire into lex_token() dispatch
+6. Add unit tests for all escape sequences and error cases
+&quot;&quot;&quot;
+backup = &quot;Defer escape processing to post-lex pass if implementation is error-prone&quot;
+
+[context]
+files = [&quot;src&#x2F;lexer.rs&quot;, &quot;src&#x2F;error.rs&quot;]
+dependencies = []
+</code></pre>
+<p>The specs include test cases. The basic strings spec lists 25+ scenarios:
+simple strings, escape sequences, unicode handling, error conditions. The
+models know what to test because they debated it during planning.</p>
+<p>The 30 specs totaled 2.1k lines. That's not wasted tokens. It's a contract you
+can review before any code exists.</p>
+<h2 id="the-arf-format">The ARF Format</h2>
+<p>Specs use TOML with a standard structure:</p>
+<pre data-lang="toml" class="language-toml "><code class="language-toml" data-lang="toml">order = 1
+what = &quot;one sentence description&quot;
+why = &quot;context and motivation&quot;
+how = &quot;&quot;&quot;
+Step-by-step implementation plan
+&quot;&quot;&quot;
+backup = &quot;fallback approach if primary fails&quot;
+
+[context]
+files = [&quot;paths&#x2F;to&#x2F;files&quot;]
+dependencies = [&quot;step names this depends on&quot;]
+</code></pre>
+<p>The format is simple on purpose. No special tooling needed to read or edit.
+Any text editor works. The structure enforces that every step has a rationale,
+a plan, and a fallback.</p>
+<h2 id="why-separate-stages">Why Separate Stages</h2>
+<p>The stages are separate because you need intervention points.</p>
+<p>After debate, review the roadmap. Does the architecture make sense? Are the
+steps in the right order? Edit <code>.finna/roadmap.arf</code> if not.</p>
+<p>After spec, review the specs. Is the implementation plan correct? Are the test
+cases comprehensive? Edit the spec files or re-run <code>finna spec --step X</code>.</p>
+<p>After implement, review the changes. Did the edits apply cleanly? Is the code
+what you expected? The specs told you what would happen; now verify it did.</p>
+<p>If you run <code>finna "idea"</code> without the subcommands, it runs all stages in
+sequence. That's fine for exploration. But for real work, you probably want
+the review gates.</p>
+<h2 id="multi-model-consensus">Multi-Model Consensus</h2>
+<p>The debate phase isn't just asking three models and picking one. All three
+responses get synthesized:</p>
+<ol>
+<li>Claude, Codex, and Gemini each propose an approach in parallel</li>
+<li>Claude sees all three proposals and synthesizes consensus</li>
+<li>Disagreements become explicit tradeoffs in the final plan</li>
+</ol>
+<p>One model might over-engineer authentication. Another might skip edge cases.
+The synthesis catches both failure modes. You get architecture that multiple
+models have pressure-tested.</p>
+<h2 id="implementation">Implementation</h2>
+<p>finna is ~500 lines of Rust. It shells out to <code>claude</code>, <code>codex</code>, and <code>npx @google/gemini-cli</code> for the actual model calls. No API keys in the binary,
+no config files. If you have the CLIs installed, finna works.</p>
+<p>The implementation phase runs models in parallel for each step, synthesizes
+their edit proposals, and applies the changes. Edits are JSON with <code>path</code>,
+<code>old</code>, and <code>new</code> fields. Simple find-and-replace, no AST manipulation.</p>
+<pre data-lang="rust" class="language-rust "><code class="language-rust" data-lang="rust">#[derive(Debug, serde::Deserialize)]
+struct Edit {
+    path: String,
+    old: String,
+    new: String,
+}
+</code></pre>
+<p>If an edit can't find the target text, it warns and continues. If the file
+doesn't exist, it creates it. The implementation is deliberately simple
+because the specs already contain the complexity.</p>
+<h2 id="what-finna-is-not">What finna Is Not</h2>
+<p>finna is not a replacement for writing code. It's a planning tool that happens
+to also generate code. The value is in the specs, not the implementation.</p>
+<p>If the generated code is wrong, you fix the spec and re-run. If the
+architecture is wrong, you fix the roadmap and re-spec. The code is a
+side effect of getting the plan right.</p>
+<p>finna is also not trying to be general-purpose. It solves one problem: turn an
+idea into a structured plan with implementation. No plugins, no extensibility,
+no configuration. One tool, one job.</p>
+<h2 id="getting-started">Getting Started</h2>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash"># Clone and build
+git clone https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;finna
+cd finna
+nix-shell
+cargo build --release
+
+# Run on your idea
+.&#x2F;target&#x2F;release&#x2F;finna &quot;your idea here&quot;
+</code></pre>
+<p>Requires <code>claude</code>, <code>codex</code>, and <code>npx @google/gemini-cli</code> to be installed and
+authenticated. If a model fails, finna continues with the others.</p>
+<p>The source is at <a href="https://github.com/ducks/finna">github.com/ducks/finna</a>.</p>
+<hr />
+<p>The test project (TOML parser specs) is at
+<a href="https://github.com/ducks/finna-toml-parser">github.com/ducks/finna-toml-parser</a>.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;inside-claude-codes-team-memory-sync&#x2F;">Inside Claude Code&#x27;s Team Memory Sync Engine</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 05, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">How Claude Code shares knowledge across your team: a file watcher, delta sync, secret scanner, and optimistic concurrency -- all hidden behind a directory you didn&#x27;t know existed.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-3&#x2F;">Rewriting Claude Code in Rust, Part 3: TUI, Agents, and Multi-Provider</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 04, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets a ratatui TUI, sub-agents, and support for any OpenAI-compatible endpoint. One session, start to finish.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;anthropic-shipped-a-gacha-pet-inside-claude-code&#x2F;">Anthropic Shipped a Gacha Pet Inside Claude Code</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 03, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Hidden in the Claude Code source: a complete virtual pet system with 18 species, rarity tiers, stats, animated ASCII sprites, and a soul generated by Claude itself.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-2&#x2F;">Rewriting Claude Code in Rust, Part 2: Sessions, Commands, and Permissions</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 02, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets session management, compaction, model switching, and an interactive permission system. Three phases in one sitting.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-with-claude&#x2F;">Rewriting Claude Code in Rust, With Claude</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 01, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Claude Code&#x27;s TypeScript source leaked via a source map. I read the architecture and rewrote the core in Rust. Using Claude. Here&#x27;s Part 1.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

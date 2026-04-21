@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="claux gets session management, compaction, model switching, and an interactive permission system. Three phases in one sitting.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Rewriting Claude Code in Rust, Part 2: Sessions, Commands, and Permissions">
+    <meta property="og:description" content="claux gets session management, compaction, model switching, and an interactive permission system. Three phases in one sitting.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-2&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Rewriting Claude Code in Rust, Part 2: Sessions, Commands, and Permissions">
+    <meta name="twitter:description" content="claux gets session management, compaction, model switching, and an interactive permission system. Three phases in one sitting.">
+
+    <title>Rewriting Claude Code in Rust, Part 2: Sessions, Commands, and Permissions - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Rewriting Claude Code in Rust, Part 2: Sessions, Commands, and Permissions</h1>
+      <div class="meta">
+        
+        <p>Apr 02, 2026</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+        </div>
+      
+
+      <p><a href="/blog/2026/rewriting-claude-code-in-rust-with-claude/">Part 1</a> got a working
+binary. Streaming chat, six tools, cost tracking, JSONL persistence. 1,200
+lines of Rust that could talk to Claude and execute Read, Write, Edit, Glob,
+Grep, and Bash.</p>
+<p>But it was missing the parts that make Claude Code actually usable day-to-day:
+session resume, context compaction, model switching, and the permission system
+that asks before writing to your filesystem.</p>
+<p>This post covers three phases built in one session.</p>
+<h2 id="phase-2-commands-that-need-the-engine">Phase 2: Commands That Need the Engine</h2>
+<p>Phase 1's slash commands were simple: <code>/help</code> returns a string, <code>/cost</code> reads
+a counter, <code>/exit</code> breaks the loop. They didn't need to touch the conversation
+state.</p>
+<p>The new commands do. <code>/compact</code> rewrites the message history. <code>/resume</code> loads
+a different session into the engine. <code>/model</code> swaps the API model mid-conversation.</p>
+<p>The solution was splitting commands into sync and async:</p>
+<pre data-lang="rust" class="language-rust "><code class="language-rust" data-lang="rust">pub enum CommandResult {
+    Text(String),
+    Exit,
+    Async(AsyncCommand),
+}
+
+pub enum AsyncCommand {
+    Compact,
+    Resume(Option&lt;String&gt;),
+    Model(Option&lt;String&gt;),
+}
+</code></pre>
+<p>Sync commands return text immediately. Async commands get <code>&amp;mut Engine</code> and can
+do whatever they need.</p>
+<h3 id="compaction">Compaction</h3>
+<p>Claude Code's compaction is elaborate. Multiple strategies: reactive compact,
+context collapse, history snip, autocompact. A pipeline that runs sequentially
+with fallbacks.</p>
+<p>For claux I did the simple version: send the full conversation to Claude
+with "summarize this," then replace the history with the summary.</p>
+<pre data-lang="rust" class="language-rust "><code class="language-rust" data-lang="rust">pub async fn compact(&amp;mut self) -&gt; Result&lt;String&gt; {
+    let mut summary_messages = self.messages.clone();
+    summary_messages.push(Message::user(
+        &quot;Summarize the conversation so far...&quot;
+    ));
+
+    &#x2F;&#x2F; Stream the summary from Claude
+    let mut rx = self.client
+        .stream(&amp;summary_messages, &amp;self.system_prompt, &amp;[], self.max_tokens)
+        .await?;
+
+    let mut summary = String::new();
+    while let Some(event) = rx.recv().await {
+        match event {
+            ApiEvent::Text(t) =&gt; summary.push_str(&amp;t),
+            ApiEvent::Done =&gt; break,
+            &#x2F;&#x2F; ...
+        }
+    }
+
+    let old_count = self.messages.len();
+
+    &#x2F;&#x2F; Replace conversation with summary
+    self.messages = vec![
+        Message::user(&quot;Here is a summary of our conversation so far:&quot;),
+        Message::assistant_text(&amp;summary),
+    ];
+
+    Ok(format!(&quot;Compacted {} messages into summary.&quot;, old_count))
+}
+</code></pre>
+<p>It costs one API call but frees the entire context window. Good enough for now.
+The fancy multi-strategy pipeline from the TypeScript source is a future
+optimization.</p>
+<h3 id="session-resume">Session Resume</h3>
+<p>Sessions are JSONL files in <code>~/.local/share/claux/sessions/</code>. Each line is
+either metadata or a message. <code>/resume</code> lists them:</p>
+<pre><code>Recent sessions:
+  20260401-143022  claude-sonnet-4-20250514  12 msgs  &#x2F;home&#x2F;ducks&#x2F;dev&#x2F;claux
+  20260401-141855  claude-sonnet-4-20250514   4 msgs  &#x2F;home&#x2F;ducks&#x2F;dev&#x2F;llm-tui
+</code></pre>
+<p><code>/resume 2026</code> prefix-matches and loads the session back into the engine.
+<code>--resume</code> on the CLI does the same at startup.</p>
+<h3 id="model-switching">Model Switching</h3>
+<p><code>/model claude-opus-4-20250514</code> swaps the model mid-conversation. The engine
+updates the API client and resets the cost tracker. Your existing conversation
+continues with the new model.</p>
+<p>This is one line in Claude Code's TypeScript:
+<code>setMainLoopModelOverride(model)</code>. In Rust it's a method on the engine that
+propagates to the client. Same thing, more explicit.</p>
+<h2 id="phase-3-the-permission-system">Phase 3: The Permission System</h2>
+<p>This is the one that matters. Phase 1 auto-approved every tool call. That's
+fine for testing but you don't want an LLM running <code>rm -rf</code> without asking.</p>
+<p>Claude Code has five permission modes and a complex rule matching system with
+denial tracking, pattern-based matchers, and a classifier for auto mode. The
+TypeScript is hundreds of lines across multiple files.</p>
+<p>The Rust version has four modes and does the important thing: actually prompts
+the user.</p>
+<h3 id="the-flow">The Flow</h3>
+<p>When the engine wants to execute a write tool, the permission checker returns
+<code>Ask(summary)</code>. The engine sends a <code>PermissionRequest</code> event through the
+stream channel with a oneshot response channel:</p>
+<pre data-lang="rust" class="language-rust "><code class="language-rust" data-lang="rust">PermissionResult::Ask(summary) =&gt; {
+    let (resp_tx, resp_rx) = oneshot::channel();
+    let _ = tx.send(StreamEvent::PermissionRequest {
+        tool_name: name.clone(),
+        summary,
+        respond: resp_tx,
+    }).await;
+
+    match resp_rx.await {
+        Ok(PermissionResponse::Allow) =&gt; {
+            self.tools.execute(name, input.clone()).await?
+        }
+        Ok(PermissionResponse::AlwaysAllow) =&gt; {
+            self.permissions.always_allow(name);
+            self.tools.execute(name, input.clone()).await?
+        }
+        Ok(PermissionResponse::Deny) | Err(_) =&gt; ToolOutput {
+            content: &quot;Permission denied by user.&quot;.to_string(),
+            is_error: true,
+        },
+    }
+}
+</code></pre>
+<p>The REPL catches the event and shows:</p>
+<pre><code>  ⚡ bash: cargo test  (y)es &#x2F; (n)o &#x2F; (a)lways
+</code></pre>
+<p>Three options:</p>
+<ul>
+<li><strong>y</strong> — allow this once</li>
+<li><strong>n</strong> — deny, tool returns an error to Claude</li>
+<li><strong>a</strong> — always allow this tool for the rest of the session</li>
+</ul>
+<p>"Always allow" is stored in a <code>HashSet&lt;String&gt;</code> on the permission checker.
+Session-scoped, not persisted. If you restart, you're back to prompting.</p>
+<h3 id="the-modes">The Modes</h3>
+<pre data-lang="rust" class="language-rust "><code class="language-rust" data-lang="rust">pub enum PermissionMode {
+    Default,      &#x2F;&#x2F; reads auto-allow, writes prompt
+    AcceptEdits,  &#x2F;&#x2F; file edits auto-allow, bash prompts
+    Bypass,       &#x2F;&#x2F; everything allowed
+    Plan,         &#x2F;&#x2F; writes denied entirely
+}
+</code></pre>
+<p>Default is what you want for normal use. AcceptEdits is for when you trust the
+model with files but not shell commands. Plan is read-only exploration. Bypass
+is for when you're feeling reckless.</p>
+<h3 id="what-s-missing">What's Missing</h3>
+<p>Claude Code has pattern-based rules: "allow Bash when the command matches
+<code>git *</code>." The Rust version doesn't have this yet. It's tool-level granularity,
+not input-level.</p>
+<p>The auto mode classifier is also missing. Claude Code can automatically
+classify tool uses as safe/unsafe based on the input. That's a nice-to-have
+but the manual prompt covers the same ground.</p>
+<h2 id="where-we-are">Where We Are</h2>
+<p>Three phases, one session. The diff:</p>
+<table><thead><tr><th>Phase</th><th>Files Changed</th><th>Lines Added</th></tr></thead><tbody>
+<tr><td>1 (initial)</td><td>16 new</td><td>+1,200</td></tr>
+<tr><td>2 (commands)</td><td>5 modified</td><td>+235</td></tr>
+<tr><td>3 (permissions)</td><td>3 modified</td><td>+94</td></tr>
+</tbody></table>
+<p>Total: ~1,530 lines of Rust. The binary can:</p>
+<ul>
+<li>Stream chat with Claude</li>
+<li>Execute 6 tools (Read, Write, Edit, Glob, Grep, Bash)</li>
+<li><strong>Prompt before write operations</strong> (y/n/always)</li>
+<li><strong>Compact conversation</strong> to free context</li>
+<li><strong>Resume past sessions</strong></li>
+<li><strong>Switch models</strong> mid-conversation</li>
+<li>Track token usage and cost</li>
+<li>Persist sessions as JSONL</li>
+<li>One-shot mode (<code>-p "prompt"</code>)</li>
+</ul>
+<p>For comparison, the TypeScript source we're porting from is 512,000 lines
+across 1,900 files. We're at 1,530 lines across 18 files and have the core
+loop working.</p>
+<h2 id="what-s-next">What's Next</h2>
+<p>Phase 4 is the ratatui TUI — replacing the inline REPL with a proper
+alternate-screen terminal UI. That's where it starts looking like Claude Code
+instead of just behaving like it.</p>
+<p>Phase 5 is the Agent tool — spawning sub-conversations with scoped tool access.
+That's the feature that makes Claude Code feel like it has workers.</p>
+<p>But honestly, the inline REPL with permissions is already usable. The
+permission prompt was the last thing blocking daily use.</p>
+<hr />
+<p>Previous: <a href="/blog/2026/rewriting-claude-code-in-rust-with-claude/">Part 1: Rewriting Claude Code in Rust, With Claude</a></p>
+<p>Source: <a href="https://github.com/ducks/claux">github.com/ducks/claux</a></p>
+
+
+      
+        
+        
+
+        
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;inside-claude-codes-team-memory-sync&#x2F;">Inside Claude Code&#x27;s Team Memory Sync Engine</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 05, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">How Claude Code shares knowledge across your team: a file watcher, delta sync, secret scanner, and optimistic concurrency -- all hidden behind a directory you didn&#x27;t know existed.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-3&#x2F;">Rewriting Claude Code in Rust, Part 3: TUI, Agents, and Multi-Provider</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 04, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets a ratatui TUI, sub-agents, and support for any OpenAI-compatible endpoint. One session, start to finish.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;anthropic-shipped-a-gacha-pet-inside-claude-code&#x2F;">Anthropic Shipped a Gacha Pet Inside Claude Code</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 03, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Hidden in the Claude Code source: a complete virtual pet system with 18 species, rarity tiers, stats, animated ASCII sprites, and a soul generated by Claude itself.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-with-claude&#x2F;">Rewriting Claude Code in Rust, With Claude</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 01, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Claude Code&#x27;s TypeScript source leaked via a source map. I read the architecture and rewrote the core in Rust. Using Claude. Here&#x27;s Part 1.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;whoami-spec-declarative-identity&#x2F;">whoami: making identity a spec</a></h3>
+                  <div class="meta">
+                    
+                    <p>Mar 31, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">We made infrastructure declarative. We made workflows declarative. Identity is next. A structured format for describing yourself as a source of truth, not a projection.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/specifications">#specifications</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

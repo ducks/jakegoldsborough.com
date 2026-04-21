@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="We made infrastructure declarative. We made workflows declarative. Identity is next. A structured format for describing yourself as a source of truth, not a projection.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="whoami: making identity a spec">
+    <meta property="og:description" content="We made infrastructure declarative. We made workflows declarative. Identity is next. A structured format for describing yourself as a source of truth, not a projection.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;whoami-spec-declarative-identity&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="whoami: making identity a spec">
+    <meta name="twitter:description" content="We made infrastructure declarative. We made workflows declarative. Identity is next. A structured format for describing yourself as a source of truth, not a projection.">
+
+    <title>whoami: making identity a spec - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>whoami: making identity a spec</h1>
+      <div class="meta">
+        
+        <p>Mar 31, 2026</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/specifications">#specifications</a></p>
+          
+        </div>
+      
+
+      <p>There's a weird gap in how we describe ourselves.</p>
+<p>We have resumes. We have GitHub profiles. We have bios. We have LinkedIn. We have random README files. We have scattered fragments of "who we are" across the internet.</p>
+<p>But none of it is composable. None of it is structured in a way that machines can actually use.</p>
+<p>And more importantly, none of it feels true. A resume is what you think will pass filters. A bio is what you think sounds impressive. None of them are just you, described plainly.</p>
+<h2 id="the-problem">The Problem</h2>
+<p>Every system asks you the same question: "Who are you?"</p>
+<p>And every time, you answer it slightly differently.</p>
+<ul>
+<li>A resume is optimized for hiring filters</li>
+<li>A bio is optimized for attention</li>
+<li>A README is optimized for developers</li>
+<li>A cover letter is optimized for a specific role</li>
+</ul>
+<p>These are all projections. Views. Slices.</p>
+<p>But there's no canonical source. There's no spec.</p>
+<h2 id="what-if-identity-was-declarative">What if Identity Was Declarative?</h2>
+<p>I've been thinking about this pattern lately.</p>
+<p>Infrastructure became manageable when we made it declarative.</p>
+<p>Instead of: "run these steps to set up a server"</p>
+<p>We moved to: "this is what the server is"</p>
+<p>That shift unlocked everything:</p>
+<ul>
+<li>Reproducibility</li>
+<li>Composability</li>
+<li>Tooling</li>
+<li>Automation</li>
+</ul>
+<p>So what happens if we apply that to identity?</p>
+<h2 id="introducing-whoami-spec">Introducing whoami-spec</h2>
+<p><a href="https://github.com/ducks/whoami-spec">whoami-spec</a> is a simple idea: define yourself in a structured, declarative format.</p>
+<p>Not for a platform. Not for a resume. But as a source of truth.</p>
+<pre data-lang="toml" class="language-toml "><code class="language-toml" data-lang="toml">version = &quot;20260330&quot;
+
+[person]
+name = &quot;Jake Goldsborough&quot;
+roles = [&quot;backend engineer&quot;, &quot;infrastructure engineer&quot;]
+
+[communication]
+style = &quot;direct, no fluff, technical peer not cheerleader&quot;
+emoji_in_code = false
+
+[technical.languages]
+primary = [&quot;rust&quot;, &quot;typescript&quot;, &quot;bash&quot;]
+
+[technical.tools]
+editor = &quot;vim&quot;
+shell = &quot;zsh&quot;
+
+[[projects.active]]
+name = &quot;skillz&quot;
+path = &quot;~&#x2F;dev&#x2F;skillz&quot;
+description = &quot;Claude Code skill package manager&quot;
+tech = [&quot;rust&quot;, &quot;clap&quot;]
+
+[preferences.code]
+tabs_or_spaces = &quot;spaces&quot;
+testing_philosophy = &quot;integration-over-unit&quot;
+
+[boundaries]
+no = [&quot;docker for single-VPS (use systemd)&quot;, &quot;unnecessary frameworks&quot;]
+yes = [&quot;ship early, iterate&quot;, &quot;boring technology&quot;, &quot;explicit over implicit&quot;]
+</code></pre>
+<p>This isn't meant to be complete. It's meant to be composable.</p>
+<h2 id="why-this-matters">Why This Matters</h2>
+<p>Once identity is structured, you derive views from it instead of rewriting yourself.</p>
+<p>Your <code>boundaries.yes</code> becomes your personal README:</p>
+<blockquote>
+<p>I ship early and iterate. I prefer boring technology. I value explicit over implicit.</p>
+</blockquote>
+<p>Your <code>communication.style</code> becomes context for AI tools:</p>
+<blockquote>
+<p>Jake prefers direct communication with no fluff. Treat him as a technical peer, not someone who needs encouragement.</p>
+</blockquote>
+<p>Your <code>technical.languages.primary</code> becomes a skills section:</p>
+<blockquote>
+<p>Primary languages: Rust, TypeScript, Bash</p>
+</blockquote>
+<p>Same source. Different projections. You maintain one canonical file and generate everything else from it.</p>
+<p>This is the same pattern as Nix for systems or Terraform for infrastructure. Define once. Project everywhere.</p>
+<h2 id="what-it-looks-like">What It Looks Like</h2>
+<p>The spec is optional sections around a version field:</p>
+<pre data-lang="toml" class="language-toml "><code class="language-toml" data-lang="toml">version = &quot;20260330&quot;
+
+[person]              # who you are
+[communication]       # how you work with others
+[technical]           # your stack
+[preferences]         # code style, architecture choices
+[projects]            # what you&#x27;re building
+[boundaries]          # hard constraints and principles
+</code></pre>
+<p>Everything is optional except <code>version</code>. Start minimal:</p>
+<pre data-lang="toml" class="language-toml "><code class="language-toml" data-lang="toml">version = &quot;20260330&quot;
+
+[person]
+name = &quot;Your Name&quot;
+roles = [&quot;your role&quot;]
+</code></pre>
+<p>Expand as needed. Add sections when they're useful.</p>
+<h2 id="the-cli-tool">The CLI Tool</h2>
+<p>The <code>whoami</code> CLI helps manage your profile:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash"># Create a profile interactively
+whoami init
+
+# Show your profile in readable format
+whoami show
+
+# Validate a profile
+whoami ~&#x2F;.config&#x2F;agent&#x2F;whoami.toml
+</code></pre>
+<p>The profile lives at <code>~/.config/agent/whoami.toml</code> by default. You can set <code>AGENT_WHOAMI</code> to point elsewhere.</p>
+<p>Tools that support the spec can read it automatically. No copy/paste, no re-explaining context every time.</p>
+<h2 id="identity-as-infrastructure">Identity as Infrastructure</h2>
+<p>This is the part that clicked for me.</p>
+<p>We treat infrastructure as something worth modeling precisely. But identity? We leave it fuzzy.</p>
+<p>Yet identity is upstream of everything:</p>
+<ul>
+<li>What you build</li>
+<li>How you work</li>
+<li>Who you collaborate with</li>
+<li>What problems you care about</li>
+</ul>
+<p>If anything deserves a spec, it's that.</p>
+<h2 id="not-another-profile">Not Another Profile</h2>
+<p>This isn't trying to compete with LinkedIn.</p>
+<p>It's closer to:</p>
+<ul>
+<li>A <code>.gitconfig</code> for yourself</li>
+<li>A <code>flake.nix</code> for your identity</li>
+<li>A <code>Cargo.toml</code> for who you are</li>
+</ul>
+<p>Something local-first. Something you own. Something you can version.</p>
+<h2 id="use-cases">Use Cases</h2>
+<p><strong>What works today:</strong></p>
+<p>Store your preferences in one place. Version control your identity with git. Share your <code>whoami.toml</code> in dotfiles. Run <code>whoami show</code> to see your profile formatted.</p>
+<p><strong>What's being built:</strong></p>
+<p>Claude Code integration to load your profile as context automatically. Resume and bio generators that read your <code>whoami.toml</code>. Team profile templates for specific domains.</p>
+<p><strong>What could exist:</strong></p>
+<p>Match collaborators by technical overlap. Generate onboarding docs from team profiles. Create project READMEs that match your documented style. Feed your preferences to any AI tool that supports the spec.</p>
+<h2 id="current-status">Current Status</h2>
+<p>Right now, it's a spec and a CLI tool:</p>
+<ul>
+<li>Spec at v20260330 (date-based versioning)</li>
+<li>CLI for creating, validating, and displaying profiles</li>
+<li>Example profiles for reference</li>
+<li>Written in Rust, published to crates.io</li>
+</ul>
+<p>What's missing:</p>
+<ul>
+<li>Tools that generate artifacts (resumes, bios, sites)</li>
+<li>Integration with Claude Code and other AI tools</li>
+<li>Matching/discovery systems</li>
+<li>Profile templates for specific domains</li>
+</ul>
+<p>The foundation is there. Now it's about building on it.</p>
+<h2 id="where-this-could-go">Where This Could Go</h2>
+<p>You can already imagine:</p>
+<ul>
+<li>Tools that generate artifacts from it</li>
+<li>Matching systems for collaborators</li>
+<li>Better onboarding into teams</li>
+<li>LLMs that actually understand context about you</li>
+<li>Portable identity across platforms</li>
+</ul>
+<p>And more interestingly: you stop thinking of identity as something you write, and start thinking of it as something you model.</p>
+<h2 id="closing">Closing</h2>
+<p>This is a small idea. But it feels like one of those primitives that unlocks a lot.</p>
+<p>We've made infrastructure declarative. We've started doing it for workflows and reasoning.</p>
+<p>Identity feels like the next obvious step.</p>
+<p>I don't think this is a product. It feels more like infrastructure.</p>
+<p>And infrastructure tends to win quietly.</p>
+<h2 id="links">Links</h2>
+<ul>
+<li><a href="https://github.com/ducks/whoami-spec">whoami-spec on GitHub</a></li>
+<li><a href="https://crates.io/crates/whoami-cli">whoami-cli on crates.io</a></li>
+<li><a href="https://github.com/ducks/whoami-spec/blob/main/SPEC.md">Specification</a></li>
+<li><a href="https://github.com/ducks/whoami-spec/tree/main/examples">Examples</a></li>
+</ul>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;jobchain-verifiable-employment-credentials&#x2F;">Jobchain: Verifiable Employment Credentials</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 06, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">What if your employer signed a machine-verifiable reference letter when you started, not when you left? Jobchain issues W3C Verifiable Credentials with Ed25519 signatures. No blockchain, no platform, no PDF.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/specifications">#specifications</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-3&#x2F;">Rewriting Claude Code in Rust, Part 3: TUI, Agents, and Multi-Provider</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 04, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets a ratatui TUI, sub-agents, and support for any OpenAI-compatible endpoint. One session, start to finish.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-2&#x2F;">Rewriting Claude Code in Rust, Part 2: Sessions, Commands, and Permissions</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 02, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets session management, compaction, model switching, and an interactive permission system. Three phases in one sitting.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-with-claude&#x2F;">Rewriting Claude Code in Rust, With Claude</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 01, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Claude Code&#x27;s TypeScript source leaked via a source map. I read the architecture and rewrote the core in Rust. Using Claude. Here&#x27;s Part 1.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;skillz-package-manager-for-claude-skills&#x2F;">skillz: A Package Manager for Claude Code Skills</a></h3>
+                  <div class="meta">
+                    
+                    <p>Mar 30, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">Claude Code has a skill system. There&#x27;s no package manager for it. So I built one. 200 lines of Rust, installs from GitHub, published to crates.io.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/cli">#cli</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

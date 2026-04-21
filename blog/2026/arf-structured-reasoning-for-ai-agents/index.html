@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Moving beyond chat prompts to structured agent communication. Why unstructured data lets LLMs run wild, and how ARF enforces what&#x2F;why&#x2F;how before acting.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="ARF: Structured Reasoning for AI Agents">
+    <meta property="og:description" content="Moving beyond chat prompts to structured agent communication. Why unstructured data lets LLMs run wild, and how ARF enforces what&#x2F;why&#x2F;how before acting.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;arf-structured-reasoning-for-ai-agents&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="ARF: Structured Reasoning for AI Agents">
+    <meta name="twitter:description" content="Moving beyond chat prompts to structured agent communication. Why unstructured data lets LLMs run wild, and how ARF enforces what&#x2F;why&#x2F;how before acting.">
+
+    <title>ARF: Structured Reasoning for AI Agents - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>ARF: Structured Reasoning for AI Agents</h1>
+      <div class="meta">
+        
+        <p>Feb 02, 2026</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <h3 id="the-problem-with-prompts">The Problem with Prompts</h3>
+<p>The deeper I get into building with LLMs, the more I realize the "chat prompt"
+model works but could be better.</p>
+<p>When you give an agent an unstructured prompt, it runs with it. Sometimes
+brilliantly. Sometimes it hallucinates a photographer named "Chris Lawton"
+because it couldn't parse a webpage and decided to make something up instead
+of saying "I don't know." The lack of structure means the agent decides what
+matters, what to skip, and what to invent.</p>
+<p>This is fine for casual Q&amp;A. It falls apart when you're building tools that
+need to be auditable, reviewable, or predictable.</p>
+<h3 id="from-lok-to-arf">From lok to ARF</h3>
+<p>I've been building <a href="https://github.com/ducks/lok">lok</a>, an LLM orchestration
+tool that runs multi-step workflows across different backends. One thing
+became clear: the more structure I added, the better the results.</p>
+<p>Workflows with explicit steps, defined inputs, and expected outputs work.
+Workflows that just say "figure it out" produce garbage as often as gold.</p>
+<p>This led to a question: what if we standardized how agents communicate their
+reasoning? Not just "here's my answer" but "here's what I'm doing, why I'm
+doing it, how I plan to do it, and what I'll do if it fails."</p>
+<p>The result is ARF (Agent Reasoning Format), a simple spec for structured
+agent reasoning.</p>
+<h3 id="the-format">The Format</h3>
+<p>ARF records are TOML files with required and optional fields:</p>
+<pre data-lang="toml" class="language-toml "><code class="language-toml" data-lang="toml">what = &quot;Add retry logic to API client&quot;
+why = &quot;Transient failures causing user-visible errors&quot;
+how = &quot;Exponential backoff with 3 retries, circuit breaker after 5 failures&quot;
+backup = &quot;Revert to synchronous error handling if latency increases&quot;
+timestamp = &quot;2026-02-02T15:14:32Z&quot;
+commit = &quot;8ae882e6&quot;
+</code></pre>
+<p>Two fields are required:</p>
+<ul>
+<li><strong>what</strong>: The concrete action being taken</li>
+<li><strong>why</strong>: The reasoning behind the approach</li>
+</ul>
+<p>Two fields are recommended:</p>
+<ul>
+<li><strong>how</strong>: Implementation details</li>
+<li><strong>backup</strong>: Rollback plan if it fails</li>
+</ul>
+<p>The backup field is the interesting one. Forcing agents to declare a rollback
+plan before acting means they have to think about failure modes. It's the
+difference between "I'll refactor this function" and "I'll refactor this
+function, and if tests fail I'll revert to the original implementation."</p>
+<h3 id="storage-orphan-branches">Storage: Orphan Branches</h3>
+<p>ARF records need to live somewhere. The options were:</p>
+<ol>
+<li>Git notes (invisible, sync friction)</li>
+<li>Nested repo (coordination overhead)</li>
+<li>Orphan branch (separate history, same repo)</li>
+</ol>
+<p>I ran a <a href="https://github.com/ducks/lok">lok debate</a> across four LLM backends
+to evaluate the tradeoffs. All four converged on orphan branches.</p>
+<p>The approach uses git worktrees to mount an orphan branch at <code>.arf/</code>:</p>
+<pre><code>your-repo&#x2F;
+├── .arf&#x2F;              # Mounted worktree (arf branch)
+│   └── records&#x2F;
+│       └── 8ae882e6&#x2F;  # Records by commit SHA
+│           └── claude-20260202-151432.toml
+├── .git&#x2F;
+└── src&#x2F;
+</code></pre>
+<p>Records are organized by commit SHA. When you record reasoning, it links to
+the commit you're working on. The <code>.arf/</code> directory is gitignored from the
+main branch but has its own history on the orphan branch.</p>
+<p>This keeps reasoning history completely separate from code history. You can
+push, pull, and sync reasoning records without touching your main branch.</p>
+<h3 id="the-cli">The CLI</h3>
+<p>The reference implementation is a Rust CLI:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash"># Initialize ARF tracking
+arf init
+
+# Record reasoning for current work
+arf record --what &quot;Add graph command&quot; \
+           --why &quot;Need unified view of git history with reasoning&quot;
+
+# View reasoning log
+arf log
+
+# Combined visualization
+arf graph
+</code></pre>
+<p>The <code>arf graph</code> command shows git commits alongside their reasoning records:</p>
+<pre><code>Git + ARF History:
+
+├─● 8ae882e Add diff command with ARF reasoning context
+│  └─ what: Add diff command
+│      why: Combine git diff with ARF reasoning for full context review
+│      how: Shows reasoning header then git show output
+├─● 5604413 Add graph command for unified git+arf visualization
+│  └─ what: Add graph command
+│      why: User requested visualization combining git commits with reasoning
+│      how: Matches commit SHAs to .arf&#x2F;records&#x2F; directories
+├─● 8ec6c98 Add ARF CLI reference implementation
+│  └─ what: Implement ARF CLI v0.1
+│      why: Need reference implementation for spec
+│      how: Rust CLI with init&#x2F;record&#x2F;log&#x2F;sync commands
+└─● 3384a83 Initial ARF spec v0.1
+</code></pre>
+<p>The <code>arf diff</code> command shows a single commit with reasoning context:</p>
+<pre><code>═══════════════════════════════════════════════════════════════
+Commit: 8ae882e Add diff command with ARF reasoning context
+═══════════════════════════════════════════════════════════════
+
+REASONING:
+  what: Add diff command
+  why:  Combine git diff with ARF reasoning for full context review
+  how:  Shows reasoning header then git show output
+
+───────────────────────────────────────────────────────────────
+CHANGES:
+
+ src&#x2F;main.rs | 118 +++++++++++++++++++++++++++
+ 1 file changed, 118 insertions(+)
+</code></pre>
+<p>This is "review the reasoning, not just the diff."</p>
+<h3 id="why-this-matters">Why This Matters</h3>
+<p>The shift happening in AI tooling is from unstructured to structured. Chat
+interfaces are training wheels. Production systems need:</p>
+<ul>
+<li><strong>Declared intent</strong>: What are you trying to do?</li>
+<li><strong>Explicit reasoning</strong>: Why this approach?</li>
+<li><strong>Failure planning</strong>: What if it breaks?</li>
+<li><strong>Audit trails</strong>: What happened and why?</li>
+</ul>
+<p>ARF is one piece of this. It's not a replacement for git commit messages or
+PR descriptions. It's a parallel track for capturing reasoning that doesn't
+belong in code history but shouldn't be lost.</p>
+<p>When an agent makes a change, the diff shows what changed. The ARF record
+shows why that approach was chosen over alternatives, what tradeoffs were
+considered, and what the rollback plan is.</p>
+<h3 id="using-it">Using It</h3>
+<p>The spec and CLI are on GitHub:
+<a href="https://github.com/ducks/arf">github.com/ducks/arf</a></p>
+<p>Install with Cargo:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">cargo install --git https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;arf
+</code></pre>
+<p>The format is intentionally minimal. Four fields, two required. Easy to
+generate, easy to parse, easy to extend.</p>
+<p>If you're building agent tooling and want structured reasoning, try it out.</p>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;jobchain-verifiable-employment-credentials&#x2F;">Jobchain: Verifiable Employment Credentials</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 06, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">What if your employer signed a machine-verifiable reference letter when you started, not when you left? Jobchain issues W3C Verifiable Credentials with Ed25519 signatures. No blockchain, no platform, no PDF.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/specifications">#specifications</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-3&#x2F;">Rewriting Claude Code in Rust, Part 3: TUI, Agents, and Multi-Provider</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 04, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets a ratatui TUI, sub-agents, and support for any OpenAI-compatible endpoint. One session, start to finish.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-2&#x2F;">Rewriting Claude Code in Rust, Part 2: Sessions, Commands, and Permissions</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 02, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets session management, compaction, model switching, and an interactive permission system. Three phases in one sitting.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-with-claude&#x2F;">Rewriting Claude Code in Rust, With Claude</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 01, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Claude Code&#x27;s TypeScript source leaked via a source map. I read the architecture and rewrote the core in Rust. Using Claude. Here&#x27;s Part 1.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;whoami-spec-declarative-identity&#x2F;">whoami: making identity a spec</a></h3>
+                  <div class="meta">
+                    
+                    <p>Mar 31, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">We made infrastructure declarative. We made workflows declarative. Identity is next. A structured format for describing yourself as a source of truth, not a projection.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/specifications">#specifications</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

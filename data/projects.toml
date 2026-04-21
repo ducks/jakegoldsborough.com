@@ -13,9 +13,9 @@ url = "https://github.com/ducks/shelltrax"
 description = "A cmus-inspired terminal music player written in Rust. Lightweight, keyboard-driven playback with playlist management."
 
 [[categories.projects]]
-name = "llm-tui"
-url = "https://github.com/ducks/llm-tui"
-description = "TUI for Ollama chat with vim bindings and project-based session management. Local LLM conversations organized by context."
+name = "claux"
+url = "https://github.com/ducks/claux"
+description = "Terminal-based AI coding assistant written in Rust. Streaming chat with tool execution, session persistence, compaction, sub-agents, and multi-provider support (Anthropic, OpenAI, Ollama)."
 
 [[categories.projects]]
 name = "discourse-tui"
@@ -26,35 +26,6 @@ description = "Browse Discourse forums from the terminal. Navigate categories, r
 name = "vim-navigator-rs"
 url = "https://github.com/ducks/vim-navigator-rs"
 description = "Vim-style modal editing and navigation for Ratatui TUIs. Reusable component for building vim-like interfaces in terminal applications."
-
-[[categories]]
-name = "Discourse Plugins"
-description = "Extensions for Discourse forums. Built during my work at Discourse and for personal experimentation."
-
-[[categories.projects]]
-name = "discourse-yaks"
-url = "https://github.com/ducks/discourse-yaks"
-description = "Virtual currency system for Discourse. Users earn and spend \"Yaks\" to unlock premium post features like colored highlights, pins, and boosts. Includes wallet management and transaction history."
-
-[[categories.projects]]
-name = "discourse-guest-spot"
-url = "https://github.com/ducks/discourse-guest-spot"
-description = "Transforms Discourse into a dual-purpose platform for tattoo artists: public Instagram-style showcase combined with a private, invite-only community."
-
-[[categories.projects]]
-name = "discourse-transit-tracker"
-url = "https://github.com/ducks/discourse-transit-tracker"
-description = "Split-flap departure board plugin for Discourse. Display real-time transit information with retro airport aesthetic."
-
-[[categories.projects]]
-name = "discourse-invite-stats"
-url = "https://github.com/ducks/discourse-invite-stats"
-description = "Visualizes invite relationships as an ASCII tree, showing how users invited each other to join the community."
-
-[[categories.projects]]
-name = "discourse-frndr"
-url = "https://github.com/ducks/discourse-frndr"
-description = "Friend finding app built on Discourse. Match people based on interests and compatibility."
 
 [[categories]]
 name = "Neovim Plugins"
@@ -80,9 +51,9 @@ name = "Development Tools"
 description = "Command-line tools and libraries for developers. Automation, infrastructure, and API clients."
 
 [[categories.projects]]
-name = "lok"
-url = "https://github.com/ducks/lok"
-description = "Multi-LLM orchestration CLI. Run prompts across Claude, Codex, Gemini, and Ollama in parallel with built-in tasks for code review, security audits, and N+1 detection."
+name = "llm-mux"
+url = "https://github.com/ducks/llm-mux"
+description = "Multiplexer for LLMs. Route prompts to multiple backends, run them in parallel, and orchestrate multi-step workflows across Claude, Codex, Gemini, Ollama, and any OpenAI-compatible endpoint."
 
 [[categories.projects]]
 name = "jobl"
@@ -141,6 +112,16 @@ description = "Browser-based tools and services. Mapping and route generation."
 name = "slumprutt"
 url = "https://github.com/ducks/slumprutt"
 description = "Generate random walking, cycling, or driving routes for your next adventure. Built with Svelte."
+
+[[categories.projects]]
+name = "beanledger"
+url = "https://beanledger.coffee"
+description = "Multi-tenant SaaS production planner for specialty coffee roasteries. Imports orders from ShipStation/TRADE/Square, calculates green coffee needs from roast loss and leftovers, and generates daily pick lists for the roasting floor."
+
+[[categories.projects]]
+name = "isitreal.estate"
+url = "https://isitreal.estate"
+description = "Crowd-sourced reviews for real estate listings, tied to physical addresses instead of ephemeral listings. Waze, but for house hunting — see what people actually found when they visited."
 
 [[categories]]
 name = "Experiments"

@@ -1,7 +1,7 @@
 ---
 title: "shellbooks: A Terminal Audiobook Player"
 date: 2026-05-04
-description: "A cmus-inspired terminal audiobook player and library manager, with chapters, series, and per-book progress that survives a crash."
+description: "A cmus-inspired terminal audiobook player for Linux and macOS. Open source, offline-first, with chapters, series, and per-book progress that survives a crash."
 taxonomies:
   tags:
     - rust
@@ -17,9 +17,11 @@ So I built [shellbooks](https://github.com/ducks/shellbooks).
 cargo install shellbooks
 ```
 
-It's a TUI audiobook player and library manager. cmus-inspired keybinds, ratatui rendering, rodio for audio, the same shape as the other two shell\* tools.
+It's a TUI audiobook player and library manager. cmus-inspired keybinds, ratatui rendering, rodio for audio, the same shape as the other two shell\* tools. Open source, offline-first, runs on Linux and macOS.
 
 ## Why audiobooks need their own player
+
+I wanted a CLI audiobook player that follows the cmus conventions I already use for music. A real TUI audiobook player on Linux, not a GUI app shoved into a terminal window.
 
 Music players treat tracks as the unit. Podcast players treat episodes as the unit. Audiobooks need the *book* as the unit, with chapters as the unit *inside* a book. That changes a few things:
 

@@ -29,10 +29,14 @@
 
   button.addEventListener('click', function () {
     // Fire the GoatCounter event. count.js loads async, so guard the call.
+    // GoatCounter event paths can't start with '/' — the path doubles as
+    // the event name. Encode the post path into the event name so each
+    // post gets its own row in the Events view.
+    var eventName = 'helpful' + path.replace(/\//g, '-').replace(/-+$/, '');
     if (window.goatcounter && window.goatcounter.count) {
       window.goatcounter.count({
-        path: path + '#helpful',
-        title: 'Helpful click',
+        path: eventName,
+        title: 'Helpful click: ' + path,
         event: true
       });
     }

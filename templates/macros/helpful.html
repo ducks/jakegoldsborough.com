@@ -1,0 +1,14 @@
+{# Renders a "Was this helpful?" button for a post.
+   Pass the page so we can use its path as a stable key for both the
+   GoatCounter event and the localStorage entry. #}
+{% macro widget(page) %}
+  <aside class="helpful" data-helpful-path="{{ page.path }}">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+{% endmacro widget %}

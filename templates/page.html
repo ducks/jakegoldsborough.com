@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% import "macros/helpful.html" as helpful %}
 
 {% block hero %}
   {% if page.components | first != "blog" %}
@@ -26,6 +27,8 @@
       {% endif %}
 
       {{ page.content | safe }}
+
+      {{ helpful::widget(page=page) }}
 
       {% if page.taxonomies and page.taxonomies.tags %}
         {% set_global related = [] %}

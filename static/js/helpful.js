@@ -1,6 +1,7 @@
 // "Was this helpful?" widget.
-// Records a positive-only vote to GoatCounter and keeps the click
-// from re-firing in the same browser via localStorage.
+// GoatCounter records the click itself via data-goatcounter-click on the
+// button. This script only persists the click in localStorage and swaps
+// the visual state so the button doesn't reappear in the same browser.
 
 (function () {
   var widget = document.querySelector('.helpful[data-helpful-path]');
@@ -28,18 +29,6 @@
   }
 
   button.addEventListener('click', function () {
-    // Fire the GoatCounter event. count.js loads async, so guard the call.
-    // GoatCounter event paths can't start with '/' — the path doubles as
-    // the event name. Encode the post path into the event name so each
-    // post gets its own row in the Events view.
-    var eventName = 'helpful' + path.replace(/\//g, '-').replace(/-+$/, '');
-    if (window.goatcounter && window.goatcounter.count) {
-      window.goatcounter.count({
-        path: eventName,
-        title: 'Helpful click: ' + path,
-        event: true
-      });
-    }
     try {
       localStorage.setItem(storageKey, Date.now().toString());
     } catch (e) {

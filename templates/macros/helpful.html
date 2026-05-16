@@ -1,13 +1,24 @@
 {# Renders a "Was this helpful?" button for a post.
-   Pass the page so we can use its path as a stable key for both the
-   GoatCounter event and the localStorage entry. #}
+   GoatCounter auto-binds the click via data-goatcounter-click — our JS
+   only handles localStorage + the visual state swap.
+
+   Event name = "helpful-" + slugified post path so each post is its own
+   row in the Events view. Slashes become dashes; GoatCounter rejects
+   event paths that start with '/'. #}
 {% macro widget(page) %}
+  {# Build the event name: slugify the post path so each post is its own
+     row in the Events view. GoatCounter rejects event paths starting with
+     '/', so strip and replace inner slashes with dashes. #}
+  {% set slug = page.path | replace(from="/", to="-") | trim_start_matches(pat="-") | trim_end_matches(pat="-") %}
+  {% set event_name = "helpful-" ~ slug %}
   <aside class="helpful" data-helpful-path="{{ page.path }}">
     <p class="helpful-prompt">Was this helpful?</p>
     <button
       type="button"
       class="helpful-button"
       data-helpful-action="vote"
+      data-goatcounter-click="{{ event_name }}"
+      data-goatcounter-title="Helpful click on {{ slug }}"
     >Yep, this helped</button>
     <p class="helpful-thanks" hidden>✓ Glad it helped</p>
   </aside>

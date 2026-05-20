@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - cli</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/cli/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Mon, 30 Mar 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>skillz: A Package Manager for Claude Code Skills</title>
+          <pubDate>Mon, 30 Mar 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/skillz-package-manager-for-claude-skills/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/skillz-package-manager-for-claude-skills/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/skillz-package-manager-for-claude-skills/">&lt;p&gt;Claude Code has a skill system. You write a markdown file with instructions, drop it in &lt;code&gt;~&#x2F;.claude&#x2F;skills&#x2F;&lt;&#x2F;code&gt;, and Claude learns a new workflow. The skill persists across sessions. You don&#x27;t re-paste prompts every time.&lt;&#x2F;p&gt;
+&lt;p&gt;The problem: there&#x27;s no way to share skills. Someone builds a useful skill (daily notes, API doc generation, database migrations). You want it. Your options: clone the repo, copy files manually, symlink, write a script to manage it.&lt;&#x2F;p&gt;
+&lt;p&gt;That&#x27;s why I built skillz. It&#x27;s a package manager for Claude Code skills. Install from GitHub, track updates, share your own.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-is-a-skill&quot;&gt;What is a Skill?&lt;&#x2F;h2&gt;
+&lt;p&gt;A skill is a markdown file that tells Claude Code how to perform a specific task. When invoked, Claude reads the skill file and follows its instructions.&lt;&#x2F;p&gt;
+&lt;p&gt;Example skill (&lt;code&gt;daily-notes&#x2F;SKILL.md&lt;&#x2F;code&gt;):&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;markdown&quot; class=&quot;language-markdown &quot;&gt;&lt;code class=&quot;language-markdown&quot; data-lang=&quot;markdown&quot;&gt;# Daily Notes Skill
+
+Generate a daily note with structured sections.
+
+## Instructions
+
+When the user invokes this skill:
+
+1. Get today&amp;#x27;s date in YYYY-MM-DD format
+2. Create a file at `~&amp;#x2F;notes&amp;#x2F;YYYY&amp;#x2F;YYYY-MM-DD.md`
+3. Add these sections:
+   - ## Tasks
+   - ## Meeting Notes
+   - ## Ideas
+4. Confirm the file was created
+
+## Usage
+
+User says: &amp;quot;create today&amp;#x27;s note&amp;quot;
+You respond by creating the structured markdown file.
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;That&#x27;s it. Skills are prompts, but packaged for reuse. Claude Code loads all skills from &lt;code&gt;~&#x2F;.claude&#x2F;skills&#x2F;&lt;&#x2F;code&gt; on startup. When you ask Claude to &quot;create today&#x27;s note&quot;, it knows how to do it.&lt;&#x2F;p&gt;
+&lt;p&gt;Skills vs alternatives:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Prompt libraries&lt;&#x2F;strong&gt;: Skills live in your filesystem, Claude loads them automatically&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Copy&#x2F;paste snippets&lt;&#x2F;strong&gt;: Skills persist across sessions, no need to re-paste&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Claude Projects&lt;&#x2F;strong&gt;: Projects are context, skills are executable workflows&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;usage&quot;&gt;Usage&lt;&#x2F;h2&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;# Create a new skill from template
+skillz new my-skill
+
+# Search for skills on GitHub
+skillz search &amp;quot;daily notes&amp;quot;
+
+# Install from GitHub
+skillz install github:user&amp;#x2F;repo
+
+# Install from a URL
+skillz install https:&amp;#x2F;&amp;#x2F;github.com&amp;#x2F;user&amp;#x2F;repo
+
+# List installed skills with sync timestamps
+skillz list
+
+# Update a specific skill
+skillz update repo
+
+# Update all skills
+skillz update
+
+# Auto-sync on startup (quiet mode for scripts)
+skillz update --auto
+
+# Remove a skill
+skillz remove repo
+
+# Configure install location
+skillz config set skills-dir ~&amp;#x2F;.dotfiles&amp;#x2F;claude&amp;#x2F;skills
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Skills install to &lt;code&gt;~&#x2F;.claude&#x2F;skills&#x2F;&lt;&#x2F;code&gt; by default. Claude Code reads from there automatically. Change the location if you keep skills in dotfiles.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;how-it-works&quot;&gt;How It Works&lt;&#x2F;h2&gt;
+&lt;p&gt;A skill repository needs a &lt;code&gt;SKILL.md&lt;&#x2F;code&gt; file. That&#x27;s it. No manifest, no metadata, no version field. The file defines what the skill does.&lt;&#x2F;p&gt;
+&lt;p&gt;skillz supports two layouts:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Flat layout&lt;&#x2F;strong&gt;: &lt;code&gt;SKILL.md&lt;&#x2F;code&gt; at the repository root (standard skills)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Plugin layout&lt;&#x2F;strong&gt;: &lt;code&gt;skills&#x2F;*&#x2F;SKILL.md&lt;&#x2F;code&gt; (Claude Code &lt;code&gt;.claude-plugin&lt;&#x2F;code&gt; directory structure)&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;The flat layout takes precedence if both exist. This means skillz can install both standalone skills and full Claude Code plugins that include multiple skills in the &lt;code&gt;skills&#x2F;&lt;&#x2F;code&gt; directory.&lt;&#x2F;p&gt;
+&lt;p&gt;When you run &lt;code&gt;skillz install github:user&#x2F;repo&lt;&#x2F;code&gt;, it:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;Clones the repository to a temp location&lt;&#x2F;li&gt;
+&lt;li&gt;Verifies &lt;code&gt;SKILL.md&lt;&#x2F;code&gt; exists (checks both layouts)&lt;&#x2F;li&gt;
+&lt;li&gt;Runs validation checks&lt;&#x2F;li&gt;
+&lt;li&gt;Moves the repo to &lt;code&gt;~&#x2F;.claude&#x2F;skills&#x2F;repo&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Removes the &lt;code&gt;.git&lt;&#x2F;code&gt; directory&lt;&#x2F;li&gt;
+&lt;li&gt;Records the install in the registry&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;If &lt;code&gt;SKILL.md&lt;&#x2F;code&gt; isn&#x27;t found in either location, the install fails. Everything else is optional. If there&#x27;s a &lt;code&gt;README.md&lt;&#x2F;code&gt;, it comes along. If there are helper scripts, they come along. The only requirement is that markdown file.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;why-not-just-clone&quot;&gt;Why Not Just Clone?&lt;&#x2F;h2&gt;
+&lt;p&gt;You could &lt;code&gt;git clone&lt;&#x2F;code&gt; skills manually. Or use Claude Projects. Or maintain a prompt library. Why skillz?&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;vs manual git clone:&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;skillz tracks what&#x27;s installed and where it came from&lt;&#x2F;li&gt;
+&lt;li&gt;Updates are &lt;code&gt;skillz update&lt;&#x2F;code&gt;, not &lt;code&gt;cd ~&#x2F;.claude&#x2F;skills&#x2F;foo &amp;amp;&amp;amp; git pull&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Consistent paths, clean uninstall&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;&lt;strong&gt;vs Claude Projects:&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Projects are context (files, notes, docs)&lt;&#x2F;li&gt;
+&lt;li&gt;Skills are executable workflows&lt;&#x2F;li&gt;
+&lt;li&gt;Skills work across all conversations, not just one project&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;&lt;strong&gt;vs prompt libraries:&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Prompt libraries require copy&#x2F;paste every session&lt;&#x2F;li&gt;
+&lt;li&gt;Skills load automatically on Claude Code startup&lt;&#x2F;li&gt;
+&lt;li&gt;Skills can include helper scripts and templates&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;skillz solves distribution and lifecycle management. Everything else is out of scope.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;tracking-and-updates&quot;&gt;Tracking and Updates&lt;&#x2F;h2&gt;
+&lt;p&gt;skillz maintains a registry at &lt;code&gt;~&#x2F;.config&#x2F;skillz&#x2F;registry.toml&lt;&#x2F;code&gt; that tracks:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Source URL for each skill&lt;&#x2F;li&gt;
+&lt;li&gt;Installation timestamp&lt;&#x2F;li&gt;
+&lt;li&gt;Last sync timestamp&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;When you run &lt;code&gt;skillz list&lt;&#x2F;code&gt;, you see when each skill was installed and last updated:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;Installed skills in &amp;#x2F;home&amp;#x2F;user&amp;#x2F;.claude&amp;#x2F;skills:
+
+  daily-notes - https:&amp;#x2F;&amp;#x2F;github.com&amp;#x2F;user&amp;#x2F;daily-notes
+    installed: 2026-03-25  |  last synced: 2026-03-30
+
+  api-docs - https:&amp;#x2F;&amp;#x2F;github.com&amp;#x2F;user&amp;#x2F;api-docs
+    installed: 2026-03-28  |  last synced: 2026-03-28
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Running &lt;code&gt;skillz update&lt;&#x2F;code&gt; pulls the latest version from GitHub and updates the sync timestamp. Update a specific skill or update all at once.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;skill-validation&quot;&gt;Skill Validation&lt;&#x2F;h2&gt;
+&lt;p&gt;Every install and update runs validation checks:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Basic checks:&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;SKILL.md exists&lt;&#x2F;li&gt;
+&lt;li&gt;Valid UTF-8 encoding&lt;&#x2F;li&gt;
+&lt;li&gt;Non-empty content&lt;&#x2F;li&gt;
+&lt;li&gt;Contains markdown headings&lt;&#x2F;li&gt;
+&lt;li&gt;File size under 1MB (warns if larger)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;&lt;strong&gt;Malicious command detection:&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;skillz scans for dangerous patterns and warns before installation:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Destructive rm commands (&lt;code&gt;rm -rf &#x2F;&lt;&#x2F;code&gt;, &lt;code&gt;~&lt;&#x2F;code&gt;, &lt;code&gt;*&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;Pipe to shell from internet (&lt;code&gt;curl | bash&lt;&#x2F;code&gt;, &lt;code&gt;wget | sh&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;Fork bombs&lt;&#x2F;li&gt;
+&lt;li&gt;Disk fill operations (&lt;code&gt;dd if=&#x2F;dev&#x2F;zero&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;Dangerous permissions (&lt;code&gt;chmod 777&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;System file modifications (&lt;code&gt;&#x2F;etc&#x2F;&lt;&#x2F;code&gt;, &lt;code&gt;&#x2F;bin&#x2F;&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;Crypto mining indicators&lt;&#x2F;li&gt;
+&lt;li&gt;Network listeners&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;eval&lt;&#x2F;code&gt; with variable expansion&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;sudo&lt;&#x2F;code&gt; without explanation&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;If validation warnings appear during install, you&#x27;re prompted to continue or cancel. Updates show warnings but proceed automatically.&lt;&#x2F;p&gt;
+&lt;p&gt;Example:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;Validation warnings:
+  ⚠ Line 23: Potentially dangerous command: rm -rf * (Attempts to delete all files recursively)
+  ⚠ Line 45: sudo command without explanation - verify this is necessary
+
+Proceed with installation? The skill will still work, but you should review these warnings.
+Continue? [y&amp;#x2F;N]
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This won&#x27;t catch everything, but it filters obvious red flags.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;creating-skills&quot;&gt;Creating Skills&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;code&gt;skillz new&lt;&#x2F;code&gt; scaffolds a new skill repository:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;skillz new my-skill
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This creates:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;SKILL.md&lt;&#x2F;code&gt; with template sections (what it does, usage, instructions, examples)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;README.md&lt;&#x2F;code&gt; with installation instructions&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;.gitignore&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Initialized git repository&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;After creating, edit &lt;code&gt;SKILL.md&lt;&#x2F;code&gt; with your skill prompt, commit to GitHub, and install with &lt;code&gt;skillz install github:username&#x2F;my-skill&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;searching-for-skills&quot;&gt;Searching for Skills&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;code&gt;skillz search&lt;&#x2F;code&gt; queries GitHub for Claude Code skills:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;skillz search &amp;quot;daily notes&amp;quot;
+skillz search automation
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Results are sorted by stars and include repository descriptions and install commands. The search uses GitHub&#x27;s repository API (no authentication required, though you can set &lt;code&gt;GITHUB_TOKEN&lt;&#x2F;code&gt; for higher rate limits).&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;full-example-installing-and-using-a-skill&quot;&gt;Full Example: Installing and Using a Skill&lt;&#x2F;h2&gt;
+&lt;p&gt;Find a skill:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;$ skillz search &amp;quot;daily notes&amp;quot;
+Found 3 skill repositories:
+
+  alice&amp;#x2F;daily-journal - ⭐ 24
+    Automated daily note generation with templates
+    https:&amp;#x2F;&amp;#x2F;github.com&amp;#x2F;alice&amp;#x2F;daily-journal
+    Install: skillz install https:&amp;#x2F;&amp;#x2F;github.com&amp;#x2F;alice&amp;#x2F;daily-journal
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Install it:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;$ skillz install github:alice&amp;#x2F;daily-journal
+Cloning repository...
+Validating SKILL.md...
+✓ Installed daily-journal to ~&amp;#x2F;.claude&amp;#x2F;skills&amp;#x2F;daily-journal
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Now restart Claude Code (or it loads on next session). Ask Claude:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;You: &amp;quot;create today&amp;#x27;s daily note&amp;quot;
+Claude: I&amp;#x27;ll create your daily note using the daily-journal skill.
+        Created: ~&amp;#x2F;notes&amp;#x2F;2026&amp;#x2F;2026-03-30.md with task, meeting, and ideas sections.
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The skill taught Claude a new workflow. No copy&#x2F;paste, no re-explaining. It just works.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;configuration&quot;&gt;Configuration&lt;&#x2F;h2&gt;
+&lt;p&gt;Config lives at &lt;code&gt;~&#x2F;.config&#x2F;skillz&#x2F;config.toml&lt;&#x2F;code&gt;:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;toml&quot; class=&quot;language-toml &quot;&gt;&lt;code class=&quot;language-toml&quot; data-lang=&quot;toml&quot;&gt;skills_dir = &amp;quot;~&amp;#x2F;.claude&amp;#x2F;skills&amp;quot;
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Change &lt;code&gt;skills_dir&lt;&#x2F;code&gt; if you sync skills via dotfiles or want them elsewhere. The path expands &lt;code&gt;~&lt;&#x2F;code&gt; correctly.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;publishing&quot;&gt;Publishing&lt;&#x2F;h2&gt;
+&lt;p&gt;The package is on crates.io as &lt;code&gt;skillz-rs&lt;&#x2F;code&gt; (the name &quot;skillz&quot; was taken). The binary is still called &lt;code&gt;skillz&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;cargo install skillz-rs
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;That gets you the CLI. No runtime dependencies, no config required. If you have Claude Code installed, skillz works.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;why-rust&quot;&gt;Why Rust&lt;&#x2F;h2&gt;
+&lt;p&gt;I wanted a single static binary with no dependencies. The tool does file operations, runs git commands, and calls GitHub&#x27;s API. Rust&#x27;s standard library handles all of that. No external HTTP clients needed—curl does the GitHub requests.&lt;&#x2F;p&gt;
+&lt;p&gt;The codebase is compact:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;src&amp;#x2F;
+├── main.rs        # CLI and command dispatch
+├── config.rs      # TOML config management
+├── registry.rs    # Skill tracking
+├── install.rs     # GitHub cloning
+├── update.rs      # Skill updates
+├── search.rs      # GitHub API search
+├── new.rs         # Skill scaffolding
+└── validate.rs    # Validation and malicious command detection
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Clap handles the CLI. The rest is file operations and process spawning.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;skill-structure-reference&quot;&gt;Skill Structure Reference&lt;&#x2F;h2&gt;
+&lt;p&gt;A valid skill repository contains:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Required:&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;SKILL.md&lt;&#x2F;code&gt; - The skill prompt&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;&lt;strong&gt;Optional:&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;README.md&lt;&#x2F;code&gt; - Installation&#x2F;usage docs for humans&lt;&#x2F;li&gt;
+&lt;li&gt;Helper scripts (e.g., &lt;code&gt;generate-report.sh&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;Templates or data files&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;The &lt;code&gt;SKILL.md&lt;&#x2F;code&gt; format is freeform markdown. Common patterns:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;markdown&quot; class=&quot;language-markdown &quot;&gt;&lt;code class=&quot;language-markdown&quot; data-lang=&quot;markdown&quot;&gt;# Skill Name
+
+Brief description.
+
+## Instructions
+
+Step-by-step instructions for Claude to follow.
+
+## Usage
+
+Example invocations that trigger this skill.
+
+## Examples
+
+Input&amp;#x2F;output examples.
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;No JSON schema, no version field, no manifest. Just markdown. Claude reads it, follows it.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-this-actually-solves&quot;&gt;What This Actually Solves&lt;&#x2F;h2&gt;
+&lt;p&gt;skillz is not about prompts. It&#x27;s about infrastructure for reusable AI workflows.&lt;&#x2F;p&gt;
+&lt;p&gt;Skills are prompts, but:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;They persist across sessions&lt;&#x2F;li&gt;
+&lt;li&gt;They compose (one skill can reference another)&lt;&#x2F;li&gt;
+&lt;li&gt;They version (via git)&lt;&#x2F;li&gt;
+&lt;li&gt;They distribute (via GitHub)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;This is package management for AI instructions. The same way you &lt;code&gt;npm install&lt;&#x2F;code&gt; a library instead of copying code, you &lt;code&gt;skillz install&lt;&#x2F;code&gt; a workflow instead of re-pasting prompts.&lt;&#x2F;p&gt;
+&lt;p&gt;skillz handles distribution. Claude Code handles execution. Together, they make AI workflows shareable.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-github-release-workflow&quot;&gt;The GitHub Release Workflow&lt;&#x2F;h2&gt;
+&lt;p&gt;The release process runs through a Makefile:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;make release
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;That:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;Bumps the version to today&#x27;s date (&lt;code&gt;YYYYMMDD.0.X&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;Creates a release branch&lt;&#x2F;li&gt;
+&lt;li&gt;Merges to main with a tag&lt;&#x2F;li&gt;
+&lt;li&gt;Pushes to GitHub&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;GitHub Actions picks up the tag and builds a Linux x86_64 binary. The binary attaches to the release. Users can download it directly or install via cargo.&lt;&#x2F;p&gt;
+&lt;p&gt;Publishing to crates.io is separate:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;make publish
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This was intentional. GitHub releases build binaries. Crates.io distributes source. Keeping them separate means one can fail without blocking the other. If the crates.io publish hits a rate limit, the GitHub release still ships.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;installing-from-source&quot;&gt;Installing From Source&lt;&#x2F;h2&gt;
+&lt;p&gt;If you don&#x27;t want cargo:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;git clone https:&amp;#x2F;&amp;#x2F;github.com&amp;#x2F;jakegoldsborough&amp;#x2F;skillz
+cd skillz
+cargo build --release
+.&amp;#x2F;target&amp;#x2F;release&amp;#x2F;skillz --help
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Or use Nix:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;nix-shell
+cargo build --release
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The &lt;code&gt;shell.nix&lt;&#x2F;code&gt; includes Rust tooling and git. That&#x27;s all you need.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-s-next&quot;&gt;What&#x27;s Next&lt;&#x2F;h2&gt;
+&lt;p&gt;The core loop works: create, search, install, update. What&#x27;s missing:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Dependency resolution (skill A requires skill B)&lt;&#x2F;li&gt;
+&lt;li&gt;Rollback to previous versions&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;The foundation is solid. Now it&#x27;s about making skills composable.&lt;&#x2F;p&gt;
+&lt;p&gt;If you build skills, publish them to GitHub. If you use skills, install with skillz. The ecosystem grows when workflows are shareable.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;links&quot;&gt;Links&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;skillz&quot;&gt;skillz on GitHub&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;crates.io&#x2F;crates&#x2F;skillz-rs&quot;&gt;skillz-rs on crates.io&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+      </item>
+    </channel>
+</rss>

@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="I dug into the GoatCounter database for my blog. Single-day spikes, fastest risers, fastest first month, two kinds of streaks, and where readers actually come from.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Six numbers from my blog&#x27;s analytics">
+    <meta property="og:description" content="I dug into the GoatCounter database for my blog. Single-day spikes, fastest risers, fastest first month, two kinds of streaks, and where readers actually come from.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;blog-stats-six-numbers&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Six numbers from my blog&#x27;s analytics">
+    <meta name="twitter:description" content="I dug into the GoatCounter database for my blog. Single-day spikes, fastest risers, fastest first month, two kinds of streaks, and where readers actually come from.">
+
+    <title>Six numbers from my blog&#x27;s analytics - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Six numbers from my blog&#x27;s analytics</h1>
+      <div class="meta">
+        
+        <p>May 17, 2026</p>
+        
+        <p>7 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/blog">#blog</a></p>
+          
+          <p><a href="/tags/writing">#writing</a></p>
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+        </div>
+      
+
+      <p>I recently noticed that the 1 year anniversary of my blog came and went. I was curious about how much traffic I got so I took a look.</p>
+<p>I sshed into my VPS and pointed sqlite at the GoatCounter database that powers my analytics. Six numbers stood out.</p>
+<p>For context: this blog gets modest traffic. Usually 20-50 unique visitors a day, mostly from search. I'm not actively trying to grow it, I just write. But the data is interesting because it shows what people actually read versus what I assumed they would.</p>
+<h2 id="1-biggest-single-day-spike-33-hits">1. Biggest single-day spike: 33 hits</h2>
+<p>On 2026-05-11, the post <a href="/blog/2026/nix-shells-ssh-claude-code/">Nix shells, SSH, and Claude Code</a> got 33 visits in one day. That's the single biggest day for any post I've published.</p>
+<p>For comparison, the next biggest days were 25 (a January post called <a href="/blog/2026/letting-ai-pick-the-project/">Letting AI pick the project</a>), 19 (<a href="/blog/2026/how-a-friends-gif-broke-our-filesystem/">How a friend's gif broke our filesystem</a>), and 13 (<a href="/blog/2026/rewriting-claude-code-in-rust-with-claude/">Rewriting Claude Code in Rust</a>).</p>
+<p>The pattern is obvious in hindsight: every spike came from a post solving a specific problem someone was searching for. None of them are essays. None of them are opinions. They're all "here's a weird thing I ran into and how I fixed it."</p>
+<p>This is the closest thing I have to "going viral," and it's about a 30-line shell.nix.</p>
+<h2 id="2-fastest-rising-nixos-claude-code">2. Fastest rising: NixOS + Claude Code</h2>
+<p>In the last seven days versus the prior seven, the two biggest gainers are both about running Claude Code on NixOS:</p>
+<table><thead><tr><th>Post</th><th style="text-align: right">Last 7d</th><th style="text-align: right">Prev 7d</th><th style="text-align: right">Delta</th></tr></thead><tbody>
+<tr><td><a href="/blog/2026/nix-shells-ssh-claude-code/">Nix shells, SSH, and Claude Code</a></td><td style="text-align: right">49</td><td style="text-align: right">10</td><td style="text-align: right">+39</td></tr>
+<tr><td><a href="/blog/2026/running-claude-code-on-nixos/">Running Claude Code on NixOS</a></td><td style="text-align: right">34</td><td style="text-align: right">9</td><td style="text-align: right">+25</td></tr>
+</tbody></table>
+<p>That's probably not a coincidence. Anthropic must have changed something recently that caused more people to hit problems running Claude Code on NixOS, and search engines surface my posts as the fix.</p>
+<p>The two posts also feed each other. Readers land on one, then click through to the other. Internal linking matters more than I expected.</p>
+<h2 id="3-fastest-out-the-gate-88-hits-in-the-first-30-days">3. Fastest out the gate: 88 hits in the first 30 days</h2>
+<p>The previous numbers measure "popular right now." A different question is "which posts hit hardest in their first month after publishing?"</p>
+<p>The top five by views in the first 30 days after their publish date:</p>
+<table><thead><tr><th>Post</th><th>Published</th><th style="text-align: right">First 30d</th></tr></thead><tbody>
+<tr><td><a href="/blog/2026/rewriting-claude-code-in-rust-with-claude/">Rewriting Claude Code in Rust</a></td><td>2026-04-01</td><td style="text-align: right">88</td></tr>
+<tr><td><a href="/blog/2026/running-claude-code-on-nixos/">Running Claude Code on NixOS</a></td><td>2026-05-07</td><td style="text-align: right">43</td></tr>
+<tr><td><a href="/blog/2026/letting-ai-pick-the-project/">Letting AI pick the project</a></td><td>2026-01-19</td><td style="text-align: right">37</td></tr>
+<tr><td><a href="/blog/2025/skin-shedding-not-bikeshedding/">Skin shedding, not bikeshedding</a></td><td>2025-11-23</td><td style="text-align: right">32</td></tr>
+<tr><td><a href="/blog/2026/rewriting-claude-code-in-rust-part-2/">Rewriting Claude Code in Rust (Part 2)</a></td><td>2026-04-02</td><td style="text-align: right">29</td></tr>
+</tbody></table>
+<p>The Rust + Claude post is in its own tier. It got 47 of those 88 hits in the first 7 days. That's almost certainly a referral spike from somewhere - Hacker News, Lobsters, a Mastodon boost, hard to say without per-day referrer data.</p>
+<p>This is a different shape from the NixOS posts. The NixOS surge is search-driven and building over weeks. The Rust + Claude launch was a sharp burst that mostly came and went. Both are "popular." Only one keeps compounding.</p>
+<h2 id="4-longest-site-wide-streak-119-days">4. Longest site-wide streak: 119 days</h2>
+<p>Every single day from 2026-01-19 to today, at least one post on this blog has been read by someone. That's 119 consecutive days without a gap.</p>
+<p>The previous longest streak was 49 days. Before that, 29. Before that, 25.</p>
+<p>This is what "getting indexed" actually looks like as a curve.</p>
+<p>Before indexing, your blog gets read on days when you publish something or share a link somewhere. After indexing, it gets read every day, forever, because somebody somewhere is searching for a problem you wrote about.</p>
+<p>That shift was the biggest surprise from all this data. The traffic doesn't spike and disappear anymore. It compounds.</p>
+<h2 id="5-longest-per-post-streak-32-days">5. Longest per-post streak: 32 days</h2>
+<p><a href="/blog/2026/nix-shells-ssh-claude-code/">Nix shells, SSH, and Claude Code</a> was read every day from 2026-03-26 to 2026-04-26 - 32 consecutive days. That's the longest streak any single post has had.</p>
+<p>The next best are all under two weeks:</p>
+<ul>
+<li><a href="/blog/2026/rewriting-claude-code-in-rust-with-claude/">Rewriting Claude Code in Rust</a>: 13 days (twice)</li>
+<li><a href="/blog/2025/hyprland-tricks-close-window-confirmation/">Hyprland tricks: close window confirmation</a>: 13 days</li>
+<li>Same hyprland post again: 11 days, then 10, then 8, then 7</li>
+</ul>
+<p>The hyprland post is still the quiet workhorse of the blog. Published in 2025, it's been read at least once on 146 different days. About 1.8 hits per day on average, every week, for nearly a year.</p>
+<p>Nothing else comes close to that consistency.</p>
+<p>If you can choose the problems you write about, choose ones that everybody eventually hits and that nobody else has documented clearly.</p>
+<p>Length is uncorrelated with traffic.</p>
+<p>Problem-specificity is.</p>
+<p>The hyprland post is one paragraph and a screenshot. The nix-shells post is six paragraphs. Both outperform longer essays by a wide margin.</p>
+<h2 id="6-where-readers-actually-come-from">6. Where readers actually come from</h2>
+<p>Top 10 referrers, last 90 days:</p>
+<table><thead><tr><th>Source</th><th style="text-align: right">Hits</th></tr></thead><tbody>
+<tr><td>(direct)</td><td style="text-align: right">391</td></tr>
+<tr><td>Google</td><td style="text-align: right">382</td></tr>
+<tr><td>duckduckgo.com</td><td style="text-align: right">45</td></tr>
+<tr><td>jakegoldsborough.com/blog</td><td style="text-align: right">37</td></tr>
+<tr><td>/tags/nixos</td><td style="text-align: right">33</td></tr>
+<tr><td>/blog/2026/nix-shells-ssh-claude-code</td><td style="text-align: right">32</td></tr>
+<tr><td>/resume</td><td style="text-align: right">32</td></tr>
+<tr><td>jakegoldsborough.com</td><td style="text-align: right">29</td></tr>
+<tr><td>kagi.com</td><td style="text-align: right">19</td></tr>
+<tr><td>Hacker News</td><td style="text-align: right">14</td></tr>
+</tbody></table>
+<p>A few things stood out immediately:</p>
+<ul>
+<li><strong>Direct and Google are basically tied.</strong> "Direct" includes users with stripped referrer headers, privacy-focused browsers, chat apps, bookmarks, and manually typed URLs. In practice, a lot of "direct" is probably search-driven too.</li>
+<li><strong>DuckDuckGo (45) and Kagi (19) combined still trail Google by an order of magnitude.</strong> Kagi has a much smaller user base than Google, so this isn't surprising, but it's a useful reality check on how niche the alternative-search world still is.</li>
+<li><strong>Internal navigation matters.</strong> The /blog index, /tags/nixos, and even /resume page each drive 30+ clicks. Once someone lands on the site, they often keep exploring.</li>
+<li><strong>Hacker News isn't the firehose people imagine.</strong> A front-page post probably changes the math, but a link in /new creates a short spike and then vanishes quickly.</li>
+</ul>
+<p>The more surprising pattern is that almost all long-term traffic comes from search and internal links, not social media.</p>
+<h2 id="what-i-d-do-differently">What I'd do differently</h2>
+<p>Honestly? Nothing.</p>
+<p>I'm not optimizing for traffic. But if I were, the data points toward one obvious strategy:</p>
+<p>Write more posts documenting highly specific problems with highly specific solutions.</p>
+<p>Not opinions.</p>
+<p>Not giant tutorials covering everything.</p>
+<p>Just the thing somebody searches for after they hit a wall at 1am.</p>
+<p>Small technical posts outperform broad polished essays by a huge margin. At least on this blog.</p>
+<h2 id="how-i-got-this-data">How I got this data</h2>
+<p>GoatCounter ships a SQLite database. I ssh into my VPS, run <code>nix-shell -p sqlite</code>, and query it directly.</p>
+<p>The two most useful tables are:</p>
+<ul>
+<li><code>paths</code>: post URLs and titles</li>
+<li><code>hit_counts</code>: hour-bucketed view counts joined by <code>path_id</code></li>
+</ul>
+<p>The streak queries use the standard SQL trick of subtracting a row number from a date. Rows with the same difference belong to the same consecutive run.</p>
+<p>If you self-host GoatCounter, the same queries work on your data. If you don't, the API exposes most of this through <code>/api/v0/stats/hits</code> and related endpoints.</p>
+<p>The funny part is that after a year of blogging, the strongest signal wasn't traffic volume.</p>
+<p>It was consistency.</p>
+<p>Once a post solves a real problem and gets indexed, it just keeps quietly working in the background forever.</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;blog-stats-six-numbers&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-blog-stats-six-numbers"
+      data-goatcounter-title="Helpful click on blog-2026-blog-stats-six-numbers"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;was-this-helpful-button&#x2F;">A &#x27;Was this helpful?&#x27; button for a static blog</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 16, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lightweight per-post feedback without a backend, database, or comments system. Tera macro, ~25 lines of JavaScript, and one data attribute that lets GoatCounter do the actual work.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/zola">#zola</a></p>
+                      
+                      <p><a href="/tags/blog">#blog</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;how-my-blog-started-getting-indexed&#x2F;">How my blog started getting indexed</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 09, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Two months of consistent publishing got me indexed by Google, DuckDuckGo, Bing, ChatGPT, and Perplexity. No SEO, no backlinks, no keywords. Just technical writing with real titles, internal links, and clean structure.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/writing">#writing</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;no-i-dont-type-every-word-you-read&#x2F;">I Don&#x27;t Type Every Word You Read</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 25, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Most modern work is already mediated by machines. Writing is just late to admit it. On delegating friction, not thinking.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/writing">#writing</a></p>
+                      
+                      <p><a href="/tags/craft">#craft</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;was-this-helpful-button&#x2F;">A &#x27;Was this helpful?&#x27; button for a static blog</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 16, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lightweight per-post feedback without a backend, database, or comments system. Tera macro, ~25 lines of JavaScript, and one data attribute that lets GoatCounter do the actual work.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/zola">#zola</a></p>
+                      
+                      <p><a href="/tags/blog">#blog</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;how-my-blog-started-getting-indexed&#x2F;">How my blog started getting indexed</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 09, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Two months of consistent publishing got me indexed by Google, DuckDuckGo, Bing, ChatGPT, and Perplexity. No SEO, no backlinks, no keywords. Just technical writing with real titles, internal links, and clean structure.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/writing">#writing</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

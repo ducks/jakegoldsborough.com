@@ -15,17 +15,50 @@
   <h5>Discourse</h5>
   <p><b>Software Engineer (Infrastructure), 2025-current</b></p>
 
-  <h6>Contributed upstream to AWS SDK for Ruby</h6>
+  <h6>Eliminated 16x storage inflation on backups via upload deduplication</h6>
   <p>
-    Expanded credential provider support by implementing the <code>Environment</code> source in
-    <code>SharedConfig</code>. This aligned SDK behavior with the AWS CLI, preventing
-    <code>InvalidCredentialSourceError</code> and improving developer workflows relying on
-    environment variables.
+    Shipped a hardlink-based deduplication pass in Discourse's backup creator that
+    groups uploads by content hash and stores duplicate content once. Reduced one
+    customer site from 432 GB to 26 GB of unique content. Followed up with an
+    ext4-hardlink-limit fallback after finding a single reaction GIF duplicated
+    246,173 times, turning what would have been 246k redundant S3 downloads into 5.
   </p>
+
+  <h6>Designed pre-provisioning pool for instant trial signups</h6>
   <p>
-    Added full test coverage across credential resolution paths, ensuring
-    zero regressions in a suite of 23,000+ examples. Accelerated adoption with a PR that was
-    reviewed, approved, and merged the same day, delivering immediate impact for the Ruby community.
+    Architected and shipped a pool of pre-built Discourse sites claimed at signup
+    time, using <code>FOR UPDATE SKIP LOCKED</code> for safe concurrent claiming with
+    graceful fallback to live provisioning. Target signup time of 90s reduced to
+    under 15s. Includes a subdomain-name generator producing 2,805 readable
+    combinations from curated word lists.
+  </p>
+
+  <h6>Optimized Ruby/SQL hot paths in core and internal services</h6>
+  <p>
+    Rewrote Discourse's daily category-stats job from per-row Ruby iteration
+    (8 queries per category) to batched SQL aggregation with
+    <code>COUNT(*) FILTER (WHERE ...)</code>, achieving an 8.6x speedup at production
+    scale (2,000 categories / 1.6M posts). Separately refactored an internal
+    hosted-sites API endpoint from 27-second timeouts to under 10 seconds by
+    eliminating N+1 Redis lookups and adding a request-scoped tier cache.
+  </p>
+
+  <h6>Parallelized CI and restructured build pipelines</h6>
+  <p>
+    Cut a Ruby/Rails service's CI runtime from 10 minutes to 3-4 by parallelizing
+    RSpec across 4 GitHub Actions runners, surfacing and fixing several
+    pre-existing test-isolation bugs in the process. Restructured the build
+    Dockerfile into multi-stage layers so lockfile changes no longer bust
+    source-code caches, cutting code-only deploys from ~10 minutes to ~6.
+  </p>
+
+  <h6>Contributed S3 IAM role assumption to Discourse core</h6>
+  <p>
+    Multi-quarter upstream contribution letting Discourse installations use IAM
+    role assumption for S3 instead of long-lived access keys. Worked around a
+    Ruby AWS SDK credential-chain precedence bug, refactored a singleton that
+    was leaking credentials across sites in multisite mode, and collaborated
+    with maintainers through review iteration on a safer simplified release.
   </p>
 
   <h5>Flashpoint</h5>
@@ -67,33 +100,21 @@
   <h5>Infinity Interactive</h5>
   <p><b>Software Engineer, 2010 - 2020</b></p>
 
-  <h6>Contracted for projects with Fortune 100 and Fortune 500 companies</h6>
   <p>
-    Including Shutterstock, Allegra, and Flashpoint.
-  </p>
-
-  <h6>Improved application performance by 75%</h6>
-  <p>
-    Implemented a Redis caching strategy for a high-traffic application.
-  </p>
-
-  <h6>Designed and deployed a GraphQL API using Node.js and Apollo</h6>
-  <p>
-    Optimized backend data retrieval and improved response times.
-  </p>
-
-  <h6>Developed and maintained full-stack applications</h6>
-  <p>
-    Integrated modern JavaScript frameworks like React and Vue.js.
+    Contracted full-stack work for Fortune 100 and Fortune 500 companies
+    including Shutterstock, Allegra, and Flashpoint. Built and maintained
+    production applications across Node.js, GraphQL, React, and Vue.js
+    stacks. Notable: improved a high-traffic application's response times
+    by 75% via a Redis caching strategy.
   </p>
 
   <h4>Skills & Technologies</h4>
 
   <h6>Programming</h6>
-  <p>Node.js, TypeScript, Python, Rust</p>
+  <p>Ruby, Node.js, TypeScript, Python, Rust</p>
 
   <h6>Cloud & Infrastructure</h6>
-  <p>Terraform, Kubernetes, Google Cloud</p>
+  <p>AWS, Terraform, Kubernetes, Google Cloud</p>
 
   <h6>Frontend</h6>
   <p>React, Vue.js, AngularJS</p>

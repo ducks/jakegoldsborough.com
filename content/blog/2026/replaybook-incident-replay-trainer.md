@@ -1,7 +1,7 @@
 ---
-title: "on-call: Fix Real Broken Infrastructure to Win"
+title: "replaybook: Incident Replay Trainer for Infrastructure"
 date: 2026-06-30
-description: "A terminal game where you're dropped into a broken Docker container and have to fix it. Built for incident replay - turn your post-mortems into training scenarios."
+description: "A terminal trainer where you're dropped into a broken Docker container and have to fix it. Turn your post-mortems into runnable scenarios."
 taxonomies:
   tags:
     - rust
@@ -14,16 +14,17 @@ Post-mortems are the most underused artifact in software engineering.
 
 You spend hours in the incident. You write up the timeline, the root cause, the fix, the follow-ups. You share it with the team. Six months later a new engineer joins, hits the same class of problem, and has no muscle memory for it at all. The post-mortem is in Notion somewhere.
 
-That's the problem [on-call](https://github.com/ducks/on-call) solves.
+That's the problem [replaybook](https://github.com/ducks/replaybook) solves.
 
 ## The Idea
 
-on-call is a terminal game where you fix broken infrastructure. Not simulated broken infrastructure - actual broken Docker containers running real services. Nginx with a misconfigured upstream. Postgres with the wrong permissions on its data directory. Sidekiq pointed at a Redis that requires a password it doesn't have.
+replaybook is a terminal trainer where you fix broken infrastructure. Not simulated broken infrastructure - actual broken Docker containers running real services. Nginx with a misconfigured upstream. Postgres with the wrong permissions on its data directory. Sidekiq pointed at a Redis that requires a password it doesn't have.
 
 You're dropped into a shell inside the broken environment and have to figure out what's wrong and fix it before the SLA timer runs out.
 
 ```
-on-call list
+replaybook add ducks/on-call-scenarios
+replaybook list
 ```
 
 ```
@@ -38,13 +39,13 @@ ID                             DIFF  TITLE
 ```
 
 ```
-on-call run 001-nginx-502
+replaybook run 001-nginx-502
 ```
 
 The terminal splits. Left pane is your shell inside the container. Right pane is the HUD.
 
 ```
-16882806a585:/# █                   │ == on-call ==
+16882806a585:/# █                   │ == replaybook ==
                                     │
                                     │ INCIDENT:
                                     │ URGENT: users getting 502s
@@ -64,7 +65,7 @@ You're inside nginx. The real nginx. Look at the config, check the logs, fix the
 
 ## Why Docker
 
-The game isn't about Docker. Docker is just how you spin up a real broken server and throw someone into it.
+The trainer isn't about Docker. Docker is just how you spin up a real broken server and throw someone into it.
 
 The alternative is a simulated environment - fake logs, scripted responses, prerecorded output. That teaches you how a simulation works. This teaches you how nginx works.
 
@@ -74,7 +75,7 @@ The fault in scenario 001 is a one-character config change: the upstream port is
 
 ## The Incident Replay Angle
 
-The scenarios that ship with the game are generic. But the format is a JSON file plus a Docker Compose setup:
+The scenarios that ship with the official pack are generic. But the format is a JSON file plus a Docker Compose setup:
 
 ```json
 {
@@ -82,7 +83,6 @@ The scenarios that ship with the game are generic. But the format is a JSON file
   "title": "Cache Eviction Killing Sessions",
   "page": "users are getting logged out randomly. started after the traffic spike yesterday. no deploys, no config changes.",
   "difficulty": 3,
-  "tags": ["redis", "memory", "sessions"],
   "hints": [
     "Check Redis memory usage and eviction policy",
     "What happens to session keys when Redis runs out of memory?"
@@ -96,43 +96,43 @@ Your `break.sh` injects the fault. Your `check.sh` defines what "fixed" looks li
 
 That means every incident your team has ever had can become a scenario. The Redis maxmemory eviction that took down sessions last quarter. The postgres autovacuum that blocked table writes during a migration. The nginx upstream that pointed at the wrong port after a deploy.
 
-Write up what broke. Write `break.sh` to reproduce it. New engineers run it, fix it with real tools, build the muscle memory. The post-mortem becomes a playable training scenario.
+Write up what broke. Write `break.sh` to reproduce it. New engineers run it, fix it with real tools, build the muscle memory. The post-mortem becomes a runnable training scenario.
+
+Scenario packs are just Git repos. Your team's private incidents stay private:
+
+```bash
+replaybook add mycompany/incidents
+```
 
 ## The HUD
 
-The split-pane HUD runs inside the container via tmux. No dependency on the host. The game installs tmux at startup via `apk` (all scenarios use alpine-based images), copies in the HUD script, splits the pane.
+The split-pane HUD runs inside the container via tmux. No dependency on the host. The trainer installs tmux at startup via `apk` (all scenarios use alpine-based images), copies in the HUD script, splits the pane.
 
-The state file lives on the host and is bind-mounted into the container. The poller writes to it directly - no shell escaping, no `docker exec` state writes. The HUD script just reads it every 2 seconds.
+The state file lives on the host and is bind-mounted into the container. The poller writes to it directly - no shell escaping, no `docker exec` state writes. The HUD script reads it every 2 seconds.
 
 ```bash
 # Inside the container, run anytime:
 get-hint
 ```
 
-Hints are revealed sequentially. The HUD shows which hints you've used. Hints used is recorded with the session outcome - eventually that'll factor into scoring.
+Hints are revealed sequentially. The HUD shows which hints you've used. Hints used is recorded with the session outcome.
 
 ## Install
 
 ```bash
-curl -fsSL https://github.com/ducks/on-call/releases/latest/download/on-call-linux-x86_64 -o on-call
-chmod +x on-call
-sudo mv on-call /usr/local/bin/
+cargo install replaybook
 ```
 
-Binaries for linux-x86_64, linux-arm64, macos-x86_64, macos-arm64. You need Docker.
+Or grab a prebuilt binary for linux-x86_64, linux-arm64, macos-x86_64, or macos-arm64 from the [releases page](https://github.com/ducks/replaybook/releases). You need Docker.
 
-Or from source:
-
-```bash
-cargo install on-call
-```
+Both `replaybook` and `replay` are installed - use whichever you prefer.
 
 ## What's Next
 
-Scoring based on time and hints used. Badges for specific solve conditions (under 2 minutes, no hints). More scenarios - planning a Discourse track covering the failures that come up most in self-hosted deployments.
+Scoring based on time and hints used. More scenarios - planning a Discourse track covering the failures that come up most in self-hosted deployments.
 
 The scenario format is the interesting part. If you've run an incident and written a post-mortem, the hardest work is already done.
 
 ---
 
-Source: [github.com/ducks/on-call](https://github.com/ducks/on-call)
+Source: [github.com/ducks/replaybook](https://github.com/ducks/replaybook)

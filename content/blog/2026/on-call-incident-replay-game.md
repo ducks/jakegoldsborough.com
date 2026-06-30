@@ -1,6 +1,6 @@
 ---
 title: "on-call: Fix Real Broken Infrastructure to Win"
-date: 2026-06-29
+date: 2026-06-30
 description: "A terminal game where you're dropped into a broken Docker container and have to fix it. Built for incident replay - turn your post-mortems into training scenarios."
 taxonomies:
   tags:

@@ -1,0 +1,464 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - tui</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/tui/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Mon, 04 May 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>shellbooks: A Terminal Audiobook Player</title>
+          <pubDate>Mon, 04 May 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/shellbooks-terminal-audiobook-player/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/shellbooks-terminal-audiobook-player/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/shellbooks-terminal-audiobook-player/">&lt;p&gt;I have a music player in the terminal (&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;shelltrax&quot;&gt;shelltrax&lt;&#x2F;a&gt;) and a podcast player in the terminal (&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;shellcast&quot;&gt;shellcast&lt;&#x2F;a&gt;). Audiobooks were the obvious gap.&lt;&#x2F;p&gt;
+&lt;p&gt;So I built &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;shellbooks&quot;&gt;shellbooks&lt;&#x2F;a&gt;.&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;cargo install shellbooks
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;It&#x27;s a TUI audiobook player and library manager. cmus-inspired keybinds, ratatui rendering, rodio for audio, the same shape as the other two shell* tools. Open source, offline-first, runs on Linux and macOS.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;why-audiobooks-need-their-own-player&quot;&gt;Why audiobooks need their own player&lt;&#x2F;h2&gt;
+&lt;p&gt;I wanted a CLI audiobook player that follows the cmus conventions I already use for music. A real TUI audiobook player on Linux, not a GUI app shoved into a terminal window.&lt;&#x2F;p&gt;
+&lt;p&gt;Music players treat tracks as the unit. Podcast players treat episodes as the unit. Audiobooks need the &lt;em&gt;book&lt;&#x2F;em&gt; as the unit, with chapters as the unit &lt;em&gt;inside&lt;&#x2F;em&gt; a book. That changes a few things:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Position memory matters more.&lt;&#x2F;strong&gt; Resuming a song from 0:00 is fine. Resuming a 14-hour book from 0:00 is a tragedy.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Variable speed is table stakes.&lt;&#x2F;strong&gt; Most people listen at 1.25x or 1.5x. A music player has no reason to ship this; an audiobook player without it is broken.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Chapter navigation needs to work.&lt;&#x2F;strong&gt; Multi-file books have one chapter per file; single-file &lt;code&gt;.m4b&lt;&#x2F;code&gt; books have chapter markers embedded in the container.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;None of this is exotic. It just doesn&#x27;t fit the music or podcast model directly.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-stack&quot;&gt;The Stack&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;ratatui&lt;&#x2F;code&gt; and &lt;code&gt;crossterm&lt;&#x2F;code&gt; for the TUI&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;rodio&lt;&#x2F;code&gt; and &lt;code&gt;symphonia&lt;&#x2F;code&gt; for audio playback&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;id3&lt;&#x2F;code&gt; for mp3 tags, &lt;code&gt;mp4ameta&lt;&#x2F;code&gt; for m4b tags and chapter atoms&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;walkdir&lt;&#x2F;code&gt; for the file browser&lt;&#x2F;li&gt;
+&lt;li&gt;Plain JSON at &lt;code&gt;~&#x2F;.local&#x2F;share&#x2F;shellbooks&#x2F;library.json&lt;&#x2F;code&gt; for the library and per-book progress&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Same stack the other shell* tools use. The point of building these in a series is that each one starts halfway done.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;interface&quot;&gt;Interface&lt;&#x2F;h2&gt;
+&lt;p&gt;Three views, swapped with &lt;code&gt;1&lt;&#x2F;code&gt; &#x2F; &lt;code&gt;2&lt;&#x2F;code&gt; &#x2F; &lt;code&gt;3&lt;&#x2F;code&gt;:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Library&lt;&#x2F;strong&gt; is two-pane: books left, chapters right. Tab toggles which side &lt;code&gt;j&lt;&#x2F;code&gt;&#x2F;&lt;code&gt;k&lt;&#x2F;code&gt; moves through. Enter on the books pane resumes from the saved position. Enter on the chapters pane jumps to that chapter&#x27;s start.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Bookmarks&lt;&#x2F;strong&gt; lives at &lt;code&gt;2&lt;&#x2F;code&gt; (UI is still placeholder; the data model is in place).&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Browser&lt;&#x2F;strong&gt; is a file system browser. Navigate to a directory of audio files or a single &lt;code&gt;.m4b&lt;&#x2F;code&gt;, press &lt;code&gt;a&lt;&#x2F;code&gt;, and it&#x27;s added to the library.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;A persistent footer sits on every screen with the book title, current chapter, position, total duration, speed, and a progress gauge. Press &lt;code&gt;i&lt;&#x2F;code&gt; anywhere to open a centered modal with the full metadata for the selected book.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-s-working&quot;&gt;What&#x27;s Working&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Imports from a file browser - explicit action, no surprise sweeps of &lt;code&gt;~&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;Chapter detection: parses the chpl atom in &lt;code&gt;.m4b&lt;&#x2F;code&gt;, falls back to one chapter per file with cleaned filenames (&lt;code&gt;01 - Prologue.mp3&lt;&#x2F;code&gt; becomes &lt;code&gt;Prologue&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;Per-book progress with autosave every 10 seconds while playing, plus on every chapter change. A crash never costs more than ten seconds.&lt;&#x2F;li&gt;
+&lt;li&gt;Variable speed (0.5x - 3.0x) via &lt;code&gt;+&lt;&#x2F;code&gt; and &lt;code&gt;-&lt;&#x2F;code&gt; in 5% steps. Pitch shifts with tempo today; pitch-preserving via tdpsola is next.&lt;&#x2F;li&gt;
+&lt;li&gt;Chapter skip (&lt;code&gt;b&lt;&#x2F;code&gt; next, &lt;code&gt;z&lt;&#x2F;code&gt; previous), seek (&lt;code&gt;,&lt;&#x2F;code&gt;&#x2F;&lt;code&gt;.&lt;&#x2F;code&gt; ±10s, &lt;code&gt;[&lt;&#x2F;code&gt;&#x2F;&lt;code&gt;]&lt;&#x2F;code&gt; ±60s)&lt;&#x2F;li&gt;
+&lt;li&gt;Cover art resolution: sidecar &lt;code&gt;cover.jpg&lt;&#x2F;code&gt; or &lt;code&gt;cover.png&lt;&#x2F;code&gt; first, then embedded artwork written to a cache file&lt;&#x2F;li&gt;
+&lt;li&gt;Tag extraction: title, author, narrator, series, year - using the audiobook publishing convention where artist is author and album is the book title&lt;&#x2F;li&gt;
+&lt;li&gt;Delete a book from the library with &lt;code&gt;d&lt;&#x2F;code&gt; (mirrors shelltrax)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;what-s-not-yet&quot;&gt;What&#x27;s Not (yet)&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Pitch-preserving variable speed&lt;&#x2F;li&gt;
+&lt;li&gt;Bookmarks UI (model exists, no bindings yet)&lt;&#x2F;li&gt;
+&lt;li&gt;Theme parsing&lt;&#x2F;li&gt;
+&lt;li&gt;Sleep timer countdown&lt;&#x2F;li&gt;
+&lt;li&gt;Cover art rendered in-terminal (kitty &#x2F; sixel &#x2F; iterm2)&lt;&#x2F;li&gt;
+&lt;li&gt;Network sources like Audiobookshelf&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;a-bug-worth-mentioning&quot;&gt;A Bug Worth Mentioning&lt;&#x2F;h2&gt;
+&lt;p&gt;Imported a book and the title showed as &quot;Track 001.&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;The reason: I was reading the title tag from the first audio file. For a multi-file audiobook, the per-track &lt;code&gt;TIT2&lt;&#x2F;code&gt; is the &lt;em&gt;chapter&lt;&#x2F;em&gt; title, not the book. The book title belongs in the album tag. So now &lt;code&gt;apply_to_book&lt;&#x2F;code&gt; takes a &lt;code&gt;multi_file&lt;&#x2F;code&gt; flag and uses the album tag in that case, falling back to the directory name if there&#x27;s no album.&lt;&#x2F;p&gt;
+&lt;p&gt;For single-file &lt;code&gt;.m4b&lt;&#x2F;code&gt; it still uses the title tag normally, since there the file &lt;em&gt;is&lt;&#x2F;em&gt; the book.&lt;&#x2F;p&gt;
+&lt;p&gt;The kind of bug that&#x27;s obvious in hindsight and only really shows up once you point the tool at real publisher data.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;building-it-in-a-series-pays-off&quot;&gt;Building it in a Series Pays Off&lt;&#x2F;h2&gt;
+&lt;p&gt;The bulk of the work on shellbooks was on the audiobook-specific bits: chapter atom parsing, the multi-file album-as-title rule, position tracking that survives speed changes and pause&#x2F;resume, the autosave loop. Almost none of it was on TUI scaffolding, the file browser, the event loop, or the release pipeline. All of that was lifted from shelltrax.&lt;&#x2F;p&gt;
+&lt;p&gt;It&#x27;s also why I&#x27;m thinking about pulling the shared TUI bits into a &lt;code&gt;shell-tui&lt;&#x2F;code&gt; crate. The &lt;code&gt;ListSelector&lt;&#x2F;code&gt;, the &lt;code&gt;BrowserState&lt;&#x2F;code&gt;, the event loop, the cmus-style screen jumps, the &lt;code&gt;Makefile&lt;&#x2F;code&gt; template, the GitHub Actions release workflow - all of it is duplicated nearly verbatim across three apps now. Three is the inflection point.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;try-it&quot;&gt;Try It&lt;&#x2F;h2&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;cargo install shellbooks
+shellbooks
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Press &lt;code&gt;3&lt;&#x2F;code&gt; to open the file browser, navigate to your audiobooks, press &lt;code&gt;a&lt;&#x2F;code&gt; to import a book directory or &lt;code&gt;.m4b&lt;&#x2F;code&gt;. Press &lt;code&gt;1&lt;&#x2F;code&gt; to return to the library, Enter to start playing.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;links&quot;&gt;Links&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;shellbooks&quot;&gt;shellbooks&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;shelltrax&quot;&gt;shelltrax&lt;&#x2F;a&gt; - the music player it descends from&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;shellcast&quot;&gt;shellcast&lt;&#x2F;a&gt; - the podcast player it descends from&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+      </item>
+      <item>
+          <title>Shelltrax Part 2: Footer, Tests, and CI</title>
+          <pubDate>Wed, 29 Oct 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/shelltrax-part-2-footer-tests-ci/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/shelltrax-part-2-footer-tests-ci/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/shelltrax-part-2-footer-tests-ci/">&lt;p&gt;In &lt;a href=&quot;https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;introducing-shelltrax&#x2F;&quot;&gt;Part 1&lt;&#x2F;a&gt;, I built the core of shelltrax&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;a TUI music player in Rust. It had library navigation, file browsing,
+audio playback, and a footer with song info and status. One big problem though,
+the footer would stop updating after the first song and I really wanted to fix
+that.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;This post covers three improvements: implementing a proper footer with
+playback progress, adding unit tests for the tricky bits, and setting up CI
+to keep code quality high.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;running-with-a-limp&quot;&gt;Running With A Limp&lt;&#x2F;h2&gt;
+&lt;p&gt;The footer existed from early on (progress bar, time display, track info), but
+it had a critical bug: when autoplay advanced to the next track, the progress
+bar wouldn&#x27;t reset. It would either keep counting from where the previous song left
+off, showing wrong times and eventually overflowing past 100% or it would just
+reset back to 0 and not progress. Whatever it did, it didn&#x27;t work.&lt;&#x2F;p&gt;
+&lt;p&gt;The bug was in &lt;code&gt;play_next_track()&lt;&#x2F;code&gt;. It would set &lt;code&gt;playback_start&lt;&#x2F;code&gt; and
+&lt;code&gt;current_track&lt;&#x2F;code&gt;, but it wouldn&#x27;t reset &lt;code&gt;paused_duration&lt;&#x2F;code&gt; or &lt;code&gt;paused_at&lt;&#x2F;code&gt;. If
+you paused the first song for 30 seconds, that 30 seconds would carry over to
+every subsequent song, throwing off the footer display completely.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;consolidation-begin-playback&quot;&gt;Consolidation: begin_playback()&lt;&#x2F;h2&gt;
+&lt;p&gt;The solution was extracting the timer reset logic into a dedicated method:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;pub fn begin_playback(&amp;amp;mut self, track: &amp;amp;LibraryTrack) {
+    self.current_track = Some(track.clone());
+    self.playback_start = Some(Instant::now());
+    self.paused_duration = Duration::ZERO;
+    self.paused_at = None;
+    self.playback_duration = track.duration.unwrap_or(0);
+}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Now &lt;code&gt;play_next_track()&lt;&#x2F;code&gt; calls &lt;code&gt;begin_playback()&lt;&#x2F;code&gt; instead of manually setting
+fields. This ensures all timing state resets properly when advancing to the
+next song, whether manually or via autoplay.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;implementation-tracking-time-correctly&quot;&gt;Implementation: Tracking Time Correctly&lt;&#x2F;h2&gt;
+&lt;p&gt;The app needs to track multiple timing values:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;pub struct App {
+    pub playback_start: Option&amp;lt;Instant&amp;gt;,
+    pub playback_duration: u64,
+    pub paused_at: Option&amp;lt;Instant&amp;gt;,
+    pub paused_duration: Duration,
+    &amp;#x2F;&amp;#x2F; ... other fields
+}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;When a song starts, we record &lt;code&gt;playback_start&lt;&#x2F;code&gt;. When the user pauses, we
+record &lt;code&gt;paused_at&lt;&#x2F;code&gt;. When they unpause, we add the pause duration to
+&lt;code&gt;paused_duration&lt;&#x2F;code&gt; and clear &lt;code&gt;paused_at&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;The footer calculation looks like this:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;let elapsed = if let Some(paused_at) = app.paused_at {
+    paused_at.duration_since(start)
+} else {
+    now.duration_since(start)
+};
+
+let adjusted = elapsed.saturating_sub(app.paused_duration);
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;If currently paused, elapsed time is frozen at the pause moment. Otherwise,
+it&#x27;s the time since playback started. Then we subtract all the accumulated
+pause time to get the actual playback position.&lt;&#x2F;p&gt;
+&lt;p&gt;The &lt;code&gt;saturating_sub&lt;&#x2F;code&gt; is important. Without it, if &lt;code&gt;paused_duration&lt;&#x2F;code&gt; somehow
+exceeded &lt;code&gt;elapsed&lt;&#x2F;code&gt; (race condition, clock skew, whatever), you&#x27;d get an
+underflow panic. &lt;code&gt;saturating_sub&lt;&#x2F;code&gt; clamps to zero instead.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;layout-three-lines-of-footer&quot;&gt;Layout: Three Lines of Footer&lt;&#x2F;h2&gt;
+&lt;p&gt;The footer uses a vertical layout with three lines:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;let layout = Layout::default()
+    .direction(Direction::Vertical)
+    .constraints([
+        Constraint::Length(1),  &amp;#x2F;&amp;#x2F; Progress bar
+        Constraint::Length(1),  &amp;#x2F;&amp;#x2F; Time display
+        Constraint::Length(1),  &amp;#x2F;&amp;#x2F; Track info
+    ])
+    .split(inner);
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Line 1 is a &lt;code&gt;Gauge&lt;&#x2F;code&gt; widget showing the ratio of elapsed to total time. Line 2
+shows &lt;code&gt;MM:SS &#x2F; MM:SS&lt;&#x2F;code&gt;. Line 3 shows &lt;code&gt;Artist - Title - Album&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;The progress bar ratio:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;let ratio = if total.as_secs_f64() &amp;gt; 0.0 {
+    adjusted.as_secs_f64() &amp;#x2F; total.as_secs_f64()
+} else {
+    0.0
+};
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Clamp it to &lt;code&gt;1.0&lt;&#x2F;code&gt; max so the gauge doesn&#x27;t overflow if the elapsed time
+somehow exceeds the track duration (can happen with malformed metadata).&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;testing-what-actually-needs-tests&quot;&gt;Testing: What Actually Needs Tests?&lt;&#x2F;h2&gt;
+&lt;p&gt;I&#x27;m not a fan of testing UI rendering code. It&#x27;s tedious, fragile, and
+doesn&#x27;t catch the bugs that matter. What I do test is the state management
+logic that the UI depends on.&lt;&#x2F;p&gt;
+&lt;p&gt;For shelltrax, the critical logic is:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Playback state transitions (playing, paused, stopped)&lt;&#x2F;li&gt;
+&lt;li&gt;Time tracking during pause&#x2F;unpause cycles&lt;&#x2F;li&gt;
+&lt;li&gt;Library state management (artist&#x2F;album hierarchy)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;I added two test modules: one in &lt;code&gt;app.rs&lt;&#x2F;code&gt; for playback logic, one in
+&lt;code&gt;library.rs&lt;&#x2F;code&gt; for library state.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;testing-playback-state&quot;&gt;Testing Playback State&lt;&#x2F;h3&gt;
+&lt;p&gt;Four tests in &lt;code&gt;app.rs&lt;&#x2F;code&gt;:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;test_begin_playback_resets_timers:&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;#[test]
+fn test_begin_playback_resets_timers() {
+    let mut app = App::new();
+
+    app.playback_start = Some(Instant::now());
+    app.paused_duration = Duration::from_secs(10);
+    app.paused_at = Some(Instant::now());
+
+    let track = create_test_track(&amp;quot;test&amp;quot;, 180);
+    app.begin_playback(&amp;amp;track);
+
+    assert!(app.playback_start.is_some());
+    assert_eq!(app.paused_duration, Duration::ZERO);
+    assert!(app.paused_at.is_none());
+}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;When starting a new track, all the timing state should reset. If it didn&#x27;t,
+the footer would show stale pause data from the previous song.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;test_toggle_pause_accumulates_paused_duration:&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;#[test]
+fn test_toggle_pause_accumulates_paused_duration() {
+    let mut app = App::new();
+
+    let start = Instant::now();
+    app.paused_at = Some(start);
+    app.paused_duration = Duration::from_secs(5);
+
+    app.toggle_pause();  &amp;#x2F;&amp;#x2F; Unpause
+
+    std::thread::sleep(Duration::from_millis(100));
+
+    app.toggle_pause();  &amp;#x2F;&amp;#x2F; Pause again
+
+    assert!(app.paused_at.is_none());
+    assert!(app.paused_duration &amp;gt; Duration::from_secs(5));
+}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This test verifies that pausing multiple times accumulates the total paused
+duration. The &lt;code&gt;sleep&lt;&#x2F;code&gt; is gross but necessary to test time-based logic without
+mocking the clock (which would require dependency injection, which is
+overkill for a hobby project).&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;testing-library-state&quot;&gt;Testing Library State&lt;&#x2F;h3&gt;
+&lt;p&gt;Six tests in &lt;code&gt;library.rs&lt;&#x2F;code&gt; covering the artist&#x2F;album&#x2F;track hierarchy:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;test_add_tracks_creates_structure:&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;#[test]
+fn test_add_tracks_creates_structure() {
+    let mut lib = LibraryState::new();
+
+    let tracks = vec![
+        create_test_track(&amp;quot;Artist A&amp;quot;, &amp;quot;Album 1&amp;quot;, &amp;quot;Track 1&amp;quot;, 1),
+        create_test_track(&amp;quot;Artist A&amp;quot;, &amp;quot;Album 1&amp;quot;, &amp;quot;Track 2&amp;quot;, 2),
+        create_test_track(&amp;quot;Artist B&amp;quot;, &amp;quot;Album 2&amp;quot;, &amp;quot;Track 3&amp;quot;, 1),
+    ];
+
+    lib.add_tracks(tracks);
+
+    assert_eq!(lib.artists.len(), 2);
+    assert_eq!(lib.artists[0].name, &amp;quot;Artist A&amp;quot;);
+    assert_eq!(lib.artists[0].albums.len(), 1);
+    assert_eq!(lib.artists[0].albums[0].tracks.len(), 2);
+}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This validates the library builds the correct tree structure when adding
+tracks. If the grouping logic broke, you&#x27;d end up with duplicate artists or
+albums in the wrong places.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;test_visible_tracks_for_album:&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;#[test]
+fn test_visible_tracks_for_album() {
+    let mut lib = LibraryState::new();
+
+    lib.add_tracks(vec![
+        create_test_track(&amp;quot;Artist&amp;quot;, &amp;quot;Album 1&amp;quot;, &amp;quot;Track 1&amp;quot;, 1),
+        create_test_track(&amp;quot;Artist&amp;quot;, &amp;quot;Album 1&amp;quot;, &amp;quot;Track 2&amp;quot;, 2),
+        create_test_track(&amp;quot;Artist&amp;quot;, &amp;quot;Album 2&amp;quot;, &amp;quot;Track 3&amp;quot;, 1),
+    ]);
+
+    lib.selection = Some(LibrarySelection::Album {
+        artist_index: 0,
+        album_index: 0,
+    });
+    let tracks = lib.visible_tracks();
+
+    assert_eq!(tracks.len(), 2);
+    assert_eq!(tracks[0].title, &amp;quot;Track 1&amp;quot;);
+    assert_eq!(tracks[1].title, &amp;quot;Track 2&amp;quot;);
+}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The &lt;code&gt;visible_tracks&lt;&#x2F;code&gt; method returns different results depending on whether
+an artist or an album is selected. This test ensures album selection filters
+correctly.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;ci-keeping-code-quality-high&quot;&gt;CI: Keeping Code Quality High&lt;&#x2F;h2&gt;
+&lt;p&gt;GitHub Actions makes CI trivial for Rust projects. The workflow file:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;yaml&quot; class=&quot;language-yaml &quot;&gt;&lt;code class=&quot;language-yaml&quot; data-lang=&quot;yaml&quot;&gt;name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions&amp;#x2F;checkout@v4
+
+    - name: install rust
+      uses: dtolnay&amp;#x2F;rust-toolchain@stable
+      with:
+        components: clippy
+
+    - name: cache dependencies
+      uses: actions&amp;#x2F;cache@v4
+      with:
+        path: |
+          ~&amp;#x2F;.cargo&amp;#x2F;bin&amp;#x2F;
+          ~&amp;#x2F;.cargo&amp;#x2F;registry&amp;#x2F;index&amp;#x2F;
+          ~&amp;#x2F;.cargo&amp;#x2F;registry&amp;#x2F;cache&amp;#x2F;
+          ~&amp;#x2F;.cargo&amp;#x2F;git&amp;#x2F;db&amp;#x2F;
+          target&amp;#x2F;
+        key: ${{ runner.os }}-cargo-${{ hashFiles(&amp;#x27;**&amp;#x2F;Cargo.lock&amp;#x27;) }}
+
+    - name: install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libasound2-dev
+
+    - name: run tests
+      run: cargo test --verbose
+
+    - name: run clippy
+      run: cargo clippy -- -D warnings
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The important bits:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Dependency caching:&lt;&#x2F;strong&gt; Without caching, every CI run would download and
+compile all dependencies from scratch. With caching, subsequent runs reuse
+compiled dependencies, dropping build time from several minutes to under 30
+seconds.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;System dependencies:&lt;&#x2F;strong&gt; The audio libraries (cpal, rodio) need ALSA headers
+to compile. &lt;code&gt;libasound2-dev&lt;&#x2F;code&gt; provides those on Ubuntu.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Clippy with &lt;code&gt;-D warnings&lt;&#x2F;code&gt;:&lt;&#x2F;strong&gt; This flag treats all warnings as errors. It&#x27;s
+strict, but it keeps code quality high. If clippy suggests a fix, you either
+apply it or add an explicit &lt;code&gt;#[allow(...)]&lt;&#x2F;code&gt; annotation explaining why you&#x27;re
+ignoring it.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;results&quot;&gt;Results&lt;&#x2F;h2&gt;
+&lt;p&gt;The footer works. Tests pass. CI keeps the codebase clean. Shelltrax now
+feels like a real music player instead of a tech demo.&lt;&#x2F;p&gt;
+&lt;p&gt;Running &lt;code&gt;cargo test&lt;&#x2F;code&gt; shows 10 passing tests:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;running 10 tests
+test app::tests::test_begin_playback_resets_timers ... ok
+test app::tests::test_toggle_pause_accumulates_paused_duration ... ok
+test app::tests::test_toggle_pause_cycles_state ... ok
+test app::tests::test_toggle_pause_sets_paused_at ... ok
+test library::tests::test_add_tracks_creates_structure ... ok
+test library::tests::test_toggle_expanded ... ok
+test library::tests::test_track_by_path_finds_track ... ok
+test library::tests::test_track_by_path_returns_none_for_missing ... ok
+test library::tests::test_visible_tracks_for_album ... ok
+test library::tests::test_visible_tracks_for_artist ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;And &lt;code&gt;cargo clippy&lt;&#x2F;code&gt; stays green with zero warnings.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-s-next&quot;&gt;What&#x27;s Next?&lt;&#x2F;h2&gt;
+&lt;p&gt;The core functionality is solid, but there are still features I want:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;config system&lt;&#x2F;li&gt;
+&lt;li&gt;seeking&lt;&#x2F;li&gt;
+&lt;li&gt;better metadata handling&lt;&#x2F;li&gt;
+&lt;li&gt;vi keybindings&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;But for now, shelltrax does what I needed it to do: play music in the
+terminal with a proper UI that shows what&#x27;s happening.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Code&lt;&#x2F;strong&gt;: &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;shelltrax&quot;&gt;github.com&#x2F;ducks&#x2F;shelltrax&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>Introducing Shelltrax - Or how I vibe programmed my way to a TUI music player</title>
+          <pubDate>Tue, 24 Jun 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/introducing-shelltrax/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/introducing-shelltrax/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/introducing-shelltrax/">&lt;h3 id=&quot;shelltrax&quot;&gt;Shelltrax&lt;&#x2F;h3&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;shelltrax&quot;&gt;github&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;shelltrax-1.png&quot; alt=&quot;A screenshot showing a libray view of a CLI music player&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;I love the terminal and have dabbled in Rust since the very early days. I&#x27;ve
+been to 5 RustConfs, but my actual knowledge of Rust never really went past the
+basics. I come from a scripted language background, so while I &lt;em&gt;understood&lt;&#x2F;em&gt; the
+ideas, I didn&#x27;t really understand them in practice -- mostly because I hadn&#x27;t
+personally suffered the pain points Rust tries to solve.&lt;&#x2F;p&gt;
+&lt;p&gt;The only way for me to truly understand was to build something real. Not
+another tutorial. Not another toy example. Something I&#x27;d actually use.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;cmus&quot;&gt;cmus&lt;&#x2F;h3&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;cmus.github.io&#x2F;&quot;&gt;cmus&lt;&#x2F;a&gt; is a small, &lt;em&gt;fast&lt;&#x2F;em&gt;, and powerful console
+music player for Unix-like operating systems and it&#x27;s easily one of the apps
+I use most.&lt;&#x2F;p&gt;
+&lt;p&gt;And like I mentioned above, I learn best by writing real tools so
+why not try to recreate one of my daily drivers? It seemed like the perfect mix
+of things to learn: input handling, TUI design, file scanning, metadata parsing,
+and real-time playback.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;stack-and-structure&quot;&gt;Stack and Structure&lt;&#x2F;h3&gt;
+&lt;p&gt;I tried to keep the stack small, modern, and as &quot;Rust-native&quot; as possible:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;ratatui&lt;&#x2F;code&gt; - TUI layout and rendering&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;crossterm&lt;&#x2F;code&gt; - keyboard input handling and terminal backend&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;walkdir&lt;&#x2F;code&gt; - recursive file scanning and directory walking&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;id3v2&lt;&#x2F;code&gt; and &lt;code&gt;symphonia&lt;&#x2F;code&gt; - parsing audio metadata (ID3, Vorbis, FLAC, etc)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;rodio&lt;&#x2F;code&gt; - audio playback&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Together, these gave me a good spread of &quot;real&quot; Rust problems to tackle:
+filesystems, decoding binary formats, audio streaming, real-time UI state, and
+concurrency.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;interface-design&quot;&gt;Interface Design&lt;&#x2F;h3&gt;
+&lt;p&gt;From the start, I wanted it to feel very simple.&lt;&#x2F;p&gt;
+&lt;p&gt;The interface is split into a few key views:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;A &lt;strong&gt;library view&lt;&#x2F;strong&gt;, where I can browse artists, albums, and tracks&lt;&#x2F;li&gt;
+&lt;li&gt;A &lt;strong&gt;file browser&lt;&#x2F;strong&gt;, which lets me scan new folders and import music to the
+library&lt;&#x2F;li&gt;
+&lt;li&gt;A persistent &lt;strong&gt;footer&lt;&#x2F;strong&gt;, showing the current track, album, artist and a
+real-time progress bar while the song plays&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Even building that much required learning how to manage state in a long-running
+TUI app, wire up input handling with &lt;code&gt;crossterm&lt;&#x2F;code&gt;, and keep the UI responsive
+while streaming audio in the background.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;what-s-working&quot;&gt;What&#x27;s Working&lt;&#x2F;h3&gt;
+&lt;p&gt;Despite starting this as mostly an experiment to learn Rust, I now have a music player that:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Scans my local library for FLAC and MP3 files&lt;&#x2F;li&gt;
+&lt;li&gt;Parses metadata (title, album, artist, album artist, etc) correctly using Symphonia&lt;&#x2F;li&gt;
+&lt;li&gt;Sorts and groups tracks by album artist for proper browsing&lt;&#x2F;li&gt;
+&lt;li&gt;Supports autoplay, automatically advancing to the next track&lt;&#x2F;li&gt;
+&lt;li&gt;Displays a footer with current song info and a live progress bar&lt;&#x2F;li&gt;
+&lt;li&gt;Supports pause and resume functionality with synchronized playback state&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;It&#x27;s already become my daily music player, replacing cmus for my listening.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;shelltrax-2.png&quot; alt=&quot;A screenshot showing a libray view of a CLI music player&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;reflections&quot;&gt;Reflections&lt;&#x2F;h3&gt;
+&lt;p&gt;The most valuable part of this project was finally experiencing what Rust is
+really trying to protect you from.&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Shared state&lt;&#x2F;strong&gt;: Coordinating real-time playback state across multiple
+threads (UI thread, playback thread, decode thread) forced me to actually
+deal with ownership, borrowing, and synchronization directly.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Lifetimes&lt;&#x2F;strong&gt;: I finally had to understand where lifetimes mattered when
+dealing with borrowed references and streaming APIs.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Real-world edge cases&lt;&#x2F;strong&gt;: Dealing with weird metadata formats, malformed
+files, and partial decode failures showed me how fragile real-world data can
+be.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;I&#x27;ve read about these things for years, but building Shelltrax forced me to
+feel the problems directly. That&#x27;s what finally made the learning click.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;vibe-programming&quot;&gt;Vibe programming&lt;&#x2F;h3&gt;
+&lt;p&gt;There&#x27;s a lot of discourse around &quot;vibe programming&quot; -- the idea of just writing
+code by intuition, following your gut, and iteratively figuring it out as you
+go. It sometimes gets a bad rap: &quot;You&#x27;re just hacking around without fully
+understanding the language or design.&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;But for me, vibe programming doesn&#x27;t mean ignoring fundamentals. It means
+building something real, fast enough to stay motivated, but being careful
+enough to stop and actually understand why something works (or why it doesn&#x27;t).&lt;&#x2F;p&gt;
+&lt;p&gt;I could have read Rust books or done more exercises, but none of that would
+have taught me what happens when a real audio stream crosses threads and you
+forget to reset a state flag at just the right time. And I&#x27;ll be honest, I
+didn&#x27;t magically learn Rust completely and know how to handle every situation
+but I certainly have a much better idea than a few weeks ago.&lt;&#x2F;p&gt;
+&lt;p&gt;Vibe programming can force you into real problems. If you stay curious and
+careful, those problems become extremely effective teachers.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Software does not always have to justify itself as a product or a startup. Sometimes it is just a creative medium, and a silly Discourse plugin is the proof.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Software Doesn&#x27;t Have to Justify Itself, or the Joy of Useless Programming">
+    <meta property="og:description" content="Software does not always have to justify itself as a product or a startup. Sometimes it is just a creative medium, and a silly Discourse plugin is the proof.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;software-doesnt-have-to-justify-itself&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Software Doesn&#x27;t Have to Justify Itself, or the Joy of Useless Programming">
+    <meta name="twitter:description" content="Software does not always have to justify itself as a product or a startup. Sometimes it is just a creative medium, and a silly Discourse plugin is the proof.">
+
+    <title>Software Doesn&#x27;t Have to Justify Itself, or the Joy of Useless Programming - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Software Doesn&#x27;t Have to Justify Itself, or the Joy of Useless Programming</h1>
+      <div class="meta">
+        
+        <p>Jun 29, 2026</p>
+        
+        <p>7 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+          <p><a href="/tags/writing">#writing</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+          <p><a href="/tags/craft">#craft</a></p>
+          
+        </div>
+      
+
+      <p>Last week I built a community management sim that runs inside Discourse. You
+play as a moderator. Fake users post fake drama, fake flags pile up in the real
+flag queue, and a fake outage tanks your response time while fake users complain
+about it on a fake Twitter. The whole thing is rendered with real Discourse
+components, so it reads as plausible at a glance. I called it
+<a href="https://github.com/ducks/discourse-manager">discourse-manager</a>.</p>
+<p>Nobody asked for this. There is no roadmap. There is no addressable market for
+"forum jobs as a roguelike, but it's a plugin for the forum software itself."</p>
+<p>I built it because the idea made me laugh, and then I wanted to see if it would
+work.</p>
+<h2 id="the-justification-reflex">The justification reflex</h2>
+<p>There is a reflex a lot of programmers have, myself included, where every
+project has to come with a defense.</p>
+<p>Who is it for. How does it scale. What is the monetization path. Is this a
+portfolio piece or a side business. Could it be a startup. Have you considered
+the TAM.</p>
+<p>I think we picked this up honestly. Most of us learned to program in a context
+where the output was supposed to be useful to someone other than us. A ticket,
+a feature, a deliverable. Code is expensive to write, so we convince ourselves
+every line has to pay rent.</p>
+<p>But that framing quietly smuggles in an assumption: that the only good reason to
+make software is that someone else needs it.</p>
+<p>I don't think that holds up.</p>
+<h2 id="nobody-asks-the-potter">Nobody asks the potter</h2>
+<p>Nobody asks a musician why the world needs another song. There are tens of
+millions of songs. The marginal song is not solving a shortage. A person writes
+one anyway, because the writing is the point.</p>
+<p>Nobody asks a potter why the world needs another mug. Your cabinet already has
+mugs. The potter makes another one because their hands wanted to make it, and
+because this one will be a little different from the last.</p>
+<p>I have a few creative outlets like that. I make things out of clay and fiber and
+wood under a name I keep separate from my engineering work. Nobody evaluates a
+hand-built object by its growth potential. It is allowed to just exist because
+someone enjoyed making it.</p>
+<p>Software almost never gets that grace. It is held to a standard we would find
+absurd in any other medium. We expect a weekend project to behave like a
+business plan.</p>
+<p>But software is also a medium. It is one of the most expressive ones we have. It
+moves, it reacts, it can be funny, it can surprise you. A program can have a
+voice. discourse-manager has a voice, and that voice is "this is a little too
+real."</p>
+<h2 id="what-what-if-gets-you">What "what if" gets you</h2>
+<p>My favorite projects almost never start with a problem statement. They start
+with "what if."</p>
+<p>What if my audiobook player followed the same keybinds as my music player. That
+turned into <a href="https://github.com/ducks/shellbooks">shellbooks</a>, which descends
+directly from <a href="https://github.com/ducks/shelltrax">shelltrax</a>, my terminal music
+player. The "what if" was small and a little indulgent. The result is something
+I use almost every day.</p>
+<p>What if I turned forum software into a game engine. That one became
+discourse-manager. It started as a single dumb image in my head, a flag queue
+that fights back, and I wanted to see it move badly enough to build the rest
+around it.</p>
+<p>What if I just automated the annoying thing instead of doing it by hand for the
+hundredth time. Half my tiny scripts exist because of that sentence. None of
+them have users. All of them earn their keep.</p>
+<p>"What if" is not a worse starting point than "the market needs." It is often a
+better one, because it comes from curiosity instead of obligation, and curiosity
+tends to pull you somewhere you would not have planned to go.</p>
+<h2 id="the-silly-project-teaches-the-real-thing">The silly project teaches the real thing</h2>
+<p>Here is the part that surprises people who think play and usefulness are
+opposites.</p>
+<p>discourse-manager looks like a joke, and it is, but building it made me learn
+parts of Discourse I had managed to avoid for years. It runs real-time state
+updates over MessageBus, the same pub/sub system Discourse uses for live
+notifications. I had never wired that up from scratch. I had to, because a game
+where the flags don't disappear as you clear them is not a game.</p>
+<p>A joke project is still architecture. The fake forum needed generated users with
+distinct behavioral profiles, a tick loop, an event system with weighted
+outcomes, persistent game state, and a HUD that updates without a page reload.
+None of that cares that the premise is silly. The wiring is exactly as real as
+it would be in something I was paid to ship.</p>
+<p>This keeps happening. The audiobook player taught me how <code>.m4b</code> chapter atoms
+are stored. A throwaway script I wrote to
+<a href="/blog/2026/auditing-a-squarespace-site-before-migrating/">audit a site before migrating it</a>
+taught me more about its actual structure than its documentation ever would.
+<a href="/blog/2026/patchelf-broke-claude-code/">Debugging why Claude Code wouldn't run on NixOS</a>
+taught me things about dynamic linking I will never un-learn. Each one was a
+means to some small end, and the end was never the point.</p>
+<p>Play is just how I read a system closely. You poke at a thing long enough to
+make it do something stupid, and somewhere in there you understand it.</p>
+<h2 id="the-line-is-thinner-than-people-think">The line is thinner than people think</h2>
+<p>The thing I keep coming back to is that the line between silly and useful is
+much thinner than the justification reflex wants you to believe.</p>
+<p>discourse-manager is a bit. It is also, almost by accident, a labeled dataset
+generator: every flag has a profile type and a human moderation decision
+attached, so a few sessions produce real training data for spam detection. I did
+not build it for that. It just fell out, the way useful things often fall out of
+unserious ones.</p>
+<p>I am not saying every project is secretly valuable, or that you should retrofit a
+business case onto your toys to make them respectable. That is the same reflex
+wearing a different coat. The toys do not need a business case. That is the whole
+point.</p>
+<p>I am saying the pressure to justify everything up front mostly just stops you
+from starting. And the projects that start with "what if" are, in my experience,
+the ones that teach me the most and the ones I am proudest of later.</p>
+<h2 id="programming-is-a-creative-outlet">Programming is a creative outlet</h2>
+<p>For me, programming is not only the job. It is one of the ways I make things,
+sitting on the same shelf as the clay and the fiber and the wood.</p>
+<p>Most of what I make there is small. Some of it is silly. A fair amount of it
+nobody will ever run but me. I am completely fine with that.</p>
+<p>The next time I catch myself drafting a defense for a project before I have even
+opened the editor, I want to remember the fake forum that runs inside the real
+one, and the moment I decided the better question was not "is this worth it" but
+just "what if."</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;software-doesnt-have-to-justify-itself&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-software-doesnt-have-to-justify-itself"
+      data-goatcounter-title="Helpful click on blog-2026-software-doesnt-have-to-justify-itself"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;auditing-a-squarespace-site-before-migrating&#x2F;">Auditing a Squarespace 7.0 site before migrating to 7.1</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 30, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Squarespace&#x27;s 7.0 to 7.1 update tool has a 100-page cap and several documented content limitations. Before running it on a real site, you want a complete inventory of what&#x27;s about to break, and why. Here&#x27;s the script I wrote to produce that inventory.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/squarespace">#squarespace</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;blog-stats-six-numbers&#x2F;">Six numbers from my blog&#x27;s analytics</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 17, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">I dug into the GoatCounter database for my blog. Single-day spikes, fastest risers, fastest first month, two kinds of streaks, and where readers actually come from.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/blog">#blog</a></p>
+                      
+                      <p><a href="/tags/writing">#writing</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;was-this-helpful-button&#x2F;">A &#x27;Was this helpful?&#x27; button for a static blog</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 16, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lightweight per-post feedback without a backend, database, or comments system. Tera macro, ~25 lines of JavaScript, and one data attribute that lets GoatCounter do the actual work.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/zola">#zola</a></p>
+                      
+                      <p><a href="/tags/blog">#blog</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;how-my-blog-started-getting-indexed&#x2F;">How my blog started getting indexed</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 09, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Two months of consistent publishing got me indexed by Google, DuckDuckGo, Bing, ChatGPT, and Perplexity. No SEO, no backlinks, no keywords. Just technical writing with real titles, internal links, and clean structure.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/writing">#writing</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;inside-claude-codes-team-memory-sync&#x2F;">Inside Claude Code&#x27;s Team Memory Sync Engine</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 05, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">How Claude Code shares knowledge across your team: a file watcher, delta sync, secret scanner, and optimistic concurrency -- all hidden behind a directory you didn&#x27;t know existed.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

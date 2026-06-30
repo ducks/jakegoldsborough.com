@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="mini_racer 0.21.4 wouldn&#x27;t build in my nix-shell. The fix turned out to be counterintuitive: removing glibc from buildInputs made stdlib.h work again. Plus a BUNDLE_GEMFILE footgun hiding in plain sight.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="mini_racer on NixOS: Three Things That Were Wrong">
+    <meta property="og:description" content="mini_racer 0.21.4 wouldn&#x27;t build in my nix-shell. The fix turned out to be counterintuitive: removing glibc from buildInputs made stdlib.h work again. Plus a BUNDLE_GEMFILE footgun hiding in plain sight.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;mini-racer-nixos-bundle-gemfile&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="mini_racer on NixOS: Three Things That Were Wrong">
+    <meta name="twitter:description" content="mini_racer 0.21.4 wouldn&#x27;t build in my nix-shell. The fix turned out to be counterintuitive: removing glibc from buildInputs made stdlib.h work again. Plus a BUNDLE_GEMFILE footgun hiding in plain sight.">
+
+    <title>mini_racer on NixOS: Three Things That Were Wrong - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>mini_racer on NixOS: Three Things That Were Wrong</h1>
+      <div class="meta">
+        
+        <p>Jun 25, 2026</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/nixos">#nixos</a></p>
+          
+          <p><a href="/tags/ruby">#ruby</a></p>
+          
+          <p><a href="/tags/discourse">#discourse</a></p>
+          
+          <p><a href="/tags/debugging">#debugging</a></p>
+          
+        </div>
+      
+
+      <p>I run Discourse's dev environment through a <code>nix-shell</code>. It's been mostly great.
+Then <code>mini_racer</code> 0.21.4 dropped and <code>bundle install</code> started dying with:</p>
+<pre><code>fatal error: stdlib.h: No such file or directory
+</code></pre>
+<p><code>stdlib.h</code> is the most standard header in C. Not finding it felt wrong. It took
+three separate root causes to get back to a working shell.</p>
+<h2 id="what-mini-racer-is">What mini_racer is</h2>
+<p><a href="https://github.com/rubyjs/mini_racer">mini_racer</a> is a Ruby gem that embeds
+V8. Discourse uses it to run markdown-it - the same JavaScript markdown parser
+the browser uses - inside the Rails process. When a post gets "cooked"
+server-side, it goes through the exact same parser as the client, so the output
+is identical on both ends.</p>
+<p>The alternative would be spawning a Node subprocess per cook, which is
+expensive. mini_racer keeps a V8 context alive inside the Rails process - no
+subprocess, no IPC, just a function call into a JS heap.</p>
+<p>It's a native extension, so it compiles C++ during <code>bundle install</code>. The 0.21.4
+release switched to <code>libv8-node</code>, which vendors a much larger V8 than the
+previous <code>libv8</code> gem. Bigger C++ dependency tree, more opportunities for NixOS
+to be annoying.</p>
+<h2 id="root-cause-1-glibc-in-buildinputs">Root cause 1: glibc in buildInputs</h2>
+<p>My <code>discourse-app.nix</code> had this in <code>buildInputs</code>:</p>
+<pre data-lang="nix" class="language-nix "><code class="language-nix" data-lang="nix">buildInputs = with pkgs; [
+  # ...
+  glibc
+  glibc.dev
+  # ...
+];
+</code></pre>
+<p>I'd added these at some point to fix an unrelated header complaint. They were
+wrong then and stayed wrong.</p>
+<p>Here's the issue. NixOS's gcc wrapper automatically injects <code>-isystem</code> flags
+for the glibc headers it was built against. When you add <code>glibc.dev</code> to
+<code>buildInputs</code> yourself, Nix injects <em>another</em> <code>-isystem</code> for it. Now the
+compiler sees the headers twice, at two different paths, in two positions in the
+include search order.</p>
+<p>The specific failure happens in C++ stdlib headers. When <code>&lt;cstdlib&gt;</code> includes
+<code>&lt;stdlib.h&gt;</code>, it uses <code>#include_next</code> - meaning "find the next <code>stdlib.h</code> in
+the search path, not this one." With a duplicated glibc in the search path, the
+<code>#include_next</code> chain breaks. The compiler finds the wrapper's entry, skips it,
+and walks off the end of the include dirs without finding the real file.</p>
+<p>The fix: remove <code>glibc</code> and <code>glibc.dev</code> from <code>buildInputs</code>. The wrapper already
+handles them.</p>
+<p>After that, <code>bundle install</code> got further. But not all the way.</p>
+<h2 id="root-cause-2-stale-bundle-config">Root cause 2: stale bundle config</h2>
+<p>With glibc removed from <code>buildInputs</code>, I had a leftover problem: I'd previously
+tried to fix the build by passing glibc include paths directly to the gem's
+Makefile via <code>bundle config</code>:</p>
+<pre><code>BUNDLE_BUILD__MINI_RACER: &quot;--with-cxxflags=-isystem&#x2F;nix&#x2F;store&#x2F;...-glibc-...&#x2F;include ...&quot;
+</code></pre>
+<p>That flag was still baked into <code>.bundle/config</code> in the Discourse repo. Even
+with the nix-shell fixed, <code>bundle install</code> was picking up those old paths and
+handing them to extconf.</p>
+<p>Clear it inside the nix-shell:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">bundle config unset build.mini_racer
+</code></pre>
+<p>After that, the Makefile no longer had any glibc <code>-isystem</code> in <code>CPPFLAGS</code>. But
+the build still failed.</p>
+<h2 id="root-cause-3-bundle-gemfile-baked-at-shellhook-time">Root cause 3: BUNDLE_GEMFILE baked at shellHook time</h2>
+<p>My <code>shellHook</code> had:</p>
+<pre data-lang="nix" class="language-nix "><code class="language-nix" data-lang="nix">shellHook = &#x27;&#x27;
+  export BUNDLE_GEMFILE=$PWD&#x2F;Gemfile
+  # ...
+&#x27;&#x27;;
+</code></pre>
+<p>This looks fine until you realize <code>$PWD</code> in a shellHook is the directory you
+launched <code>nix-shell</code> from, not the directory you later <code>cd</code> into inside the
+shell. I was launching nix-shell from <code>/home/ducks/dev</code> and then running:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">nix-shell &#x2F;path&#x2F;to&#x2F;discourse-app.nix --run &#x27;cd &#x2F;home&#x2F;ducks&#x2F;discourse&#x2F;discourse &amp;&amp; bundle install&#x27;
+</code></pre>
+<p><code>BUNDLE_GEMFILE</code> was locked to <code>/home/ducks/dev/Gemfile</code>, which doesn't exist.
+Bundler hit <code>Errno::ENOENT</code> before even trying to compile anything.</p>
+<p>The fix: remove the <code>BUNDLE_GEMFILE</code> export entirely. Bundler walks up the
+directory tree to find <code>Gemfile</code> automatically. There's no reason to set it
+manually unless you're doing something exotic.</p>
+<h2 id="what-the-working-nix-shell-has">What the working nix-shell has</h2>
+<pre data-lang="nix" class="language-nix "><code class="language-nix" data-lang="nix">buildInputs = with pkgs; [
+  # ... (no glibc, no glibc.dev)
+  nodejs.libv8    # V8 headers
+  icu             # ICU headers V8 needs
+  stdenv.cc       # the NixOS gcc wrapper
+  # ...
+];
+
+shellHook = &#x27;&#x27;
+  export CC=&quot;${pkgs.stdenv.cc}&#x2F;bin&#x2F;gcc&quot;
+  export CXX=&quot;${pkgs.stdenv.cc}&#x2F;bin&#x2F;g++&quot;
+
+  # No BUNDLE_GEMFILE here
+  export BUNDLE_PATH=$PWD&#x2F;.bundle
+  export BUNDLE_BIN=$PWD&#x2F;.bundle&#x2F;bin
+  # ...
+&#x27;&#x27;;
+</code></pre>
+<p>Setting <code>CC</code> and <code>CXX</code> explicitly to the wrapper binaries is the key bit.
+Without it, some gems' <code>extconf.rb</code> can find a non-wrapper gcc and bypass the
+Nix include injection entirely.</p>
+<h2 id="verify-it-works">Verify it works</h2>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">nix-shell discourse-app.nix --run \
+  &#x27;cd &#x2F;path&#x2F;to&#x2F;discourse &amp;&amp; bundle exec ruby -e &quot;require \&quot;mini_racer\&quot;; puts MiniRacer::Context.new.eval(\&quot;1+1\&quot;)&quot;&#x27;
+</code></pre>
+<p>Should print <code>2</code>.</p>
+<h2 id="the-counterintuitive-part">The counterintuitive part</h2>
+<p>Removing <code>glibc.dev</code> from <code>buildInputs</code> to make <code>stdlib.h</code> findable sounds
+backwards. You'd think adding the package that contains <code>stdlib.h</code> would make
+<code>stdlib.h</code> findable.</p>
+<p>The reason it doesn't work: the gcc wrapper on NixOS isn't a transparent pass-through.
+It's a shell script that wraps the real gcc and injects <code>-isystem</code> paths so you
+can use system headers without littering store paths throughout your build files.
+It already knows where glibc lives. Adding glibc to <code>buildInputs</code> doesn't teach
+it anything new - it just creates a second, conflicting injection that the
+<code>#include_next</code> mechanism in C++ stdlib headers can't handle.</p>
+<p>Trust the wrapper. Don't add glibc manually.</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;mini-racer-nixos-bundle-gemfile&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-mini-racer-nixos-bundle-gemfile"
+      data-goatcounter-title="Helpful click on blog-2026-mini-racer-nixos-bundle-gemfile"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;patchelf-broke-claude-code&#x2F;">When patchelf stopped working on Claude Code</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 20, 2026</p>
+                    
+                    <p>11 min read</p>
+                  </div>
+                  
+                    <p class="desc">A sequel to the NixOS fix. The patchelf-based shell.nix was working, then a Claude Code update made it produce binaries that segfaulted before main(). Three wrong hypotheses, one real cause, two more gotchas hiding inside the fix, and the resolution that finally made it all moot: nix-ld.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/debugging">#debugging</a></p>
+                      
+                      <p><a href="/tags/elf">#elf</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;running-claude-code-on-nixos&#x2F;">Running Claude Code on NixOS</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 07, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Claude Code&#x27;s official installer drops a prebuilt Linux binary that won&#x27;t execute on NixOS. A 133-line shell.nix patches it on the way in. Here&#x27;s what&#x27;s broken, why, and how to fix it without leaving the official install path.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;nix-shells-ssh-claude-code&#x2F;">The Unholy Trinity: Nix Shells, SSH Config, and Claude Code</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 21, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">How proper environment setup turns AI coding assistants from novelty into genuine infrastructure. Nix makes everything reproducible. SSH makes everything reachable. Claude ties it together.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;real-declarative-infrastructure-nixos&#x2F;">From Bash Scripts to NixOS: Real Declarative Infrastructure on a VPS</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 18, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Converting a bash script + systemd-based VPS to NixOS for truly declarative infrastructure. No more update scripts or edge cases, just configuration.nix.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/self-hosting">#self-hosting</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-9&#x2F;">NixOS as a daily driver or Zero to Nixty, part 9&#x2F;? - Enabling Wi-Fi</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 27, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">Troubleshooting and fixing Wi-Fi on a Framework 16 laptop running NixOS by loading the Intel AX210 driver, enabling firmware, and configuring NetworkManager with wpa_supplicant.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/framework">#framework</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

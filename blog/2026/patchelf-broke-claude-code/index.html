@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="A sequel to the NixOS fix. The patchelf-based shell.nix was working, then a Claude Code update made it produce binaries that segfaulted before main(). Three wrong hypotheses, one real cause, two more gotchas hiding inside the fix, and the resolution that finally made it all moot: nix-ld.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="When patchelf stopped working on Claude Code">
+    <meta property="og:description" content="A sequel to the NixOS fix. The patchelf-based shell.nix was working, then a Claude Code update made it produce binaries that segfaulted before main(). Three wrong hypotheses, one real cause, two more gotchas hiding inside the fix, and the resolution that finally made it all moot: nix-ld.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;patchelf-broke-claude-code&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="When patchelf stopped working on Claude Code">
+    <meta name="twitter:description" content="A sequel to the NixOS fix. The patchelf-based shell.nix was working, then a Claude Code update made it produce binaries that segfaulted before main(). Three wrong hypotheses, one real cause, two more gotchas hiding inside the fix, and the resolution that finally made it all moot: nix-ld.">
+
+    <title>When patchelf stopped working on Claude Code - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>When patchelf stopped working on Claude Code</h1>
+      <div class="meta">
+        
+        <p>May 20, 2026</p>
+        
+        <p>11 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/nixos">#nixos</a></p>
+          
+          <p><a href="/tags/debugging">#debugging</a></p>
+          
+          <p><a href="/tags/elf">#elf</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+        </div>
+      
+
+      <p>A couple weeks ago I wrote about <a href="https://jakegoldsborough.com/blog/2026/running-claude-code-on-nixos/">running Claude Code on NixOS</a> with a 133-line <code>shell.nix</code> that patchelf-modifies the binary on install. It worked great until last week, when Claude Code's auto-updater dropped version 2.1.143 into <code>~/.local/share/claude/versions/</code> and <code>claude --version</code> started segfaulting before printing anything.</p>
+<p>What follows is the debugging story. I went down three wrong paths before finding the real cause, and the right fix turned out to have two more gotchas hiding inside it. The patchelf approach is dead. Here's why.</p>
+<h2 id="the-symptom">The symptom</h2>
+<pre><code>$ claude --version
+Segmentation fault (core dumped)
+</code></pre>
+<p><code>coredumpctl</code> showed the crash inside the dynamic linker itself, in <code>_dl_check_map_versions</code> at <code>glibc/elf/dl-version.c:263</code>, before a single byte of program code had run:</p>
+<pre><code>#0  _dl_check_map_versions       at dl-version.c:263
+#1  _dl_check_all_versions       at dl-version.c:398
+#2  version_check_doit           at rtld.c:676
+#3  _dl_receive_error            at dl-catch.c:194
+#4  dl_main                      at rtld.c:2028
+...
+#8  _start ()                    from &#x2F;lib64&#x2F;ld-linux-x86-64.so.2
+</code></pre>
+<p>The previous version (2.1.132) worked fine. 2.1.143 didn't. Same <code>patch_binary</code> invocation, same Nix linker, same rpath. The binary was patched correctly in the sense that <code>patchelf --print-interpreter</code> reported the Nix glibc linker path.</p>
+<h2 id="wrong-hypothesis-1-the-auto-updater-dropped-an-unpatched-binary">Wrong hypothesis #1: the auto-updater dropped an unpatched binary</h2>
+<p>My first guess was that Claude's auto-updater had bypassed the install-time patchelf step. I extended <code>shell.nix</code> with a wrapper that auto-patchelfs any unpatched binary in the versions directory before exec'ing it.</p>
+<p>This was the wrong fix to the wrong problem. The binary was already patched; <code>patchelf --print-interpreter</code> confirmed it. The wrapper was a useful-feeling defensive layer but it wasn't relevant to the actual bug.</p>
+<h2 id="wrong-hypothesis-2-bun-s-rust-rewrite-shipped-malformed-elf">Wrong hypothesis #2: Bun's Rust rewrite shipped malformed ELF</h2>
+<p>Claude Code is built with <code>bun build --compile</code>, which embeds the Bun runtime inside the standalone executable. There had been <a href="https://www.theregister.com/devops/2026/05/14/anthropics-bun-rust-rewrite-merged-at-speed-of-ai/5240381">recent news</a> about Anthropic merging a Rust rewrite of Bun, and an <a href="https://github.com/oven-sh/bun/issues/30717">open bun issue</a> about regressions in the <code>--compile</code> path. The dates lined up: Bun v1.3.14 shipped May 13, the Rust rewrite PR merged May 14, my broken Claude Code was downloaded May 18.</p>
+<p>I had a hypothesis, the timing fit, and I was off to the races. Built a clean Docker repro on stock Ubuntu 24.04 showing the same <code>_dl_check_map_versions</code> crash outside NixOS. Started drafting a bug report against <code>oven-sh/bun</code>. Compared <code>readelf --version-info</code> between the working and broken binaries and found errors:</p>
+<pre><code>$ readelf --version-info &#x2F;tmp&#x2F;claude-2.1.143
+readelf: Error: Reading 20 bytes extends past end of file for version def
+readelf: Error: Reading 20 bytes extends past end of file for version def
+...
+</code></pre>
+<p>The narrative was perfect. Bun's new Rust ELF emitter was producing corrupt version tables, the dynamic linker was crashing trying to read them, and I was about to file a high-quality upstream bug.</p>
+<p>Then I checked the most basic fact, which I should have checked at the start:</p>
+<pre><code>$ strings &#x2F;tmp&#x2F;claude-2.1.143 | grep &#x27;^Bun v&#x27;
+Bun v1.3.14 (d2989145)
+
+$ strings &#x2F;tmp&#x2F;claude-2.1.132 | grep &#x27;^Bun v&#x27;
+Bun v1.3.14 (0a466a11)
+</code></pre>
+<p><strong>Both binaries embed Bun v1.3.14.</strong> The Rust rewrite hasn't shipped in any tagged release yet; it's only on canary. Different build commits, same version. The Rust theory was dead.</p>
+<p>Lesson: when the story fits perfectly, do the cheapest disconfirming test first.</p>
+<h2 id="wrong-hypothesis-3-claude-code-s-build-pipeline-regressed">Wrong hypothesis #3: Claude Code's build pipeline regressed</h2>
+<p>If it wasn't Bun, it had to be something on Anthropic's side. I bisected across every published version in the range:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">for v in 2.1.132 2.1.133 2.1.136 2.1.137 2.1.138 2.1.139 2.1.140 2.1.141 2.1.142 2.1.143; do
+  curl -fsSL -o &quot;&#x2F;tmp&#x2F;bisect&#x2F;$v&quot; \
+    &quot;https:&#x2F;&#x2F;downloads.claude.ai&#x2F;claude-code-releases&#x2F;$v&#x2F;linux-x64&#x2F;claude&quot;
+  docker run --rm -v &quot;&#x2F;tmp&#x2F;bisect&#x2F;$v:&#x2F;c:ro&quot; ubuntu:24.04 &#x2F;c --version
+done
+</code></pre>
+<p>Every freshly-downloaded binary ran cleanly. <strong>All of them.</strong> Including 2.1.143.</p>
+<p>The crash I'd been reproducing was on my locally-modified copy in <code>/tmp/claude-test</code>, not on a pristine upstream binary. I'd convinced myself I was testing the official binary because the path looked right. I was actually testing the result of my own earlier patchelf modification.</p>
+<p>This is where the actual cause finally became visible.</p>
+<h2 id="the-real-cause">The real cause</h2>
+<p>Diff the program headers of 2.1.132 vs 2.1.133 with <code>readelf -l</code>:</p>
+<pre><code>2.1.132 RW LOAD:
+  FileSiz=0x000e0028  (~916 KiB)
+  MemSiz=0x001ee29c   (~1.93 MiB)
+
+2.1.133 RW LOAD:
+  FileSiz=0x07c17d20  (~124 MiB)
+  MemSiz=0x07c17d20   (~124 MiB)
+</code></pre>
+<p>In 2.1.132, the RW LOAD segment's <code>MemSiz</code> is larger than its <code>FileSiz</code>, which is a <a href="https://en.wikipedia.org/wiki/.bss">BSS-style</a> zero-fill region that exists at runtime but takes no space on disk. In 2.1.133, <code>FileSiz</code> equals <code>MemSiz</code> and they're both ~124 MiB. Bun changed its standalone-executable layout to bake the entire embedded JS payload onto disk in the RW segment rather than zero-filling.</p>
+<p>Why does this matter for patchelf? When patchelf rewrites the interpreter string or rpath, the new string is often longer than what it replaces. patchelf needs slack in the file layout to insert it without breaking section offsets. In 2.1.132 there's plenty of slack. From 2.1.133 onward there isn't, so patchelf's modifications end up shifting the <code>Elf64_Verneed</code> and related version tables to file offsets where the loader walks off the end of the section.</p>
+<p>The crash in <code>_dl_check_map_versions</code> is the loader trying to dereference a <code>vna_name</code> pointer that now points into garbage memory.</p>
+<p><strong>The pristine binaries are fine.</strong> They run unmodified on NixOS as long as you give them a real dynamic linker. It's only the patchelf-modified ones that crash. patchelf has been silently producing broken binaries on the new layout the entire time.</p>
+<h2 id="the-fix">The fix</h2>
+<p>Stop modifying the binary. Invoke the Nix dynamic linker directly with the unmodified binary as its argument:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">exec &#x2F;nix&#x2F;store&#x2F;...&#x2F;ld-linux-x86-64.so.2 \
+  --library-path &#x2F;nix&#x2F;store&#x2F;...&#x2F;lib:&#x2F;nix&#x2F;store&#x2F;...&#x2F;lib:... \
+  &#x2F;home&#x2F;ducks&#x2F;.local&#x2F;share&#x2F;claude&#x2F;versions&#x2F;2.1.143 &quot;$@&quot;
+</code></pre>
+<p>This is what <code>nix run</code> and <code>nix-ld</code> do under the hood. The kernel only chokes when it tries to follow the binary's <em>embedded</em> interpreter path (<code>/lib64/ld-linux-x86-64.so.2</code>, which doesn't exist on NixOS). If you invoke a working linker yourself and pass the binary as an argument, the kernel never looks at the embedded path. The linker loads the binary as a regular dynamic object using the library paths you give it. No on-disk modification, no patchelf, no shifted section offsets.</p>
+<p>I rewrote <code>claude-nixos/shell.nix</code> to drop patchelf entirely. The wrapper at <code>~/.local/bin/claude</code> now picks the highest installed version, then exec's the linker with the unmodified binary. Pristine binaries are re-downloaded from <code>downloads.claude.ai</code> to overwrite the patchelf damage on existing installs.</p>
+<h2 id="gotcha-1-ld-library-path-leaks-to-children">Gotcha #1: LD_LIBRARY_PATH leaks to children</h2>
+<p>My first attempt at the wrapper exported <code>LD_LIBRARY_PATH</code> and called the linker:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">export LD_LIBRARY_PATH=&quot;$NIX_LIBS&quot;
+exec &quot;$LINKER&quot; &quot;$BIN&quot; &quot;$@&quot;
+</code></pre>
+<p>This works for Claude itself. But Claude spawns Bash subprocesses for tool calls (the Bash tool in particular), and those subprocesses inherit <code>LD_LIBRARY_PATH</code>. Bash then resolves <em>its own</em> shared libraries through our Nix paths, sometimes pulls in a mismatched version, and you get cryptic errors like:</p>
+<pre><code>-G: error while loading shared libraries: -G: cannot open shared object file:
+  No such file or directory
+</code></pre>
+<p>That <code>-G</code> is <code>grep</code>'s <code>--basic-regexp</code> flag being mis-parsed as a shared object path by a confused loader. Lovely.</p>
+<p>The fix is to use <code>ld.so</code>'s <code>--library-path</code> flag instead of <code>LD_LIBRARY_PATH</code>. It's consumed by the linker during this single invocation and is <strong>not</strong> propagated to child processes:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">exec &quot;$LINKER&quot; --library-path &quot;$NIX_LIBS&quot; &quot;$BIN&quot; &quot;$@&quot;
+</code></pre>
+<p>Child processes inherit a clean environment.</p>
+<h2 id="gotcha-2-claude-code-is-a-multi-call-binary">Gotcha #2: Claude Code is a multi-call binary</h2>
+<p>Claude Code's shell integration installs functions for <code>find</code>, <code>grep</code>, and <code>ugrep</code>:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">find() {
+  ...
+  exec -a bfs &quot;$_cc_bin&quot; -S dfs -regextype findutils-default &quot;$@&quot;
+}
+</code></pre>
+<p>The <code>exec -a bfs</code> sets <code>argv[0]</code> to <code>bfs</code> and exec's the Claude binary. The binary checks <code>argv[0]</code> and dispatches to embedded fast tools (<code>bfs</code> is a <a href="https://github.com/tavianator/bfs">breadth-first find</a>, <code>ugrep</code> is a faster <code>grep</code>). Clever: one binary, many tools.</p>
+<p>This breaks under the wrapper. When the shell function does <code>exec -a bfs ~/.local/bin/claude ...</code>, my wrapper script runs with <code>$0</code> set to its own path (the kernel re-parses the shebang and loses the spoofed argv[0]). The wrapper then exec's the linker, and the linker's argv[0] is the linker path. The Claude binary sees an argv[0] of <code>/nix/store/.../ld-linux-x86-64.so.2</code>, doesn't recognize it as a tool, and runs the default UI.</p>
+<p>Newer glibc linkers support <code>--argv0 STRING</code> to set argv[0] explicitly:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">exec &quot;$LINKER&quot; --argv0 &quot;$0&quot; --library-path &quot;$NIX_LIBS&quot; &quot;$BIN&quot; &quot;$@&quot;
+</code></pre>
+<p>I started here and shipped this version, thinking it was a partial fix. It isn't. <code>$0</code> inside a bash script is the script's own path even when the script was invoked via <code>exec -a NAME</code>, because bash resets <code>$0</code> to the script name at startup. So <code>--argv0 "$0"</code> was always passing <code>/home/ducks/.local/bin/claude</code>, never <code>bfs</code> or <code>ugrep</code>. Bash 5+ exposes the real invocation argv[0] via <code>$BASH_ARGV0</code>, which fixes it:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">exec &quot;$LINKER&quot; --argv0 &quot;${BASH_ARGV0:-$0}&quot; --library-path &quot;$NIX_LIBS&quot; &quot;$BIN&quot; &quot;$@&quot;
+</code></pre>
+<p>With that change the argv0 actually propagates. I verified by invoking it manually and watching the binary respond as <code>bfs</code> instead of as the default <code>claude</code> UI.</p>
+<p>But the fast tools still didn't work from inside a Claude session. Adding <code>set -x</code> to the shell-integration <code>find</code> function showed why:</p>
+<pre><code>local _cc_bin=&#x2F;nix&#x2F;store&#x2F;...&#x2F;ld-linux-x86-64.so.2
+</code></pre>
+<p>Claude's harness sets <code>CLAUDE_CODE_EXECPATH</code> (the variable its shell integration uses to find itself) from <code>/proc/self/exe</code>. Once the wrapper exec's the dynamic linker, the kernel's view of the process is <em>the linker</em>, not the Claude binary. <code>/proc/self/exe</code> resolves to ld.so. Everything downstream that introspects the running process sees ld.so. The shell-integration <code>find</code> function then tries to exec <code>$CLAUDE_CODE_EXECPATH -regextype ...</code>, which is the linker treating <code>-regextype</code> as a library path. Boom.</p>
+<p>This isn't fixable in userspace. No bash trick can hide the fact that the kernel-level process identity is ld.so. <code>/proc/self/exe</code> will never lie. The wrapper approach has a real ceiling here.</p>
+<h2 id="the-real-fix-nix-ld">The real fix: nix-ld</h2>
+<p>The wrapper approach is fundamentally limited by what the kernel sees as the running process. <a href="https://github.com/Mic92/nix-ld"><code>programs.nix-ld</code></a> sidesteps the whole class of problem by installing a stub at <code>/lib64/ld-linux-x86-64.so.2</code>, which is the FHS path that generic Linux binaries hardcode as their ELF interpreter. The stub redirects to a real Nix linker with a global library list:</p>
+<pre data-lang="nix" class="language-nix "><code class="language-nix" data-lang="nix">programs.nix-ld = {
+  enable = true;
+  libraries = with pkgs; [
+    stdenv.cc.cc
+    zlib
+    openssl
+    xz
+    sqlite
+    curl
+  ];
+};
+</code></pre>
+<p>With that in place, the kernel can load the pristine Claude binary directly. <code>/proc/self/exe</code> is the real Claude binary, <code>argv[0]</code> is whatever the caller actually set, <code>CLAUDE_CODE_EXECPATH</code> resolves correctly, and the multi-call dispatch works.</p>
+<p>The wrapper script collapses to its remaining job, picking the latest installed version:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">#!&#x2F;usr&#x2F;bin&#x2F;env bash
+set -e
+
+VERSIONS_DIR=&quot;$HOME&#x2F;.local&#x2F;share&#x2F;claude&#x2F;versions&quot;
+
+bin=&quot;$(ls -1 &quot;$VERSIONS_DIR&quot; 2&gt;&#x2F;dev&#x2F;null \
+  | grep -E &#x27;^[0-9]+\.[0-9]+\.[0-9]+&#x27; \
+  | sort -V \
+  | tail -n1 \
+  | awk -v d=&quot;$VERSIONS_DIR&quot; &#x27;{print d&quot;&#x2F;&quot;$0}&#x27;)&quot;
+
+exec -a &quot;${BASH_ARGV0:-$0}&quot; &quot;$bin&quot; &quot;$@&quot;
+</code></pre>
+<p>No linker invocation. No <code>--library-path</code>. No <code>LD_LIBRARY_PATH</code> leak. nix-ld owns the runtime surface. The trade is that the library list is global to your system instead of per-shell: if you have two binaries that want different versions of the same library, you can only put one in the global list. For my single-vendored-binary case (Claude Code), this isn't a real constraint.</p>
+<h2 id="one-nix-string-escape-detour">One Nix-string-escape detour</h2>
+<p>Writing the new heredoc in <code>shell.nix</code>, I started with this:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">exec -a &quot;\${BASH_ARGV0:-\$0}&quot; &quot;\$bin&quot; &quot;\$@&quot;
+</code></pre>
+<p>...and got a Nix parser error at column 25. Inside Nix double-single-quote strings (<code>''...''</code>), <code>\${</code> isn't an escape: Nix tries to parse it as antiquotation and the backslash doesn't help. The correct escape for a literal <code>${</code> inside <code>''...''</code> is <code>''${</code>:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">exec -a &quot;&#x27;&#x27;${BASH_ARGV0:-\$0}&quot; &quot;\$bin&quot; &quot;\$@&quot;
+</code></pre>
+<p>Single dollars work fine with <code>\$</code>. Only the brace form needs the double-apostrophe escape. Small thing but it took five minutes to figure out, and the error message (<em>"unexpected invalid token"</em>) doesn't lead you to it.</p>
+<h2 id="honest-reflection">Honest reflection</h2>
+<p>Three wrong hypotheses, each more confident than the last. The Bun-Rust-rewrite story was particularly seductive: recent news, a public issue tracker showing related regressions, timing that lined up. I drafted most of a bug report before checking the one thing that would have killed the hypothesis: which Bun version is actually embedded?</p>
+<p>When the narrative fits perfectly, that's the moment to do the cheapest disconfirming test. Five seconds of <code>strings | grep Bun</code> would have saved time.</p>
+<p>The same lesson came back to bite me at the end. I closed out the first version of this post with "the wrapper is partially broken, I'm parking it", documenting the limitation but never actually testing whether it was a <em>limitation</em> or just an unfinished implementation. The <code>$0</code> vs <code>BASH_ARGV0</code> thing would have closed half the gap on day one. The other half (the <code>/proc/self/exe</code> problem) took 20 minutes of <code>set -x</code> once I sat down with the right question. "Good enough for now" deserves the same disconfirming-test discipline as a fresh hypothesis.</p>
+<p>The deeper lesson, twice over: modifying a binary to fit your OS only works until it doesn't. The bridge-from-Nix-to-FHS pattern feels solid because patchelf is well-understood, but it depends on the source binary having properties (slack in the file layout, no exotic packaging) that the binary's authors never promised you. Invoking the Nix linker directly against a pristine binary felt like the robust alternative, but it has its own ceiling: once <em>you</em> are ld.so, the rest of the world sees ld.so. nix-ld is one more step less clever than the linker-as-wrapper trick: instead of you running the linker, the kernel runs it for you, exactly the way it was designed to. The path of least cleverness wins.</p>
+<h2 id="code">Code</h2>
+<p>The slimmed-down wrapper lives in <a href="https://github.com/ducks/claude-nixos">claude-nixos</a> on the <code>nix-ld</code> branch. With <code>programs.nix-ld.enable = true;</code> in your NixOS configuration and a reasonable <code>libraries</code> list, you don't need a <code>nix-shell</code> to run Claude Code at all: the wrapper is just a <code>~/.local/bin/claude</code> script that picks the latest installed version and exec's it. If you don't care about juggling multiple installed versions, you can replace the wrapper with a symlink and skip the script entirely.</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;patchelf-broke-claude-code&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-patchelf-broke-claude-code"
+      data-goatcounter-title="Helpful click on blog-2026-patchelf-broke-claude-code"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;mini-racer-nixos-bundle-gemfile&#x2F;">mini_racer on NixOS: Three Things That Were Wrong</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 25, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">mini_racer 0.21.4 wouldn&#x27;t build in my nix-shell. The fix turned out to be counterintuitive: removing glibc from buildInputs made stdlib.h work again. Plus a BUNDLE_GEMFILE footgun hiding in plain sight.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/debugging">#debugging</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;running-claude-code-on-nixos&#x2F;">Running Claude Code on NixOS</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 07, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Claude Code&#x27;s official installer drops a prebuilt Linux binary that won&#x27;t execute on NixOS. A 133-line shell.nix patches it on the way in. Here&#x27;s what&#x27;s broken, why, and how to fix it without leaving the official install path.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;nix-shells-ssh-claude-code&#x2F;">The Unholy Trinity: Nix Shells, SSH Config, and Claude Code</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 21, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">How proper environment setup turns AI coding assistants from novelty into genuine infrastructure. Nix makes everything reproducible. SSH makes everything reachable. Claude ties it together.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;real-declarative-infrastructure-nixos&#x2F;">From Bash Scripts to NixOS: Real Declarative Infrastructure on a VPS</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 18, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Converting a bash script + systemd-based VPS to NixOS for truly declarative infrastructure. No more update scripts or edge cases, just configuration.nix.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/self-hosting">#self-hosting</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-9&#x2F;">NixOS as a daily driver or Zero to Nixty, part 9&#x2F;? - Enabling Wi-Fi</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 27, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">Troubleshooting and fixing Wi-Fi on a Framework 16 laptop running NixOS by loading the Intel AX210 driver, enabling firmware, and configuring NetworkManager with wpa_supplicant.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/framework">#framework</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

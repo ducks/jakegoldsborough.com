@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="A blog about NixOS, self-hosting, Rust projects, and other tech musings. Maybe some meatspace stuff as well.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Resume">
+    <meta property="og:description" content="A blog about NixOS, self-hosting, Rust projects, and other tech musings. Maybe some meatspace stuff as well.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;resume&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Resume">
+    <meta name="twitter:description" content="A blog about NixOS, self-hosting, Rust projects, and other tech musings. Maybe some meatspace stuff as well.">
+
+    <title>Resume - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class=""
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class="active"
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <article class="resume">
+  <h3>Software Engineer | DevOps & Automation</h3>
+
+  <p>
+    Versatile Software Engineer with over a decade of experience in software
+    development, DevOps, and automation. Proven ability to design, develop,
+    and optimize scalable systems, reducing operational overhead and improving
+    performance. Passionate about problem-solving, automation, and infrastructure
+    as code. Experienced in working remotely and collaborating with
+    cross-functional teams to deliver efficient, maintainable solutions.
+  </p>
+
+  <h4>Experience</h4>
+
+  <h5>Discourse</h5>
+  <p><b>Software Engineer (Infrastructure), 2025-current</b></p>
+
+  <h6>Eliminated 16x storage inflation on backups via upload deduplication</h6>
+  <p>
+    Shipped a hardlink-based deduplication pass in Discourse's backup creator that
+    groups uploads by content hash and stores duplicate content once. Reduced one
+    customer site from 432 GB to 26 GB of unique content. Followed up with an
+    ext4-hardlink-limit fallback after finding a single reaction GIF duplicated
+    246,173 times, turning what would have been 246k redundant S3 downloads into 5.
+  </p>
+
+  <h6>Designed pre-provisioning pool for instant trial signups</h6>
+  <p>
+    Architected and shipped a pool of pre-built Discourse sites claimed at signup
+    time, using <code>FOR UPDATE SKIP LOCKED</code> for safe concurrent claiming with
+    graceful fallback to live provisioning. Target signup time of 90s reduced to
+    under 15s. Includes a subdomain-name generator producing 2,805 readable
+    combinations from curated word lists.
+  </p>
+
+  <h6>Optimized Ruby/SQL hot paths in core and internal services</h6>
+  <p>
+    Rewrote Discourse's daily category-stats job from per-row Ruby iteration
+    (8 queries per category) to batched SQL aggregation with
+    <code>COUNT(*) FILTER (WHERE ...)</code>, achieving an 8.6x speedup at production
+    scale (2,000 categories / 1.6M posts). Separately refactored an internal
+    hosted-sites API endpoint from 27-second timeouts to under 10 seconds by
+    eliminating N+1 Redis lookups and adding a request-scoped tier cache.
+  </p>
+
+  <h6>Parallelized CI and restructured build pipelines</h6>
+  <p>
+    Cut a Ruby/Rails service's CI runtime from 10 minutes to 3-4 by parallelizing
+    RSpec across 4 GitHub Actions runners, surfacing and fixing several
+    pre-existing test-isolation bugs in the process. Restructured the build
+    Dockerfile into multi-stage layers so lockfile changes no longer bust
+    source-code caches, cutting code-only deploys from ~10 minutes to ~6.
+  </p>
+
+  <h6>Contributed S3 IAM role assumption to Discourse core</h6>
+  <p>
+    Multi-quarter upstream contribution letting Discourse installations use IAM
+    role assumption for S3 instead of long-lived access keys. Worked around a
+    Ruby AWS SDK credential-chain precedence bug, refactored a singleton that
+    was leaking credentials across sites in multisite mode, and collaborated
+    with maintainers through review iteration on a safer simplified release.
+  </p>
+
+  <h5>Flashpoint</h5>
+  <p><b>Software Engineer II (Mid-Level), 2022 - 2024</b></p>
+
+  <h6>Reduced infrastructure setup time from days to hours</h6>
+  <p>
+    Led Terraform and Kubernetes pipeline implementation. Designed reusable Terraform modules
+    and automated Kubernetes resource creation using Node.js. Initiated Helm chart development
+    for better deployment management.
+  </p>
+
+  <h6>Eliminated hours of manual work across teams</h6>
+  <p>
+    Enhanced an AngularJS web application to efficiently manage and connect to cloud-based VMs.
+  </p>
+
+  <h6>Refactored a legacy Java-based API into a modern Node.js service</h6>
+  <p>
+    Reduced technical debt and simplified maintenance for future feature requests.
+  </p>
+
+  <h6>Developed CI/CD pipelines and Dockerized applications</h6>
+  <p>
+    Supported an AngularJS-to-React migration, ensuring seamless frontend transitions and
+    improving local development environments.
+  </p>
+
+  <h6>Debugged and resolved mission-critical issues in cloud-based Linux VMs</h6>
+  <p>
+    Optimized RDP performance and fixed PulseAudio configurations, enhancing system stability.
+  </p>
+
+  <h6>Mentored junior engineers</h6>
+  <p>
+    Contributed to technical interviews, fostering a culture of continuous learning and collaboration.
+  </p>
+
+  <h5>Infinity Interactive</h5>
+  <p><b>Software Engineer, 2010 - 2020</b></p>
+
+  <p>
+    Contracted full-stack work for Fortune 100 and Fortune 500 companies
+    including Shutterstock, Allegra, and Flashpoint. Built and maintained
+    production applications across Node.js, GraphQL, React, and Vue.js
+    stacks. Notable: improved a high-traffic application's response times
+    by 75% via a Redis caching strategy.
+  </p>
+
+  <h4>Skills & Technologies</h4>
+
+  <h6>Programming</h6>
+  <p>Ruby, Node.js, TypeScript, Python, Rust</p>
+
+  <h6>Cloud & Infrastructure</h6>
+  <p>AWS, Terraform, Kubernetes, Google Cloud</p>
+
+  <h6>Frontend</h6>
+  <p>React, Vue.js, AngularJS</p>
+
+  <h6>DevOps & CI/CD</h6>
+  <p>Docker, Git, NixOS</p>
+
+  <h6>Databases & Caching</h6>
+  <p>Postgres, MySQL, Redis, GraphQL</p>
+
+  <h6>Operating Systems</h6>
+  <p>Linux/Unix (Debian, Ubuntu, NixOS, macOS), BSD</p>
+
+  <h4>Languages</h4>
+
+  <p>English (Native), Swedish (Learning)</p>
+
+  <h4>Additional Information</h4>
+
+  <p>
+    Open to relocation to Europe and remote-friendly opportunities.
+  </p>
+
+  <p>
+    Strong advocate for automation, scalable infrastructure, and developer tooling improvements.
+  </p>
+
+  <p>
+    Available for interviews and technical discussions upon request.
+  </p>
+</article>
+
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

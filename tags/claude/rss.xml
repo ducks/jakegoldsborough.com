@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - claude</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/claude/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Fri, 05 Jun 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Claude assisted Changelog - 23&#x2F;52</title>
+          <pubDate>Fri, 05 Jun 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/weekly-summary-23/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/weekly-summary-23/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/weekly-summary-23/">&lt;p&gt;A long week on personal infrastructure, with the through-line being
+&quot;actually use the tools I&#x27;ve built.&quot; Most of what shipped this week was glue
+between things that already existed.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;SRG and JOBL polish&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Spent the first part of the week hardening the JOBL + SRG + GitHub Actions
+chain that renders &lt;a href=&quot;https:&#x2F;&#x2F;ducks.github.io&#x2F;resume&#x2F;&quot;&gt;my resume&lt;&#x2F;a&gt; from a TOML
+file. Added an &lt;code&gt;srg.toml&lt;&#x2F;code&gt; config so theme and output choices live next to
+&lt;code&gt;resume.jobl&lt;&#x2F;code&gt; instead of inside the CI workflow. Dropped the binary cache
+that was silently pinning CI to an old SRG version. Pointed SRG at the
+repo&#x27;s custom &lt;code&gt;template.resume&lt;&#x2F;code&gt; to render the GitHub URL and website fields
+that the bundled &lt;code&gt;jake&lt;&#x2F;code&gt; layout was dropping. The kind of tooling work that
+nobody sees but makes every subsequent change a one-line edit.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;namecom-cli&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Built a small nushell wrapper over the name.com Core API. Three subcommands -
+&lt;code&gt;login&lt;&#x2F;code&gt; (interactive credential setup with &#x2F;core&#x2F;v1&#x2F;hello validation), &lt;code&gt;list&lt;&#x2F;code&gt;
+(returns a structured table you can pipe through &lt;code&gt;where&lt;&#x2F;code&gt; &#x2F; &lt;code&gt;sort-by&lt;&#x2F;code&gt;), &lt;code&gt;add&lt;&#x2F;code&gt;
+and &lt;code&gt;del&lt;&#x2F;code&gt;. About 150 lines of nushell. Auth via HTTP Basic, credentials in
+~&#x2F;.config&#x2F;namecom&#x2F;credentials.toml at mode 0600.&lt;&#x2F;p&gt;
+&lt;p&gt;The reason to build it was that pond-nix&#x27;s DNS workflow was &quot;log into name.com
+web UI, click Add Record, type the same thing as last time.&quot; Now I can
+&lt;code&gt;namecom add jobl.dev stats A &amp;lt;ip&amp;gt;&lt;&#x2F;code&gt; from the shell and version DNS additions
+alongside the NixOS config that produces them.&lt;&#x2F;p&gt;
+&lt;p&gt;Wrote &lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;namecom-cli-in-nushell&#x2F;&quot;&gt;a post&lt;&#x2F;a&gt; on
+what nushell saves you over the bash equivalent for this kind of tool: JSON
+becomes structured tables, &lt;code&gt;http get&lt;&#x2F;code&gt; builtin removes the curl call, TOML
+parses natively via &lt;code&gt;open&lt;&#x2F;code&gt;. Source at &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;namecom-cli&quot;&gt;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;namecom-cli&lt;&#x2F;a&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;Caught a real bug along the way: nushell&#x27;s &lt;code&gt;http post&lt;&#x2F;code&gt; doesn&#x27;t apply the
+Content-Type header when both &lt;code&gt;--headers&lt;&#x2F;code&gt; and &lt;code&gt;--content-type&lt;&#x2F;code&gt; are set. Filed
+in my head as a follow-up. Worked around with direct curl for now.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;GoatCounter for jobl.dev and srg.jobl.dev&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Added a fourth GoatCounter instance to pond-nix for jobl.dev, fronted by Caddy
+at stats.jobl.dev. Most of the work was a half-day detour trying to make the
+site row creation zero-touch via systemd ExecStartPre. Got close - the
+migration step works, but &lt;code&gt;goatcounter db create site&lt;&#x2F;code&gt; requires creating an
+admin user, and the password prompt is interactive. systemd has no TTY, the
+service died.&lt;&#x2F;p&gt;
+&lt;p&gt;Considered three workarounds: store a generated password in a 0600 file
+(plaintext-secret pattern I didn&#x27;t love for one analytics dashboard), use
+goatcounter&#x27;s &lt;code&gt;-link&lt;&#x2F;code&gt; flag to share users across sites (cleaner but couples
+all sites to one user), or adopt sops-nix &#x2F; agenix for encrypted secrets
+(overkill for one password). Ended up reverting the auto-provision entirely
+and made peace with one SSH step per new instance: &lt;code&gt;sudo -u goatcounter goatcounter db create site ...&lt;&#x2F;code&gt;. The lesson: not every step that feels manual
+deserves automation.&lt;&#x2F;p&gt;
+&lt;p&gt;After that, the standard chain - namecom-cli added the A record, Caddy got a
+cert from Let&#x27;s Encrypt, GoatCounter logged the first hit a few minutes
+later.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;srg.jobl.dev as a sibling to jobl.dev&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Built a small landing page for SRG at srg.jobl.dev, mirroring jobl.dev&#x27;s
+gruvbox theme and font stack so the two read as siblings. Single index.html
+with no build step - GitHub Pages legacy mode, &lt;code&gt;docs&#x2F;&lt;&#x2F;code&gt; on &lt;code&gt;main&lt;&#x2F;code&gt;, CNAME
+file declares the custom domain. Reused the goatcounter snippet but pointed
+it at the same stats.jobl.dev&#x2F;count endpoint.&lt;&#x2F;p&gt;
+&lt;p&gt;That last decision turned out to be wrong. Both sites&#x27; hits ended up pooled
+under one GoatCounter site row, and because both landing pages live at &lt;code&gt;&#x2F;&lt;&#x2F;code&gt;,
+the dashboard couldn&#x27;t tell them apart. Took a few back-and-forths to
+convince me, but eventually I set up a proper split: new Caddy vhost
+stats.srg.jobl.dev fronting the same goatcounter instance, updated the site
+row&#x27;s cname to match, updated srg.jobl.dev&#x27;s HTML snippet to post there. Now
+the dashboard&#x27;s site selector switches cleanly between the two.&lt;&#x2F;p&gt;
+&lt;p&gt;Worth noting: I spent half an hour trying to talk myself out of doing this
+split because the data was technically being collected. The right move was to
+fix it the first time the user asked.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;hosted-resumes.com audit&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;A friend asked how I built my resume, which surfaced that hosted-resumes.com
+already exists as an MVP-shaped codebase. About 6,000 lines of TypeScript &#x2F;
+Svelte, with auth, multi-tenant routing, a PostgreSQL schema, an editor with
+live preview, a Rust PDF microservice wrapping SRG, and Stripe &#x2F; S3
+integration stubbed out. Closer to &quot;ship to a friend&quot; than I&#x27;d remembered.&lt;&#x2F;p&gt;
+&lt;p&gt;Did a gap analysis: skip the Stripe and S3 stubs for a friend MVP, set up the
+deploy infrastructure (wildcard DNS, wildcard TLS via DNS-01, Caddy, Postgres,
+the SvelteKit app, the PDF service), and the buddy can be on
+&lt;code&gt;&amp;lt;him&amp;gt;.hosted-resumes.com&lt;&#x2F;code&gt; after a focused Saturday. Didn&#x27;t start that work
+this week - decided to finish the GoatCounter &#x2F; srg.jobl.dev thread first
+rather than context-switch.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Considered but parked&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Looked at dnscontrol as the declarative alternative to namecom-cli. It&#x27;s the
+right answer for &quot;DNS as code with drift detection,&quot; but the name.com
+provider is unmaintained and the friction outweighs the benefit at this
+scale. namecom-cli stays the imperative tool; if I ever want declarative
+DNS, dnscontrol is the migration path.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

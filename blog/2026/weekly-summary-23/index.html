@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="A heavy week on personal infrastructure - hardened the SRG &#x2F; JOBL resume pipeline, shipped namecom-cli in nushell, built srg.jobl.dev as a sibling site to jobl.dev, stood up split analytics across both domains via self-hosted GoatCounter, and audited the hosted-resumes.com codebase.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Claude assisted Changelog - 23&#x2F;52">
+    <meta property="og:description" content="A heavy week on personal infrastructure - hardened the SRG &#x2F; JOBL resume pipeline, shipped namecom-cli in nushell, built srg.jobl.dev as a sibling site to jobl.dev, stood up split analytics across both domains via self-hosted GoatCounter, and audited the hosted-resumes.com codebase.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-23&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Claude assisted Changelog - 23&#x2F;52">
+    <meta name="twitter:description" content="A heavy week on personal infrastructure - hardened the SRG &#x2F; JOBL resume pipeline, shipped namecom-cli in nushell, built srg.jobl.dev as a sibling site to jobl.dev, stood up split analytics across both domains via self-hosted GoatCounter, and audited the hosted-resumes.com codebase.">
+
+    <title>Claude assisted Changelog - 23&#x2F;52 - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Claude assisted Changelog - 23&#x2F;52</h1>
+      <div class="meta">
+        
+        <p>Jun 05, 2026</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/claude">#claude</a></p>
+          
+          <p><a href="/tags/changelog">#changelog</a></p>
+          
+          <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+          
+        </div>
+      
+
+      <p>A long week on personal infrastructure, with the through-line being
+"actually use the tools I've built." Most of what shipped this week was glue
+between things that already existed.</p>
+<p><strong>SRG and JOBL polish</strong></p>
+<p>Spent the first part of the week hardening the JOBL + SRG + GitHub Actions
+chain that renders <a href="https://ducks.github.io/resume/">my resume</a> from a TOML
+file. Added an <code>srg.toml</code> config so theme and output choices live next to
+<code>resume.jobl</code> instead of inside the CI workflow. Dropped the binary cache
+that was silently pinning CI to an old SRG version. Pointed SRG at the
+repo's custom <code>template.resume</code> to render the GitHub URL and website fields
+that the bundled <code>jake</code> layout was dropping. The kind of tooling work that
+nobody sees but makes every subsequent change a one-line edit.</p>
+<p><strong>namecom-cli</strong></p>
+<p>Built a small nushell wrapper over the name.com Core API. Three subcommands -
+<code>login</code> (interactive credential setup with /core/v1/hello validation), <code>list</code>
+(returns a structured table you can pipe through <code>where</code> / <code>sort-by</code>), <code>add</code>
+and <code>del</code>. About 150 lines of nushell. Auth via HTTP Basic, credentials in
+~/.config/namecom/credentials.toml at mode 0600.</p>
+<p>The reason to build it was that pond-nix's DNS workflow was "log into name.com
+web UI, click Add Record, type the same thing as last time." Now I can
+<code>namecom add jobl.dev stats A &lt;ip&gt;</code> from the shell and version DNS additions
+alongside the NixOS config that produces them.</p>
+<p>Wrote <a href="/blog/2026/namecom-cli-in-nushell/">a post</a> on
+what nushell saves you over the bash equivalent for this kind of tool: JSON
+becomes structured tables, <code>http get</code> builtin removes the curl call, TOML
+parses natively via <code>open</code>. Source at <a href="https://github.com/ducks/namecom-cli">https://github.com/ducks/namecom-cli</a>.</p>
+<p>Caught a real bug along the way: nushell's <code>http post</code> doesn't apply the
+Content-Type header when both <code>--headers</code> and <code>--content-type</code> are set. Filed
+in my head as a follow-up. Worked around with direct curl for now.</p>
+<p><strong>GoatCounter for jobl.dev and srg.jobl.dev</strong></p>
+<p>Added a fourth GoatCounter instance to pond-nix for jobl.dev, fronted by Caddy
+at stats.jobl.dev. Most of the work was a half-day detour trying to make the
+site row creation zero-touch via systemd ExecStartPre. Got close - the
+migration step works, but <code>goatcounter db create site</code> requires creating an
+admin user, and the password prompt is interactive. systemd has no TTY, the
+service died.</p>
+<p>Considered three workarounds: store a generated password in a 0600 file
+(plaintext-secret pattern I didn't love for one analytics dashboard), use
+goatcounter's <code>-link</code> flag to share users across sites (cleaner but couples
+all sites to one user), or adopt sops-nix / agenix for encrypted secrets
+(overkill for one password). Ended up reverting the auto-provision entirely
+and made peace with one SSH step per new instance: <code>sudo -u goatcounter goatcounter db create site ...</code>. The lesson: not every step that feels manual
+deserves automation.</p>
+<p>After that, the standard chain - namecom-cli added the A record, Caddy got a
+cert from Let's Encrypt, GoatCounter logged the first hit a few minutes
+later.</p>
+<p><strong>srg.jobl.dev as a sibling to jobl.dev</strong></p>
+<p>Built a small landing page for SRG at srg.jobl.dev, mirroring jobl.dev's
+gruvbox theme and font stack so the two read as siblings. Single index.html
+with no build step - GitHub Pages legacy mode, <code>docs/</code> on <code>main</code>, CNAME
+file declares the custom domain. Reused the goatcounter snippet but pointed
+it at the same stats.jobl.dev/count endpoint.</p>
+<p>That last decision turned out to be wrong. Both sites' hits ended up pooled
+under one GoatCounter site row, and because both landing pages live at <code>/</code>,
+the dashboard couldn't tell them apart. Took a few back-and-forths to
+convince me, but eventually I set up a proper split: new Caddy vhost
+stats.srg.jobl.dev fronting the same goatcounter instance, updated the site
+row's cname to match, updated srg.jobl.dev's HTML snippet to post there. Now
+the dashboard's site selector switches cleanly between the two.</p>
+<p>Worth noting: I spent half an hour trying to talk myself out of doing this
+split because the data was technically being collected. The right move was to
+fix it the first time the user asked.</p>
+<p><strong>hosted-resumes.com audit</strong></p>
+<p>A friend asked how I built my resume, which surfaced that hosted-resumes.com
+already exists as an MVP-shaped codebase. About 6,000 lines of TypeScript /
+Svelte, with auth, multi-tenant routing, a PostgreSQL schema, an editor with
+live preview, a Rust PDF microservice wrapping SRG, and Stripe / S3
+integration stubbed out. Closer to "ship to a friend" than I'd remembered.</p>
+<p>Did a gap analysis: skip the Stripe and S3 stubs for a friend MVP, set up the
+deploy infrastructure (wildcard DNS, wildcard TLS via DNS-01, Caddy, Postgres,
+the SvelteKit app, the PDF service), and the buddy can be on
+<code>&lt;him&gt;.hosted-resumes.com</code> after a focused Saturday. Didn't start that work
+this week - decided to finish the GoatCounter / srg.jobl.dev thread first
+rather than context-switch.</p>
+<p><strong>Considered but parked</strong></p>
+<p>Looked at dnscontrol as the declarative alternative to namecom-cli. It's the
+right answer for "DNS as code with drift detection," but the name.com
+provider is unmaintained and the friction outweighs the benefit at this
+scale. namecom-cli stays the imperative tool; if I ever want declarative
+DNS, dnscontrol is the migration path.</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;weekly-summary-23&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-weekly-summary-23"
+      data-goatcounter-title="Helpful click on blog-2026-weekly-summary-23"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;yearly-summary&#x2F;">2025 - A Review</a></h3>
+                  <div class="meta">
+                    
+                    <p>Dec 31, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">A reflective look back at 2025 as a year of integration: building durable tools, writing in public, and aligning technical work with sustainability, creativity, and a calm, long-term pace.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/gpt">#gpt</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-42&#x2F;">ChatGPT assisted Changelog - 42&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 17, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A week of creative experiments and follow-ups -- from launching a live transit board inside Discourse and polishing your AWS SDK Ruby series, to debugging GoatCounter exports and exploring privacy-friendly tools on GrapheneOS.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/gpt">#gpt</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-41&#x2F;">ChatGPT assisted Changelog - 41&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 10, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A quieter but productive week focused on publishing the Discourse transit tracker post, analyzing GoatCounter data across 37 countries and six continents, and continuing open source contributions to the AWS SDK for Ruby.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/gpt">#gpt</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-40&#x2F;">ChatGPT assisted Changelog - 40&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 03, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">Weekly topics spanning Czechia residency planning, Anki language learning setup, Framework 16 NixOS troubleshooting, Discourse plugin ideas, and practical logistics for international relocation.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/gpt">#gpt</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-36&#x2F;">ChatGPT assisted Changelog - 36-39&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Sep 26, 2025</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">A ChatGPT-generated summary covering Prague travel notes, Czech visa preparation, camera research, Discourse experiments, desktop tooling, email deliverability, and personal logistics from weeks 36-39.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/gpt">#gpt</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

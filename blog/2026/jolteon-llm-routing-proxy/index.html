@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="We run several vLLM backends for Discourse&#x27;s AI features. Hardcoding which backend handles which feature was getting messy. jolteon is the Rust proxy we built to fix that - it shipped yesterday.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="jolteon: An LLM Routing Proxy for Discourse">
+    <meta property="og:description" content="We run several vLLM backends for Discourse&#x27;s AI features. Hardcoding which backend handles which feature was getting messy. jolteon is the Rust proxy we built to fix that - it shipped yesterday.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;jolteon-llm-routing-proxy&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="jolteon: An LLM Routing Proxy for Discourse">
+    <meta name="twitter:description" content="We run several vLLM backends for Discourse&#x27;s AI features. Hardcoding which backend handles which feature was getting messy. jolteon is the Rust proxy we built to fix that - it shipped yesterday.">
+
+    <title>jolteon: An LLM Routing Proxy for Discourse - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>jolteon: An LLM Routing Proxy for Discourse</h1>
+      <div class="meta">
+        
+        <p>Jun 27, 2026</p>
+        
+        <p>6 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/infrastructure">#infrastructure</a></p>
+          
+          <p><a href="/tags/discourse">#discourse</a></p>
+          
+        </div>
+      
+
+      <p>Two weeks ago, someone posted an internal proposal:</p>
+<blockquote>
+<p>My dream for the future is a good proxy that automatically sends requests to
+the most appropriate model, allowing us to run a heterogeneous AI inference,
+and have it routed to our customers automatically.</p>
+</blockquote>
+<p>The concrete version of the problem: we'd deployed DeepSeek 4 Flash to a server
+in one region. It's good for long-form generation - periodic reports, data
+explorer summaries, dashboard highlights. But it's a single instance and has no
+vision support. Meanwhile Qwen 3 handles title suggestions and translation just
+fine on smaller, faster hardware. The gap between "we have these models" and "the
+right request reaches the right model" was just config - but config scattered
+across individual Discourse AI setups with no central health checking or fallback
+logic.</p>
+<p>The proposal asked for a centralized smart router that could:</p>
+<ul>
+<li>receive all LLM inference requests from hosted customers</li>
+<li>centralize health checking across all deployments</li>
+<li>route each request to the most appropriate model using context from Discourse -
+feature name, hosting tier, daily AI credit usage</li>
+</ul>
+<p>jolteon is that proxy. It shipped yesterday. Here's how it works.</p>
+<h2 id="built-with-fable">Built with Fable</h2>
+<p>The proposal landed two weeks ago. What made it possible to ship this fast was
+Fable - an experimental Claude model variant Anthropic was running for a period.
+I used it to write the entire proxy in a few hours.</p>
+<p>Fable was faster than Opus and reasoned differently - more willing to work through
+intermediate steps explicitly. For a project like this, where you're sketching out
+proxy architecture, async Rust, streaming SSE semantics, and per-pool config
+schemas all at once, that mattered. It could hold the whole design in mind and
+produce working code rather than plausible-looking scaffolding.</p>
+<p>The reasoning adapter work especially - where jolteon rewrites OpenAI-style
+<code>reasoning_effort</code> fields into vLLM-specific knobs before forwarding to Qwen3 and
+DeepSeek backends - involved a lot of "here is the vLLM template behavior, here is
+what the client sends, figure out the right rewrite" prompts. Fable worked through
+the token budget math and template key conflicts step by step.</p>
+<p>It's no longer available. But two weeks from proposal to production is the result.</p>
+<h2 id="the-routing-problem">The routing problem</h2>
+<p>For jolteon to route intelligently, Discourse needed to tell it something about
+each request. We added a set of headers that discourse-ai attaches when sending
+inference requests - feature name, hosting tier, whether the site is on a trial,
+quota usage, and whether the payload contains images:</p>
+<pre><code>X-Discourse-AI-Feature: ai_bot
+X-Discourse-AI-Tier: standard
+X-Discourse-AI-Trial: 1
+X-Discourse-AI-Quota-Used: 87
+X-Discourse-AI-Vision: 1
+</code></pre>
+<p>The routing logic combines these to land on a quality class: <code>fast</code>, <code>balanced</code>,
+or <code>frontier</code>. Then it picks a backend pool from a preference ladder for that
+class.</p>
+<pre data-lang="yaml" class="language-yaml "><code class="language-yaml" data-lang="yaml">classes:
+  fast:
+    ladder:
+      - { qwen-small: 70, deepseek-flash: 30 }
+  balanced:
+    ladder:
+      - { deepseek-flash: 80, qwen-large: 20 }
+      - { qwen-small: 100 }          # fallback
+  frontier:
+    ladder:
+      - { qwen-large: 100 }
+      - { deepseek-flash: 100 }      # fallback
+      - { qwen-small: 100 }          # fallback
+</code></pre>
+<p>Some features get a base class in config. <code>ai_bot</code> is frontier. <code>translate</code> is
+fast with a hard cap so it can't escalate even if tier would normally push it
+higher. Paid tiers get a +1 modifier. Trials get -1. Over 80% quota gets -1.
+Over 150% gets -2. The modifiers stack, the result gets clamped, the cap gets
+applied.</p>
+<p>Within a pool, backends are selected least-connections. Vision requests drop
+non-vision pools from the entire ladder. If a backend fails before the first
+response byte, jolteon retries the next backend, then the next ladder step.
+Once streaming starts, retries aren't possible.</p>
+<h2 id="why-rust">Why Rust</h2>
+<p>I wanted a single stateless binary with no runtime dependencies. Rust handles the
+async proxying well - SSE streams run up to 300 seconds and the proxy can't touch
+a single byte of the response body. The request body needs to be buffered (so
+failed attempts can be replayed), but the response must stream through unchanged.</p>
+<p>Rust's type system was also useful for the routing logic. The feature-to-class
+mapping, the modifier math, the ladder walk - all of it is a pure function over
+the policy and a snapshot of backend state. It's straightforward to test.</p>
+<h2 id="reasoning-parameter-adaptation">Reasoning parameter adaptation</h2>
+<p>This is the weirdest part of jolteon and the part that took the most iteration.</p>
+<p>Discourse is configured as an OpenAI Chat Completions client. It sends
+<code>reasoning_effort: "medium"</code> when the user has reasoning enabled. But vLLM
+doesn't implement that field the same way across models. Qwen3 needs
+<code>thinking_token_budget</code> and <code>chat_template_kwargs.enable_thinking</code>. DeepSeek V4
+needs <code>chat_template_kwargs.thinking</code> and its own <code>reasoning_effort</code> inside that
+object.</p>
+<p>jolteon handles this with per-pool reasoning adapters:</p>
+<pre data-lang="yaml" class="language-yaml "><code class="language-yaml" data-lang="yaml">pools:
+  qwen-small:
+    reasoning:
+      adapter: qwen3
+      forward_reasoning_effort: true
+      effort_budgets:
+        low: 512
+        medium: 2048
+        high: 8192
+</code></pre>
+<p>The adapter fires per attempt, not once per request. If a request fails over from
+qwen-large to deepseek-flash, jolteon rewrites the body again using the DeepSeek
+adapter before the second attempt. The client sent one request with
+<code>reasoning_effort: medium</code>. Each backend got the right vLLM fields for its
+template.</p>
+<h2 id="hot-reload">Hot reload</h2>
+<p>The policy is a YAML file. Reload it without dropping connections:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">kill -HUP $(pidof jolteon)
+</code></pre>
+<p>Backend health and in-flight counts survive the reload. The only thing that
+requires a restart is changing the listen address. In practice, tuning weights or
+adding a backend is a YAML edit, a commit, and a SIGHUP. No downtime.</p>
+<p>The <code>--check</code> flag validates the policy without starting the proxy:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">jolteon --check routing-policy.yml
+</code></pre>
+<p>Unknown fields are rejected, so misspelled keys fail fast rather than silently
+doing nothing. That check is wired into our deploy pipeline.</p>
+<h2 id="what-it-looks-like-in-production">What it looks like in production</h2>
+<p>Every request produces one structured JSON log line:</p>
+<pre data-lang="json" class="language-json "><code class="language-json" data-lang="json">{
+  &quot;site&quot;: &quot;example.com&quot;,
+  &quot;feature&quot;: &quot;ai_bot&quot;,
+  &quot;tier&quot;: &quot;standard&quot;,
+  &quot;trial&quot;: false,
+  &quot;quota_used&quot;: 0,
+  &quot;vision&quot;: false,
+  &quot;class&quot;: &quot;frontier&quot;,
+  &quot;pool&quot;: &quot;qwen-large&quot;,
+  &quot;backend&quot;: &quot;dub-1&quot;,
+  &quot;attempts&quot;: 1,
+  &quot;status&quot;: 200,
+  &quot;ttft_ms&quot;: 142,
+  &quot;duration_ms&quot;: 9214,
+  &quot;bytes&quot;: 48211
+}
+</code></pre>
+<p><code>ttft_ms</code> is time from request arrival to first upstream body byte - the latency
+number that matters for streaming responses. The line emits when the stream ends,
+including on client disconnect.</p>
+<p>Prometheus metrics on <code>/metrics</code> give you histograms for ttft and duration,
+attempt failure counts by backend and reason, in-flight gauges. The status
+endpoint at <code>/jolteon/status</code> shows every pool and backend in JSON.</p>
+<h2 id="open-source-plans">Open source plans</h2>
+<p>The proxy is Discourse-specific in one place: the <code>X-Discourse-AI-*</code> header
+names. Generalizing those to generic headers (or making them configurable) would
+make the routing logic applicable to any OpenAI-compatible fleet. I'd like to do
+that and open source it - the ladder routing, vision handling, and reasoning
+adaptation are useful beyond Discourse.</p>
+<p>For now the source is in an internal repo. The architecture, full config schema,
+and smoke/load/reload/reasoning test scripts are in the README. If you're building
+something similar and want to compare notes, reach out.</p>
+<h2 id="links">Links</h2>
+<ul>
+<li><a href="https://github.com/discourse/discourse/tree/main/plugins/discourse-ai">discourse-ai</a> - the Discourse AI plugin jolteon fronts</li>
+<li><a href="https://github.com/vllm-project/vllm">vLLM</a> - the inference backend</li>
+</ul>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;jolteon-llm-routing-proxy&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-jolteon-llm-routing-proxy"
+      data-goatcounter-title="Helpful click on blog-2026-jolteon-llm-routing-proxy"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;yapper-or-just-ask-the-bots&#x2F;">Yapper, or: just ask the bots</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 10, 2026</p>
+                    
+                    <p>9 min read</p>
+                  </div>
+                  
+                    <p class="desc">Yapper is a Discourse plugin that turns a forum into a place where humans can read but only registered bots can post. It&#x27;s live at yapper.forum. Here&#x27;s what it does, and why I think the protocol underneath it is the actual product.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/protocol">#protocol</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;six-records-two-bugs-one-refactor-a-day-with-arf&#x2F;">Six records, two bugs, one refactor: a day with ARF</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 07, 2026</p>
+                    
+                    <p>9 min read</p>
+                  </div>
+                  
+                    <p class="desc">git blame tells you who wrote this line. arf why tells you what they were thinking. I shipped ARF earlier this year as a format for capturing agent reasoning alongside commits. Here&#x27;s what happened when an agent actually used it for a session of real work.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;running-claude-code-on-nixos&#x2F;">Running Claude Code on NixOS</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 07, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Claude Code&#x27;s official installer drops a prebuilt Linux binary that won&#x27;t execute on NixOS. A 133-line shell.nix patches it on the way in. Here&#x27;s what&#x27;s broken, why, and how to fix it without leaving the official install path.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;inside-claude-codes-team-memory-sync&#x2F;">Inside Claude Code&#x27;s Team Memory Sync Engine</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 05, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">How Claude Code shares knowledge across your team: a file watcher, delta sync, secret scanner, and optimistic concurrency -- all hidden behind a directory you didn&#x27;t know existed.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-3&#x2F;">Rewriting Claude Code in Rust, Part 3: TUI, Agents, and Multi-Provider</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 04, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">claux gets a ratatui TUI, sub-agents, and support for any OpenAI-compatible endpoint. One session, start to finish.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

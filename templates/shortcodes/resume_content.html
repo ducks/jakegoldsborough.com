@@ -15,6 +15,18 @@
   <h5>Discourse</h5>
   <p><b>Software Engineer (Infrastructure), 2025-current</b></p>
 
+  <h6>Built a Rust routing proxy for production LLM inference traffic</h6>
+  <p>
+    Designed and shipped jolteon, a routing proxy (axum/reqwest/tokio) that
+    routes Discourse's AI features across GPU-backed vLLM/SGLang backend pools
+    by tier, quota, and feature flags, with fully streaming-transparent SSE
+    passthrough. Retries are structurally guaranteed to occur only before the
+    first response byte reaches the client, and backend capacity tracking uses
+    lock-free CAS-retry loops verified safe under concurrent load testing.
+    Covered by 80 tests and an independent architecture/security review with
+    no correctness or security issues found.
+  </p>
+
   <h6>Eliminated 16x storage inflation on backups via upload deduplication</h6>
   <p>
     Shipped a hardlink-based deduplication pass in Discourse's backup creator that

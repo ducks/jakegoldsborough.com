@@ -55,6 +55,14 @@ identical cell sets. The workflow engine is a correct Conway
 implementation. Nobody asked for this. See
 [the last post about that](/blog/2026/software-doesnt-have-to-justify-itself/).
 
+![The three panes of petri: the physics pipeline mid-generation, the
+naturalist's agent execution, and the live dish with its field journal](/images/2026/petri/three-panes.png)
+
+The whole thing in one frame: the rules of life as a node pipeline (top
+right, item counts on the wires), the naturalist's agent execution
+filing an entry (bottom right), and the living dish with its journal
+beneath it (left). Everything below is somewhere in that picture.
+
 ## The display problem
 
 n8n's editor will not animate anything. I tested this properly: injected

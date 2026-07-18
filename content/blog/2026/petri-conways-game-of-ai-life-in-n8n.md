@@ -120,8 +120,8 @@ It even does arithmetic on the birth/death ledger.
 
 ## The day the world froze
 
-The best bug of the project. After about 790 generations, the ecosystem
-- seeded with an R-pentomino, which erupts into chaos for hundreds of
+The best bug of the project. After about 790 generations, the ecosystem -
+seeded with an R-pentomino, which erupts into chaos for hundreds of
 generations before burning out - decayed to a handful of scattered
 cells. The next generation had zero births.
 
@@ -163,8 +163,8 @@ Things n8n taught me the hard way, left here for the next traveler:
 ## What's next
 
 The naturalist observes but never touches. The next inhabitant is the
-Gardener: an agent allowed one bounded intervention every N generations
-- place a single pattern from a fixed catalog, nothing else - trying to
+Gardener: an agent allowed one bounded intervention every N generations -
+place a single pattern from a fixed catalog, nothing else - trying to
 keep the ecosystem alive. Run a second, untended dish as a control and
 you have an actual experiment: does a small local model gardening a
 cellular automaton beat entropy?

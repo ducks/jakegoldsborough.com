@@ -125,8 +125,6 @@ maintain - just text and grep. raft is the thing he deliberately *doesn't*
 build: the layer above the log, for when the pile gets big enough that you
 want to see its shape and grep can't show you.
 
-Same soil. raft is the plant.
-
 ## Using it
 
 The real test of a tool like this was never whether the code is good. It's

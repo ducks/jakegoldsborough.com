@@ -21,6 +21,10 @@ Then I saw [Work Louder's Co-Lab](https://openai.com/) with OpenAI, where the ke
 
 The result is [glow](https://github.com/ducks/glow). The big button now lights up with whatever Claude Code is doing. Purple when it's idle. Blue while it's working. Green when it's my turn. Orange when it needs me. I glance at it from across the room and I know Claude's state without looking at the screen.
 
+<video autoplay loop muted playsinline width="100%">
+  <source src="/images/2026/glow/button-demo.mp4" type="video/mp4">
+</video>
+
 Here's how I got there, including the hour I lost to setting the wrong byte.
 
 ## First, the button did nothing

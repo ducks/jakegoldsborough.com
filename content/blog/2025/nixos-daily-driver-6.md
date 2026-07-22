@@ -165,3 +165,7 @@ In this post, we have:
   repeatable dev environments
 - Explained how to launch one-off shells and why `nix-shell` is so useful for
   development workflows
+
+---
+
+*Zero to Nixty: [← Part 5](/blog/2025/nixos-daily-driver-5/) · [Part 7.5 →](/blog/2025/nixos-daily-driver-7-5/)*

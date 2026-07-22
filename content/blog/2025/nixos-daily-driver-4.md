@@ -182,3 +182,7 @@ NixOS and it's declarative config.
 In the next post, I plan to get back to actually setting up NixOS for daily driver
 use. This will probably include some `hypr` config and introducing Nixvim. Nixvim
 is a way to manage your neovim plugins in a NixOS-y way.
+
+---
+
+*Zero to Nixty: [← Part 3](/blog/2025/nixos-daily-driver-3/) · [Part 5 →](/blog/2025/nixos-daily-driver-5/)*

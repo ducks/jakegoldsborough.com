@@ -74,3 +74,7 @@ You can confirm everything worked by running:
 
 After rebooting, my `iwlwifi` driver loaded, `wlp2s0` came up, and `nmtui` was
 able to both see and connect to the SSIDs.
+
+---
+
+*Zero to Nixty: [← Part 8](/blog/2025/nixos-daily-driver-8/)*

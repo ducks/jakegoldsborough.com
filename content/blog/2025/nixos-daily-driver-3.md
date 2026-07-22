@@ -162,3 +162,7 @@ In this post, we have:
 
 In Part 4, we'll continue to configure `Hyprland`: adding keybindings,
 wallpapers, waybar, and maybe even a lockscreen.
+
+---
+
+*Zero to Nixty: [← Part 2](/blog/2025/nixos-daily-driver-2/) · [Part 4 →](/blog/2025/nixos-daily-driver-4/)*

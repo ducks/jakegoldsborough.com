@@ -17,7 +17,7 @@ This will make it very simple to pass our config around if needed. We also
 learned about Dotter, a dotfile configuration management tool, which we will
 be using again today.
 
-See that post [here](/blog/content/nixos-daily-driver-4)
+See that post [here](/blog/2025/nixos-daily-driver-4/)
 
 ### Intro
 
@@ -245,3 +245,7 @@ In this post, we have:
 Next time will be all about development work. We will introduce Nixvim and
 `nix shell`. Nix shells are development environments you can set up via config.
 They are very powerful and make developing on NixOS much easier.
+
+---
+
+*Zero to Nixty: [← Part 4](/blog/2025/nixos-daily-driver-4/) · [Part 6 →](/blog/2025/nixos-daily-driver-6/)*

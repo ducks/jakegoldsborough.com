@@ -191,3 +191,7 @@ we can take the configuration we added to git in the previous posts and apply
 it to our new, freshly installed and encrypted system.
 
 Spoiler: it does not go as smoothly as I had hoped.
+
+---
+
+*Zero to Nixty: [← Part 6](/blog/2025/nixos-daily-driver-6/) · [Part 8 →](/blog/2025/nixos-daily-driver-8/)*

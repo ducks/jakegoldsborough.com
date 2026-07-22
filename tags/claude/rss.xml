@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - claude</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/claude/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Mon, 20 Jul 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>glow: I gave Claude a physical presence on my desk</title>
+          <pubDate>Mon, 20 Jul 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/glow-the-big-button-that-glows-with-claude/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/glow-the-big-button-that-glows-with-claude/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/glow-the-big-button-that-glows-with-claude/">&lt;p&gt;I bought a &lt;a href=&quot;https:&#x2F;&#x2F;www.keychron.com&#x2F;products&#x2F;keychron-q0-mini-8k-action-key&quot;&gt;Keychron Q0 Mini&lt;&#x2F;a&gt; as a joke.&lt;&#x2F;p&gt;
+&lt;p&gt;It&#x27;s a macropad, except it&#x27;s basically one giant key. A single satisfying THUNK of a button. There is no reason to own it. I owned it anyway, because the idea of a big dumb button made me laugh and I wanted to see what I&#x27;d do with it.&lt;&#x2F;p&gt;
+&lt;p&gt;Then I saw &lt;a href=&quot;https:&#x2F;&#x2F;openai.com&#x2F;&quot;&gt;Work Louder&#x27;s Co-Lab&lt;&#x2F;a&gt; with OpenAI, where the keyboard&#x27;s lighting reacts to what the AI is doing. And the button has RGB. And I thought the thought that has started every good project I&#x27;ve ever built:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;em&gt;&quot;Huh. How hard could that be.&quot;&lt;&#x2F;em&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;The result is &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;glow&quot;&gt;glow&lt;&#x2F;a&gt;. The big button now lights up with whatever Claude Code is doing. Purple when it&#x27;s idle. Blue while it&#x27;s working. Green when it&#x27;s my turn. Orange when it needs me. I glance at it from across the room and I know Claude&#x27;s state without looking at the screen.&lt;&#x2F;p&gt;
+&lt;video autoplay loop muted playsinline width=&quot;100%&quot;&gt;
+  &lt;source src=&quot;&#x2F;images&#x2F;2026&#x2F;glow&#x2F;button-demo.mp4&quot; type=&quot;video&#x2F;mp4&quot;&gt;
+&lt;&#x2F;video&gt;
+&lt;p&gt;Here&#x27;s how I got there, including the hour I lost to setting the wrong byte.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;first-the-button-did-nothing&quot;&gt;First, the button did nothing&lt;&#x2F;h2&gt;
+&lt;p&gt;Out of the box, the key emits nothing. I pressed it under &lt;code&gt;wev&lt;&#x2F;code&gt; (the Wayland event viewer) and got a blank line. Not an error - a registered key event with no keysym attached. The switch works, it&#x27;s just mapped to a dead keycode.&lt;&#x2F;p&gt;
+&lt;p&gt;Fixing that is the easy half. Keychron boards run &lt;a href=&quot;https:&#x2F;&#x2F;qmk.fm&#x2F;&quot;&gt;QMK&lt;&#x2F;a&gt; with &lt;a href=&quot;https:&#x2F;&#x2F;www.caniusevia.com&#x2F;&quot;&gt;VIA&lt;&#x2F;a&gt; support, so I opened the Keychron Launcher (their VIA build), remapped the key to F13, and pressed it again. F13 is a real keycode that no physical keyboard has a key for, which makes it a clean &quot;this press means &lt;em&gt;my button&lt;&#x2F;em&gt;&quot; signal.&lt;&#x2F;p&gt;
+&lt;p&gt;Except &lt;code&gt;wev&lt;&#x2F;code&gt; didn&#x27;t show F13. It showed this:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;key: 191; state: 1 (pressed)
+sym: XF86Tools    (269025153)
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;On this Wayland stack, F13 comes through as &lt;code&gt;XF86Tools&lt;&#x2F;code&gt;. The F13-F24 range gets mapped to XF86 multimedia symbols by the keymap. This is exactly the kind of thing you only learn by reading the actual output instead of assuming, so: read the actual output. The Hyprland bind became:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;bind = , XF86Tools, exec, ~&amp;#x2F;.config&amp;#x2F;hypr&amp;#x2F;scripts&amp;#x2F;big-button
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Press button, script runs. Input half done. Now the light.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-rgb-is-where-it-got-interesting&quot;&gt;The RGB is where it got interesting&lt;&#x2F;h2&gt;
+&lt;p&gt;The dream was host control: my computer decides the color, the keyboard obeys. The question was whether that&#x27;s possible without flashing custom firmware.&lt;&#x2F;p&gt;
+&lt;p&gt;QMK&#x27;s VIA feature exposes a &lt;strong&gt;raw-HID interface&lt;&#x2F;strong&gt; - a vendor-defined USB HID endpoint that the VIA app uses to configure the board live. If VIA can set the RGB (and it can - there&#x27;s a lighting tab), then the protocol to set RGB exists, and I can speak it myself.&lt;&#x2F;p&gt;
+&lt;p&gt;The board shows up as four HID interfaces. The VIA one is identifiable by its USB usage page, &lt;code&gt;0xFF60&lt;&#x2F;code&gt;. I dumped each interface&#x27;s report descriptor:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;hidraw11:  05 01 09 06 ...   # keyboard
+hidraw12:  06 60 ff 09 61 ...  # &amp;lt;- 0xFF60, the VIA raw interface
+hidraw13:  05 01 09 02 ...   # mouse&amp;#x2F;media
+hidraw14:  06 31 ff ...       # Keychron&amp;#x27;s own vendor page
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;&lt;code&gt;hidraw12&lt;&#x2F;code&gt; it is. Now I just had to send it the right bytes.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-hour-i-lost&quot;&gt;The hour I lost&lt;&#x2F;h2&gt;
+&lt;p&gt;The VIA protocol for RGB is documented in QMK&#x27;s source. Commands look like:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;report = [0x00, command, channel, value_id, ...args]   # padded to 33 bytes
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;I wanted: set the effect to solid color, set brightness, set the color. I wrote it, ran it, and watched the button.&lt;&#x2F;p&gt;
+&lt;p&gt;It changed color. And then kept changing. A slow fade through the whole rainbow, forever.&lt;&#x2F;p&gt;
+&lt;p&gt;So the commands were landing - the keyboard was clearly listening - but the animation never stopped. I assumed I had the wrong &lt;em&gt;effect&lt;&#x2F;em&gt; number. QMK has dozens of RGB effects; &quot;solid color&quot; is one of them, and I was setting it to some cycling effect by mistake. I wrote a probe that stepped through effect IDs 0 through 7, setting each one and pausing so I could watch.&lt;&#x2F;p&gt;
+&lt;p&gt;Every single one animated. Every one.&lt;&#x2F;p&gt;
+&lt;p&gt;That&#x27;s the tell I should have caught sooner: if &lt;em&gt;no&lt;&#x2F;em&gt; effect ID produces a solid color, the problem isn&#x27;t the effect ID. I was writing to the wrong field entirely. I went and read the actual constants in &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;qmk&#x2F;qmk_firmware&#x2F;blob&#x2F;master&#x2F;quantum&#x2F;via.h&quot;&gt;&lt;code&gt;qmk&#x2F;via.h&lt;&#x2F;code&gt;&lt;&#x2F;a&gt;:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;id_qmk_rgb_matrix_brightness    = 1
+id_qmk_rgb_matrix_effect        = 2
+id_qmk_rgb_matrix_effect_speed  = 3
+id_qmk_rgb_matrix_color         = 4
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;I&#x27;d been sending the effect to value-id &lt;strong&gt;3&lt;&#x2F;strong&gt;. Value-id 3 is effect &lt;em&gt;speed&lt;&#x2F;em&gt;. I was never setting the effect at all - I was setting the &lt;em&gt;speed&lt;&#x2F;em&gt; of whatever animation was already running, and then changing its color. The rainbow cycled the whole time because I never told it to stop cycling.&lt;&#x2F;p&gt;
+&lt;p&gt;The effect id is &lt;strong&gt;2&lt;&#x2F;strong&gt;. One byte. I changed the 3 to a 2:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;effect-&amp;gt;solid: sent [7, 3, 2, 1]
+color-&amp;gt;purple: sent [7, 3, 4, 192, 255]
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Solid purple. Frozen. Locked. The button held a single steady color for the first time.&lt;&#x2F;p&gt;
+&lt;p&gt;The lesson is the same one that gets me every time: when the story you&#x27;ve built (&quot;wrong effect number&quot;) stops explaining the evidence (&quot;&lt;em&gt;every&lt;&#x2F;em&gt; effect animates&quot;), the story is wrong, not the evidence. Read the source constants instead of guessing enum positions by trial. It would have taken five minutes at the start and cost me an hour instead.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;wiring-it-to-claude&quot;&gt;Wiring it to Claude&lt;&#x2F;h2&gt;
+&lt;p&gt;Once I could set any color from a shell command, the status lamp was almost trivial, because Claude Code has &lt;a href=&quot;https:&#x2F;&#x2F;docs.claude.com&#x2F;en&#x2F;docs&#x2F;claude-code&quot;&gt;hooks&lt;&#x2F;a&gt; - shell commands that fire on lifecycle events. The events map almost perfectly onto the states I wanted:&lt;&#x2F;p&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;event&lt;&#x2F;th&gt;&lt;th&gt;color&lt;&#x2F;th&gt;&lt;th&gt;meaning&lt;&#x2F;th&gt;&lt;&#x2F;tr&gt;&lt;&#x2F;thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;SessionStart&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;td&gt;purple&lt;&#x2F;td&gt;&lt;td&gt;idle &#x2F; ready&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;UserPromptSubmit&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;td&gt;blue&lt;&#x2F;td&gt;&lt;td&gt;working&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;Stop&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;td&gt;green&lt;&#x2F;td&gt;&lt;td&gt;your turn&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;Notification&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;td&gt;orange&lt;&#x2F;td&gt;&lt;td&gt;needs your input&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;&#x2F;tbody&gt;&lt;&#x2F;table&gt;
+&lt;p&gt;Four lines in &lt;code&gt;settings.json&lt;&#x2F;code&gt;, each running &lt;code&gt;glow-hook &amp;lt;color&amp;gt;&lt;&#x2F;code&gt;. The hook runs the color-setter backgrounded and swallows all errors, so an unplugged keyboard never breaks a Claude session.&lt;&#x2F;p&gt;
+&lt;p&gt;I added them expecting to restart Claude to pick them up. I didn&#x27;t have to. The moment I sent my next message, the button went blue. When the turn ended, green. It was reacting to the conversation I was having &lt;em&gt;while&lt;&#x2F;em&gt; wiring it. That was the moment it stopped being a project and started being a thing on my desk that&#x27;s alive.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;one-real-design-note&quot;&gt;One real design note&lt;&#x2F;h2&gt;
+&lt;p&gt;My first palette had working as yellow and needs-you as orange. In practice you can&#x27;t tell them apart across a room - they&#x27;re both warm, and &quot;warm&quot; is all your peripheral vision gets. I moved working to blue. Blue &#x2F; orange &#x2F; green are three genuinely distinct colors; the light is legible from anywhere now.&lt;&#x2F;p&gt;
+&lt;p&gt;There is no red in the palette. That&#x27;s a personal decree. I hate red. Orange carries the &quot;needs you&quot; weight instead, and honestly it&#x27;s nicer.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;it-s-not-really-about-claude&quot;&gt;It&#x27;s not really about Claude&lt;&#x2F;h2&gt;
+&lt;p&gt;glow is a generic tool. It drives any VIA&#x2F;QMK keyboard&#x27;s RGB from the host - point it at your board with a VID&#x2F;PID, get a &lt;code&gt;glow &amp;lt;color&amp;gt;&lt;&#x2F;code&gt; command. The Claude status lamp is one use of it. Anything that can run a command can drive the light: a CI run going green, a long build finishing, a deploy, a pomodoro timer. The keyboard becomes an ambient status display for whatever you care about.&lt;&#x2F;p&gt;
+&lt;p&gt;No firmware flash, no VIA app open, no daemon. It talks to the raw-HID interface directly and sends the same bytes VIA would.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-joke-was-the-point&quot;&gt;The joke was the point&lt;&#x2F;h2&gt;
+&lt;p&gt;I want to be clear that I did not buy a giant button because I had a plan for it. I bought it because it was funny. The plan showed up later, the way plans do when you leave yourself a weird enough object to poke at.&lt;&#x2F;p&gt;
+&lt;p&gt;That&#x27;s most of my favorite projects. Not &quot;the market needs an ambient AI status indicator.&quot; Just &quot;I have this dumb button, and this light, and a free evening, and how hard could it be.&quot; Hard enough to be fun. Easy enough to finish. And now there&#x27;s a purple glow on my desk that turns blue when I ask a question, and I grin every time.&lt;&#x2F;p&gt;
+&lt;hr &#x2F;&gt;
+&lt;p&gt;Source: &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;glow&quot;&gt;github.com&#x2F;ducks&#x2F;glow&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>Claude assisted Changelog - 29&#x2F;52</title>
+          <pubDate>Sat, 18 Jul 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/weekly-summary-29/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/weekly-summary-29/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/weekly-summary-29/">&lt;p&gt;It has been a minute since the last one of these - the numbering says 29
+and the last post was 23, so call it a six-week gap in &lt;em&gt;posting&lt;&#x2F;em&gt;, not in
+working. The work kept happening; the changelog just didn&#x27;t. This week is a
+good one to come back on, because the main thing I built got noticed by the
+people who make the tool it&#x27;s built on.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;petri-conway-s-game-of-ai-life-living-inside-n8n&quot;&gt;petri: Conway&#x27;s Game of AI Life, living inside n8n&lt;&#x2F;h2&gt;
+&lt;p&gt;The centerpiece. I built Conway&#x27;s Game of Life &lt;em&gt;inside&lt;&#x2F;em&gt; n8n - not
+orchestrated by it, but living in it. The organisms are rows in n8n Data
+Tables. The rules of life are Summarize and Filter nodes on the canvas. The
+clock is the scheduler, the display is a webhook that serves its own HTML,
+and every generation that has ever existed is an entry in the execution
+history, scrubbable like a fossil record.&lt;&#x2F;p&gt;
+&lt;p&gt;The point was to make n8n the &lt;em&gt;environment&lt;&#x2F;em&gt;, not the cron job. The workflow
+canvas reads as the laws of physics: a Code node has each organism claim its
+eight neighbors, Summarize counts the claims per cell, and two Filter nodes
+spell out survival (2-3 neighbors) and birth (exactly 3). I also wrote a
+tested TypeScript implementation of the same physics to validate against -
+after seventeen generations the n8n pipeline and the library produced
+identical cell sets. The workflow engine is a correct Conway implementation.
+Nobody asked for this.&lt;&#x2F;p&gt;
+&lt;p&gt;Then I hired a Victorian naturalist. Every ten minutes an n8n AI Agent node
+running a local model through Ollama - no API key, everything on an aging
+GTX 1060 - observes the dish and files a field-journal entry. It observes;
+it never interferes.&lt;&#x2F;p&gt;
+&lt;p&gt;The two best moments were both bugs. The first version of the naturalist
+committed fraud: it deliberated about calling its observation tool, decided
+not to, and - I am quoting its own reasoning - said &quot;since I can&#x27;t actually
+call the tool, I&#x27;ll have to make up a plausible scenario,&quot; then invented an
+entire ecosystem. The fix was to stop trusting a small model with the
+decision to look, and force-feed it real observations.&lt;&#x2F;p&gt;
+&lt;p&gt;The second was better. After about 790 generations the ecosystem decayed to
+a handful of cells and had a generation with zero births. In n8n, a Merge
+node in append mode waits for all its inputs - and the branch that had no
+newborns never fired, so the Merge waited forever and time stopped. The
+world froze at generation 792, at the exact moment of its own extinction,
+while the naturalist&#x27;s schedule kept firing and filing report after report
+about the same dead day. By the end it had started dating them &quot;17th
+October, 1887.&quot; Fixed with &lt;code&gt;alwaysOutputData&lt;&#x2F;code&gt; on the filters and reordering
+the pipeline so extinction records as a real generation before time stops.&lt;&#x2F;p&gt;
+&lt;p&gt;I &lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;petri-conways-game-of-ai-life-in-n8n&#x2F;&quot;&gt;wrote the whole thing up&lt;&#x2F;a&gt;,
+put it on the fediverse, and applied to n8n with it. Then someone on the
+n8n team found it, said they loved it, and shared it internally. That is
+exactly the outcome the project was built for, and it is a strange and
+lovely thing to have happen. Source at
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;petri&quot;&gt;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;petri&lt;&#x2F;a&gt;.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;raft-closing-out-the-review&quot;&gt;raft: closing out the review&lt;&#x2F;h2&gt;
+&lt;p&gt;Earlier in the week I finished the last open item from a senior-engineer
+review of &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;raft&quot;&gt;raft&lt;&#x2F;a&gt;, my personal
+knowledge-graph tool. The reindex used to shell out to git twice per repo
+on every rebuild - fine for a CLI, expensive for the MCP tool that&#x27;s meant
+to be called after each note edit. Now &lt;code&gt;scan_projects&lt;&#x2F;code&gt; computes a cheap
+stat-only fingerprint per repo (the newest mtime among &lt;code&gt;.git&#x2F;logs&#x2F;HEAD&lt;&#x2F;code&gt;,
+&lt;code&gt;.git&#x2F;HEAD&lt;&#x2F;code&gt;, and &lt;code&gt;.git&#x2F;index&lt;&#x2F;code&gt;) and reuses cached metadata when nothing has
+changed. On my real &lt;code&gt;~&#x2F;dev&lt;&#x2F;code&gt; (54 git repos): cold reindex 0.75s, warm 0.18s,
+zero git subprocesses when nothing moved.&lt;&#x2F;p&gt;
+&lt;p&gt;I also ran raft&#x27;s &lt;code&gt;connect&lt;&#x2F;code&gt; command on my own corpus - it finds pairs of
+projects that keep co-occurring in my notes - and it surfaced real
+structure: llm-mux and claux always travel together, resume and jobl over
+174 days, a whole self-hosted-infra cluster. But half the results were weak
+pseudo-entities like &lt;code&gt;index.html&lt;&#x2F;code&gt; and &lt;code&gt;cname&lt;&#x2F;code&gt; leaking in from backticked
+code spans, so I added a confidence filter. The graph could see the shape of
+my own work better than I could describe it.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;analytics-for-the-art-sites&quot;&gt;Analytics for the art sites&lt;&#x2F;h2&gt;
+&lt;p&gt;Wired self-hosted GoatCounter into &lt;code&gt;birdhaus.art&lt;&#x2F;code&gt; and &lt;code&gt;hausplants.art&lt;&#x2F;code&gt;, my
+two art sites, which had no tracking at all. Most of the server-side infra
+already existed in pond-nix from an earlier session; the missing pieces were
+the tracking snippets, the DNS records (added via
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;namecom-cli&quot;&gt;namecom-cli&lt;&#x2F;a&gt;), the deploy, and the
+per-site rows in GoatCounter. Hit a satisfying bug: every hit returned &quot;no
+site at this domain&quot; because the site rows were keyed to the apex domain but
+GoatCounter matches on the tracking host - the &lt;code&gt;stats.&lt;&#x2F;code&gt; subdomain. Aligning
+the two fixed it. Same self-hosted analytics stack the rest of my sites use,
+now one dashboard per art domain.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;hawk-tui-the-rule-of-three&quot;&gt;hawk-tui: the rule of three&lt;&#x2F;h2&gt;
+&lt;p&gt;I have three terminal media players - shelltrax (music), shellbooks
+(audiobooks), shellcast (podcasts) - and they had grown three copies of the
+same TUI scaffolding. That&#x27;s the rule of three, so I pulled the genuinely
+shared, domain-free bits into a small crate:
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;hawk-tui&quot;&gt;hawk-tui&lt;&#x2F;a&gt;. A clamped scrollable list, a
+color parser, and a dual-pane layout helper. Deliberately a library, not a
+framework - it hands you pieces to call, it doesn&#x27;t own your event loop or
+your app&#x27;s structure. The interesting part was resisting the urge to
+generalize further: the players&#x27; &lt;em&gt;domain&lt;&#x2F;em&gt; models (album vs. chapter vs.
+episode) are genuinely different and don&#x27;t belong in a shared crate, even
+though the widgets do.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-through-line&quot;&gt;The through-line&lt;&#x2F;h2&gt;
+&lt;p&gt;Two of these - petri and hawk-tui - come back to a thing I keep writing
+about: &lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;software-doesnt-have-to-justify-itself&#x2F;&quot;&gt;software as a creative medium that doesn&#x27;t owe anyone a
+justification&lt;&#x2F;a&gt;. petri is
+a Conway&#x27;s Game of Life that runs on a workflow automation platform and
+employs a fictional naturalist. It has no market. It was a &quot;what if,&quot; and it
+turned into the most-noticed thing I made in months. That keeps happening,
+and I&#x27;ve stopped being surprised by it.&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>Claude assisted Changelog - 23&#x2F;52</title>
+          <pubDate>Fri, 05 Jun 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/weekly-summary-23/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/weekly-summary-23/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/weekly-summary-23/">&lt;p&gt;A long week on personal infrastructure, with the through-line being
+&quot;actually use the tools I&#x27;ve built.&quot; Most of what shipped this week was glue
+between things that already existed.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;SRG and JOBL polish&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Spent the first part of the week hardening the JOBL + SRG + GitHub Actions
+chain that renders &lt;a href=&quot;https:&#x2F;&#x2F;ducks.github.io&#x2F;resume&#x2F;&quot;&gt;my resume&lt;&#x2F;a&gt; from a TOML
+file. Added an &lt;code&gt;srg.toml&lt;&#x2F;code&gt; config so theme and output choices live next to
+&lt;code&gt;resume.jobl&lt;&#x2F;code&gt; instead of inside the CI workflow. Dropped the binary cache
+that was silently pinning CI to an old SRG version. Pointed SRG at the
+repo&#x27;s custom &lt;code&gt;template.resume&lt;&#x2F;code&gt; to render the GitHub URL and website fields
+that the bundled &lt;code&gt;jake&lt;&#x2F;code&gt; layout was dropping. The kind of tooling work that
+nobody sees but makes every subsequent change a one-line edit.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;namecom-cli&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Built a small nushell wrapper over the name.com Core API. Three subcommands -
+&lt;code&gt;login&lt;&#x2F;code&gt; (interactive credential setup with &#x2F;core&#x2F;v1&#x2F;hello validation), &lt;code&gt;list&lt;&#x2F;code&gt;
+(returns a structured table you can pipe through &lt;code&gt;where&lt;&#x2F;code&gt; &#x2F; &lt;code&gt;sort-by&lt;&#x2F;code&gt;), &lt;code&gt;add&lt;&#x2F;code&gt;
+and &lt;code&gt;del&lt;&#x2F;code&gt;. About 150 lines of nushell. Auth via HTTP Basic, credentials in
+~&#x2F;.config&#x2F;namecom&#x2F;credentials.toml at mode 0600.&lt;&#x2F;p&gt;
+&lt;p&gt;The reason to build it was that pond-nix&#x27;s DNS workflow was &quot;log into name.com
+web UI, click Add Record, type the same thing as last time.&quot; Now I can
+&lt;code&gt;namecom add jobl.dev stats A &amp;lt;ip&amp;gt;&lt;&#x2F;code&gt; from the shell and version DNS additions
+alongside the NixOS config that produces them.&lt;&#x2F;p&gt;
+&lt;p&gt;Wrote &lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;namecom-cli-in-nushell&#x2F;&quot;&gt;a post&lt;&#x2F;a&gt; on
+what nushell saves you over the bash equivalent for this kind of tool: JSON
+becomes structured tables, &lt;code&gt;http get&lt;&#x2F;code&gt; builtin removes the curl call, TOML
+parses natively via &lt;code&gt;open&lt;&#x2F;code&gt;. Source at &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;namecom-cli&quot;&gt;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;namecom-cli&lt;&#x2F;a&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;Caught a real bug along the way: nushell&#x27;s &lt;code&gt;http post&lt;&#x2F;code&gt; doesn&#x27;t apply the
+Content-Type header when both &lt;code&gt;--headers&lt;&#x2F;code&gt; and &lt;code&gt;--content-type&lt;&#x2F;code&gt; are set. Filed
+in my head as a follow-up. Worked around with direct curl for now.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;GoatCounter for jobl.dev and srg.jobl.dev&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Added a fourth GoatCounter instance to pond-nix for jobl.dev, fronted by Caddy
+at stats.jobl.dev. Most of the work was a half-day detour trying to make the
+site row creation zero-touch via systemd ExecStartPre. Got close - the
+migration step works, but &lt;code&gt;goatcounter db create site&lt;&#x2F;code&gt; requires creating an
+admin user, and the password prompt is interactive. systemd has no TTY, the
+service died.&lt;&#x2F;p&gt;
+&lt;p&gt;Considered three workarounds: store a generated password in a 0600 file
+(plaintext-secret pattern I didn&#x27;t love for one analytics dashboard), use
+goatcounter&#x27;s &lt;code&gt;-link&lt;&#x2F;code&gt; flag to share users across sites (cleaner but couples
+all sites to one user), or adopt sops-nix &#x2F; agenix for encrypted secrets
+(overkill for one password). Ended up reverting the auto-provision entirely
+and made peace with one SSH step per new instance: &lt;code&gt;sudo -u goatcounter goatcounter db create site ...&lt;&#x2F;code&gt;. The lesson: not every step that feels manual
+deserves automation.&lt;&#x2F;p&gt;
+&lt;p&gt;After that, the standard chain - namecom-cli added the A record, Caddy got a
+cert from Let&#x27;s Encrypt, GoatCounter logged the first hit a few minutes
+later.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;srg.jobl.dev as a sibling to jobl.dev&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Built a small landing page for SRG at srg.jobl.dev, mirroring jobl.dev&#x27;s
+gruvbox theme and font stack so the two read as siblings. Single index.html
+with no build step - GitHub Pages legacy mode, &lt;code&gt;docs&#x2F;&lt;&#x2F;code&gt; on &lt;code&gt;main&lt;&#x2F;code&gt;, CNAME
+file declares the custom domain. Reused the goatcounter snippet but pointed
+it at the same stats.jobl.dev&#x2F;count endpoint.&lt;&#x2F;p&gt;
+&lt;p&gt;That last decision turned out to be wrong. Both sites&#x27; hits ended up pooled
+under one GoatCounter site row, and because both landing pages live at &lt;code&gt;&#x2F;&lt;&#x2F;code&gt;,
+the dashboard couldn&#x27;t tell them apart. Took a few back-and-forths to
+convince me, but eventually I set up a proper split: new Caddy vhost
+stats.srg.jobl.dev fronting the same goatcounter instance, updated the site
+row&#x27;s cname to match, updated srg.jobl.dev&#x27;s HTML snippet to post there. Now
+the dashboard&#x27;s site selector switches cleanly between the two.&lt;&#x2F;p&gt;
+&lt;p&gt;Worth noting: I spent half an hour trying to talk myself out of doing this
+split because the data was technically being collected. The right move was to
+fix it the first time the user asked.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;hosted-resumes.com audit&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;A friend asked how I built my resume, which surfaced that hosted-resumes.com
+already exists as an MVP-shaped codebase. About 6,000 lines of TypeScript &#x2F;
+Svelte, with auth, multi-tenant routing, a PostgreSQL schema, an editor with
+live preview, a Rust PDF microservice wrapping SRG, and Stripe &#x2F; S3
+integration stubbed out. Closer to &quot;ship to a friend&quot; than I&#x27;d remembered.&lt;&#x2F;p&gt;
+&lt;p&gt;Did a gap analysis: skip the Stripe and S3 stubs for a friend MVP, set up the
+deploy infrastructure (wildcard DNS, wildcard TLS via DNS-01, Caddy, Postgres,
+the SvelteKit app, the PDF service), and the buddy can be on
+&lt;code&gt;&amp;lt;him&amp;gt;.hosted-resumes.com&lt;&#x2F;code&gt; after a focused Saturday. Didn&#x27;t start that work
+this week - decided to finish the GoatCounter &#x2F; srg.jobl.dev thread first
+rather than context-switch.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Considered but parked&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Looked at dnscontrol as the declarative alternative to namecom-cli. It&#x27;s the
+right answer for &quot;DNS as code with drift detection,&quot; but the name.com
+provider is unmaintained and the friction outweighs the benefit at this
+scale. namecom-cli stays the imperative tool; if I ever want declarative
+DNS, dnscontrol is the migration path.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

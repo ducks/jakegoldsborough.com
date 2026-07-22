@@ -1,0 +1,343 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - writing</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/writing/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Mon, 29 Jun 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Software Doesn&#x27;t Have to Justify Itself, or the Joy of Useless Programming</title>
+          <pubDate>Mon, 29 Jun 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/software-doesnt-have-to-justify-itself/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/software-doesnt-have-to-justify-itself/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/software-doesnt-have-to-justify-itself/">&lt;p&gt;Last week I built a community management sim that runs inside Discourse. You
+play as a moderator. Fake users post fake drama, fake flags pile up in the real
+flag queue, and a fake outage tanks your response time while fake users complain
+about it on a fake Twitter. The whole thing is rendered with real Discourse
+components, so it reads as plausible at a glance. I called it
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-manager&quot;&gt;discourse-manager&lt;&#x2F;a&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;Nobody asked for this. There is no roadmap. There is no addressable market for
+&quot;forum jobs as a roguelike, but it&#x27;s a plugin for the forum software itself.&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;I built it because the idea made me laugh, and then I wanted to see if it would
+work.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-justification-reflex&quot;&gt;The justification reflex&lt;&#x2F;h2&gt;
+&lt;p&gt;There is a reflex a lot of programmers have, myself included, where every
+project has to come with a defense.&lt;&#x2F;p&gt;
+&lt;p&gt;Who is it for. How does it scale. What is the monetization path. Is this a
+portfolio piece or a side business. Could it be a startup. Have you considered
+the TAM.&lt;&#x2F;p&gt;
+&lt;p&gt;I think we picked this up honestly. Most of us learned to program in a context
+where the output was supposed to be useful to someone other than us. A ticket,
+a feature, a deliverable. Code is expensive to write, so we convince ourselves
+every line has to pay rent.&lt;&#x2F;p&gt;
+&lt;p&gt;But that framing quietly smuggles in an assumption: that the only good reason to
+make software is that someone else needs it.&lt;&#x2F;p&gt;
+&lt;p&gt;I don&#x27;t think that holds up.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;nobody-asks-the-potter&quot;&gt;Nobody asks the potter&lt;&#x2F;h2&gt;
+&lt;p&gt;Nobody asks a musician why the world needs another song. There are tens of
+millions of songs. The marginal song is not solving a shortage. A person writes
+one anyway, because the writing is the point.&lt;&#x2F;p&gt;
+&lt;p&gt;Nobody asks a potter why the world needs another mug. Your cabinet already has
+mugs. The potter makes another one because their hands wanted to make it, and
+because this one will be a little different from the last.&lt;&#x2F;p&gt;
+&lt;p&gt;I have a few creative outlets like that. I make things out of clay and fiber and
+wood under a name I keep separate from my engineering work. Nobody evaluates a
+hand-built object by its growth potential. It is allowed to just exist because
+someone enjoyed making it.&lt;&#x2F;p&gt;
+&lt;p&gt;Software almost never gets that grace. It is held to a standard we would find
+absurd in any other medium. We expect a weekend project to behave like a
+business plan.&lt;&#x2F;p&gt;
+&lt;p&gt;But software is also a medium. It is one of the most expressive ones we have. It
+moves, it reacts, it can be funny, it can surprise you. A program can have a
+voice. discourse-manager has a voice, and that voice is &quot;this is a little too
+real.&quot;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-what-if-gets-you&quot;&gt;What &quot;what if&quot; gets you&lt;&#x2F;h2&gt;
+&lt;p&gt;My favorite projects almost never start with a problem statement. They start
+with &quot;what if.&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;What if my audiobook player followed the same keybinds as my music player. That
+turned into &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;shellbooks&quot;&gt;shellbooks&lt;&#x2F;a&gt;, which descends
+directly from &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;shelltrax&quot;&gt;shelltrax&lt;&#x2F;a&gt;, my terminal music
+player. The &quot;what if&quot; was small and a little indulgent. The result is something
+I use almost every day.&lt;&#x2F;p&gt;
+&lt;p&gt;What if I turned forum software into a game engine. That one became
+discourse-manager. It started as a single dumb image in my head, a flag queue
+that fights back, and I wanted to see it move badly enough to build the rest
+around it.&lt;&#x2F;p&gt;
+&lt;p&gt;What if I just automated the annoying thing instead of doing it by hand for the
+hundredth time. Half my tiny scripts exist because of that sentence. None of
+them have users. All of them earn their keep.&lt;&#x2F;p&gt;
+&lt;p&gt;&quot;What if&quot; is not a worse starting point than &quot;the market needs.&quot; It is often a
+better one, because it comes from curiosity instead of obligation, and curiosity
+tends to pull you somewhere you would not have planned to go.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-silly-project-teaches-the-real-thing&quot;&gt;The silly project teaches the real thing&lt;&#x2F;h2&gt;
+&lt;p&gt;Here is the part that surprises people who think play and usefulness are
+opposites.&lt;&#x2F;p&gt;
+&lt;p&gt;discourse-manager looks like a joke, and it is, but building it made me learn
+parts of Discourse I had managed to avoid for years. It runs real-time state
+updates over MessageBus, the same pub&#x2F;sub system Discourse uses for live
+notifications. I had never wired that up from scratch. I had to, because a game
+where the flags don&#x27;t disappear as you clear them is not a game.&lt;&#x2F;p&gt;
+&lt;p&gt;A joke project is still architecture. The fake forum needed generated users with
+distinct behavioral profiles, a tick loop, an event system with weighted
+outcomes, persistent game state, and a HUD that updates without a page reload.
+None of that cares that the premise is silly. The wiring is exactly as real as
+it would be in something I was paid to ship.&lt;&#x2F;p&gt;
+&lt;p&gt;This keeps happening. The audiobook player taught me how &lt;code&gt;.m4b&lt;&#x2F;code&gt; chapter atoms
+are stored. A throwaway script I wrote to
+&lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;auditing-a-squarespace-site-before-migrating&#x2F;&quot;&gt;audit a site before migrating it&lt;&#x2F;a&gt;
+taught me more about its actual structure than its documentation ever would.
+&lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;patchelf-broke-claude-code&#x2F;&quot;&gt;Debugging why Claude Code wouldn&#x27;t run on NixOS&lt;&#x2F;a&gt;
+taught me things about dynamic linking I will never un-learn. Each one was a
+means to some small end, and the end was never the point.&lt;&#x2F;p&gt;
+&lt;p&gt;Play is just how I read a system closely. You poke at a thing long enough to
+make it do something stupid, and somewhere in there you understand it.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-line-is-thinner-than-people-think&quot;&gt;The line is thinner than people think&lt;&#x2F;h2&gt;
+&lt;p&gt;The thing I keep coming back to is that the line between silly and useful is
+much thinner than the justification reflex wants you to believe.&lt;&#x2F;p&gt;
+&lt;p&gt;discourse-manager is a bit. It is also, almost by accident, a labeled dataset
+generator: every flag has a profile type and a human moderation decision
+attached, so a few sessions produce real training data for spam detection. I did
+not build it for that. It just fell out, the way useful things often fall out of
+unserious ones.&lt;&#x2F;p&gt;
+&lt;p&gt;I am not saying every project is secretly valuable, or that you should retrofit a
+business case onto your toys to make them respectable. That is the same reflex
+wearing a different coat. The toys do not need a business case. That is the whole
+point.&lt;&#x2F;p&gt;
+&lt;p&gt;I am saying the pressure to justify everything up front mostly just stops you
+from starting. And the projects that start with &quot;what if&quot; are, in my experience,
+the ones that teach me the most and the ones I am proudest of later.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;programming-is-a-creative-outlet&quot;&gt;Programming is a creative outlet&lt;&#x2F;h2&gt;
+&lt;p&gt;For me, programming is not only the job. It is one of the ways I make things,
+sitting on the same shelf as the clay and the fiber and the wood.&lt;&#x2F;p&gt;
+&lt;p&gt;Most of what I make there is small. Some of it is silly. A fair amount of it
+nobody will ever run but me. I am completely fine with that.&lt;&#x2F;p&gt;
+&lt;p&gt;The next time I catch myself drafting a defense for a project before I have even
+opened the editor, I want to remember the fake forum that runs inside the real
+one, and the moment I decided the better question was not &quot;is this worth it&quot; but
+just &quot;what if.&quot;&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>Six numbers from my blog&#x27;s analytics</title>
+          <pubDate>Sun, 17 May 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/blog-stats-six-numbers/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/blog-stats-six-numbers/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/blog-stats-six-numbers/">&lt;p&gt;I recently noticed that the 1 year anniversary of my blog came and went. I was curious about how much traffic I got so I took a look.&lt;&#x2F;p&gt;
+&lt;p&gt;I sshed into my VPS and pointed sqlite at the GoatCounter database that powers my analytics. Six numbers stood out.&lt;&#x2F;p&gt;
+&lt;p&gt;For context: this blog gets modest traffic. Usually 20-50 unique visitors a day, mostly from search. I&#x27;m not actively trying to grow it, I just write. But the data is interesting because it shows what people actually read versus what I assumed they would.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;1-biggest-single-day-spike-33-hits&quot;&gt;1. Biggest single-day spike: 33 hits&lt;&#x2F;h2&gt;
+&lt;p&gt;On 2026-05-11, the post &lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;nix-shells-ssh-claude-code&#x2F;&quot;&gt;Nix shells, SSH, and Claude Code&lt;&#x2F;a&gt; got 33 visits in one day. That&#x27;s the single biggest day for any post I&#x27;ve published.&lt;&#x2F;p&gt;
+&lt;p&gt;For comparison, the next biggest days were 25 (a January post called &lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;letting-ai-pick-the-project&#x2F;&quot;&gt;Letting AI pick the project&lt;&#x2F;a&gt;), 19 (&lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;how-a-friends-gif-broke-our-filesystem&#x2F;&quot;&gt;How a friend&#x27;s gif broke our filesystem&lt;&#x2F;a&gt;), and 13 (&lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-with-claude&#x2F;&quot;&gt;Rewriting Claude Code in Rust&lt;&#x2F;a&gt;).&lt;&#x2F;p&gt;
+&lt;p&gt;The pattern is obvious in hindsight: every spike came from a post solving a specific problem someone was searching for. None of them are essays. None of them are opinions. They&#x27;re all &quot;here&#x27;s a weird thing I ran into and how I fixed it.&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;This is the closest thing I have to &quot;going viral,&quot; and it&#x27;s about a 30-line shell.nix.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;2-fastest-rising-nixos-claude-code&quot;&gt;2. Fastest rising: NixOS + Claude Code&lt;&#x2F;h2&gt;
+&lt;p&gt;In the last seven days versus the prior seven, the two biggest gainers are both about running Claude Code on NixOS:&lt;&#x2F;p&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Post&lt;&#x2F;th&gt;&lt;th style=&quot;text-align: right&quot;&gt;Last 7d&lt;&#x2F;th&gt;&lt;th style=&quot;text-align: right&quot;&gt;Prev 7d&lt;&#x2F;th&gt;&lt;th style=&quot;text-align: right&quot;&gt;Delta&lt;&#x2F;th&gt;&lt;&#x2F;tr&gt;&lt;&#x2F;thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;&lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;nix-shells-ssh-claude-code&#x2F;&quot;&gt;Nix shells, SSH, and Claude Code&lt;&#x2F;a&gt;&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: right&quot;&gt;49&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: right&quot;&gt;10&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: right&quot;&gt;+39&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;running-claude-code-on-nixos&#x2F;&quot;&gt;Running Claude Code on NixOS&lt;&#x2F;a&gt;&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: right&quot;&gt;34&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: right&quot;&gt;9&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: right&quot;&gt;+25&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;&#x2F;tbody&gt;&lt;&#x2F;table&gt;
+&lt;p&gt;That&#x27;s probably not a coincidence. Anthropic must have changed something recently that caused more people to hit problems running Claude Code on NixOS, and search engines surface my posts as the fix.&lt;&#x2F;p&gt;
+&lt;p&gt;The two posts also feed each other. Readers land on one, then click through to the other. Internal linking matters more than I expected.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;3-fastest-out-the-gate-88-hits-in-the-first-30-days&quot;&gt;3. Fastest out the gate: 88 hits in the first 30 days&lt;&#x2F;h2&gt;
+&lt;p&gt;The previous numbers measure &quot;popular right now.&quot; A different question is &quot;which posts hit hardest in their first month after publishing?&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;The top five by views in the first 30 days after their publish date:&lt;&#x2F;p&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Post&lt;&#x2F;th&gt;&lt;th&gt;Published&lt;&#x2F;th&gt;&lt;th style=&quot;text-align: right&quot;&gt;First 30d&lt;&#x2F;th&gt;&lt;&#x2F;tr&gt;&lt;&#x2F;thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;&lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-with-claude&#x2F;&quot;&gt;Rewriting Claude Code in Rust&lt;&#x2F;a&gt;&lt;&#x2F;td&gt;&lt;td&gt;2026-04-01&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: right&quot;&gt;88&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;running-claude-code-on-nixos&#x2F;&quot;&gt;Running Claude Code on NixOS&lt;&#x2F;a&gt;&lt;&#x2F;td&gt;&lt;td&gt;2026-05-07&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: right&quot;&gt;43&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;letting-ai-pick-the-project&#x2F;&quot;&gt;Letting AI pick the project&lt;&#x2F;a&gt;&lt;&#x2F;td&gt;&lt;td&gt;2026-01-19&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: right&quot;&gt;37&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;a href=&quot;&#x2F;blog&#x2F;2025&#x2F;skin-shedding-not-bikeshedding&#x2F;&quot;&gt;Skin shedding, not bikeshedding&lt;&#x2F;a&gt;&lt;&#x2F;td&gt;&lt;td&gt;2025-11-23&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: right&quot;&gt;32&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-2&#x2F;&quot;&gt;Rewriting Claude Code in Rust (Part 2)&lt;&#x2F;a&gt;&lt;&#x2F;td&gt;&lt;td&gt;2026-04-02&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: right&quot;&gt;29&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;&#x2F;tbody&gt;&lt;&#x2F;table&gt;
+&lt;p&gt;The Rust + Claude post is in its own tier. It got 47 of those 88 hits in the first 7 days. That&#x27;s almost certainly a referral spike from somewhere - Hacker News, Lobsters, a Mastodon boost, hard to say without per-day referrer data.&lt;&#x2F;p&gt;
+&lt;p&gt;This is a different shape from the NixOS posts. The NixOS surge is search-driven and building over weeks. The Rust + Claude launch was a sharp burst that mostly came and went. Both are &quot;popular.&quot; Only one keeps compounding.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;4-longest-site-wide-streak-119-days&quot;&gt;4. Longest site-wide streak: 119 days&lt;&#x2F;h2&gt;
+&lt;p&gt;Every single day from 2026-01-19 to today, at least one post on this blog has been read by someone. That&#x27;s 119 consecutive days without a gap.&lt;&#x2F;p&gt;
+&lt;p&gt;The previous longest streak was 49 days. Before that, 29. Before that, 25.&lt;&#x2F;p&gt;
+&lt;p&gt;This is what &quot;getting indexed&quot; actually looks like as a curve.&lt;&#x2F;p&gt;
+&lt;p&gt;Before indexing, your blog gets read on days when you publish something or share a link somewhere. After indexing, it gets read every day, forever, because somebody somewhere is searching for a problem you wrote about.&lt;&#x2F;p&gt;
+&lt;p&gt;That shift was the biggest surprise from all this data. The traffic doesn&#x27;t spike and disappear anymore. It compounds.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;5-longest-per-post-streak-32-days&quot;&gt;5. Longest per-post streak: 32 days&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;nix-shells-ssh-claude-code&#x2F;&quot;&gt;Nix shells, SSH, and Claude Code&lt;&#x2F;a&gt; was read every day from 2026-03-26 to 2026-04-26 - 32 consecutive days. That&#x27;s the longest streak any single post has had.&lt;&#x2F;p&gt;
+&lt;p&gt;The next best are all under two weeks:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-with-claude&#x2F;&quot;&gt;Rewriting Claude Code in Rust&lt;&#x2F;a&gt;: 13 days (twice)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;&#x2F;blog&#x2F;2025&#x2F;hyprland-tricks-close-window-confirmation&#x2F;&quot;&gt;Hyprland tricks: close window confirmation&lt;&#x2F;a&gt;: 13 days&lt;&#x2F;li&gt;
+&lt;li&gt;Same hyprland post again: 11 days, then 10, then 8, then 7&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;The hyprland post is still the quiet workhorse of the blog. Published in 2025, it&#x27;s been read at least once on 146 different days. About 1.8 hits per day on average, every week, for nearly a year.&lt;&#x2F;p&gt;
+&lt;p&gt;Nothing else comes close to that consistency.&lt;&#x2F;p&gt;
+&lt;p&gt;If you can choose the problems you write about, choose ones that everybody eventually hits and that nobody else has documented clearly.&lt;&#x2F;p&gt;
+&lt;p&gt;Length is uncorrelated with traffic.&lt;&#x2F;p&gt;
+&lt;p&gt;Problem-specificity is.&lt;&#x2F;p&gt;
+&lt;p&gt;The hyprland post is one paragraph and a screenshot. The nix-shells post is six paragraphs. Both outperform longer essays by a wide margin.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;6-where-readers-actually-come-from&quot;&gt;6. Where readers actually come from&lt;&#x2F;h2&gt;
+&lt;p&gt;Top 10 referrers, last 90 days:&lt;&#x2F;p&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Source&lt;&#x2F;th&gt;&lt;th style=&quot;text-align: right&quot;&gt;Hits&lt;&#x2F;th&gt;&lt;&#x2F;tr&gt;&lt;&#x2F;thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;(direct)&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: right&quot;&gt;391&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;Google&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: right&quot;&gt;382&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;duckduckgo.com&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: right&quot;&gt;45&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;jakegoldsborough.com&#x2F;blog&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: right&quot;&gt;37&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&#x2F;tags&#x2F;nixos&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: right&quot;&gt;33&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&#x2F;blog&#x2F;2026&#x2F;nix-shells-ssh-claude-code&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: right&quot;&gt;32&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&#x2F;resume&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: right&quot;&gt;32&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;jakegoldsborough.com&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: right&quot;&gt;29&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;kagi.com&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: right&quot;&gt;19&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;Hacker News&lt;&#x2F;td&gt;&lt;td style=&quot;text-align: right&quot;&gt;14&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;&#x2F;tbody&gt;&lt;&#x2F;table&gt;
+&lt;p&gt;A few things stood out immediately:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Direct and Google are basically tied.&lt;&#x2F;strong&gt; &quot;Direct&quot; includes users with stripped referrer headers, privacy-focused browsers, chat apps, bookmarks, and manually typed URLs. In practice, a lot of &quot;direct&quot; is probably search-driven too.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;DuckDuckGo (45) and Kagi (19) combined still trail Google by an order of magnitude.&lt;&#x2F;strong&gt; Kagi has a much smaller user base than Google, so this isn&#x27;t surprising, but it&#x27;s a useful reality check on how niche the alternative-search world still is.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Internal navigation matters.&lt;&#x2F;strong&gt; The &#x2F;blog index, &#x2F;tags&#x2F;nixos, and even &#x2F;resume page each drive 30+ clicks. Once someone lands on the site, they often keep exploring.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Hacker News isn&#x27;t the firehose people imagine.&lt;&#x2F;strong&gt; A front-page post probably changes the math, but a link in &#x2F;new creates a short spike and then vanishes quickly.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;The more surprising pattern is that almost all long-term traffic comes from search and internal links, not social media.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-i-d-do-differently&quot;&gt;What I&#x27;d do differently&lt;&#x2F;h2&gt;
+&lt;p&gt;Honestly? Nothing.&lt;&#x2F;p&gt;
+&lt;p&gt;I&#x27;m not optimizing for traffic. But if I were, the data points toward one obvious strategy:&lt;&#x2F;p&gt;
+&lt;p&gt;Write more posts documenting highly specific problems with highly specific solutions.&lt;&#x2F;p&gt;
+&lt;p&gt;Not opinions.&lt;&#x2F;p&gt;
+&lt;p&gt;Not giant tutorials covering everything.&lt;&#x2F;p&gt;
+&lt;p&gt;Just the thing somebody searches for after they hit a wall at 1am.&lt;&#x2F;p&gt;
+&lt;p&gt;Small technical posts outperform broad polished essays by a huge margin. At least on this blog.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;how-i-got-this-data&quot;&gt;How I got this data&lt;&#x2F;h2&gt;
+&lt;p&gt;GoatCounter ships a SQLite database. I ssh into my VPS, run &lt;code&gt;nix-shell -p sqlite&lt;&#x2F;code&gt;, and query it directly.&lt;&#x2F;p&gt;
+&lt;p&gt;The two most useful tables are:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;paths&lt;&#x2F;code&gt;: post URLs and titles&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;hit_counts&lt;&#x2F;code&gt;: hour-bucketed view counts joined by &lt;code&gt;path_id&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;The streak queries use the standard SQL trick of subtracting a row number from a date. Rows with the same difference belong to the same consecutive run.&lt;&#x2F;p&gt;
+&lt;p&gt;If you self-host GoatCounter, the same queries work on your data. If you don&#x27;t, the API exposes most of this through &lt;code&gt;&#x2F;api&#x2F;v0&#x2F;stats&#x2F;hits&lt;&#x2F;code&gt; and related endpoints.&lt;&#x2F;p&gt;
+&lt;p&gt;The funny part is that after a year of blogging, the strongest signal wasn&#x27;t traffic volume.&lt;&#x2F;p&gt;
+&lt;p&gt;It was consistency.&lt;&#x2F;p&gt;
+&lt;p&gt;Once a post solves a real problem and gets indexed, it just keeps quietly working in the background forever.&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>How my blog started getting indexed</title>
+          <pubDate>Thu, 09 Apr 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/how-my-blog-started-getting-indexed/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/how-my-blog-started-getting-indexed/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/how-my-blog-started-getting-indexed/">&lt;p&gt;I write this blog primarily for myself - to think through problems, document decisions, and have a record of what I built and why. I don&#x27;t optimize for search traffic. But about two months after I started publishing consistently, something unexpected happened: search engines started sending people here. Google, DuckDuckGo, Bing, ChatGPT, Perplexity.&lt;&#x2F;p&gt;
+&lt;p&gt;Not a flood. Maybe 20-30 visitors a day from search. But those visitors are finding specific technical posts about problems they&#x27;re trying to solve. The kind of traffic that actually matters.&lt;&#x2F;p&gt;
+&lt;p&gt;I didn&#x27;t do SEO. I didn&#x27;t build backlinks. I didn&#x27;t write &quot;10 tips&quot; posts or target keywords. What I did do, almost accidentally, was follow a few patterns that apparently work.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-actually-worked&quot;&gt;What Actually Worked&lt;&#x2F;h2&gt;
+&lt;h3 id=&quot;1-publishing-consistently&quot;&gt;1. Publishing consistently&lt;&#x2F;h3&gt;
+&lt;p&gt;I&#x27;ve published 47 posts since January 2026. That&#x27;s roughly one every 2-3 days. Not because I&#x27;m following a content calendar, but because I&#x27;m building things and writing about them as I go.&lt;&#x2F;p&gt;
+&lt;p&gt;Each post is a surface. Search engines index surfaces. More surfaces = more ways to be found.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;2-writing-real-titles&quot;&gt;2. Writing real titles&lt;&#x2F;h3&gt;
+&lt;p&gt;My titles describe the actual content. Not &quot;Improve Your Workflow with This One Trick&quot; but &quot;Rewriting Claude Code in Rust (Part 2)&quot;. Specific, descriptive, ungameable.&lt;&#x2F;p&gt;
+&lt;p&gt;Turns out that when someone searches for &quot;claude code rust&quot;, a post with those exact words in the title ranks. Obvious in hindsight.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;3-internal-linking&quot;&gt;3. Internal linking&lt;&#x2F;h3&gt;
+&lt;p&gt;I link between related posts constantly. When I mention a project I&#x27;ve written about before, I link to it. When I reference a concept from another post, I link to it.&lt;&#x2F;p&gt;
+&lt;p&gt;This creates a web. Google&#x27;s crawler follows links. A well-linked collection of pages signals that this is a coherent body of work, not random blog spam.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;4-clean-simple-structure&quot;&gt;4. Clean, simple structure&lt;&#x2F;h3&gt;
+&lt;p&gt;My site is static HTML generated by Zola. No JavaScript frameworks, no client-side routing, no dynamic content. Just semantic HTML with proper headings, paragraphs, and code blocks.&lt;&#x2F;p&gt;
+&lt;p&gt;Crawlers love this. Fast pages, clear structure, no obstacles.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;5-code-blocks-and-technical-depth&quot;&gt;5. Code blocks and technical depth&lt;&#x2F;h3&gt;
+&lt;p&gt;Most of my posts include code examples, file paths, implementation details. These are extremely specific signals. If someone searches for a particular function name or error message, and I&#x27;ve written about it, search engines can match that query to my content precisely.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-didn-t-matter&quot;&gt;What Didn&#x27;t Matter&lt;&#x2F;h2&gt;
+&lt;p&gt;I don&#x27;t have a sitemap (though Zola can generate one, I haven&#x27;t enabled it). I have minimal visitor tracking but that&#x27;s it. I don&#x27;t track keyword density or optimize meta descriptions. I post on the fediverse but not as a promotion strategy.&lt;&#x2F;p&gt;
+&lt;p&gt;None of that seems to matter for this kind of technical writing. The content itself is the SEO.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-pattern&quot;&gt;The Pattern&lt;&#x2F;h2&gt;
+&lt;p&gt;What I&#x27;ve accidentally done is create a growing surface area of well-structured, interconnected technical content. Each new post adds another surface that search engines can index. Each internal link strengthens the web.&lt;&#x2F;p&gt;
+&lt;p&gt;I&#x27;m not trying to rank for &quot;best programming language&quot; or other high-competition terms. I&#x27;m documenting niche problems and implementations. The long tail. And the long tail is where technical blogs actually get found.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;why-this-matters&quot;&gt;Why This Matters&lt;&#x2F;h2&gt;
+&lt;p&gt;This blog is a byproduct of my work. Writing these posts helps me think. Publishing them creates a permanent record. The fact that they also get found by people solving similar problems is a side effect - but it&#x27;s a useful one.&lt;&#x2F;p&gt;
+&lt;p&gt;It means the work compounds. Not just for me (as a reference and thinking tool) but for others who stumble across it via search.&lt;&#x2F;p&gt;
+&lt;p&gt;That&#x27;s the model I&#x27;m optimizing for. Not traffic. Not engagement. Just clear documentation of real work, published consistently, with enough structure that search engines can surface it when someone needs it.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-i-m-going-to-keep-doing&quot;&gt;What I&#x27;m Going to Keep Doing&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Publishing consistently as I build&lt;&#x2F;li&gt;
+&lt;li&gt;Writing descriptive titles&lt;&#x2F;li&gt;
+&lt;li&gt;Linking between related posts&lt;&#x2F;li&gt;
+&lt;li&gt;Using semantic HTML and clear structure&lt;&#x2F;li&gt;
+&lt;li&gt;Including code examples and technical details&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;That&#x27;s it. No keyword research, no backlink campaigns, no growth hacking. Just building and documenting in public, with enough consistency that it accumulates into a corpus worth indexing.&lt;&#x2F;p&gt;
+&lt;p&gt;The blog is working exactly how I want it to. The search traffic is proof that the model scales.&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>I Don&#x27;t Type Every Word You Read</title>
+          <pubDate>Sun, 25 Jan 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/no-i-dont-type-every-word-you-read/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/no-i-dont-type-every-word-you-read/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/no-i-dont-type-every-word-you-read/">&lt;p&gt;Most modern work is already mediated by machines. Writing is just late to admit it.&lt;&#x2F;p&gt;
+&lt;p&gt;Commerical pilots rarely fly planes by hand anymore. Chip designers do not solder
+transistors. Photographers do not grind their own lenses. Infrastructure
+engineers rarely flip physical switches in a datacenter.&lt;&#x2F;p&gt;
+&lt;p&gt;In all of these fields, the work did not disappear.
+It moved upstream.&lt;&#x2F;p&gt;
+&lt;p&gt;Writing is undergoing the same shift.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;where-the-work-actually-is&quot;&gt;Where the Work Actually Is&lt;&#x2F;h2&gt;
+&lt;p&gt;I do not type every word you read here.&lt;&#x2F;p&gt;
+&lt;p&gt;That does not mean this writing is automated, synthetic, or detached from real
+experience. It means the locus of effort has changed.&lt;&#x2F;p&gt;
+&lt;p&gt;The work now lives in:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;deciding what is worth saying&lt;&#x2F;li&gt;
+&lt;li&gt;knowing when something is wrong&lt;&#x2F;li&gt;
+&lt;li&gt;recognizing when a paragraph feels hollow&lt;&#x2F;li&gt;
+&lt;li&gt;choosing what to delete&lt;&#x2F;li&gt;
+&lt;li&gt;setting constraints&lt;&#x2F;li&gt;
+&lt;li&gt;maintaining direction&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;The model generates text.
+I decide what survives.&lt;&#x2F;p&gt;
+&lt;p&gt;That distinction matters.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;how-i-actually-write-now&quot;&gt;How I Actually Write Now&lt;&#x2F;h2&gt;
+&lt;p&gt;Most posts start the same way they always have: with a thought that will not
+leave me alone.&lt;&#x2F;p&gt;
+&lt;p&gt;Sometimes it comes from building something. Sometimes from frustration.
+Sometimes from noticing the same pattern repeat across tools, systems, or
+conversations.&lt;&#x2F;p&gt;
+&lt;p&gt;I outline roughly. I write fragments. I ask an LLM to help me move past
+blank-page friction, not to decide what I believe.&lt;&#x2F;p&gt;
+&lt;p&gt;I frequently discard its output entirely.&lt;&#x2F;p&gt;
+&lt;p&gt;I interrupt it mid-paragraph when it drifts. I reframe prompts when the tone
+is wrong. I delete sections that feel technically correct but experientially
+false.&lt;&#x2F;p&gt;
+&lt;p&gt;The process is not faster because I think less.
+It is faster because I spend less time fighting inertia.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;delegating-friction-not-thinking&quot;&gt;Delegating Friction, Not Thinking&lt;&#x2F;h2&gt;
+&lt;p&gt;This is the part people often get backwards.&lt;&#x2F;p&gt;
+&lt;p&gt;I am not delegating authorship.
+I am delegating friction.&lt;&#x2F;p&gt;
+&lt;p&gt;The same way a pilot delegates routine control to an autopilot in order to
+focus on situational awareness, failure modes, and judgment.&lt;&#x2F;p&gt;
+&lt;p&gt;Automation does not reduce responsibility.
+It increases expectations.&lt;&#x2F;p&gt;
+&lt;p&gt;When something goes wrong, there is still a human in the loop.
+There always is.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;is-this-still-worth-reading&quot;&gt;Is This Still Worth Reading?&lt;&#x2F;h2&gt;
+&lt;p&gt;That is the question people tend to circle without asking directly.&lt;&#x2F;p&gt;
+&lt;p&gt;If a post reflects real experience, real constraints, and real judgment, I do
+not care which tool helped shape the sentences.&lt;&#x2F;p&gt;
+&lt;p&gt;Authenticity does not come from keystrokes.
+It comes from context.&lt;&#x2F;p&gt;
+&lt;p&gt;You can feel the difference between writing that emerged from lived systems
+and writing that emerged from nowhere. Tools do not erase that distinction.&lt;&#x2F;p&gt;
+&lt;p&gt;They amplify it.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;writing-did-not-end-it-moved&quot;&gt;Writing Did Not End. It Moved.&lt;&#x2F;h2&gt;
+&lt;p&gt;We already accept this shift everywhere else.&lt;&#x2F;p&gt;
+&lt;p&gt;We do not demand that pilots prove their worth by flying without instruments.
+We do not ask engineers to manage infrastructure without automation. We do
+not measure photographers by how manual their camera is.&lt;&#x2F;p&gt;
+&lt;p&gt;We judge outcomes, judgment, and reliability.&lt;&#x2F;p&gt;
+&lt;p&gt;Writing is no different.&lt;&#x2F;p&gt;
+&lt;p&gt;The work did not disappear.
+It moved.&lt;&#x2F;p&gt;
+&lt;p&gt;And learning where it lives now is part of the craft.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

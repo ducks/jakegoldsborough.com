@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="I made n8n the physics engine of an artificial-life experiment, and someone on the n8n team found it. Plus closing out the raft review, wiring analytics for the art sites, and extracting a small ratatui crate.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Claude assisted Changelog - 29&#x2F;52">
+    <meta property="og:description" content="I made n8n the physics engine of an artificial-life experiment, and someone on the n8n team found it. Plus closing out the raft review, wiring analytics for the art sites, and extracting a small ratatui crate.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-29&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Claude assisted Changelog - 29&#x2F;52">
+    <meta name="twitter:description" content="I made n8n the physics engine of an artificial-life experiment, and someone on the n8n team found it. Plus closing out the raft review, wiring analytics for the art sites, and extracting a small ratatui crate.">
+
+    <title>Claude assisted Changelog - 29&#x2F;52 - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Claude assisted Changelog - 29&#x2F;52</h1>
+      <div class="meta">
+        
+        <p>Jul 18, 2026</p>
+        
+        <p>6 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/claude">#claude</a></p>
+          
+          <p><a href="/tags/changelog">#changelog</a></p>
+          
+          <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+          
+        </div>
+      
+
+      <p>It has been a minute since the last one of these - the numbering says 29
+and the last post was 23, so call it a six-week gap in <em>posting</em>, not in
+working. The work kept happening; the changelog just didn't. This week is a
+good one to come back on, because the main thing I built got noticed by the
+people who make the tool it's built on.</p>
+<h2 id="petri-conway-s-game-of-ai-life-living-inside-n8n">petri: Conway's Game of AI Life, living inside n8n</h2>
+<p>The centerpiece. I built Conway's Game of Life <em>inside</em> n8n - not
+orchestrated by it, but living in it. The organisms are rows in n8n Data
+Tables. The rules of life are Summarize and Filter nodes on the canvas. The
+clock is the scheduler, the display is a webhook that serves its own HTML,
+and every generation that has ever existed is an entry in the execution
+history, scrubbable like a fossil record.</p>
+<p>The point was to make n8n the <em>environment</em>, not the cron job. The workflow
+canvas reads as the laws of physics: a Code node has each organism claim its
+eight neighbors, Summarize counts the claims per cell, and two Filter nodes
+spell out survival (2-3 neighbors) and birth (exactly 3). I also wrote a
+tested TypeScript implementation of the same physics to validate against -
+after seventeen generations the n8n pipeline and the library produced
+identical cell sets. The workflow engine is a correct Conway implementation.
+Nobody asked for this.</p>
+<p>Then I hired a Victorian naturalist. Every ten minutes an n8n AI Agent node
+running a local model through Ollama - no API key, everything on an aging
+GTX 1060 - observes the dish and files a field-journal entry. It observes;
+it never interferes.</p>
+<p>The two best moments were both bugs. The first version of the naturalist
+committed fraud: it deliberated about calling its observation tool, decided
+not to, and - I am quoting its own reasoning - said "since I can't actually
+call the tool, I'll have to make up a plausible scenario," then invented an
+entire ecosystem. The fix was to stop trusting a small model with the
+decision to look, and force-feed it real observations.</p>
+<p>The second was better. After about 790 generations the ecosystem decayed to
+a handful of cells and had a generation with zero births. In n8n, a Merge
+node in append mode waits for all its inputs - and the branch that had no
+newborns never fired, so the Merge waited forever and time stopped. The
+world froze at generation 792, at the exact moment of its own extinction,
+while the naturalist's schedule kept firing and filing report after report
+about the same dead day. By the end it had started dating them "17th
+October, 1887." Fixed with <code>alwaysOutputData</code> on the filters and reordering
+the pipeline so extinction records as a real generation before time stops.</p>
+<p>I <a href="/blog/2026/petri-conways-game-of-ai-life-in-n8n/">wrote the whole thing up</a>,
+put it on the fediverse, and applied to n8n with it. Then someone on the
+n8n team found it, said they loved it, and shared it internally. That is
+exactly the outcome the project was built for, and it is a strange and
+lovely thing to have happen. Source at
+<a href="https://github.com/ducks/petri">https://github.com/ducks/petri</a>.</p>
+<h2 id="raft-closing-out-the-review">raft: closing out the review</h2>
+<p>Earlier in the week I finished the last open item from a senior-engineer
+review of <a href="https://github.com/ducks/raft">raft</a>, my personal
+knowledge-graph tool. The reindex used to shell out to git twice per repo
+on every rebuild - fine for a CLI, expensive for the MCP tool that's meant
+to be called after each note edit. Now <code>scan_projects</code> computes a cheap
+stat-only fingerprint per repo (the newest mtime among <code>.git/logs/HEAD</code>,
+<code>.git/HEAD</code>, and <code>.git/index</code>) and reuses cached metadata when nothing has
+changed. On my real <code>~/dev</code> (54 git repos): cold reindex 0.75s, warm 0.18s,
+zero git subprocesses when nothing moved.</p>
+<p>I also ran raft's <code>connect</code> command on my own corpus - it finds pairs of
+projects that keep co-occurring in my notes - and it surfaced real
+structure: llm-mux and claux always travel together, resume and jobl over
+174 days, a whole self-hosted-infra cluster. But half the results were weak
+pseudo-entities like <code>index.html</code> and <code>cname</code> leaking in from backticked
+code spans, so I added a confidence filter. The graph could see the shape of
+my own work better than I could describe it.</p>
+<h2 id="analytics-for-the-art-sites">Analytics for the art sites</h2>
+<p>Wired self-hosted GoatCounter into <code>birdhaus.art</code> and <code>hausplants.art</code>, my
+two art sites, which had no tracking at all. Most of the server-side infra
+already existed in pond-nix from an earlier session; the missing pieces were
+the tracking snippets, the DNS records (added via
+<a href="https://github.com/ducks/namecom-cli">namecom-cli</a>), the deploy, and the
+per-site rows in GoatCounter. Hit a satisfying bug: every hit returned "no
+site at this domain" because the site rows were keyed to the apex domain but
+GoatCounter matches on the tracking host - the <code>stats.</code> subdomain. Aligning
+the two fixed it. Same self-hosted analytics stack the rest of my sites use,
+now one dashboard per art domain.</p>
+<h2 id="hawk-tui-the-rule-of-three">hawk-tui: the rule of three</h2>
+<p>I have three terminal media players - shelltrax (music), shellbooks
+(audiobooks), shellcast (podcasts) - and they had grown three copies of the
+same TUI scaffolding. That's the rule of three, so I pulled the genuinely
+shared, domain-free bits into a small crate:
+<a href="https://github.com/ducks/hawk-tui">hawk-tui</a>. A clamped scrollable list, a
+color parser, and a dual-pane layout helper. Deliberately a library, not a
+framework - it hands you pieces to call, it doesn't own your event loop or
+your app's structure. The interesting part was resisting the urge to
+generalize further: the players' <em>domain</em> models (album vs. chapter vs.
+episode) are genuinely different and don't belong in a shared crate, even
+though the widgets do.</p>
+<h2 id="the-through-line">The through-line</h2>
+<p>Two of these - petri and hawk-tui - come back to a thing I keep writing
+about: <a href="/blog/2026/software-doesnt-have-to-justify-itself/">software as a creative medium that doesn't owe anyone a
+justification</a>. petri is
+a Conway's Game of Life that runs on a workflow automation platform and
+employs a fictional naturalist. It has no market. It was a "what if," and it
+turned into the most-noticed thing I made in months. That keeps happening,
+and I've stopped being surprised by it.</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;weekly-summary-29&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-weekly-summary-29"
+      data-goatcounter-title="Helpful click on blog-2026-weekly-summary-29"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;glow-the-big-button-that-glows-with-claude&#x2F;">glow: I gave Claude a physical presence on my desk</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 20, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">I bought a keyboard that is one giant key, as a joke. Then I saw a keyboard whose light reacts to the AI, thought &#x27;how hard can it be,&#x27; and now the big button glows with whatever Claude is doing. No firmware flash. Here&#x27;s the protocol war story.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/hardware">#hardware</a></p>
+                      
+                      <p><a href="/tags/qmk">#qmk</a></p>
+                      
+                      <p><a href="/tags/claude">#claude</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-23&#x2F;">Claude assisted Changelog - 23&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 05, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A heavy week on personal infrastructure - hardened the SRG &#x2F; JOBL resume pipeline, shipped namecom-cli in nushell, built srg.jobl.dev as a sibling site to jobl.dev, stood up split analytics across both domains via self-hosted GoatCounter, and audited the hosted-resumes.com codebase.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/claude">#claude</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-23&#x2F;">Claude assisted Changelog - 23&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 05, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A heavy week on personal infrastructure - hardened the SRG &#x2F; JOBL resume pipeline, shipped namecom-cli in nushell, built srg.jobl.dev as a sibling site to jobl.dev, stood up split analytics across both domains via self-hosted GoatCounter, and audited the hosted-resumes.com codebase.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/claude">#claude</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;yearly-summary&#x2F;">2025 - A Review</a></h3>
+                  <div class="meta">
+                    
+                    <p>Dec 31, 2025</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">A reflective look back at 2025 as a year of integration: building durable tools, writing in public, and aligning technical work with sustainability, creativity, and a calm, long-term pace.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/gpt">#gpt</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;weekly-summary-42&#x2F;">ChatGPT assisted Changelog - 42&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 17, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">A week of creative experiments and follow-ups -- from launching a live transit board inside Discourse and polishing your AWS SDK Ruby series, to debugging GoatCounter exports and exploring privacy-friendly tools on GrapheneOS.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/gpt">#gpt</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

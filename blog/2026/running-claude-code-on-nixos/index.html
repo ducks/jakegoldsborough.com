@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Claude Code&#x27;s official installer drops a prebuilt Linux binary that won&#x27;t execute on NixOS. A 133-line shell.nix patches it on the way in. Here&#x27;s what&#x27;s broken, why, and how to fix it without leaving the official install path.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Running Claude Code on NixOS">
+    <meta property="og:description" content="Claude Code&#x27;s official installer drops a prebuilt Linux binary that won&#x27;t execute on NixOS. A 133-line shell.nix patches it on the way in. Here&#x27;s what&#x27;s broken, why, and how to fix it without leaving the official install path.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;running-claude-code-on-nixos&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Running Claude Code on NixOS">
+    <meta name="twitter:description" content="Claude Code&#x27;s official installer drops a prebuilt Linux binary that won&#x27;t execute on NixOS. A 133-line shell.nix patches it on the way in. Here&#x27;s what&#x27;s broken, why, and how to fix it without leaving the official install path.">
+
+    <title>Running Claude Code on NixOS - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Running Claude Code on NixOS</h1>
+      <div class="meta">
+        
+        <p>May 07, 2026</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/nixos">#nixos</a></p>
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+        </div>
+      
+
+      <p>I run NixOS on my laptop. I use Claude Code daily. Recently the two stopped getting along, so I sat down and fixed it.</p>
+<p>The official Claude Code installer (<a href="https://docs.claude.com/en/docs/claude-code/setup"><code>curl -fsSL claude.ai/install.sh | bash</code></a>) drops a prebuilt Linux binary into <code>~/.local/bin/claude</code>. On Debian, Fedora, Arch, anything FHS-compliant, it just works. On NixOS, the binary refuses to run with some flavor of:</p>
+<pre><code>Could not start dynamically linked executable: &#x2F;home&#x2F;&lt;user&gt;&#x2F;.local&#x2F;bin&#x2F;claude
+NixOS cannot run dynamically linked executables intended for generic
+linux environments out of the box. For more information, see:
+https:&#x2F;&#x2F;nix.dev&#x2F;permalink&#x2F;stub-ld
+</code></pre>
+<p>The binary is right there. It has the executable bit. NixOS just refuses to run it.</p>
+<h2 id="why-this-happens">Why this happens</h2>
+<p>NixOS doesn't follow the <a href="https://en.wikipedia.org/wiki/Filesystem_Hierarchy_Standard">Filesystem Hierarchy Standard</a>. There is no <code>/lib64/ld-linux-x86-64.so.2</code>. Every library lives in <code>/nix/store/&lt;hash&gt;-&lt;package&gt;/lib/</code>, and a given system can have many versions of the same library coexisting in different store paths.</p>
+<p>Prebuilt Linux binaries hardcode <code>/lib64/ld-linux-x86-64.so.2</code> as the path to the dynamic linker. They also hardcode an rpath pointing at FHS library directories that don't exist. When the kernel <code>execve</code>s such a binary, it can't find the linker to load and bails out with the misleading "required file not found" error.</p>
+<p>This isn't unique to Claude Code. It bites Discord, Spotify, Steam, the .NET SDK, anything you <code>curl | bash</code> from a vendor's website. The NixOS community has <a href="https://nixos.wiki/wiki/Packaging/Binaries">several documented workarounds</a>:</p>
+<ul>
+<li><strong>patchelf</strong>: rewrite the binary's interpreter and rpath to point at Nix store paths</li>
+<li><strong>nix-ld</strong>: a shim that maps the FHS linker path to a real Nix-provided linker at runtime</li>
+<li><strong>buildFHSEnv</strong> / <code>steam-run</code>: drop the binary into a sandbox that fakes an FHS layout</li>
+<li><strong>autoPatchelfHook</strong>: the canonical packaging path, used when a binary is being added to nixpkgs</li>
+</ul>
+<p>I went with patchelf. It works from a plain <code>nix-shell</code> without touching <code>configuration.nix</code>, and it leaves the official install path intact - the binary still lives where Claude Code expects it.</p>
+<h2 id="the-fix">The fix</h2>
+<p><a href="https://github.com/ducks/claude-nixos">claude-nixos</a> is a single <code>shell.nix</code> (133 lines) that does three things:</p>
+<ol>
+<li>Wraps the official install script and patches the binary on the way in</li>
+<li>Patches binaries that are <em>already</em> installed</li>
+<li>Updates an existing install to a new version, repatching as it goes</li>
+</ol>
+<p>You enter the shell:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">nix-shell shell.nix
+</code></pre>
+<p>And get three functions:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">install_claude_fixed              # download + patch
+install_claude_fixed 0.5.2        # specific version
+fix_installed_claude              # repair what&#x27;s already there
+update_claude_fixed               # newer version, same patch
+</code></pre>
+<h2 id="how-the-patch-works">How the patch works</h2>
+<p>The interesting bit is the <code>patch_binary</code> function. Given a path to an ELF binary, it asks Nix for the path to <em>its</em> dynamic linker and the libraries the binary will need, then rewrites the binary in place:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">patchelf \
+  --set-interpreter &quot;$DYNAMIC_LINKER&quot; \
+  --set-rpath &quot;$LIBRARY_PATH&quot; \
+  &quot;$binary&quot;
+</code></pre>
+<p><code>$DYNAMIC_LINKER</code> comes from <code>pkgs.stdenv.cc.bintools.dynamicLinker</code> (a real, existing <code>/nix/store</code> path). <code>$LIBRARY_PATH</code> is built from <code>glibc</code>, <code>libstdc++</code>, <code>openssl</code>, <code>curl</code>, <code>sqlite</code>, <code>zlib</code> (the libraries Claude Code's binary actually links against, found by trial and <code>ldd</code>).</p>
+<p>After patching, the binary's interpreter points at a file that exists on NixOS, and its rpath points at directories that contain the libraries it needs. The kernel can <code>execve</code> it, the linker can resolve its imports, and <code>claude</code> runs.</p>
+<p>For new installs, the wrapper runs <code>sed</code> against the official install script to inject patchelf calls right after the binary is placed:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">sed -i &quot;&#x2F;cp.*claude.*\$INSTALL_DIR&#x2F;a $PATCH_SCRIPT&quot; install.sh
+</code></pre>
+<p>So the patched flow is byte-for-byte the official install with one extra step inlined. When Anthropic ships a new installer, the wrapper still works as long as <code>cp ... claude ... $INSTALL_DIR</code> stays in the script. If they restructure it, the sed pattern breaks loudly and obviously.</p>
+<h2 id="try-it">Try it</h2>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">git clone https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;claude-nixos
+cd claude-nixos
+nix-shell
+install_claude_fixed
+claude --version
+</code></pre>
+<p>If you've already installed Claude Code through the official script and it's broken, run <code>fix_installed_claude</code> instead and it'll patch what's there.</p>
+<h2 id="links">Links</h2>
+<ul>
+<li><a href="https://github.com/ducks/claude-nixos">claude-nixos</a></li>
+<li><a href="https://nixos.wiki/wiki/Packaging/Binaries">NixOS Wiki: Packaging/Binaries</a> - the canonical write-up of the four fix-it options</li>
+<li><a href="https://github.com/nix-community/nix-ld">nix-ld</a> - the system-wide alternative</li>
+</ul>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;running-claude-code-on-nixos&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-running-claude-code-on-nixos"
+      data-goatcounter-title="Helpful click on blog-2026-running-claude-code-on-nixos"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;mini-racer-nixos-bundle-gemfile&#x2F;">mini_racer on NixOS: Three Things That Were Wrong</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 25, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">mini_racer 0.21.4 wouldn&#x27;t build in my nix-shell. The fix turned out to be counterintuitive: removing glibc from buildInputs made stdlib.h work again. Plus a BUNDLE_GEMFILE footgun hiding in plain sight.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/debugging">#debugging</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;patchelf-broke-claude-code&#x2F;">When patchelf stopped working on Claude Code</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 20, 2026</p>
+                    
+                    <p>11 min read</p>
+                  </div>
+                  
+                    <p class="desc">A sequel to the NixOS fix. The patchelf-based shell.nix was working, then a Claude Code update made it produce binaries that segfaulted before main(). Three wrong hypotheses, one real cause, two more gotchas hiding inside the fix, and the resolution that finally made it all moot: nix-ld.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/debugging">#debugging</a></p>
+                      
+                      <p><a href="/tags/elf">#elf</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;nix-shells-ssh-claude-code&#x2F;">The Unholy Trinity: Nix Shells, SSH Config, and Claude Code</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 21, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">How proper environment setup turns AI coding assistants from novelty into genuine infrastructure. Nix makes everything reproducible. SSH makes everything reachable. Claude ties it together.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;real-declarative-infrastructure-nixos&#x2F;">From Bash Scripts to NixOS: Real Declarative Infrastructure on a VPS</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 18, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Converting a bash script + systemd-based VPS to NixOS for truly declarative infrastructure. No more update scripts or edge cases, just configuration.nix.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/self-hosting">#self-hosting</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2025&#x2F;nixos-daily-driver-9&#x2F;">NixOS as a daily driver or Zero to Nixty, part 9&#x2F;? - Enabling Wi-Fi</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 27, 2025</p>
+                    
+                    <p>2 min read</p>
+                  </div>
+                  
+                    <p class="desc">Troubleshooting and fixing Wi-Fi on a Framework 16 laptop running NixOS by loading the Intel AX210 driver, enabling firmware, and configuring NetworkManager with wpa_supplicant.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/framework">#framework</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

@@ -1,0 +1,1410 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="git blame tells you who wrote this line. arf why tells you what they were thinking. I shipped ARF earlier this year as a format for capturing agent reasoning alongside commits. Here&#x27;s what happened when an agent actually used it for a session of real work.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Six records, two bugs, one refactor: a day with ARF">
+    <meta property="og:description" content="git blame tells you who wrote this line. arf why tells you what they were thinking. I shipped ARF earlier this year as a format for capturing agent reasoning alongside commits. Here&#x27;s what happened when an agent actually used it for a session of real work.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;six-records-two-bugs-one-refactor-a-day-with-arf&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Six records, two bugs, one refactor: a day with ARF">
+    <meta name="twitter:description" content="git blame tells you who wrote this line. arf why tells you what they were thinking. I shipped ARF earlier this year as a format for capturing agent reasoning alongside commits. Here&#x27;s what happened when an agent actually used it for a session of real work.">
+
+    <title>Six records, two bugs, one refactor: a day with ARF - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Six records, two bugs, one refactor: a day with ARF</h1>
+      <div class="meta">
+        
+        <p>Jun 07, 2026</p>
+        
+        <p>9 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+        </div>
+      
+
+      <p><code>git blame</code> tells you who wrote this line. <code>arf why</code> tells you what they were thinking.</p>
+<p>That's the one-line pitch. The longer version: in February I shipped <a href="https://github.com/ducks/arf">ARF</a>, a TOML schema and CLI for capturing agent reasoning alongside git commits. The original post made the case for the format. This one is about what happens when an agent actually uses it.</p>
+<p>ARF stands for Agent Reasoning Format - it's meant to be populated by agents as a normal side effect of their tool-using behavior, not by humans typing TOML. So this week I loaded the <a href="https://github.com/ducks/arf-skill">arf skill</a> into a Claude Code session and gave it a real task: add an <code>arf export</code> subcommand. The goal was to look at the resulting <code>.arf/</code> afterwards and ask whether the trail was useful or just noise. The session produced six records, surfaced two bugs, and ended with a refactor. Here's the report.</p>
+<h2 id="the-setup">The setup</h2>
+<p><code>arf export</code> was a real gap. The format had been "TOML files in a parallel git branch" since v0.1, which is fine for storage but bad for anything downstream - CI scripts that check for missing reasoning, dashboards that visualize agent behavior, multi-agent handoffs. Without export, every consumer had to re-implement the record-walking logic that <code>arf log</code> already had.</p>
+<p>Small feature, three branching design decisions worth recording (which fields to include, what format default, single-record vs newline-delimited). Bounded enough to fit in a session. Exactly the size where the question "do the records help, or do they just slow things down" has a clean answer.</p>
+<p>The agent had the skill loaded. The repo had <code>arf init</code> run. Then: "add an <code>arf export</code> subcommand that dumps records as JSON."</p>
+<h2 id="record-one-the-strategy">Record one: the strategy</h2>
+<p>Before writing any code, the agent emitted:</p>
+<pre data-lang="toml" class="language-toml "><code class="language-toml" data-lang="toml">what = &quot;Add &#x27;arf export&#x27; subcommand that dumps records as JSON to stdout&quot;
+why = &quot;Records are useful inputs to other tooling - CI scripts that check for missing reasoning, dashboards, multi-agent handoffs. TOML files in a parallel git branch are the storage form; JSON over stdout is the interchange form. Without export, anyone wanting to consume ARF data has to re-implement the record-walking logic.&quot;
+how = &quot;Extract record-loading from cmd_log into a shared load_records() helper. Add cmd_export using it with --commit&#x2F;--since&#x2F;--format flags. JSON via serde_json. Default emits a JSON array; --format jsonl emits newline-delimited JSON for streaming consumers.&quot;
+backup = &quot;If serde_json bloats the binary too much, fall back to hand-rolled JSON. Revert the commit if cmd_log regresses - the helper extraction is the riskier piece.&quot;
+</code></pre>
+<p>This is the part of ARF I find most valuable in practice. The agent had to commit to a plan before touching code. The <code>backup</code> field forced it to ask "what's the riskiest part of this change?" - and the answer "the helper extraction" wasn't obvious from the rest of the description.</p>
+<p>The record went into <code>.arf/records/&lt;commit-sha&gt;/</code> and the actual implementation followed.</p>
+<h2 id="record-two-the-implementation">Record two: the implementation</h2>
+<p>After the feature landed - extracted helper, new <code>cmd_export</code>, three output formats, optional <code>--since</code> filtering - the agent emitted an outcome record:</p>
+<pre data-lang="toml" class="language-toml "><code class="language-toml" data-lang="toml">what = &quot;Implement arf export per the earlier plan&quot;
+why = &quot;Closing the loop on the previous record. JSON via serde_json was the right call - no hand-rolled fallback needed, the binary stayed small. Helper extraction landed cleanly; cmd_log behavior unchanged (verified manually).&quot;
+how = &quot;Added serde_json dep, load_records() helper, Export variant + ExportFormat enum, cmd_export dispatch. --since accepts bare date OR rfc3339; widened bare date to 00:00:00Z so users don&#x27;t have to format timezones. TOML output wraps records in a [[records]] array since TOML has no top-level array.&quot;
+</code></pre>
+<p>Less dramatic. Mostly captured a few small decisions that emerged during implementation: bare-date support for <code>--since</code> (so callers don't have to know RFC-3339), the TOML wrapper key (because TOML can't represent a top-level array). The kind of detail that would otherwise live in a commit message that nobody re-reads.</p>
+<h2 id="bug-one-records-colliding-silently">Bug one: records colliding silently</h2>
+<p>After the feature worked, integration tests came next - thirteen of them, covering init, record, log, and export across happy and unhappy paths. The suite ran in 110ms. Twelve passed. The thirteenth - <code>export_jsonl_emits_one_record_per_line</code> - failed unexpectedly:</p>
+<pre><code>thread &#x27;export_jsonl_emits_one_record_per_line&#x27; panicked:
+assertion `left == right` failed
+  left: 1
+ right: 3
+</code></pre>
+<p>The test created three records back-to-back and expected three to be persisted. Only one showed up on disk.</p>
+<p>Quick look at <code>cmd_record</code>: the filename for each record was constructed with second-resolution timestamps. Three records emitted in the same second collided on the filesystem, and the latest one silently overwrote the previous two. A real bug, latent in the code since the original commit five months ago, found in the first sixty seconds of running the test suite.</p>
+<p>One-line fix: switch from <code>%Y%m%d-%H%M%S</code> to <code>%Y%m%d-%H%M%S%9f</code> (nanosecond precision). All thirteen tests passed afterwards.</p>
+<p>Without that test, that bug would have lived in production indefinitely. Maybe forever - it only manifests when an agent emits records faster than once per second, which is exactly the regime ARF is designed for.</p>
+<h2 id="bug-two-the-cli-s-own-onboarding">Bug two: the CLI's own onboarding</h2>
+<p>Before any of this, the very first <code>arf record</code> call failed with <code>ARF not initialized. Run 'arf init' first.</code> But the repo <em>did</em> have an <code>arf</code> orphan branch with records from earlier work. The local clone just didn't have the worktree set up.</p>
+<p><code>arf init</code> is supposed to handle this, but its logic was "create a fresh branch" rather than "either create or attach to existing." A manual <code>git worktree add .arf arf</code> got things unstuck. Smaller than bug one, but worth noting: a new user's very first attempt would also hit this. Filed as a follow-up - <code>arf init</code> should detect an existing remote branch and attach to it.</p>
+<h2 id="record-three-through-six-the-refactor">Record three through six: the refactor</h2>
+<p>After the feature shipped, the codebase had grown to 830 lines of <code>src/main.rs</code> mixing eight command implementations plus a TUI browser plus serialization types plus CLI parsing. With tests in place, this was the safest moment to refactor.</p>
+<p>The agent emitted a pre-action record for that too:</p>
+<pre data-lang="toml" class="language-toml "><code class="language-toml" data-lang="toml">what = &quot;Split src&#x2F;main.rs into focused modules&quot;
+why = &quot;main.rs is ~830 lines mixing eight command implementations, the TUI browser, serialization types, and CLI parsing. Finding code requires scrolling; editing one command means navigating past unrelated context; the TUI alone is ~300 lines that has nothing to do with everything else. The integration test suite gives us a safety net (13 tests, ~110ms) so the refactor is verifiable in seconds.&quot;
+how = &quot;Carve into: record.rs (ArfRecord type), store.rs (load_records, .arf paths), commands&#x2F;{init,record,log,sync,graph,diff,export,spec,browse}.rs, plus lib.rs that re-exports for tests. main.rs shrinks to CLI parsing + a dispatch match.&quot;
+backup = &quot;If something breaks subtly that the tests don&#x27;t catch, git revert the merge commit. The refactor is purely structural - no behavior changes - so a revert is safe.&quot;
+</code></pre>
+<p>The refactor took about an hour. All 13 tests passed after the dust settled. <code>main.rs</code> went from 1264 lines to 149. The largest single file is now <code>browse.rs</code> at 436 lines, all of which is genuinely unavoidable TUI rendering.</p>
+<h2 id="reading-back-the-trail">Reading back the trail</h2>
+<p>Here's what <code>arf graph</code> looks like for that session:</p>
+<pre><code>Git + ARF History:
+
+|-* d139480 feat(export): add arf export subcommand
+|  |-- what: Add &#x27;arf export&#x27; subcommand
+|  |    why: Records are useful inputs to other tooling...
+|  |    how: Extract record-loading from cmd_log...
+|  +-- what: Implement arf export per the earlier plan
+|       why: Closing the loop on the previous record...
+|-* ea70db3 test: integration tests + record-filename fix
+|  +-- what: Implement integration test suite for the arf CLI
+|       why: 13 tests covering init&#x2F;record&#x2F;log&#x2F;export...
+|-* ad20c4b refactor: split main.rs into per-command modules
+   |-- what: Split src&#x2F;main.rs into focused modules
+   |    why: main.rs is ~830 lines mixing...
+   +-- what: Land the module split per the earlier plan
+        why: All 13 integration tests passed after the refactor...
+</code></pre>
+<p>Three commits, six records. Each commit has a "before" record (the plan) and an "after" record (the outcome). Reading this back the next day, the trail tells me:</p>
+<ul>
+<li>What the agent was trying to do (in its own structured voice)</li>
+<li>Why it made the specific design choices it made</li>
+<li>What it learned during implementation that wasn't visible in the diff</li>
+<li>Whether things went as planned, or where they deviated</li>
+</ul>
+<p>The commit messages alone would have given me the <em>what</em>. The records give me the <em>why</em>.</p>
+<h2 id="where-this-points">Where this points</h2>
+<p>ARF anchors reasoning to commit SHAs. The next natural step is anchoring to specific <em>files and line ranges</em> - "this record was about the change to src/store.rs:42-76." Once records are line-anchored, the format starts to look less like a sequential changelog and more like a queryable annotation layer over the codebase.</p>
+<p><code>arf why src/store.rs:42</code> would: resolve line 42 back to whichever commit last touched it (the <code>git blame</code> step), look up reasoning records for that commit, and print the ones that mentioned that file. Same metaphor as blame, different question. blame answers <em>who wrote this</em>. <code>arf why</code> answers <em>why does this exist</em>.</p>
+<p>You can see the shape this points at if you keep pulling on it. Decision provenance for software. A queryable graph of <code>(commit, file, line, reasoning)</code> tuples accumulating over the life of a project. CI checks that fail when code changes without reasoning attached. "When was the last time anyone explained this function?" as a real question with a real answer.</p>
+<p>The data model can become rich. The data won't be rich until the <em>emission</em> problem is solved across the agent ecosystem - until every coding agent (Claude Code, Cursor, Aider, the next thing) drops reasoning records as a normal part of their tool-use cycle, the way <code>git commit</code> writes to both <code>.git/refs/heads/main</code> and <code>.git/objects/</code> without anyone thinking about it.</p>
+<h2 id="what-didn-t-land">What didn't land</h2>
+<p>A few honest observations from a single session of real use:</p>
+<p><strong>The skill prompted the agent reliably, but the granularity is debatable.</strong> The agent emitted at the "feature" boundary - one record before, one after - but not at finer boundaries inside the implementation. A more interesting trail would have records when the agent tried something, hit a wall, and pivoted. Right now the skill's "when to emit" rules don't push hard enough on the mid-task decisions. Iteration on the skill text, not the format.</p>
+<p><strong>There's no link from record to specific files or lines.</strong> This is the gap that points toward <code>arf why</code>. The schema needs a <code>files</code> field; the CLI needs the <code>why</code> subcommand. About a hundred lines of work each.</p>
+<p><strong>Pre and post records cluster on one commit.</strong> Both pre-action and post-action records get attached to the same commit SHA, because the post-action record fires before the actual <code>git commit</code>. Not wrong, but not quite the model I want either - I'd like a clearer sense of "this record predicted this commit" vs "this record reports on this commit."</p>
+<p><strong>The TUI browser is great, the CLI graph view is fine, neither is shareable.</strong> If I wanted to send someone a URL showing the reasoning trail for a PR, I don't have that today. A web viewer is the obvious next thing.</p>
+<h2 id="the-takeaway">The takeaway</h2>
+<p>ARF the format works. The trail produced in a session of real agent use was specific, structured, and informative when I read it back. The bugs the integration tests caught (records silently overwriting each other) are the kind of thing that would have hurt real users before ever surfacing. The refactor went smoothly because the tests existed; doing it without that safety net would have been scarier and slower.</p>
+<p>The remaining work isn't on the format - it's on getting agents to emit records at the right granularity automatically, and on the queryable layer (<code>arf why</code>, file/line anchoring, a web viewer) that turns records from a log into a graph.</p>
+<p>I'm going to keep running real work through ARF for a few weeks and report back. The honest test is whether I find myself reaching for <code>arf graph</code> when I'm trying to remember what an agent did last Tuesday. If yes, the format earned its space. If no, it didn't.</p>
+<p><code>arf-cli</code> is on <a href="https://crates.io/crates/arf-cli">crates.io</a>. The format spec is at <a href="https://github.com/ducks/arf">https://github.com/ducks/arf</a>. The Claude Code skill is at <a href="https://github.com/ducks/arf-skill">https://github.com/ducks/arf-skill</a>. Try it on a real session of agent work and see what your trail looks like.</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;six-records-two-bugs-one-refactor-a-day-with-arf&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-six-records-two-bugs-one-refactor-a-day-with-arf"
+      data-goatcounter-title="Helpful click on blog-2026-six-records-two-bugs-one-refactor-a-day-with-arf"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;raft-a-graph-over-the-plain-text-log&#x2F;">raft: A Graph Over the Plain-Text Log</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 19, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">I kept a plain-text log of my work for months, then hit the wall where grep stops scaling. So I built a knowledge graph that grows out of the notes and repos I already have. Then I found out Andrej Karpathy keeps the same log.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/notes">#notes</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;replaybook-incident-replay-trainer&#x2F;">replaybook: Incident Replay Trainer for Infrastructure</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 30, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">A terminal trainer where you&#x27;re dropped into a broken Docker container and have to fix it. Turn your post-mortems into runnable scenarios.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/devops">#devops</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;jolteon-llm-routing-proxy&#x2F;">jolteon: An LLM Routing Proxy for Discourse</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 27, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">We run several vLLM backends for Discourse&#x27;s AI features. Hardcoding which backend handles which feature was getting messy. jolteon is the Rust proxy we built to fix that - it shipped yesterday.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;shellbooks-terminal-audiobook-player&#x2F;">shellbooks: A Terminal Audiobook Player</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 04, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A cmus-inspired terminal audiobook player for Linux and macOS. Open source, offline-first, with chapters, series, and per-book progress that survives a crash.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tui">#tui</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;jobchain-verifiable-employment-credentials&#x2F;">Jobchain: Verifiable Employment Credentials</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 06, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">What if your employer signed a machine-verifiable reference letter when you started, not when you left? Jobchain issues W3C Verifiable Credentials with Ed25519 signatures. No blockchain, no platform, no PDF.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/specifications">#specifications</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

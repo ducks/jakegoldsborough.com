@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="I bought a keyboard that is one giant key, as a joke. Then I saw a keyboard whose light reacts to the AI, thought &#x27;how hard can it be,&#x27; and now the big button glows with whatever Claude is doing. No firmware flash. Here&#x27;s the protocol war story.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="glow: I gave Claude a physical presence on my desk">
+    <meta property="og:description" content="I bought a keyboard that is one giant key, as a joke. Then I saw a keyboard whose light reacts to the AI, thought &#x27;how hard can it be,&#x27; and now the big button glows with whatever Claude is doing. No firmware flash. Here&#x27;s the protocol war story.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;glow-the-big-button-that-glows-with-claude&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="glow: I gave Claude a physical presence on my desk">
+    <meta name="twitter:description" content="I bought a keyboard that is one giant key, as a joke. Then I saw a keyboard whose light reacts to the AI, thought &#x27;how hard can it be,&#x27; and now the big button glows with whatever Claude is doing. No firmware flash. Here&#x27;s the protocol war story.">
+
+    <title>glow: I gave Claude a physical presence on my desk - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>glow: I gave Claude a physical presence on my desk</h1>
+      <div class="meta">
+        
+        <p>Jul 20, 2026</p>
+        
+        <p>7 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/hardware">#hardware</a></p>
+          
+          <p><a href="/tags/qmk">#qmk</a></p>
+          
+          <p><a href="/tags/claude">#claude</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <p>I bought a <a href="https://www.keychron.com/products/keychron-q0-mini-8k-action-key">Keychron Q0 Mini</a> as a joke.</p>
+<p>It's a macropad, except it's basically one giant key. A single satisfying THUNK of a button. There is no reason to own it. I owned it anyway, because the idea of a big dumb button made me laugh and I wanted to see what I'd do with it.</p>
+<p>Then I saw <a href="https://openai.com/">Work Louder's Co-Lab</a> with OpenAI, where the keyboard's lighting reacts to what the AI is doing. And the button has RGB. And I thought the thought that has started every good project I've ever built:</p>
+<p><em>"Huh. How hard could that be."</em></p>
+<p>The result is <a href="https://github.com/ducks/glow">glow</a>. The big button now lights up with whatever Claude Code is doing. Purple when it's idle. Blue while it's working. Green when it's my turn. Orange when it needs me. I glance at it from across the room and I know Claude's state without looking at the screen.</p>
+<video autoplay loop muted playsinline width="100%">
+  <source src="/images/2026/glow/button-demo.mp4" type="video/mp4">
+</video>
+<p>Here's how I got there, including the hour I lost to setting the wrong byte.</p>
+<h2 id="first-the-button-did-nothing">First, the button did nothing</h2>
+<p>Out of the box, the key emits nothing. I pressed it under <code>wev</code> (the Wayland event viewer) and got a blank line. Not an error - a registered key event with no keysym attached. The switch works, it's just mapped to a dead keycode.</p>
+<p>Fixing that is the easy half. Keychron boards run <a href="https://qmk.fm/">QMK</a> with <a href="https://www.caniusevia.com/">VIA</a> support, so I opened the Keychron Launcher (their VIA build), remapped the key to F13, and pressed it again. F13 is a real keycode that no physical keyboard has a key for, which makes it a clean "this press means <em>my button</em>" signal.</p>
+<p>Except <code>wev</code> didn't show F13. It showed this:</p>
+<pre><code>key: 191; state: 1 (pressed)
+sym: XF86Tools    (269025153)
+</code></pre>
+<p>On this Wayland stack, F13 comes through as <code>XF86Tools</code>. The F13-F24 range gets mapped to XF86 multimedia symbols by the keymap. This is exactly the kind of thing you only learn by reading the actual output instead of assuming, so: read the actual output. The Hyprland bind became:</p>
+<pre><code>bind = , XF86Tools, exec, ~&#x2F;.config&#x2F;hypr&#x2F;scripts&#x2F;big-button
+</code></pre>
+<p>Press button, script runs. Input half done. Now the light.</p>
+<h2 id="the-rgb-is-where-it-got-interesting">The RGB is where it got interesting</h2>
+<p>The dream was host control: my computer decides the color, the keyboard obeys. The question was whether that's possible without flashing custom firmware.</p>
+<p>QMK's VIA feature exposes a <strong>raw-HID interface</strong> - a vendor-defined USB HID endpoint that the VIA app uses to configure the board live. If VIA can set the RGB (and it can - there's a lighting tab), then the protocol to set RGB exists, and I can speak it myself.</p>
+<p>The board shows up as four HID interfaces. The VIA one is identifiable by its USB usage page, <code>0xFF60</code>. I dumped each interface's report descriptor:</p>
+<pre><code>hidraw11:  05 01 09 06 ...   # keyboard
+hidraw12:  06 60 ff 09 61 ...  # &lt;- 0xFF60, the VIA raw interface
+hidraw13:  05 01 09 02 ...   # mouse&#x2F;media
+hidraw14:  06 31 ff ...       # Keychron&#x27;s own vendor page
+</code></pre>
+<p><code>hidraw12</code> it is. Now I just had to send it the right bytes.</p>
+<h2 id="the-hour-i-lost">The hour I lost</h2>
+<p>The VIA protocol for RGB is documented in QMK's source. Commands look like:</p>
+<pre><code>report = [0x00, command, channel, value_id, ...args]   # padded to 33 bytes
+</code></pre>
+<p>I wanted: set the effect to solid color, set brightness, set the color. I wrote it, ran it, and watched the button.</p>
+<p>It changed color. And then kept changing. A slow fade through the whole rainbow, forever.</p>
+<p>So the commands were landing - the keyboard was clearly listening - but the animation never stopped. I assumed I had the wrong <em>effect</em> number. QMK has dozens of RGB effects; "solid color" is one of them, and I was setting it to some cycling effect by mistake. I wrote a probe that stepped through effect IDs 0 through 7, setting each one and pausing so I could watch.</p>
+<p>Every single one animated. Every one.</p>
+<p>That's the tell I should have caught sooner: if <em>no</em> effect ID produces a solid color, the problem isn't the effect ID. I was writing to the wrong field entirely. I went and read the actual constants in <a href="https://github.com/qmk/qmk_firmware/blob/master/quantum/via.h"><code>qmk/via.h</code></a>:</p>
+<pre><code>id_qmk_rgb_matrix_brightness    = 1
+id_qmk_rgb_matrix_effect        = 2
+id_qmk_rgb_matrix_effect_speed  = 3
+id_qmk_rgb_matrix_color         = 4
+</code></pre>
+<p>I'd been sending the effect to value-id <strong>3</strong>. Value-id 3 is effect <em>speed</em>. I was never setting the effect at all - I was setting the <em>speed</em> of whatever animation was already running, and then changing its color. The rainbow cycled the whole time because I never told it to stop cycling.</p>
+<p>The effect id is <strong>2</strong>. One byte. I changed the 3 to a 2:</p>
+<pre><code>effect-&gt;solid: sent [7, 3, 2, 1]
+color-&gt;purple: sent [7, 3, 4, 192, 255]
+</code></pre>
+<p>Solid purple. Frozen. Locked. The button held a single steady color for the first time.</p>
+<p>The lesson is the same one that gets me every time: when the story you've built ("wrong effect number") stops explaining the evidence ("<em>every</em> effect animates"), the story is wrong, not the evidence. Read the source constants instead of guessing enum positions by trial. It would have taken five minutes at the start and cost me an hour instead.</p>
+<h2 id="wiring-it-to-claude">Wiring it to Claude</h2>
+<p>Once I could set any color from a shell command, the status lamp was almost trivial, because Claude Code has <a href="https://docs.claude.com/en/docs/claude-code">hooks</a> - shell commands that fire on lifecycle events. The events map almost perfectly onto the states I wanted:</p>
+<table><thead><tr><th>event</th><th>color</th><th>meaning</th></tr></thead><tbody>
+<tr><td><code>SessionStart</code></td><td>purple</td><td>idle / ready</td></tr>
+<tr><td><code>UserPromptSubmit</code></td><td>blue</td><td>working</td></tr>
+<tr><td><code>Stop</code></td><td>green</td><td>your turn</td></tr>
+<tr><td><code>Notification</code></td><td>orange</td><td>needs your input</td></tr>
+</tbody></table>
+<p>Four lines in <code>settings.json</code>, each running <code>glow-hook &lt;color&gt;</code>. The hook runs the color-setter backgrounded and swallows all errors, so an unplugged keyboard never breaks a Claude session.</p>
+<p>I added them expecting to restart Claude to pick them up. I didn't have to. The moment I sent my next message, the button went blue. When the turn ended, green. It was reacting to the conversation I was having <em>while</em> wiring it. That was the moment it stopped being a project and started being a thing on my desk that's alive.</p>
+<h2 id="one-real-design-note">One real design note</h2>
+<p>My first palette had working as yellow and needs-you as orange. In practice you can't tell them apart across a room - they're both warm, and "warm" is all your peripheral vision gets. I moved working to blue. Blue / orange / green are three genuinely distinct colors; the light is legible from anywhere now.</p>
+<p>There is no red in the palette. That's a personal decree. I hate red. Orange carries the "needs you" weight instead, and honestly it's nicer.</p>
+<h2 id="it-s-not-really-about-claude">It's not really about Claude</h2>
+<p>glow is a generic tool. It drives any VIA/QMK keyboard's RGB from the host - point it at your board with a VID/PID, get a <code>glow &lt;color&gt;</code> command. The Claude status lamp is one use of it. Anything that can run a command can drive the light: a CI run going green, a long build finishing, a deploy, a pomodoro timer. The keyboard becomes an ambient status display for whatever you care about.</p>
+<p>No firmware flash, no VIA app open, no daemon. It talks to the raw-HID interface directly and sends the same bytes VIA would.</p>
+<h2 id="the-joke-was-the-point">The joke was the point</h2>
+<p>I want to be clear that I did not buy a giant button because I had a plan for it. I bought it because it was funny. The plan showed up later, the way plans do when you leave yourself a weird enough object to poke at.</p>
+<p>That's most of my favorite projects. Not "the market needs an ambient AI status indicator." Just "I have this dumb button, and this light, and a free evening, and how hard could it be." Hard enough to be fun. Easy enough to finish. And now there's a purple glow on my desk that turns blue when I ask a question, and I grin every time.</p>
+<hr />
+<p>Source: <a href="https://github.com/ducks/glow">github.com/ducks/glow</a></p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;glow-the-big-button-that-glows-with-claude&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-glow-the-big-button-that-glows-with-claude"
+      data-goatcounter-title="Helpful click on blog-2026-glow-the-big-button-that-glows-with-claude"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-29&#x2F;">Claude assisted Changelog - 29&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 18, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">I made n8n the physics engine of an artificial-life experiment, and someone on the n8n team found it. Plus closing out the raft review, wiring analytics for the art sites, and extracting a small ratatui crate.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/claude">#claude</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-23&#x2F;">Claude assisted Changelog - 23&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 05, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A heavy week on personal infrastructure - hardened the SRG &#x2F; JOBL resume pipeline, shipped namecom-cli in nushell, built srg.jobl.dev as a sibling site to jobl.dev, stood up split analytics across both domains via self-hosted GoatCounter, and audited the hosted-resumes.com codebase.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/claude">#claude</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;raft-a-graph-over-the-plain-text-log&#x2F;">raft: A Graph Over the Plain-Text Log</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 19, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">I kept a plain-text log of my work for months, then hit the wall where grep stops scaling. So I built a knowledge graph that grows out of the notes and repos I already have. Then I found out Andrej Karpathy keeps the same log.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/notes">#notes</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;replaybook-incident-replay-trainer&#x2F;">replaybook: Incident Replay Trainer for Infrastructure</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 30, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">A terminal trainer where you&#x27;re dropped into a broken Docker container and have to fix it. Turn your post-mortems into runnable scenarios.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/devops">#devops</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;six-records-two-bugs-one-refactor-a-day-with-arf&#x2F;">Six records, two bugs, one refactor: a day with ARF</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 07, 2026</p>
+                    
+                    <p>9 min read</p>
+                  </div>
+                  
+                    <p class="desc">git blame tells you who wrote this line. arf why tells you what they were thinking. I shipped ARF earlier this year as a format for capturing agent reasoning alongside commits. Here&#x27;s what happened when an agent actually used it for a session of real work.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

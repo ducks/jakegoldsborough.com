@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="I needed to manage DNS records on a name.com domain from the command line. The tool ended up being about 150 lines of nushell. Here&#x27;s what nushell does on the way that bash doesn&#x27;t.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="A tiny name.com CLI, and what nushell saves you">
+    <meta property="og:description" content="I needed to manage DNS records on a name.com domain from the command line. The tool ended up being about 150 lines of nushell. Here&#x27;s what nushell does on the way that bash doesn&#x27;t.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;namecom-cli-in-nushell&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="A tiny name.com CLI, and what nushell saves you">
+    <meta name="twitter:description" content="I needed to manage DNS records on a name.com domain from the command line. The tool ended up being about 150 lines of nushell. Here&#x27;s what nushell does on the way that bash doesn&#x27;t.">
+
+    <title>A tiny name.com CLI, and what nushell saves you - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>A tiny name.com CLI, and what nushell saves you</h1>
+      <div class="meta">
+        
+        <p>Jun 03, 2026</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/nushell">#nushell</a></p>
+          
+          <p><a href="/tags/cli">#cli</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/dns">#dns</a></p>
+          
+        </div>
+      
+
+      <p>I run a small VPS (pond-nix) that hosts a few personal services behind Caddy. Adding a new service means two things: a NixOS module that runs the service, and a DNS record on name.com pointing at the box. The NixOS side is declarative and versioned. The DNS side was "log into name.com, click Add Record, type the same thing I typed last time." I wanted to fix that.</p>
+<p>What I built is <a href="https://github.com/ducks/namecom-cli">namecom-cli</a>, a small nushell wrapper around the <a href="https://docs.name.com/api/v1/overview">name.com Core API</a>. Three subcommands so far:</p>
+<pre data-lang="nu" class="language-nu "><code class="language-nu" data-lang="nu">namecom login                            # interactive credential setup
+namecom list jobl.dev                    # list every DNS record on a domain
+namecom add  jobl.dev stats A 1.2.3.4    # add an A record
+namecom del  jobl.dev 12345678           # delete by record id
+</code></pre>
+<p>About 150 lines including the README. I want to walk through three places nushell made the tool smaller than the bash equivalent would have been.</p>
+<h2 id="json-in-tables-out">JSON in, tables out</h2>
+<p>The name.com API returns JSON for everything. Listing records gives you back a structure like:</p>
+<pre data-lang="json" class="language-json "><code class="language-json" data-lang="json">{
+  &quot;records&quot;: [
+    {&quot;id&quot;: 1, &quot;host&quot;: &quot;stats&quot;, &quot;type&quot;: &quot;A&quot;, &quot;answer&quot;: &quot;1.2.3.4&quot;, &quot;ttl&quot;: 300},
+    {&quot;id&quot;: 2, &quot;host&quot;: &quot;ci&quot;,    &quot;type&quot;: &quot;A&quot;, &quot;answer&quot;: &quot;1.2.3.4&quot;, &quot;ttl&quot;: 300}
+  ]
+}
+</code></pre>
+<p>In bash, that's a <code>jq</code> pipeline away from being useful. In nushell, it's already a table. The whole <code>list-records</code> command is:</p>
+<pre data-lang="nu" class="language-nu "><code class="language-nu" data-lang="nu">export def main [domain: string] {
+  let result = (api-get $&quot;&#x2F;core&#x2F;v1&#x2F;domains&#x2F;($domain)&#x2F;records&quot;)
+  $result.records? | default []
+}
+</code></pre>
+<p>That return value is a real nushell table, which means a user can pipe it through anything else nushell knows about:</p>
+<pre data-lang="nu" class="language-nu "><code class="language-nu" data-lang="nu">namecom list jobl.dev | where type == &quot;A&quot;
+namecom list jobl.dev | sort-by host | select host type answer
+namecom list jobl.dev | where answer == &quot;1.2.3.4&quot; | get id
+</code></pre>
+<p>I didn't write the <code>where</code>, <code>sort-by</code>, or <code>select</code> plumbing. Nushell brought it for free because the data shape is structured.</p>
+<p>In bash you'd write all that as <code>jq</code> filters per call. The user has to know jq syntax. The errors come out as jq errors instead of shell errors. And every script that consumes the output has to reparse JSON. Here, the consumer is already in the language.</p>
+<h2 id="authentication-without-leaking-the-token-to-ps">Authentication without leaking the token to ps</h2>
+<p>name.com's API uses HTTP Basic Auth. The obvious thing is to pass the credentials to curl with <code>-u username:token</code>. The problem is that on shared hosts (or anywhere with multiple users), <code>ps aux</code> shows every running process's command line including arguments. The token shows up in plain text every time the tool runs.</p>
+<p>The fix is to build the Authorization header explicitly and pass it via <code>--headers</code>:</p>
+<pre data-lang="nu" class="language-nu "><code class="language-nu" data-lang="nu">export def auth-header [] {
+  let creds = (load-credentials)
+  let token = ($&quot;($creds.username):($creds.token)&quot; | encode base64)
+  $&quot;Basic ($token)&quot;
+}
+
+export def api-get [path: string] {
+  let url = $&quot;(base-url)($path)&quot;
+  http get --headers [Authorization (auth-header)] $url
+}
+</code></pre>
+<p>Two notes on this. First, nushell ships an <code>http get</code> builtin: no curl call needed, no separate Content-Type parsing, no manual JSON decode. The response comes back as a parsed record automatically. Second, <code>encode base64</code> is a builtin pipe stage, not a separate <code>base64</code> invocation. The whole auth helper is six lines and reads top-to-bottom.</p>
+<p>The bash equivalent involves either <code>curl -H "Authorization: Basic $(echo -n "$user:$tok" | base64)"</code> (works, looks awful, hard to test independently) or factoring it into a helper function that's still doing the same thing with more ceremony.</p>
+<h2 id="toml-is-parsed-for-free">TOML is parsed for free</h2>
+<p>Credentials live in <code>~/.config/namecom/credentials.toml</code>:</p>
+<pre data-lang="toml" class="language-toml "><code class="language-toml" data-lang="toml">username = &quot;your-namecom-username&quot;
+token    = &quot;your-api-token&quot;
+</code></pre>
+<p>Loading them is literally:</p>
+<pre data-lang="nu" class="language-nu "><code class="language-nu" data-lang="nu">export def load-credentials [] {
+  let creds = (open $path)
+  if ($creds.username? | is-empty) or ($creds.token? | is-empty) {
+    error make { msg: $&quot;credentials file ($path) is missing username or token&quot; }
+  }
+  $creds
+}
+</code></pre>
+<p><code>open</code> looks at the extension, picks a parser, returns a record. No <code>toml-cli</code> install, no <code>yq -p toml</code>, no hand-rolled regex. The whole loader is the file's existence check plus a sanity check on the keys.</p>
+<p>I learned the hard way that this works for TOML but not for a bare <code>key = "value"</code> text file with no extension. Nushell's <code>open</code> returns the raw string in that case. (Initial version of the tool used a custom format; first run of <code>namecom login</code> immediately broke because <code>creds.username</code> was being called on a string. Renaming the file to <code>.toml</code> was the fix.)</p>
+<h2 id="what-doesn-t-go-well-in-nushell">What doesn't go well in nushell</h2>
+<p>A few rough edges worth flagging if you're thinking about doing something similar:</p>
+<ul>
+<li><strong>External CLIs need the <code>^</code> prefix.</strong> I needed <code>chmod</code> to set 0600 perms on the credentials file. <code>chmod 600 $path</code> doesn't work because nushell looks for a builtin. The fix is <code>^chmod 600 $path</code> so it shells out. Easy once you know, surprising the first time.</li>
+<li><strong>No package manager that anyone uses.</strong> <a href="https://github.com/nushell/nupm">nupm</a> exists but is explicitly experimental. Distribution is "git clone, symlink the script onto PATH." That's fine for personal tools but a real friction point for anything you want strangers to install.</li>
+<li><strong>Error messages from inside the <code>http</code> family can be cryptic.</strong> A misformatted credentials file produced "Data cannot be accessed with a cell path" because the parsed <code>creds</code> was a string instead of a record. The fix was obvious in hindsight but the message didn't point at the cause.</li>
+</ul>
+<h2 id="login-is-a-misnomer-but-a-useful-one">Login is a misnomer, but a useful one</h2>
+<p>name.com doesn't expose a programmatic token-mint endpoint. Tokens are created in the user's web dashboard. So <code>namecom login</code> can't actually fetch a token. What it does is point you at the right page (optionally with <code>xdg-open</code>), prompt for the token (with input suppression), write the file with 0600 perms, and validate it works by calling <code>/core/v1/hello</code>.</p>
+<p>That's not OAuth. But the difference between "log in" and "edit a file in your config directory with the right name and permissions" is real. Calling the command <code>login</code> reads correctly even though the implementation is honest about what's possible.</p>
+<h2 id="the-actually-useful-thing">The actually-useful thing</h2>
+<p>I'm using this from pond-nix's deploy flow now. When I add a new Caddy vhost, I can <code>namecom add</code> the matching DNS record in one command instead of opening a browser. It's not a big tool, but the friction cost of adding new things to the VPS dropped from "context-switch into the browser" to "one extra shell line." That's the win.</p>
+<p>If you want it: <a href="https://github.com/ducks/namecom-cli">https://github.com/ducks/namecom-cli</a>. ~150 lines of nushell, MIT-licensed, no warranty, file an issue if name.com's API shape drifts.</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;namecom-cli-in-nushell&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-namecom-cli-in-nushell"
+      data-goatcounter-title="Helpful click on blog-2026-namecom-cli-in-nushell"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;skillz-package-manager-for-claude-skills&#x2F;">skillz: A Package Manager for Claude Code Skills</a></h3>
+                  <div class="meta">
+                    
+                    <p>Mar 30, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">Claude Code has a skill system. There&#x27;s no package manager for it. So I built one. 200 lines of Rust, installs from GitHub, published to crates.io.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/cli">#cli</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;glow-the-big-button-that-glows-with-claude&#x2F;">glow: I gave Claude a physical presence on my desk</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 20, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">I bought a keyboard that is one giant key, as a joke. Then I saw a keyboard whose light reacts to the AI, thought &#x27;how hard can it be,&#x27; and now the big button glows with whatever Claude is doing. No firmware flash. Here&#x27;s the protocol war story.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/hardware">#hardware</a></p>
+                      
+                      <p><a href="/tags/qmk">#qmk</a></p>
+                      
+                      <p><a href="/tags/claude">#claude</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;raft-a-graph-over-the-plain-text-log&#x2F;">raft: A Graph Over the Plain-Text Log</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 19, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">I kept a plain-text log of my work for months, then hit the wall where grep stops scaling. So I built a knowledge graph that grows out of the notes and repos I already have. Then I found out Andrej Karpathy keeps the same log.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/notes">#notes</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;replaybook-incident-replay-trainer&#x2F;">replaybook: Incident Replay Trainer for Infrastructure</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 30, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">A terminal trainer where you&#x27;re dropped into a broken Docker container and have to fix it. Turn your post-mortems into runnable scenarios.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/devops">#devops</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;six-records-two-bugs-one-refactor-a-day-with-arf&#x2F;">Six records, two bugs, one refactor: a day with ARF</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 07, 2026</p>
+                    
+                    <p>9 min read</p>
+                  </div>
+                  
+                    <p class="desc">git blame tells you who wrote this line. arf why tells you what they were thinking. I shipped ARF earlier this year as a format for capturing agent reasoning alongside commits. Here&#x27;s what happened when an agent actually used it for a session of real work.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

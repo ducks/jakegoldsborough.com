@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Squarespace&#x27;s 7.0 to 7.1 update tool has a 100-page cap and several documented content limitations. Before running it on a real site, you want a complete inventory of what&#x27;s about to break, and why. Here&#x27;s the script I wrote to produce that inventory.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Auditing a Squarespace 7.0 site before migrating to 7.1">
+    <meta property="og:description" content="Squarespace&#x27;s 7.0 to 7.1 update tool has a 100-page cap and several documented content limitations. Before running it on a real site, you want a complete inventory of what&#x27;s about to break, and why. Here&#x27;s the script I wrote to produce that inventory.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;auditing-a-squarespace-site-before-migrating&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Auditing a Squarespace 7.0 site before migrating to 7.1">
+    <meta name="twitter:description" content="Squarespace&#x27;s 7.0 to 7.1 update tool has a 100-page cap and several documented content limitations. Before running it on a real site, you want a complete inventory of what&#x27;s about to break, and why. Here&#x27;s the script I wrote to produce that inventory.">
+
+    <title>Auditing a Squarespace 7.0 site before migrating to 7.1 - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Auditing a Squarespace 7.0 site before migrating to 7.1</h1>
+      <div class="meta">
+        
+        <p>May 30, 2026</p>
+        
+        <p>6 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/squarespace">#squarespace</a></p>
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+        </div>
+      
+
+      <p>A local non-profit put out a call for volunteers looking for a "front-end web developer consultant" for their Squarespace site, and I answered it. The presenting problem: they want to migrate from Squarespace 7.0 to 7.1 and figure out what to do about their members-only login area.</p>
+<p>Before any migration conversation, I wanted a real inventory of what's actually on the site. Squarespace's <a href="https://support.squarespace.com/hc/en-us/articles/360038270572-Moving-from-Squarespace-version-7-0-to-version-7-1">update tool</a> has documented limitations: a 100-page cap, no support for album pages, video blocks on gallery pages don't carry over, certain templates are ineligible. The tool itself will tell you if your site is ineligible when you try to run it. What it won't tell you is <em>why</em>, <em>by how much</em>, or <em>which pages are the problem</em> in a form you can hand to a non-technical decision-maker.</p>
+<p>So I wrote a small Python script that does.</p>
+<h2 id="the-trick-format-json">The trick: <code>?format=json</code></h2>
+<p>Every Squarespace page accepts a <code>?format=json</code> (or <code>?format=json-pretty</code>) query parameter that returns a structured representation of the page. It's <a href="https://developers.squarespace.com/view-json-data">documented on Squarespace's developer portal</a>, used internally by their iOS editor, and has been stable for years.</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">curl -sS &quot;https:&#x2F;&#x2F;www.portlandbonsai.org&#x2F;resources?format=json&quot; | jq .
+</code></pre>
+<p>You get 15 top-level keys per page. The interesting ones:</p>
+<ul>
+<li><code>website</code> - site-wide identity (title, tagline, domain, language, social accounts)</li>
+<li><code>websiteSettings</code> - configuration (business type, country, contact info)</li>
+<li><code>collection</code> - the page itself (title, URL, page type, item count, updated date)</li>
+<li><code>item</code> - populated only when the URL is an individual entry inside a collection (a single blog post, product, event item, etc.)</li>
+<li><code>mainContent</code> - the rendered HTML body of the page</li>
+<li><code>template</code> - which template the site is on</li>
+</ul>
+<p>That <code>item</code> field is what makes the audit tractable. Squarespace's 100-page cap only counts <em>container</em> pages: layout pages, blog pages, gallery pages, store pages, event calendar pages. The individual items inside those collections (the blog posts, the products, the event entries) don't count. If you treat every URL in the sitemap as a "page," you'll wildly overcount and start fights that don't need to happen.</p>
+<h2 id="what-the-audit-checks">What the audit checks</h2>
+<p>I encoded the documented limitations from Squarespace's update tool into a script:</p>
+<table><thead><tr><th>Check</th><th>Why it matters</th></tr></thead><tbody>
+<tr><td>Container vs item count</td><td>Update tool refuses sites with more than 100 containers</td></tr>
+<tr><td>Album pages</td><td>Deleted by the update</td></tr>
+<tr><td>Gallery pages</td><td>Convert to layout pages; embedded videos are lost</td></tr>
+<tr><td>Share buttons</td><td>Not supported in 7.1</td></tr>
+<tr><td>Custom Adobe Typekit fonts</td><td>Not supported in 7.1</td></tr>
+<tr><td>Products per store page</td><td>Cap of 200 per store</td></tr>
+</tbody></table>
+<p>The script crawls <code>sitemap.xml</code>, hits <code>?format=json</code> for every URL, separates containers from items, and groups findings by severity (block / warn / info). Output is a markdown report you can read top to bottom.</p>
+<h2 id="what-it-found-on-the-real-site">What it found on the real site</h2>
+<p>The site I was auditing has a public face of maybe 30 pages. The sitemap lists 489 URLs. After separating containers from items and tag/category views, the real eligibility count is <strong>126</strong>, which is 26 over the cap.</p>
+<pre><code>Eligibility count
+- Container pages (count toward 100-page cap): 126
+- Individual items (excluded from cap):        121
+- Filter&#x2F;tag views (excluded from cap):        243
+- ❌ OVER the 100-page eligibility cap by 26.
+
+Containers by type
+- page:     76
+- gallery:  45
+- products: 3
+- blog:     1
+- events:   1
+</code></pre>
+<p>The story isn't the blog. The blog has one container page and 65 posts; none of that is a problem for the cap. The story is <strong>45 gallery pages</strong> built up over a decade of convention photos, fall show photos, monthly meeting photos. Each gallery is a container, each one counts, and each one is a candidate for the "embedded videos won't survive" warning. Galleries plus the 76 plain pages already put the site over the cap before you even look at the rest.</p>
+<p>This is the kind of detail you can't get from a casual click-through. The webmaster knew the blog was big but hadn't connected the gallery archive to the update tool's cap.</p>
+<p>Without this audit, the conversation would have been:</p>
+<blockquote>
+<p>"We'll run the update tool when you're ready."
+"The update tool refused."
+"Oh."</p>
+</blockquote>
+<p>Instead, the conversation becomes:</p>
+<blockquote>
+<p>"You're 26 pages over the eligibility cap. Most of the slack is in 45 gallery pages, many of which are show photos from 2016-2019 that probably don't need to stay live. Here are three ways to handle it."</p>
+</blockquote>
+<p>That's the kind of pre-work that actually moves a project forward.</p>
+<h2 id="the-script">The script</h2>
+<p>It's a single Python file, no dependencies beyond the stdlib. Crawls the public sitemap, fetches each page's JSON, runs the checks, emits markdown.</p>
+<p>The full source is in a gist: <a href="https://gist.github.com/ducks/cc216cff323f572830487cad7acd87be">sqsp-preflight.py</a>. About 400 lines. No setup. Run it as:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">python3 sqsp-preflight.py https:&#x2F;&#x2F;example.com &gt; report.md
+</code></pre>
+<p>For a 30-page site it finishes in seconds. For a 489-URL site it takes a couple of minutes (one HTTP request per URL, no parallelism, good enough).</p>
+<h2 id="what-it-doesn-t-do">What it doesn't do</h2>
+<p>A few things the audit can't see:</p>
+<ul>
+<li><strong>Members-only content.</strong> The crawler is unauthenticated. If a site has a member area with extra pages behind login, they're invisible.</li>
+<li><strong>Developer mode usage.</strong> Only the admin knows whether this is on.</li>
+<li><strong>Discontinued template detection.</strong> The <code>template</code> field in the JSON is sparse. Cross-referencing against Squarespace's current supported-template list still needs a human eyeball.</li>
+<li><strong>Visual fidelity in 7.1.</strong> No tool can predict whether a 7.0 layout will look right in 7.1's Fluid Engine. That's why the update tool has a preview mode.</li>
+<li><strong>Sidebar navigation.</strong> I couldn't find a reliable signal in the JSON for this one.</li>
+</ul>
+<p>The script's job is to surface the <em>known unknowns</em> fast enough that the human can focus on the genuine judgment calls.</p>
+<h2 id="what-this-is-and-isn-t">What this is and isn't</h2>
+<p>It's not a migration tool. Squarespace's update tool is the migration tool. This is a <strong>preflight check</strong> that runs before you commit, surfaces the specific pages that drive eligibility, and produces a report a non-technical decision-maker can read. The update tool will tell you "no"; this tells you why and what to fix first.</p>
+<p>It also isn't a project. I'm not going to maintain this as a package. Squarespace can change the JSON shape at any time and break it; the maintenance commitment isn't worth it. If you hit the same problem, fork the gist, adapt it to your site, throw it away after.</p>
+<p>The actually-publishable thing here is the <em>approach</em>: use <code>?format=json</code> to inventory the site, separate containers from items the way the update tool does, encode the documented limitations as checks, produce a markdown report. Anyone reading this should be able to recreate the script in an evening.</p>
+<h2 id="the-bigger-lesson">The bigger lesson</h2>
+<p>Squarespace's docs tell you the limitations. The update tool tells you whether you qualify. Neither one hands you the punch list of <em>which pages to deal with, in what order, and why</em>. That gap shows up over and over with hosted platforms: the docs describe the system, the tools enforce the rules, but nothing produces an actionable report against your specific site.</p>
+<p>For any platform migration on any hosted product, the first useful piece of work isn't "start the migration." It's "audit the source against the destination's known constraints, in a form a human can act on." Sometimes that takes a script. Often a CLI plus an afternoon does it.</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;auditing-a-squarespace-site-before-migrating&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-auditing-a-squarespace-site-before-migrating"
+      data-goatcounter-title="Helpful click on blog-2026-auditing-a-squarespace-site-before-migrating"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;software-doesnt-have-to-justify-itself&#x2F;">Software Doesn&#x27;t Have to Justify Itself, or the Joy of Useless Programming</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 29, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">Software does not always have to justify itself as a product or a startup. Sometimes it is just a creative medium, and a silly Discourse plugin is the proof.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/writing">#writing</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                      <p><a href="/tags/craft">#craft</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;blog-stats-six-numbers&#x2F;">Six numbers from my blog&#x27;s analytics</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 17, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">I dug into the GoatCounter database for my blog. Single-day spikes, fastest risers, fastest first month, two kinds of streaks, and where readers actually come from.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/blog">#blog</a></p>
+                      
+                      <p><a href="/tags/writing">#writing</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;was-this-helpful-button&#x2F;">A &#x27;Was this helpful?&#x27; button for a static blog</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 16, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lightweight per-post feedback without a backend, database, or comments system. Tera macro, ~25 lines of JavaScript, and one data attribute that lets GoatCounter do the actual work.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/zola">#zola</a></p>
+                      
+                      <p><a href="/tags/blog">#blog</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;how-my-blog-started-getting-indexed&#x2F;">How my blog started getting indexed</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 09, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Two months of consistent publishing got me indexed by Google, DuckDuckGo, Bing, ChatGPT, and Perplexity. No SEO, no backlinks, no keywords. Just technical writing with real titles, internal links, and clean structure.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/writing">#writing</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;inside-claude-codes-team-memory-sync&#x2F;">Inside Claude Code&#x27;s Team Memory Sync Engine</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 05, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">How Claude Code shares knowledge across your team: a file watcher, delta sync, secret scanner, and optimistic concurrency -- all hidden behind a directory you didn&#x27;t know existed.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

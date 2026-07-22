@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="A terminal trainer where you&#x27;re dropped into a broken Docker container and have to fix it. Turn your post-mortems into runnable scenarios.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="replaybook: Incident Replay Trainer for Infrastructure">
+    <meta property="og:description" content="A terminal trainer where you&#x27;re dropped into a broken Docker container and have to fix it. Turn your post-mortems into runnable scenarios.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;replaybook-incident-replay-trainer&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="replaybook: Incident Replay Trainer for Infrastructure">
+    <meta name="twitter:description" content="A terminal trainer where you&#x27;re dropped into a broken Docker container and have to fix it. Turn your post-mortems into runnable scenarios.">
+
+    <title>replaybook: Incident Replay Trainer for Infrastructure - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>replaybook: Incident Replay Trainer for Infrastructure</h1>
+      <div class="meta">
+        
+        <p>Jun 30, 2026</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/devops">#devops</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <p>Post-mortems are the most underused artifact in software engineering.</p>
+<p>You spend hours in the incident. You write up the timeline, the root cause, the fix, the follow-ups. You share it with the team. Six months later a new engineer joins, hits the same class of problem, and has no muscle memory for it at all. The post-mortem is in Notion somewhere.</p>
+<p>That's the problem <a href="https://github.com/ducks/replaybook">replaybook</a> solves.</p>
+<h2 id="the-idea">The Idea</h2>
+<p>replaybook is a terminal trainer where you fix broken infrastructure. Not simulated broken infrastructure - actual broken Docker containers running real services. Nginx with a misconfigured upstream. Postgres with the wrong permissions on its data directory. Sidekiq pointed at a Redis that requires a password it doesn't have.</p>
+<p>You're dropped into a shell inside the broken environment and have to figure out what's wrong and fix it before the SLA timer runs out.</p>
+<pre><code>replaybook add ducks&#x2F;on-call-scenarios
+replaybook list
+</code></pre>
+<pre><code>ID                             DIFF  TITLE
+────────────────────────────────────────────────────────────
+001-nginx-502                  1     502 Bad Gateway
+002-postgres-wont-start        1     Postgres Won&#x27;t Start
+003-missing-env-var            2     App Crashing on Boot
+004-disk-full                  2     Health Checks Failing
+005-oom-kill                   2     Container Keeps Restarting
+006-sidekiq-cant-connect       2     Jobs Not Processing
+</code></pre>
+<pre><code>replaybook run 001-nginx-502
+</code></pre>
+<p>The terminal splits. Left pane is your shell inside the container. Right pane is the HUD.</p>
+<pre><code>16882806a585:&#x2F;# █                   │ == replaybook ==
+                                    │
+                                    │ INCIDENT:
+                                    │ URGENT: users getting 502s
+                                    │ on checkout. conversion is
+                                    │ tanking. started about 5
+                                    │ mins ago. no deploys today
+                                    │ that we know of. fix asap
+                                    │
+                                    │ STATUS: ACTIVE
+                                    │ SLA:    14:45 remaining
+                                    │ HINTS:  0 &#x2F; 2 used
+                                    │
+                                    │ run get-hint for a hint
+</code></pre>
+<p>You're inside nginx. The real nginx. Look at the config, check the logs, fix the upstream, reload the service. When the health check passes, you win.</p>
+<h2 id="why-docker">Why Docker</h2>
+<p>The trainer isn't about Docker. Docker is just how you spin up a real broken server and throw someone into it.</p>
+<p>The alternative is a simulated environment - fake logs, scripted responses, prerecorded output. That teaches you how a simulation works. This teaches you how nginx works.</p>
+<p>When you're in the container, <code>nginx -t</code> tells you if the config is valid. <code>curl localhost</code> actually hits the server. <code>ps aux</code> shows real processes. Nothing is stubbed.</p>
+<p>The fault in scenario 001 is a one-character config change: the upstream port is 3001 instead of 3000. There's no quiz asking you to identify the right port. You have to find it the same way you'd find it in production.</p>
+<h2 id="the-incident-replay-angle">The Incident Replay Angle</h2>
+<p>The scenarios that ship with the official pack are generic. But the format is a JSON file plus a Docker Compose setup:</p>
+<pre data-lang="json" class="language-json "><code class="language-json" data-lang="json">{
+  &quot;id&quot;: &quot;redis-oom-eviction&quot;,
+  &quot;title&quot;: &quot;Cache Eviction Killing Sessions&quot;,
+  &quot;page&quot;: &quot;users are getting logged out randomly. started after the traffic spike yesterday. no deploys, no config changes.&quot;,
+  &quot;difficulty&quot;: 3,
+  &quot;hints&quot;: [
+    &quot;Check Redis memory usage and eviction policy&quot;,
+    &quot;What happens to session keys when Redis runs out of memory?&quot;
+  ],
+  &quot;success_condition&quot;: &quot;http_200&quot;,
+  &quot;success_target&quot;: &quot;http:&#x2F;&#x2F;localhost:3000&#x2F;health&quot;
+}
+</code></pre>
+<p>Your <code>break.sh</code> injects the fault. Your <code>check.sh</code> defines what "fixed" looks like.</p>
+<p>That means every incident your team has ever had can become a scenario. The Redis maxmemory eviction that took down sessions last quarter. The postgres autovacuum that blocked table writes during a migration. The nginx upstream that pointed at the wrong port after a deploy.</p>
+<p>Write up what broke. Write <code>break.sh</code> to reproduce it. New engineers run it, fix it with real tools, build the muscle memory. The post-mortem becomes a runnable training scenario.</p>
+<p>Scenario packs are just Git repos. Your team's private incidents stay private:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">replaybook add mycompany&#x2F;incidents
+</code></pre>
+<h2 id="the-hud">The HUD</h2>
+<p>The split-pane HUD runs inside the container via tmux. No dependency on the host. The trainer installs tmux at startup via <code>apk</code> (all scenarios use alpine-based images), copies in the HUD script, splits the pane.</p>
+<p>The state file lives on the host and is bind-mounted into the container. The poller writes to it directly - no shell escaping, no <code>docker exec</code> state writes. The HUD script reads it every 2 seconds.</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash"># Inside the container, run anytime:
+get-hint
+</code></pre>
+<p>Hints are revealed sequentially. The HUD shows which hints you've used. Hints used is recorded with the session outcome.</p>
+<h2 id="install">Install</h2>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">cargo install replaybook
+</code></pre>
+<p>Or grab a prebuilt binary for linux-x86_64, linux-arm64, macos-x86_64, or macos-arm64 from the <a href="https://github.com/ducks/replaybook/releases">releases page</a>. You need Docker.</p>
+<p>Both <code>replaybook</code> and <code>replay</code> are installed - use whichever you prefer.</p>
+<h2 id="what-s-next">What's Next</h2>
+<p>Scoring based on time and hints used. More scenarios - planning a Discourse track covering the failures that come up most in self-hosted deployments.</p>
+<p>The scenario format is the interesting part. If you've run an incident and written a post-mortem, the hardest work is already done.</p>
+<hr />
+<p>Source: <a href="https://github.com/ducks/replaybook">github.com/ducks/replaybook</a></p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;replaybook-incident-replay-trainer&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-replaybook-incident-replay-trainer"
+      data-goatcounter-title="Helpful click on blog-2026-replaybook-incident-replay-trainer"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;raft-a-graph-over-the-plain-text-log&#x2F;">raft: A Graph Over the Plain-Text Log</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 19, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">I kept a plain-text log of my work for months, then hit the wall where grep stops scaling. So I built a knowledge graph that grows out of the notes and repos I already have. Then I found out Andrej Karpathy keeps the same log.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/notes">#notes</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;jolteon-llm-routing-proxy&#x2F;">jolteon: An LLM Routing Proxy for Discourse</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 27, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">We run several vLLM backends for Discourse&#x27;s AI features. Hardcoding which backend handles which feature was getting messy. jolteon is the Rust proxy we built to fix that - it shipped yesterday.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;six-records-two-bugs-one-refactor-a-day-with-arf&#x2F;">Six records, two bugs, one refactor: a day with ARF</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 07, 2026</p>
+                    
+                    <p>9 min read</p>
+                  </div>
+                  
+                    <p class="desc">git blame tells you who wrote this line. arf why tells you what they were thinking. I shipped ARF earlier this year as a format for capturing agent reasoning alongside commits. Here&#x27;s what happened when an agent actually used it for a session of real work.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;shellbooks-terminal-audiobook-player&#x2F;">shellbooks: A Terminal Audiobook Player</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 04, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A cmus-inspired terminal audiobook player for Linux and macOS. Open source, offline-first, with chapters, series, and per-book progress that survives a crash.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tui">#tui</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;jobchain-verifiable-employment-credentials&#x2F;">Jobchain: Verifiable Employment Credentials</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 06, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">What if your employer signed a machine-verifiable reference letter when you started, not when you left? Jobchain issues W3C Verifiable Credentials with Ed25519 signatures. No blockchain, no platform, no PDF.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/specifications">#specifications</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="I kept a plain-text log of my work for months, then hit the wall where grep stops scaling. So I built a knowledge graph that grows out of the notes and repos I already have. Then I found out Andrej Karpathy keeps the same log.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="raft: A Graph Over the Plain-Text Log">
+    <meta property="og:description" content="I kept a plain-text log of my work for months, then hit the wall where grep stops scaling. So I built a knowledge graph that grows out of the notes and repos I already have. Then I found out Andrej Karpathy keeps the same log.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;raft-a-graph-over-the-plain-text-log&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="raft: A Graph Over the Plain-Text Log">
+    <meta name="twitter:description" content="I kept a plain-text log of my work for months, then hit the wall where grep stops scaling. So I built a knowledge graph that grows out of the notes and repos I already have. Then I found out Andrej Karpathy keeps the same log.">
+
+    <title>raft: A Graph Over the Plain-Text Log - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>raft: A Graph Over the Plain-Text Log</h1>
+      <div class="meta">
+        
+        <p>Jul 19, 2026</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/notes">#notes</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <p>For a while now I've kept a plain-text log of what I work on. One markdown
+file per day in <code>~/claude/notes</code>, written in past tense, no structure beyond
+headings. What I did, why, what broke, what I left unfinished. It is the most
+useful habit I have picked up in years, and it cost nothing to start: a
+folder and the discipline to append to it.</p>
+<p>The problem with a log is that it only grows. Mine is a bit over a year of
+entries now - enough that the thing I kept wanting to ask it, grep could not
+answer.</p>
+<p>Not "where did I mention n8n" - grep does that fine. The questions grep can't
+touch are the ones about <em>shape</em>:</p>
+<ul>
+<li>what did I leave unfinished, and how long ago?</li>
+<li>which projects keep showing up together even though I never wrote down that
+they're related?</li>
+<li>what did this idea eventually turn into?</li>
+</ul>
+<p>Those are questions about the relationships <em>between</em> entries, and a flat log
+has no relationships. It's a pile. So I built the thing that reads the pile
+and finds the shape.</p>
+<h2 id="raft">raft</h2>
+<p><a href="https://github.com/ducks/raft">raft</a> is a personal knowledge graph that
+grows out of what you already have - markdown notes, project repos, and git
+history. It's a Rust CLI. You point it at some directories, it builds an
+index, and you ask it questions.</p>
+<p>The important design decision is that <strong>the notes stay the source of truth.</strong>
+raft never writes to them. The index is a SQLite file it derives from the
+files and can rebuild from scratch at any time; delete it and nothing is
+lost. The plain text is canonical, the way Karpathy's log is canonical and
+the way mine has always been. raft is a lens you hold up to it, not a place
+your data goes to live.</p>
+<p>It reads two kinds of source: trees of markdown notes, and directories of
+project repos (where it pulls branch and recent-commit metadata from git).
+Every organism in the graph - note, project, entity, open loop - carries
+provenance: which file it came from, whether a relationship was something I
+wrote explicitly or something raft inferred, and how much to trust it.</p>
+<h2 id="the-command-that-hooked-me">The command that hooked me</h2>
+<p><code>raft dangling</code> lists open loops - the unchecked boxes and follow-up bullets
+scattered across the log - stalest first. The first time I ran it against my
+real notes, it dredged this up:</p>
+<pre><code> 245d  Playback progress bar in footer
+       2025-11-15  ...notes&#x2F;2025&#x2F;2025-11-15.md  (seen 2x)
+ 245d  Progress tracking per episode (resume where you left off)
+       2025-11-15  ...notes&#x2F;2025&#x2F;2025-11-15.md
+ 245d  Seek forward&#x2F;backward
+       2025-11-15  ...notes&#x2F;2025&#x2F;2025-11-15.md
+</code></pre>
+<p>Those are shellcast TODOs I wrote down 245 days ago and completely forgot.
+The log remembered them; I couldn't have. That is the whole pitch, right
+there: a log you never re-read is a log that forgets. <code>dangling</code> is the log
+re-reading itself and handing you back the threads you dropped.</p>
+<h2 id="the-one-that-surprised-me">The one that surprised me</h2>
+<p><code>raft connect</code> looks for pairs of projects and entities that keep
+co-occurring in the notes over time, affinity-scored so hub words don't drown
+everything, and shows me connections I never wrote down:</p>
+<pre><code>keep showing up together:
+  0.89  replaybook &lt;-&gt; break.sh            [4 notes over 14 days]
+  0.82  llm-mux    &lt;-&gt; claux               [7 notes over 90 days]
+  0.68  date-ver   &lt;-&gt; burrow              [4 notes over 206 days]
+</code></pre>
+<p>llm-mux and claux traveling together over ninety days is real - they're both
+LLM tooling and I clearly think about them as a pair without ever having said
+so. <code>date-ver</code> and <code>burrow</code> co-occurring across 206 days is the kind of
+long-arc connection I'd never reconstruct by hand. The graph can see the
+shape of my own work better than I can describe it.</p>
+<p>This one needed a fix, and it's a nice illustration of the provenance
+principle. Early on, <code>connect</code> was flooded with junk pairs like
+<code>birdhaus.art &lt;-&gt; index.html</code> - because raft was treating every backticked
+code span in my notes as a possible entity, and those weak guesses scored the
+same as real relationships. The rule I hold myself to is that an inferred
+edge must carry its confidence and never masquerade as a fact. So weak
+span-guesses get a low weight, and <code>connect</code> grew a <code>--min-weight</code> flag that
+filters them out by default. Inference is allowed; pretending inference is
+fact is not.</p>
+<h2 id="then-i-found-the-gist">Then I found the gist</h2>
+<p>I built all of this because the itch was real. Months of logging, a genuine
+wall where grep stopped scaling, a tool to climb it.</p>
+<p>Today - after raft was already built, released, and reindexing my notes on a
+daily timer - I found <a href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f">Andrej Karpathy's gist</a>
+where he describes keeping exactly the log I keep. One append-only file,
+timestamped, never edited, grepped when needed. The same instinct, from
+someone whose instincts are worth paying attention to.</p>
+<p>I'll be honest: it felt good. Not because he validated raft - he doesn't
+mention anything like it - but because he validated the <em>foundation</em>. The
+plain-text log, the files-you-own-forever, the deliberate absence of an app
+to rot. That's the soil raft grows in, and finding out one of the sharpest
+people in the field plants in the same soil was a quiet, useful bit of
+reassurance.</p>
+<p>And here's the part that made me grin: he builds the log and stops there,
+on purpose. The whole point of his approach is that there's no tooling to
+maintain - just text and grep. raft is the thing he deliberately <em>doesn't</em>
+build: the layer above the log, for when the pile gets big enough that you
+want to see its shape and grep can't show you.</p>
+<h2 id="using-it">Using it</h2>
+<p>The real test of a tool like this was never whether the code is good. It's
+whether I actually reach for it. So the last thing I did was the least
+glamorous and the most important: <code>cargo install</code>ed it so <code>raft</code> is on my
+PATH, and set up a systemd timer to reindex every morning so the answers are
+never stale. A knowledge tool you have to remember to feed is a knowledge
+tool you stop using.</p>
+<p>Now it's just there. I type <code>raft dangling</code> when I've lost the thread, and
+the log hands it back.</p>
+<hr />
+<p>Source: <a href="https://github.com/ducks/raft">github.com/ducks/raft</a></p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;raft-a-graph-over-the-plain-text-log&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-raft-a-graph-over-the-plain-text-log"
+      data-goatcounter-title="Helpful click on blog-2026-raft-a-graph-over-the-plain-text-log"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;replaybook-incident-replay-trainer&#x2F;">replaybook: Incident Replay Trainer for Infrastructure</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 30, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">A terminal trainer where you&#x27;re dropped into a broken Docker container and have to fix it. Turn your post-mortems into runnable scenarios.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/devops">#devops</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;jolteon-llm-routing-proxy&#x2F;">jolteon: An LLM Routing Proxy for Discourse</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 27, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">We run several vLLM backends for Discourse&#x27;s AI features. Hardcoding which backend handles which feature was getting messy. jolteon is the Rust proxy we built to fix that - it shipped yesterday.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;six-records-two-bugs-one-refactor-a-day-with-arf&#x2F;">Six records, two bugs, one refactor: a day with ARF</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 07, 2026</p>
+                    
+                    <p>9 min read</p>
+                  </div>
+                  
+                    <p class="desc">git blame tells you who wrote this line. arf why tells you what they were thinking. I shipped ARF earlier this year as a format for capturing agent reasoning alongside commits. Here&#x27;s what happened when an agent actually used it for a session of real work.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;shellbooks-terminal-audiobook-player&#x2F;">shellbooks: A Terminal Audiobook Player</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 04, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A cmus-inspired terminal audiobook player for Linux and macOS. Open source, offline-first, with chapters, series, and per-book progress that survives a crash.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tui">#tui</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;jobchain-verifiable-employment-credentials&#x2F;">Jobchain: Verifiable Employment Credentials</a></h3>
+                  <div class="meta">
+                    
+                    <p>Apr 06, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">What if your employer signed a machine-verifiable reference letter when you started, not when you left? Jobchain issues W3C Verifiable Credentials with Ed25519 signatures. No blockchain, no platform, no PDF.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/specifications">#specifications</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

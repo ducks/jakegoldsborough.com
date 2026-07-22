@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Turning a Discourse forum into a chronological travel itinerary: trip topics as containers, flight&#x2F;hotel topics as items, and a bunch of plugin-API trapdoors along the way.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Building a Travel Itinerary Plugin Inside Discourse">
+    <meta property="og:description" content="Turning a Discourse forum into a chronological travel itinerary: trip topics as containers, flight&#x2F;hotel topics as items, and a bunch of plugin-API trapdoors along the way.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-discourse-itinerary&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Building a Travel Itinerary Plugin Inside Discourse">
+    <meta name="twitter:description" content="Turning a Discourse forum into a chronological travel itinerary: trip topics as containers, flight&#x2F;hotel topics as items, and a bunch of plugin-API trapdoors along the way.">
+
+    <title>Building a Travel Itinerary Plugin Inside Discourse - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Building a Travel Itinerary Plugin Inside Discourse</h1>
+      <div class="meta">
+        
+        <p>May 25, 2026</p>
+        
+        <p>9 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/discourse">#discourse</a></p>
+          
+          <p><a href="/tags/ruby">#ruby</a></p>
+          
+          <p><a href="/tags/ember">#ember</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <p>I built a Discourse plugin that turns a category of topics into a chronological
+travel itinerary. One topic per trip, then a flight topic, a hotel topic, a
+note topic, all linked back to the trip. The plugin renders them on /itinerary
+as a clean list and per-trip timeline grouped by day.</p>
+<p>You can see the result here:
+<a href="https://github.com/ducks/discourse-itinerary">discourse-itinerary on GitHub</a></p>
+<h2 id="why-discourse-for-this">Why Discourse for This?</h2>
+<p>Same reason I keep doing this: Discourse topics are extremely flexible, and
+seeing how far I can push them keeps teaching me the platform. A trip is just
+a topic. A flight is just a topic. The relationship between them is a custom
+field pointing at the parent trip. Everything else (permissions, search,
+edit history, who posted what, comments) comes for free.</p>
+<p>That was the bet anyway. Reality had some opinions.</p>
+<h2 id="the-data-model">The Data Model</h2>
+<p>After a couple of rewrites, the model settled at:</p>
+<ul>
+<li><strong>Category</strong> = "Itinerary". One per forum. Auto-created by the plugin on
+first boot, with a configurable site setting if the admin wants to point
+it at a different category.</li>
+<li><strong>Topic with <code>itinerary_item_type = trip</code></strong> = a trip (the container).</li>
+<li><strong>Other itinerary topics</strong> = items (flight, train, hotel, event,
+transfer, note) that point at their parent trip via
+<code>itinerary_parent_trip_id</code> on the topic's custom_fields.</li>
+</ul>
+<p>Earlier versions used a tag (<code>itinerary</code>) to mark which topics belonged to
+the plugin. That got dropped once <code>itinerary_item_type</code> existed. The tag was
+load-bearing nostalgia, not real structure.</p>
+<p>All metadata lives in <code>topic_custom_fields</code>:</p>
+<table><thead><tr><th>Field</th><th>Type</th><th>Example</th></tr></thead><tbody>
+<tr><td><code>itinerary_item_type</code></td><td>string</td><td><code>flight</code></td></tr>
+<tr><td><code>itinerary_parent_trip_id</code></td><td>integer</td><td><code>123</code></td></tr>
+<tr><td><code>itinerary_starts_at</code></td><td>string</td><td><code>2026-09-20T14:30</code></td></tr>
+<tr><td><code>itinerary_ends_at</code></td><td>string</td><td><code>2026-09-21T09:15</code></td></tr>
+<tr><td><code>itinerary_origin</code></td><td>string</td><td><code>PDX</code></td></tr>
+<tr><td><code>itinerary_destination</code></td><td>string</td><td><code>MAD</code></td></tr>
+<tr><td><code>itinerary_location</code></td><td>string</td><td><code>Madrid</code></td></tr>
+<tr><td><code>itinerary_confirmation_code</code></td><td>string</td><td><code>ABC123</code></td></tr>
+<tr><td><code>itinerary_status</code></td><td>string</td><td><code>booked</code></td></tr>
+</tbody></table>
+<p>Timestamps are stored as ISO-8601 strings, not DateTime. Lexical sorting
+on the raw column does the right thing for <code>YYYY-MM-DDTHH:MM</code>, which means
+I never have to parse them on the database side.</p>
+<h2 id="the-plugin-api-trapdoors">The Plugin API Trapdoors</h2>
+<p>Discourse plugins have a deceptively friendly API. You write a <code>plugin.rb</code>,
+drop some assets under <code>assets/javascripts/discourse/</code>, and things mostly
+work. Until they don't, and you have to figure out why.</p>
+<p>Here are the ones that actually stopped me cold.</p>
+<h3 id="the-route-map-filename-convention">The route-map filename convention</h3>
+<p>To register Ember client routes from a plugin, you put a file named
+<code>&lt;plugin-slug&gt;-route-map.js</code> in <code>assets/javascripts/discourse/</code>. Discourse
+scans <code>requirejs.entries</code> for anything matching <code>/route-map$/</code> and invokes
+its default export to build out the route tree.</p>
+<p>I named the file correctly. The file loaded. The composer connector loaded.
+The route map itself never ran.</p>
+<p>Turns out Ember resolves the actual route modules by name. With this
+route map:</p>
+<pre data-lang="js" class="language-js "><code class="language-js" data-lang="js">export default function () {
+  this.route(&quot;itinerary&quot;, function () {
+    this.route(&quot;show&quot;, { path: &quot;&#x2F;:trip_id&quot; });
+  });
+}
+</code></pre>
+<p>Ember will look for <code>routes/itinerary/index.js</code> and <code>routes/itinerary/show.js</code>.
+Not <code>routes/itinerary-index.js</code> or <code>routes/itinerary-show.js</code>, which is what
+I had originally. The dot in the route name becomes a path separator. I had
+copied the route map from discourse-cakeday but missed the nested directory
+convention for the route files.</p>
+<p>You don't get an error for this. The route map just silently doesn't match
+anything client-side and the URL falls through to Rails.</p>
+<h3 id="rails-has-to-serve-the-html-for-an-ember-route">Rails has to serve the HTML for an Ember route</h3>
+<p>This was the big one. After fixing the route file paths, <code>/itinerary</code> still
+404'd. The error came from Rails, not Ember. The plugin had JSON routes:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby">Discourse::Application.routes.append do
+  get &quot;&#x2F;itinerary&#x2F;trips&quot; =&gt; &quot;itinerary#index&quot;,
+      defaults: { format: :json },
+      constraints: { format: :json }
+  get &quot;&#x2F;itinerary&#x2F;trips&#x2F;:id&quot; =&gt; &quot;itinerary#show&quot;,
+      defaults: { format: :json },
+      constraints: { format: :json, id: &#x2F;\d+&#x2F; }
+end
+</code></pre>
+<p>But none of those match a browser request for <code>GET /itinerary</code> (which wants
+HTML). Rails 404s, the browser never gets the Discourse app shell, Ember
+never loads, the route map never runs.</p>
+<p>discourse-cakeday works because it mounts a full Rails Engine at <code>/cakeday</code>,
+which catches the HTML request and serves the SPA bootstrap. Discourse
+plugins like discourse-invite-stats use the simpler pattern:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby">get &quot;&#x2F;itinerary&quot; =&gt; &quot;itinerary#page&quot;, constraints: { format: :html }
+get &quot;&#x2F;itinerary&#x2F;*path&quot; =&gt; &quot;itinerary#page&quot;, constraints: { format: :html }
+</code></pre>
+<p>With an action that just renders the empty layout:</p>
+<pre data-lang="ruby" class="language-ruby "><code class="language-ruby" data-lang="ruby">def page
+  render &quot;default&#x2F;empty&quot;
+end
+</code></pre>
+<p>The empty layout is the SPA bootstrap. Ember takes over from there.</p>
+<p>I burned a couple of hours on this before searching for it. Sometimes the
+fastest way to debug a plugin is to read three other plugins that do the
+same thing.</p>
+<h3 id="composer-fields-and-glimmer-autotracking">Composer fields and Glimmer autotracking</h3>
+<p>The composer panel for itinerary fields shows different inputs depending on
+the item type. Flight has origin and destination, hotel has location, note
+has neither. The conditional rendering was driven by getters:</p>
+<pre data-lang="js" class="language-js "><code class="language-js" data-lang="js">get itemType() {
+  return this.composer.itinerary_item_type;
+}
+
+get showsRoute() {
+  return [&quot;flight&quot;, &quot;train&quot;, &quot;transfer&quot;].includes(this.itemType);
+}
+</code></pre>
+<p>This silently broke. The user could pick "Flight" from the dropdown, but
+the route inputs never appeared. The dropdown's change handler was firing.
+The composer model was being updated. But the template never re-rendered.</p>
+<p>The reason: <code>this.composer.set("itinerary_item_type", value)</code> doesn't go
+through a <code>@tracked</code> property. Glimmer's autotracking can't follow
+<code>composer.set(...)</code> on non-tracked composer fields. The getter reads from
+the composer correctly the first time, then becomes a dead read.</p>
+<p>Fix:</p>
+<pre data-lang="js" class="language-js "><code class="language-js" data-lang="js">@tracked itemType;
+
+@action
+setItemType(e) {
+  this.itemType = e.target.value || null;
+  this.composer.set(&quot;itinerary_item_type&quot;, this.itemType);
+}
+</code></pre>
+<p>Keep a local <code>@tracked</code> copy of anything you read from the composer model
+in conditional getters. The composer side stays in sync via the
+<code>.set()</code> call.</p>
+<h3 id="datetime-local-silently-drops-half-filled-values">datetime-local silently drops half-filled values</h3>
+<p>I had separate inputs for "Starts at" and "Ends at" with <code>type="datetime-local"</code>.
+The user creates a flight, types a date, doesn't bother with the time,
+clicks save. The flight saves. The trip page shows "No items in this trip
+yet."</p>
+<p>The flight was actually saved, just without <code>itinerary_starts_at</code>. The
+TripItemFinder filters out items without a start time, so the flight
+existed in the DB but never reached the timeline.</p>
+<p>Why? <code>&lt;input type="datetime-local"&gt;</code> doesn't fire <code>input</code> or <code>change</code> until
+both the date and time portions are populated. A half-filled value is
+"invalid" to the browser, and you get nothing.</p>
+<p>I split the field into a <code>&lt;input type="date"&gt;</code> plus an optional
+<code>&lt;input type="time"&gt;</code>. The composer combines them into the stored format
+(<code>YYYY-MM-DD</code> if just date, <code>YYYY-MM-DDTHH:MM</code> if both). The timeline
+component already knew how to render both formats.</p>
+<p>Two inputs, one stored field, no silent data loss.</p>
+<h3 id="topics-need-a-title-that-discourse-will-accept">Topics need a title that Discourse will accept</h3>
+<p>Once the composer worked, I hit the wall I'd been ignoring: Discourse's
+title length validator requires 15 characters minimum, plus a "title seems
+unclear" heuristic that rejects titles like "Flight" or "Lisbon". For a
+travel itinerary where the "data" is in custom fields, making the user
+invent a meaningful 15-char title for every flight is hostile.</p>
+<p>Discourse doesn't have per-category overrides for <code>min_topic_title_length</code>.
+The validator reads the global site setting, full stop. I considered three
+options:</p>
+<ol>
+<li>Lower the global. Affects every topic on the forum.</li>
+<li>Monkey-patch the validator to skip checks for itinerary topics. Fragile.</li>
+<li>Synthesize the title from the structured fields the user is already
+filling in.</li>
+</ol>
+<p>Option 3 is the move. The composer already collects item type, origin,
+destination, location. Build the title from those and the user never has
+to type one.</p>
+<pre data-lang="js" class="language-js "><code class="language-js" data-lang="js">synthesizeTitle() {
+  const type = this.itemType;
+  if (!type || type === &quot;trip&quot;) return;
+
+  const cap = (s) =&gt; s.charAt(0).toUpperCase() + s.slice(1);
+  const o = this.composer.itinerary_origin;
+  const d = this.composer.itinerary_destination;
+  const loc = this.composer.itinerary_location;
+
+  let title = cap(type);
+  if ([&quot;flight&quot;, &quot;train&quot;, &quot;transfer&quot;].includes(type) &amp;&amp; (o || d)) {
+    title = `${cap(type)}: ${o || &quot;?&quot;} -&gt; ${d || &quot;?&quot;}`;
+  } else if (loc) {
+    title = `${cap(type)}: ${loc}`;
+  }
+  this.composer.set(&quot;title&quot;, title);
+}
+</code></pre>
+<p>Trip topics still take the user's title (you name a trip meaningfully;
+"European trip 2026" is more useful than "Trip"). Items get derived titles:
+"Flight: PDX -&gt; MAD", "Hotel: Madrid Marriott", "Event: Symphony".</p>
+<p>I also hide the title input via a body class when the composer is in
+itinerary-item mode, so users don't see a phantom input that gets
+overwritten on every field change.</p>
+<h2 id="the-other-stuff">The Other Stuff</h2>
+<p>A few smaller things that made the plugin feel like a real tool.</p>
+<h3 id="auto-creating-the-category">Auto-creating the category</h3>
+<p>The plugin provisions an "Itinerary" category on first boot. The slug-first
+lookup means if an admin already has a category called "itinerary" or
+"ITINERARY", we adopt it instead of creating a duplicate (which would fail
+uniqueness anyway). The provisioner also adds the category id to
+<code>default_categories_muted</code> so new users don't see itinerary topics
+cluttering /latest.</p>
+<h3 id="sidebar-link">Sidebar link</h3>
+<p>Discourse's <code>api.addCommunitySectionLink</code> adds a link to the sidebar's
+Community section. With the category muted by default, the sidebar link
+becomes the canonical entrypoint. No URL guessing required.</p>
+<h3 id="add-buttons">Add buttons</h3>
+<p>Two big buttons: "+ Add trip" on /itinerary, "+ Add leg" on
+/itinerary/:trip_id. Each opens the standard composer pre-scoped to the
+itinerary category, with the right <code>itinerary_item_type</code> (for trip) or
+<code>itinerary_parent_trip_id</code> (for leg) seeded on the composer model after the
+modal opens. The composer panel's conditional rendering picks up the
+seeded values and shows the right fields.</p>
+<p>This pattern is straight from discourse-kanban: rather than build a custom
+modal, lean on Discourse's existing composer with sensible defaults. You
+get rich text, drafts, file uploads, all the auth machinery, for free.</p>
+<h2 id="screenshots">Screenshots</h2>
+<p>Coming once I've populated my own itinerary further. I want the screenshots
+to show realistic data rather than the "Flight to madrid for meetup" test
+post that's currently in my dev instance.</p>
+<h2 id="takeaways">Takeaways</h2>
+<p><strong>Plugins built on topics keep paying off.</strong> Search, permissions, edit
+history, mentions, attachments. None of it is plugin code. It's all
+Discourse, and I get it by default by storing data in topics.</p>
+<p><strong>The plugin API has trapdoors.</strong> Most of them aren't documented because
+nobody hits them until they hit them. Reading three working plugins
+side-by-side is faster than reading docs.</p>
+<p><strong>Glimmer autotracking is invisible until it isn't.</strong> If a getter reads a
+non-<code>@tracked</code> value and you're surprised it doesn't re-render, that's the
+likely cause. Always.</p>
+<p><strong>Synthesize what you can.</strong> The user shouldn't have to type a topic title
+when the structured fields already encode it. Hide the title input, derive
+it, move on.</p>
+<p><strong>Per-category validation overrides would be great.</strong> Discourse already
+has site-wide setting overrides per category for things like default tags
+and minimum trust levels. Extending the per-category override surface to
+title and post length validators would let plugins like this stop fighting
+the global validators. Filed in the back of my brain for a future
+contribution.</p>
+<h2 id="try-it">Try It</h2>
+<p>The plugin is open source:
+<a href="https://github.com/ducks/discourse-itinerary">ducks/discourse-itinerary</a>.
+Symlink it into your <code>plugins/</code> directory, restart Rails, visit
+/itinerary, and you've got a travel timeline backed entirely by Discourse
+topics.</p>
+<p>Now I just need to actually go on a trip.</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;building-discourse-itinerary&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-building-discourse-itinerary"
+      data-goatcounter-title="Helpful click on blog-2026-building-discourse-itinerary"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;discourse-manager-community-sim&#x2F;">discourse-manager: A Community Management Sim Inside Discourse</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 28, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">I built a forum management sim that runs as a Discourse plugin. You moderate a fake community that looks real. The whole joke is that it runs inside the actual Discourse UI.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/games">#games</a></p>
+                      
+                      <p><a href="/tags/plugins">#plugins</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;jolteon-llm-routing-proxy&#x2F;">jolteon: An LLM Routing Proxy for Discourse</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 27, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">We run several vLLM backends for Discourse&#x27;s AI features. Hardcoding which backend handles which feature was getting messy. jolteon is the Rust proxy we built to fix that - it shipped yesterday.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;mini-racer-nixos-bundle-gemfile&#x2F;">mini_racer on NixOS: Three Things That Were Wrong</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 25, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">mini_racer 0.21.4 wouldn&#x27;t build in my nix-shell. The fix turned out to be counterintuitive: removing glibc from buildInputs made stdlib.h work again. Plus a BUNDLE_GEMFILE footgun hiding in plain sight.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/debugging">#debugging</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;yapper-or-just-ask-the-bots&#x2F;">Yapper, or: just ask the bots</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 10, 2026</p>
+                    
+                    <p>9 min read</p>
+                  </div>
+                  
+                    <p class="desc">Yapper is a Discourse plugin that turns a forum into a place where humans can read but only registered bots can post. It&#x27;s live at yapper.forum. Here&#x27;s what it does, and why I think the protocol underneath it is the actual product.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/protocol">#protocol</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-discourse-plugin-screenshots&#x2F;">Building a Screenshot Pipeline for Discourse Plugins</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 25, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">A small tool that captures Discourse plugin UIs in CI and publishes a gallery, modeled on Penar&#x27;s theme-screenshots project but pointed at plugin routes.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/ci">#ci</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

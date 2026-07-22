@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - qmk</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/qmk/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Mon, 20 Jul 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>glow: I gave Claude a physical presence on my desk</title>
+          <pubDate>Mon, 20 Jul 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/glow-the-big-button-that-glows-with-claude/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/glow-the-big-button-that-glows-with-claude/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/glow-the-big-button-that-glows-with-claude/">&lt;p&gt;I bought a &lt;a href=&quot;https:&#x2F;&#x2F;www.keychron.com&#x2F;products&#x2F;keychron-q0-mini-8k-action-key&quot;&gt;Keychron Q0 Mini&lt;&#x2F;a&gt; as a joke.&lt;&#x2F;p&gt;
+&lt;p&gt;It&#x27;s a macropad, except it&#x27;s basically one giant key. A single satisfying THUNK of a button. There is no reason to own it. I owned it anyway, because the idea of a big dumb button made me laugh and I wanted to see what I&#x27;d do with it.&lt;&#x2F;p&gt;
+&lt;p&gt;Then I saw &lt;a href=&quot;https:&#x2F;&#x2F;openai.com&#x2F;&quot;&gt;Work Louder&#x27;s Co-Lab&lt;&#x2F;a&gt; with OpenAI, where the keyboard&#x27;s lighting reacts to what the AI is doing. And the button has RGB. And I thought the thought that has started every good project I&#x27;ve ever built:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;em&gt;&quot;Huh. How hard could that be.&quot;&lt;&#x2F;em&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;The result is &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;glow&quot;&gt;glow&lt;&#x2F;a&gt;. The big button now lights up with whatever Claude Code is doing. Purple when it&#x27;s idle. Blue while it&#x27;s working. Green when it&#x27;s my turn. Orange when it needs me. I glance at it from across the room and I know Claude&#x27;s state without looking at the screen.&lt;&#x2F;p&gt;
+&lt;video autoplay loop muted playsinline width=&quot;100%&quot;&gt;
+  &lt;source src=&quot;&#x2F;images&#x2F;2026&#x2F;glow&#x2F;button-demo.mp4&quot; type=&quot;video&#x2F;mp4&quot;&gt;
+&lt;&#x2F;video&gt;
+&lt;p&gt;Here&#x27;s how I got there, including the hour I lost to setting the wrong byte.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;first-the-button-did-nothing&quot;&gt;First, the button did nothing&lt;&#x2F;h2&gt;
+&lt;p&gt;Out of the box, the key emits nothing. I pressed it under &lt;code&gt;wev&lt;&#x2F;code&gt; (the Wayland event viewer) and got a blank line. Not an error - a registered key event with no keysym attached. The switch works, it&#x27;s just mapped to a dead keycode.&lt;&#x2F;p&gt;
+&lt;p&gt;Fixing that is the easy half. Keychron boards run &lt;a href=&quot;https:&#x2F;&#x2F;qmk.fm&#x2F;&quot;&gt;QMK&lt;&#x2F;a&gt; with &lt;a href=&quot;https:&#x2F;&#x2F;www.caniusevia.com&#x2F;&quot;&gt;VIA&lt;&#x2F;a&gt; support, so I opened the Keychron Launcher (their VIA build), remapped the key to F13, and pressed it again. F13 is a real keycode that no physical keyboard has a key for, which makes it a clean &quot;this press means &lt;em&gt;my button&lt;&#x2F;em&gt;&quot; signal.&lt;&#x2F;p&gt;
+&lt;p&gt;Except &lt;code&gt;wev&lt;&#x2F;code&gt; didn&#x27;t show F13. It showed this:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;key: 191; state: 1 (pressed)
+sym: XF86Tools    (269025153)
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;On this Wayland stack, F13 comes through as &lt;code&gt;XF86Tools&lt;&#x2F;code&gt;. The F13-F24 range gets mapped to XF86 multimedia symbols by the keymap. This is exactly the kind of thing you only learn by reading the actual output instead of assuming, so: read the actual output. The Hyprland bind became:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;bind = , XF86Tools, exec, ~&amp;#x2F;.config&amp;#x2F;hypr&amp;#x2F;scripts&amp;#x2F;big-button
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Press button, script runs. Input half done. Now the light.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-rgb-is-where-it-got-interesting&quot;&gt;The RGB is where it got interesting&lt;&#x2F;h2&gt;
+&lt;p&gt;The dream was host control: my computer decides the color, the keyboard obeys. The question was whether that&#x27;s possible without flashing custom firmware.&lt;&#x2F;p&gt;
+&lt;p&gt;QMK&#x27;s VIA feature exposes a &lt;strong&gt;raw-HID interface&lt;&#x2F;strong&gt; - a vendor-defined USB HID endpoint that the VIA app uses to configure the board live. If VIA can set the RGB (and it can - there&#x27;s a lighting tab), then the protocol to set RGB exists, and I can speak it myself.&lt;&#x2F;p&gt;
+&lt;p&gt;The board shows up as four HID interfaces. The VIA one is identifiable by its USB usage page, &lt;code&gt;0xFF60&lt;&#x2F;code&gt;. I dumped each interface&#x27;s report descriptor:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;hidraw11:  05 01 09 06 ...   # keyboard
+hidraw12:  06 60 ff 09 61 ...  # &amp;lt;- 0xFF60, the VIA raw interface
+hidraw13:  05 01 09 02 ...   # mouse&amp;#x2F;media
+hidraw14:  06 31 ff ...       # Keychron&amp;#x27;s own vendor page
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;&lt;code&gt;hidraw12&lt;&#x2F;code&gt; it is. Now I just had to send it the right bytes.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-hour-i-lost&quot;&gt;The hour I lost&lt;&#x2F;h2&gt;
+&lt;p&gt;The VIA protocol for RGB is documented in QMK&#x27;s source. Commands look like:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;report = [0x00, command, channel, value_id, ...args]   # padded to 33 bytes
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;I wanted: set the effect to solid color, set brightness, set the color. I wrote it, ran it, and watched the button.&lt;&#x2F;p&gt;
+&lt;p&gt;It changed color. And then kept changing. A slow fade through the whole rainbow, forever.&lt;&#x2F;p&gt;
+&lt;p&gt;So the commands were landing - the keyboard was clearly listening - but the animation never stopped. I assumed I had the wrong &lt;em&gt;effect&lt;&#x2F;em&gt; number. QMK has dozens of RGB effects; &quot;solid color&quot; is one of them, and I was setting it to some cycling effect by mistake. I wrote a probe that stepped through effect IDs 0 through 7, setting each one and pausing so I could watch.&lt;&#x2F;p&gt;
+&lt;p&gt;Every single one animated. Every one.&lt;&#x2F;p&gt;
+&lt;p&gt;That&#x27;s the tell I should have caught sooner: if &lt;em&gt;no&lt;&#x2F;em&gt; effect ID produces a solid color, the problem isn&#x27;t the effect ID. I was writing to the wrong field entirely. I went and read the actual constants in &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;qmk&#x2F;qmk_firmware&#x2F;blob&#x2F;master&#x2F;quantum&#x2F;via.h&quot;&gt;&lt;code&gt;qmk&#x2F;via.h&lt;&#x2F;code&gt;&lt;&#x2F;a&gt;:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;id_qmk_rgb_matrix_brightness    = 1
+id_qmk_rgb_matrix_effect        = 2
+id_qmk_rgb_matrix_effect_speed  = 3
+id_qmk_rgb_matrix_color         = 4
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;I&#x27;d been sending the effect to value-id &lt;strong&gt;3&lt;&#x2F;strong&gt;. Value-id 3 is effect &lt;em&gt;speed&lt;&#x2F;em&gt;. I was never setting the effect at all - I was setting the &lt;em&gt;speed&lt;&#x2F;em&gt; of whatever animation was already running, and then changing its color. The rainbow cycled the whole time because I never told it to stop cycling.&lt;&#x2F;p&gt;
+&lt;p&gt;The effect id is &lt;strong&gt;2&lt;&#x2F;strong&gt;. One byte. I changed the 3 to a 2:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;effect-&amp;gt;solid: sent [7, 3, 2, 1]
+color-&amp;gt;purple: sent [7, 3, 4, 192, 255]
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Solid purple. Frozen. Locked. The button held a single steady color for the first time.&lt;&#x2F;p&gt;
+&lt;p&gt;The lesson is the same one that gets me every time: when the story you&#x27;ve built (&quot;wrong effect number&quot;) stops explaining the evidence (&quot;&lt;em&gt;every&lt;&#x2F;em&gt; effect animates&quot;), the story is wrong, not the evidence. Read the source constants instead of guessing enum positions by trial. It would have taken five minutes at the start and cost me an hour instead.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;wiring-it-to-claude&quot;&gt;Wiring it to Claude&lt;&#x2F;h2&gt;
+&lt;p&gt;Once I could set any color from a shell command, the status lamp was almost trivial, because Claude Code has &lt;a href=&quot;https:&#x2F;&#x2F;docs.claude.com&#x2F;en&#x2F;docs&#x2F;claude-code&quot;&gt;hooks&lt;&#x2F;a&gt; - shell commands that fire on lifecycle events. The events map almost perfectly onto the states I wanted:&lt;&#x2F;p&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;event&lt;&#x2F;th&gt;&lt;th&gt;color&lt;&#x2F;th&gt;&lt;th&gt;meaning&lt;&#x2F;th&gt;&lt;&#x2F;tr&gt;&lt;&#x2F;thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;SessionStart&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;td&gt;purple&lt;&#x2F;td&gt;&lt;td&gt;idle &#x2F; ready&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;UserPromptSubmit&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;td&gt;blue&lt;&#x2F;td&gt;&lt;td&gt;working&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;Stop&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;td&gt;green&lt;&#x2F;td&gt;&lt;td&gt;your turn&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;Notification&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;td&gt;orange&lt;&#x2F;td&gt;&lt;td&gt;needs your input&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;&#x2F;tbody&gt;&lt;&#x2F;table&gt;
+&lt;p&gt;Four lines in &lt;code&gt;settings.json&lt;&#x2F;code&gt;, each running &lt;code&gt;glow-hook &amp;lt;color&amp;gt;&lt;&#x2F;code&gt;. The hook runs the color-setter backgrounded and swallows all errors, so an unplugged keyboard never breaks a Claude session.&lt;&#x2F;p&gt;
+&lt;p&gt;I added them expecting to restart Claude to pick them up. I didn&#x27;t have to. The moment I sent my next message, the button went blue. When the turn ended, green. It was reacting to the conversation I was having &lt;em&gt;while&lt;&#x2F;em&gt; wiring it. That was the moment it stopped being a project and started being a thing on my desk that&#x27;s alive.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;one-real-design-note&quot;&gt;One real design note&lt;&#x2F;h2&gt;
+&lt;p&gt;My first palette had working as yellow and needs-you as orange. In practice you can&#x27;t tell them apart across a room - they&#x27;re both warm, and &quot;warm&quot; is all your peripheral vision gets. I moved working to blue. Blue &#x2F; orange &#x2F; green are three genuinely distinct colors; the light is legible from anywhere now.&lt;&#x2F;p&gt;
+&lt;p&gt;There is no red in the palette. That&#x27;s a personal decree. I hate red. Orange carries the &quot;needs you&quot; weight instead, and honestly it&#x27;s nicer.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;it-s-not-really-about-claude&quot;&gt;It&#x27;s not really about Claude&lt;&#x2F;h2&gt;
+&lt;p&gt;glow is a generic tool. It drives any VIA&#x2F;QMK keyboard&#x27;s RGB from the host - point it at your board with a VID&#x2F;PID, get a &lt;code&gt;glow &amp;lt;color&amp;gt;&lt;&#x2F;code&gt; command. The Claude status lamp is one use of it. Anything that can run a command can drive the light: a CI run going green, a long build finishing, a deploy, a pomodoro timer. The keyboard becomes an ambient status display for whatever you care about.&lt;&#x2F;p&gt;
+&lt;p&gt;No firmware flash, no VIA app open, no daemon. It talks to the raw-HID interface directly and sends the same bytes VIA would.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-joke-was-the-point&quot;&gt;The joke was the point&lt;&#x2F;h2&gt;
+&lt;p&gt;I want to be clear that I did not buy a giant button because I had a plan for it. I bought it because it was funny. The plan showed up later, the way plans do when you leave yourself a weird enough object to poke at.&lt;&#x2F;p&gt;
+&lt;p&gt;That&#x27;s most of my favorite projects. Not &quot;the market needs an ambient AI status indicator.&quot; Just &quot;I have this dumb button, and this light, and a free evening, and how hard could it be.&quot; Hard enough to be fun. Easy enough to finish. And now there&#x27;s a purple glow on my desk that turns blue when I ask a question, and I grin every time.&lt;&#x2F;p&gt;
+&lt;hr &#x2F;&gt;
+&lt;p&gt;Source: &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;glow&quot;&gt;github.com&#x2F;ducks&#x2F;glow&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

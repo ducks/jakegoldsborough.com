@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="A small tool that captures Discourse plugin UIs in CI and publishes a gallery, modeled on Penar&#x27;s theme-screenshots project but pointed at plugin routes.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Building a Screenshot Pipeline for Discourse Plugins">
+    <meta property="og:description" content="A small tool that captures Discourse plugin UIs in CI and publishes a gallery, modeled on Penar&#x27;s theme-screenshots project but pointed at plugin routes.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-discourse-plugin-screenshots&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Building a Screenshot Pipeline for Discourse Plugins">
+    <meta name="twitter:description" content="A small tool that captures Discourse plugin UIs in CI and publishes a gallery, modeled on Penar&#x27;s theme-screenshots project but pointed at plugin routes.">
+
+    <title>Building a Screenshot Pipeline for Discourse Plugins - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Building a Screenshot Pipeline for Discourse Plugins</h1>
+      <div class="meta">
+        
+        <p>May 25, 2026</p>
+        
+        <p>7 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/discourse">#discourse</a></p>
+          
+          <p><a href="/tags/ruby">#ruby</a></p>
+          
+          <p><a href="/tags/ci">#ci</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <p>I built <a href="https://github.com/ducks/discourse-plugin-screenshots">discourse-plugin-screenshots on
+GitHub</a>, a small tool
+that captures Discourse plugin UIs against a real Discourse instance in CI
+and publishes the resulting PNGs to GitHub Pages.</p>
+<p>It's modeled on <a href="https://github.com/pmusaraj/discourse-theme-screenshots">Penar Musaraj's
+discourse-theme-screenshots</a>,
+which screenshots themes against a battery of routes. Same idea, different
+target: instead of "does this theme break the latest topic view," it asks
+"does my plugin's UI still render correctly in current Discourse."</p>
+<p>Live example for <code>discourse-itinerary</code>, the plugin I dogfooded it on:
+<a href="https://ducks.github.io/discourse-itinerary/">https://ducks.github.io/discourse-itinerary/</a>.</p>
+<h2 id="why">Why?</h2>
+<p>I'd been hand-screenshotting <a href="https://github.com/ducks/discourse-itinerary">discourse-itinerary</a>
+for <a href="/blog/2026/building-discourse-itinerary/">its blog post</a> and realized
+the same problem applies to every plugin I might write or maintain:</p>
+<ul>
+<li>Plugins break in unexpected ways when Discourse core changes. A CSS class
+gets renamed and your plugin's panel suddenly looks weird.</li>
+<li>A new theme like Horizon ships and your plugin's overrides don't quite
+match anymore.</li>
+<li>A plugin API method deprecates and silently degrades.</li>
+</ul>
+<p>You usually find out from a user filing a screenshot. That's a slow loop.</p>
+<p>What if every plugin had a nightly or per-push screenshot run that posted
+its current state to a public page? Visual regressions become visible.
+"Here's what my plugin looks like today" becomes a free byproduct of
+shipping.</p>
+<p>Penar's tool already does this for themes. Plugins were the X-shaped hole
+next to it.</p>
+<h2 id="the-architecture">The architecture</h2>
+<p>The tool ships a <strong>reusable GitHub Actions workflow</strong>. Plugins opt in by
+adding ~12 lines of YAML to their own <code>.github/workflows/</code>:</p>
+<pre data-lang="yaml" class="language-yaml "><code class="language-yaml" data-lang="yaml">name: Screenshots
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  screenshots:
+    uses: ducks&#x2F;discourse-plugin-screenshots&#x2F;.github&#x2F;workflows&#x2F;plugin-screenshots.yml@main
+</code></pre>
+<p>That's it. Each plugin maintainer owns their schedule, their gallery, their
+CI minutes. The tool repo doesn't enumerate plugins, doesn't centrally
+batch them, doesn't pay for anyone else's runs. Same pattern Discourse
+already uses for its own
+<a href="https://github.com/discourse/.github/blob/main/.github/workflows/discourse-plugin.yml"><code>discourse-plugin.yml</code></a>
+reusable workflow.</p>
+<h2 id="how-a-plugin-describes-what-to-capture">How a plugin describes what to capture</h2>
+<p>A plugin opts in by shipping <code>config/screenshots.yml</code> at the repo root:</p>
+<pre data-lang="yaml" class="language-yaml "><code class="language-yaml" data-lang="yaml">seed: spec&#x2F;screenshot_seed.rb
+
+urls:
+  - path: &#x2F;itinerary
+    name: trip-list
+    description: Trip list home page
+  - path: &#x2F;itinerary&#x2F;2
+    name: timeline
+    description: Per-trip timeline with day grouping
+</code></pre>
+<p>The optional <code>seed</code> is a Ruby file run inside the test env before captures
+fire. Without it, <code>/itinerary</code> would render an empty state ("No trips
+yet"), which makes for sad screenshots. The seed creates a few realistic
+trips with legs so the pages have something to render.</p>
+<p>The seed file is plain Ruby that runs inside Discourse's Rails test
+environment. It can use <code>PostCreator</code>, <code>SiteSetting</code>, plugin-specific
+classes, whatever. Plugin-specific concerns stay in the plugin.</p>
+<h2 id="the-workflow">The workflow</h2>
+<p>The reusable workflow is the heart of it. Slightly simplified:</p>
+<ol>
+<li>Spin up <code>discourse/discourse_test:release</code> (Discourse's official test
+container, comes with system libs Playwright needs).</li>
+<li>Check out the calling plugin, this tool, and <code>discourse/discourse</code>.</li>
+<li>Symlink the plugin into <code>discourse/plugins/&lt;id&gt;</code>.</li>
+<li>Boot Postgres + Redis, migrate the test DB.</li>
+<li>Install Playwright Chromium.</li>
+<li>Run a Capybara system spec that reads the plugin's manifest, runs the
+seed file, visits each URL, and saves a PNG.</li>
+<li>Upload <code>public/</code> to the calling repo's GitHub Pages.</li>
+</ol>
+<p>Total runtime: ~5-10 minutes after the initial container pull.</p>
+<h2 id="first-green-run">First green run</h2>
+<p>I wired the workflow into the itinerary plugin's CI, pushed, and the
+first run came back green. Screenshots up at
+<a href="https://ducks.github.io/discourse-itinerary/">ducks.github.io/discourse-itinerary</a>,
+captured automatically on every push to main.</p>
+<p>That's the whole loop. Plugin author writes
+<code>config/screenshots.yml</code>, drops a reusable-workflow file in
+<code>.github/workflows/</code>, enables Pages, pushes. Five minutes later there's
+a public gallery of what their plugin looks like in current Discourse.</p>
+<h2 id="the-rabbit-holes">The rabbit holes</h2>
+<p>Building it taught me three things about the Discourse-on-NixOS stack
+that I wouldn't have learned otherwise.</p>
+<h3 id="playwright-s-chromium-doesn-t-run-on-nixos">Playwright's Chromium doesn't run on NixOS</h3>
+<p>Discourse uses Playwright for system specs. The first time I tried the
+tool locally, the Capybara driver tried to launch Chromium and got:</p>
+<pre><code>error while loading shared libraries: libglib-2.0.so.0: cannot open
+shared object file: No such file or directory
+</code></pre>
+<p>Playwright's <code>pnpm playwright install</code> downloads a generic Linux Chromium
+build to <code>~/.cache/ms-playwright</code>. That binary expects to find shared libs
+at standard <code>/usr/lib</code> paths. NixOS, famously, doesn't have a
+<code>/usr/lib</code>. Everything is in <code>/nix/store/&lt;hash&gt;-glib-2.x.y/lib</code>.</p>
+<p>Two paths to fix this:</p>
+<ol>
+<li><code>LD_LIBRARY_PATH</code> gymnastics. Add every needed lib to a nix-shell.</li>
+<li><code>nixpkgs.playwright-driver.browsers</code>, a package that pre-patches the
+Chromium binary with NixOS-compatible RPATHs.</li>
+</ol>
+<p>I went with option 2:</p>
+<pre data-lang="nix" class="language-nix "><code class="language-nix" data-lang="nix">{ pkgs ? import &lt;nixpkgs&gt; {} }:
+pkgs.mkShell {
+  buildInputs = [ pkgs.playwright-driver.browsers ];
+  shellHook = &#x27;&#x27;
+    export PLAYWRIGHT_BROWSERS_PATH=&quot;${pkgs.playwright-driver.browsers}&quot;
+    export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+  &#x27;&#x27;;
+}
+</code></pre>
+<p>This got me past the lib errors and into a new one: my nixpkgs channel
+ships <code>chromium-1169</code> but Discourse's Playwright gem pins
+<code>chromium-1217</code>. The right fix is a flake pin or <code>nixpkgs-unstable</code>
+override, which I haven't shaved yet.</p>
+<p>So locally on NixOS the tool runs up to "launching Chromium" before
+hitting the version mismatch. In CI it sails through, because
+<code>discourse/discourse_test:release</code> is a regular Linux image with the
+matching system libs and Playwright downloads the right version. <strong>The
+same code runs in both places. CI is currently the only one that
+succeeds end-to-end on my machine.</strong></p>
+<p>That ended up being a useful property. The CI is the authoritative loop:
+real container, real Discourse, real Playwright, public gallery at the
+end. Local is a developer convenience that I can keep chipping at without
+blocking the rest of the tool from being useful.</p>
+<h3 id="rspec-accepts-absolute-spec-paths-from-outside-the-project">Rspec accepts absolute spec paths from outside the project</h3>
+<p>I was worried that running Discourse's <code>bin/rspec</code> against a spec file
+that lives outside the Discourse repo wouldn't work. <code>rails_helper.rb</code>
+wouldn't be picked up automatically, Capybara's drivers wouldn't be
+registered, etc.</p>
+<p>Turns out: it works fine. RSpec loads <code>rails_helper</code> via the spec file's
+own <code>require</code>, and Discourse's <code>bin/rspec</code> boots Rails normally
+regardless of the spec's path. The spec just needs <code>require "rails_helper"</code> at the top.</p>
+<p>This let me keep the spec in this tool's repo rather than vendoring it
+into every plugin or asking Discourse to ship it.</p>
+<h3 id="reusable-workflows-scale-better-than-central-orchestration">Reusable workflows scale better than central orchestration</h3>
+<p>The first version of this had a central <code>config/plugins.yml</code> listing
+every plugin, and a single CI run that captured all of them. Penar's
+theme tool works that way for good reasons: themes are a relatively small
+set and they're meant to be compared side-by-side.</p>
+<p>For plugins it doesn't work. If you add 20 plugins, the central run
+becomes a 4-hour job that fails halfway and has to retry the whole batch.
+You also push all the CI cost onto whoever maintains the tool repo.</p>
+<p>Reusable workflows flip both. Each plugin's CI runs only when that plugin
+changes. The tool repo's job is to provide the reusable workflow, not to
+enumerate consumers.</p>
+<h2 id="what-s-missing">What's missing</h2>
+<p>This is a v0. Real things it doesn't do yet:</p>
+<ul>
+<li><strong>Multiple themes.</strong> Right now it captures against the default theme.
+Capturing against Horizon, a dark theme, and the default is the obvious
+next step. Penar's tool already does this; mostly a matter of porting
+the theme-loading code.</li>
+<li><strong>Multiple viewports.</strong> Just 1440x900 today. Mobile (375x667) would be
+the big one to add.</li>
+<li><strong>Visual diffing.</strong> "Here's what changed since last run" via image
+diff. Tools like reg-suit or Percy do this; expensive at scale.</li>
+<li><strong>Auto-discovery of routes.</strong> Right now you list URLs in
+<code>config/screenshots.yml</code>. Could introspect the plugin's
+<code>route-map.js</code> for routes, but dynamic segments (<code>:trip_id</code>) need
+hints either way.</li>
+<li><strong>NixOS local parity.</strong> The chromium-1217 pin dance is genuinely the
+last thing blocking local runs.</li>
+</ul>
+<h2 id="try-it">Try it</h2>
+<pre data-lang="sh" class="language-sh "><code class="language-sh" data-lang="sh"># In your plugin repo, create config&#x2F;screenshots.yml with your URLs.
+# Then drop this in .github&#x2F;workflows&#x2F;screenshots.yml:
+
+name: Screenshots
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+jobs:
+  screenshots:
+    uses: ducks&#x2F;discourse-plugin-screenshots&#x2F;.github&#x2F;workflows&#x2F;plugin-screenshots.yml@main
+</code></pre>
+<p>Enable GitHub Pages on the plugin repo (Settings -&gt; Pages -&gt; Source:
+GitHub Actions), push to main, and after a few minutes your screenshots
+will be at <code>https://&lt;you&gt;.github.io/&lt;plugin&gt;/</code>.</p>
+<p>The tool is open source:
+<a href="https://github.com/ducks/discourse-plugin-screenshots">ducks/discourse-plugin-screenshots</a>.
+Pull requests for theme + viewport + diff support welcome.</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;building-discourse-plugin-screenshots&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-building-discourse-plugin-screenshots"
+      data-goatcounter-title="Helpful click on blog-2026-building-discourse-plugin-screenshots"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;discourse-manager-community-sim&#x2F;">discourse-manager: A Community Management Sim Inside Discourse</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 28, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">I built a forum management sim that runs as a Discourse plugin. You moderate a fake community that looks real. The whole joke is that it runs inside the actual Discourse UI.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/games">#games</a></p>
+                      
+                      <p><a href="/tags/plugins">#plugins</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;jolteon-llm-routing-proxy&#x2F;">jolteon: An LLM Routing Proxy for Discourse</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 27, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">We run several vLLM backends for Discourse&#x27;s AI features. Hardcoding which backend handles which feature was getting messy. jolteon is the Rust proxy we built to fix that - it shipped yesterday.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;mini-racer-nixos-bundle-gemfile&#x2F;">mini_racer on NixOS: Three Things That Were Wrong</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 25, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">mini_racer 0.21.4 wouldn&#x27;t build in my nix-shell. The fix turned out to be counterintuitive: removing glibc from buildInputs made stdlib.h work again. Plus a BUNDLE_GEMFILE footgun hiding in plain sight.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/debugging">#debugging</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;yapper-or-just-ask-the-bots&#x2F;">Yapper, or: just ask the bots</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 10, 2026</p>
+                    
+                    <p>9 min read</p>
+                  </div>
+                  
+                    <p class="desc">Yapper is a Discourse plugin that turns a forum into a place where humans can read but only registered bots can post. It&#x27;s live at yapper.forum. Here&#x27;s what it does, and why I think the protocol underneath it is the actual product.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/protocol">#protocol</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-discourse-itinerary&#x2F;">Building a Travel Itinerary Plugin Inside Discourse</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 25, 2026</p>
+                    
+                    <p>9 min read</p>
+                  </div>
+                  
+                    <p class="desc">Turning a Discourse forum into a chronological travel itinerary: trip topics as containers, flight&#x2F;hotel topics as items, and a bunch of plugin-API trapdoors along the way.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/ember">#ember</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

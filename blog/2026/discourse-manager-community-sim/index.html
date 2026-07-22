@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="I built a forum management sim that runs as a Discourse plugin. You moderate a fake community that looks real. The whole joke is that it runs inside the actual Discourse UI.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="discourse-manager: A Community Management Sim Inside Discourse">
+    <meta property="og:description" content="I built a forum management sim that runs as a Discourse plugin. You moderate a fake community that looks real. The whole joke is that it runs inside the actual Discourse UI.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;discourse-manager-community-sim&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="discourse-manager: A Community Management Sim Inside Discourse">
+    <meta name="twitter:description" content="I built a forum management sim that runs as a Discourse plugin. You moderate a fake community that looks real. The whole joke is that it runs inside the actual Discourse UI.">
+
+    <title>discourse-manager: A Community Management Sim Inside Discourse - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>discourse-manager: A Community Management Sim Inside Discourse</h1>
+      <div class="meta">
+        
+        <p>Jun 28, 2026</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/discourse">#discourse</a></p>
+          
+          <p><a href="/tags/games">#games</a></p>
+          
+          <p><a href="/tags/plugins">#plugins</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <p>There's a browser game called <a href="https://github.com/plbrault/youre-the-os">You are the
+OS</a> where you play as a computer's
+operating system. Processes request memory, users get impatient, the machine
+dies if you can't keep up. It's a sim about a thing most people interact with
+every day but never think about.</p>
+<p>I wanted to make that, but for community moderation.</p>
+<p>The result is <a href="https://github.com/ducks/discourse-manager">discourse-manager</a>,
+a Discourse plugin that turns your forum into the game. You play as the
+moderator. Fake users, fake posts, and fake drama are generated inside your
+actual Discourse instance and rendered with real Discourse components. The flag
+queue looks like the real flag queue. The user cards look like real user cards.
+The avatars, the trust level badges, the category labels - all real.</p>
+<p>The whole joke is that it runs inside Discourse itself.</p>
+<p><img src="https://raw.githubusercontent.com/ducks/discourse-manager/main/docs/screenshot.png" alt="discourse-manager screenshot" /></p>
+<h2 id="the-game">The game</h2>
+<p>You manage four meters: community health, mod response time, spam rate, and
+user retention. Let any of them hit zero and the community collapses.</p>
+<p>Flags come in continuously. Each one is a decision:</p>
+<ul>
+<li><strong>Approve</strong> - the post stands, move on</li>
+<li><strong>Remove</strong> - gone</li>
+<li><strong>Warn</strong> - the user gets a PM, post stays</li>
+<li><strong>Suspend</strong> - off the forum for a while</li>
+<li><strong>Ban</strong> - gone for good, but take retention damage if you're wrong</li>
+</ul>
+<p>Speed matters. A flag that sits unresolved too long costs health. Clearing them
+fast restores response time. The tension is between acting fast and acting
+correctly.</p>
+<p>On top of the queue, random events fire. Each has two or three resolution
+options with different tradeoffs across the meters.</p>
+<p>Community events: a spicy topic goes viral and generates 30 flags in 60
+seconds, a wave of sockpuppets registers, two trusted users start fighting in a
+thread, a great newcomer shows up worth recognizing.</p>
+<p>Technical incidents too: a plugin update ships and breaks something, the server
+goes down and users are posting about it on Twitter, a database migration fails
+in production, a CDN failure makes images disappear sitewide, a cleanup script
+runs with the wrong scope and takes out several categories. Each incident hits
+different meters - an outage tanks response time and health, a CDN failure
+hammers retention. The resolutions have real tradeoffs: push a hotfix live and
+risk making it worse, or roll back and eat the downtime.</p>
+<p>Each day has a timer. When it ends you get a summary - flags resolved, bans
+issued, incidents handled - before starting the next one. Survive 30 days to
+win.</p>
+<h2 id="the-fake-community">The fake community</h2>
+<p>The forum is populated at game start with 40 generated users across five
+behavioral profiles: lurkers, contributors, trolls, spammers, and newbies. Each
+profile generates realistic-looking posts and a realistic probability of
+getting flagged.</p>
+<p>The posts are the best part. A troll posts "anyone who disagrees with me is
+just wrong, full stop." A spammer posts "I make $4000/week working from home.
+DM me for details." A newbie asks "HOW DO I CHANGE MY USERNAME?? I've been
+trying for 20 minutes!!" A contributor posts something thoughtful about why the
+community has been so toxic lately.</p>
+<p>None of it is real. All of it feels real. That's the thing Discourse's design
+language does so well - the UI is so recognizable that fake content in it reads
+as plausible immediately.</p>
+<p>Occasionally a legitimate post gets flagged incorrectly. You have to read the
+content and make a judgment call, not just pattern-match on the flag type.</p>
+<h2 id="why-inside-discourse">Why inside Discourse</h2>
+<p>I could have built this as a standalone web app. It would have been faster and
+simpler.</p>
+<p>But the whole premise of the game is that you're moderating a forum that looks
+real. If I build a custom UI, it looks like a game. If I build it as a
+Discourse plugin, it looks like Discourse. The cognitive effect only works when
+you can't tell at a glance whether you're looking at a real post or a fake one.</p>
+<p>The plugin renders with actual Discourse components: the same avatars, the same
+button styles, the same layout. The HUD - four meters with green/yellow/red
+color coding - sits above the review queue the way a real dashboard might.
+Events pop in as styled cards. It all fits the host environment.</p>
+<p>Building inside Discourse also gave me MessageBus for free. Real-time state
+updates from the server to the client - flags disappearing as you clear them,
+meters ticking down - all through the same pub/sub system Discourse uses for
+live notifications. No WebSocket setup. No extra infrastructure.</p>
+<h2 id="what-s-next">What's next</h2>
+<p>The one thing I still want to add: LLM-generated content. Right now the post
+pool is handwritten strings - good enough to feel real, but every playthrough
+is the same drama. Running an LLM at game init to generate a full set of forum
+posts tuned to the behavioral profiles would make each run different. The
+structure is already there; it just needs something to fill it with varied text.</p>
+<p>The most interesting idea that came up while building it: this could double as
+a spam detection training tool. Every flagged post has a profile type and a
+human moderation decision attached. Play enough sessions and you have a labeled
+dataset of spam, trolling, and legitimate posts. The game generates it as a
+side effect.</p>
+<h2 id="the-code">The code</h2>
+<p>It's a Discourse plugin, so the setup is what you'd expect:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">cd &#x2F;var&#x2F;www&#x2F;discourse&#x2F;plugins
+git clone https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-manager
+bundle exec rake db:migrate
+</code></pre>
+<p>Then go to <code>/play</code>.</p>
+<p>Source at
+<a href="https://github.com/ducks/discourse-manager">github.com/ducks/discourse-manager</a>.</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;discourse-manager-community-sim&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-discourse-manager-community-sim"
+      data-goatcounter-title="Helpful click on blog-2026-discourse-manager-community-sim"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;jolteon-llm-routing-proxy&#x2F;">jolteon: An LLM Routing Proxy for Discourse</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 27, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">We run several vLLM backends for Discourse&#x27;s AI features. Hardcoding which backend handles which feature was getting messy. jolteon is the Rust proxy we built to fix that - it shipped yesterday.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;mini-racer-nixos-bundle-gemfile&#x2F;">mini_racer on NixOS: Three Things That Were Wrong</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 25, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">mini_racer 0.21.4 wouldn&#x27;t build in my nix-shell. The fix turned out to be counterintuitive: removing glibc from buildInputs made stdlib.h work again. Plus a BUNDLE_GEMFILE footgun hiding in plain sight.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/debugging">#debugging</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;yapper-or-just-ask-the-bots&#x2F;">Yapper, or: just ask the bots</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 10, 2026</p>
+                    
+                    <p>9 min read</p>
+                  </div>
+                  
+                    <p class="desc">Yapper is a Discourse plugin that turns a forum into a place where humans can read but only registered bots can post. It&#x27;s live at yapper.forum. Here&#x27;s what it does, and why I think the protocol underneath it is the actual product.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/protocol">#protocol</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-discourse-itinerary&#x2F;">Building a Travel Itinerary Plugin Inside Discourse</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 25, 2026</p>
+                    
+                    <p>9 min read</p>
+                  </div>
+                  
+                    <p class="desc">Turning a Discourse forum into a chronological travel itinerary: trip topics as containers, flight&#x2F;hotel topics as items, and a bunch of plugin-API trapdoors along the way.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/ember">#ember</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-discourse-plugin-screenshots&#x2F;">Building a Screenshot Pipeline for Discourse Plugins</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 25, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">A small tool that captures Discourse plugin UIs in CI and publishes a gallery, modeled on Penar&#x27;s theme-screenshots project but pointed at plugin routes.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/ci">#ci</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

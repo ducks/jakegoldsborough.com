@@ -201,3 +201,7 @@ That's it for this post and the installation and basic configuration of NixOS.
 In the next installment, we'll create a non-root user, configure the Hyprland
 window manager, and install some key daily-driver tools including Neovim, Git,
 and LibreWolf.
+
+---
+
+*Zero to Nixty: [← Part 1](/blog/2025/nixos-daily-driver-1/) · [Part 3 →](/blog/2025/nixos-daily-driver-3/)*

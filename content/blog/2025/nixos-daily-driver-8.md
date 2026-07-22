@@ -167,3 +167,7 @@ things I could pivot to to stick with the "Daily Driver" theme.
 
 If you're reading this and have suggestions or you're curious about something,
 let me know: [nixos@jakegoldsborough.com](mailto:nixos@jakegoldsborough.com)
+
+---
+
+*Zero to Nixty: [← Part 7.5](/blog/2025/nixos-daily-driver-7-5/) · [Part 9 →](/blog/2025/nixos-daily-driver-9/)*

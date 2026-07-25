@@ -138,4 +138,6 @@ That's most of my favorite projects. Not "the market needs an ambient AI status 
 
 ---
 
+*Part two: [the whole desk lights up now, across three agents](/blog/2026/glow-whole-desk-framework-udev/) - extending glow to my Framework keyboard, a udev war story, and the same status signal running from Claude Code, claux, and Codex.*
+
 Source: [github.com/ducks/glow](https://github.com/ducks/glow)

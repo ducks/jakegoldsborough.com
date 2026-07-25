@@ -45,6 +45,38 @@ push to `main`. There is no staging environment — merging to `main` deploys.
 - Other top-level pages (`content/contact.md`, `content/request-an-article.md`,
   etc.) are simple standalone Markdown pages using the default page template.
 
+## Weekly changelog posts
+
+The recurring "Agent assisted Changelog" series summarizes the week's
+work. To draft one:
+
+- **File**: `content/blog/<year>/weekly-summary-<N>.md`, where `<N>` is
+  the ISO-ish week number continuing the existing sequence (check the
+  highest existing `weekly-summary-*.md`; gaps in posting are fine and
+  worth a wry one-line acknowledgment in the intro).
+- **Frontmatter**: `title: Agent assisted Changelog - <N>/52`, the
+  posting date, a `description` teasing 2-3 concrete items, and tags
+  `[claude, changelog, weekly summary]`. (Older posts in the series are
+  titled "Claude assisted Changelog"; the series is generic now, since
+  the work involves multiple agents.)
+- **Sources**: the daily notes in `~/agents/notes/<year>/` for the days
+  since the previous summary's date, plus the conversation at hand.
+  Cover the window since the last post, not the calendar week.
+- **Layout**: a short intro paragraph naming the week's shape; one H2
+  per project or theme (4-6 sections; fold minor items into a shared
+  section rather than giving every small thing its own heading); close
+  with a `## The through-line` section connecting the week to a larger
+  thread of Jake's work.
+- **Voice**: first person, conversational, technically specific, a
+  little wry. Real numbers and real bug stories over feature lists -
+  the best sections narrate a debugging arc or a design decision, not a
+  changelog dump. Failures and corrections are content, not omissions.
+- **Links**: link project repos on first mention and cross-link related
+  posts on this site. If the summary references a post that is still
+  unpublished/staged, say so in the draft summary handed to Jake so the
+  posts can ship together.
+- Leave the draft uncommitted for Jake to review and publish.
+
 ## Templates
 
 Tera templates in `templates/`. `base.html` is the shared layout; `page.html`

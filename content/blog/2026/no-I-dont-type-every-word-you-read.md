@@ -11,7 +11,7 @@ taxonomies:
 
 Most modern work is already mediated by machines. Writing is just late to admit it.
 
-Commerical pilots rarely fly planes by hand anymore. Chip designers do not solder
+Commercial pilots rarely fly planes by hand anymore. Chip designers do not solder
 transistors. Photographers do not grind their own lenses. Infrastructure
 engineers rarely flip physical switches in a datacenter.
 

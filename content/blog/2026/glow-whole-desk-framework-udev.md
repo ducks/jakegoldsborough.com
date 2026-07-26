@@ -121,6 +121,10 @@ A board that isn't plugged in is skipped rather than failing the rest, so an und
 
 That's the moment this stopped being "the button" and became "the desk." I glance up and the whole surface in front of me is the same color, reporting the same thing: purple idle, blue working, green my turn, orange needs me. It's louder in the good way. Ambient status you can't miss.
 
+<video autoplay loop muted playsinline width="100%">
+  <source src="/images/2026/glow/desk-demo.mp4" type="video/mp4">
+</video>
+
 ## Not tied to one keyboard, or one agent
 
 Decoupling glow from a single board made me notice it was never really tied to a single *agent* either. The whole integration is four lines that run `glow-hook <color>` on lifecycle events. Anything with lifecycle events can drive it.

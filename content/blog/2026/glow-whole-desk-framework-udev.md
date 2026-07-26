@@ -1,7 +1,7 @@
 ---
 title: "glow, part two: the whole desk lights up now (and it works across three agents)"
 date: 2026-07-24
-description: "I extended glow to light my Framework laptop keyboard alongside the big button. The protocol was free - it speaks the same VIA bytes - so the hour went to permissions: a built-in keyboard I couldn't replug, a udev rule that matched but didn't apply, four HID nodes where only one mattered. And then the same status signal turned out to work from Claude Code, my own harness claux, and Codex - decoupled from any one agent, not just any one keyboard."
+description: "glow now lights my Framework laptop keyboard alongside the big button, from any of three agents. Last time the protocol was the war and permissions were free; this time the protocol was free and permissions were the war."
 taxonomies:
   tags:
     - hardware

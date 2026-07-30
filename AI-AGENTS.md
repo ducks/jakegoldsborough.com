@@ -29,7 +29,11 @@ push to `main`. There is no staging environment — merging to `main` deploys.
 
 - **Blog posts**: `content/blog/<year>/<slug>.md`, one directory per year.
   YAML frontmatter (`title`, `date`, `description`, `taxonomies.tags`).
-  Drafts live under `content/blog/_drafts/` (gitignored).
+  A draft developed on a feature branch lives at its intended
+  `content/blog/<year>/<slug>.md` path with `draft: true`, so it can be
+  reviewed and committed without publishing. Use the gitignored
+  `content/blog/_drafts/` directory only for local scratch drafts that are not
+  meant to travel with a branch.
 - **Resume**: `content/resume.md` is a near-empty page that renders via the
   `{{ resume_content() }}` shortcode. The actual resume content — all
   experience, skills, and bullet points — lives in

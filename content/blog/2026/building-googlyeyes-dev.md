@@ -2,7 +2,6 @@
 title: "googlyeyes.dev: I Built a Website That Looks Back"
 date: 2026-07-30
 description: "Upload an image, put googly eyes on it, and download an SVG whose eyes follow the cursor. A small browser-side project about vectors, unnecessary animation, and shipping the joke."
-draft: true
 taxonomies:
   tags:
     - javascript

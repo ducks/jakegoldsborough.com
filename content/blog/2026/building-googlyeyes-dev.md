@@ -29,6 +29,10 @@ or an interactive SVG that keeps watching whoever opens it.
 
 Nobody needed this. I wanted it anyway.
 
+![Jimothy the raccoon with a pair of googly eyes](/images/2026/googlyeyes/jimothy.webp)
+
+*Jimothy, improved.*
+
 ## The image never leaves the browser
 
 There is no backend.

@@ -287,8 +287,20 @@ OpenRouter reports the real request cost when it is available. Otherwise claux
 uses configured or built-in model pricing. If neither exists, it says the cost
 is unavailable instead of inventing zero.
 
-The first isolated telemetry smoke test passed and cost one cent. A new
-nine-trial comparison was running while I wrote this.
+The first isolated telemetry smoke test passed and cost one cent. Then I ran
+the full matrix again:
+
+| Harness | Model | Result | Input tokens | Cached | Output tokens | Cost |
+|---|---|---:|---:|---:|---:|---:|
+| Codex | GPT-5.6 Sol | 3/3 | 557,861 | 453,888 | 6,813 | unavailable |
+| Claude Code | Sonnet 5 | 3/3 | 1,214,607 | 1,176,257 | 12,653 | $0.77257 |
+| claux | DeepSeek V4 Flash | 3/3 | 615,789 | 495,360 | 23,790 | $0.02396 |
+
+Codex did not report cost, so zero would be the wrong number. Claude Code and
+claux did. DeepSeek completed the same three verified recoveries for about 2.4
+cents total. Claude/Sonnet cost about 77 cents. That is not a model ranking --
+the harnesses and models differ, and one easy scenario is nowhere near enough
+data -- but it is exactly the kind of tradeoff I wanted the runner to expose.
 
 This is still one incident. A model going three for three on an nginx typo does
 not prove it is generally better at infrastructure work. But the machinery is

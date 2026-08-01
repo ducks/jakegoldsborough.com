@@ -26,64 +26,6 @@ a conversation subtly invalid.
 
 In other words, it was the work that turned a rewrite into a harness.
 
-## It Stopped Pretending to Be Claude Code
-
-The original system prompt was modeled closely after Claude Code. That made
-sense when the project was an architecture exercise. It made less sense once I
-started using it as its own tool.
-
-claux now has a native system prompt. It identifies itself as claux, describes
-the tools and permission boundaries it actually has, and lives in one readable
-Rust file. What you read is what the model gets. There is no hidden prompt
-downloaded from somewhere else.
-
-Authentication changed too. Early versions could reuse credentials from a
-Claude subscription. That was convenient, but it was not an API integration I
-could responsibly build around. claux now expects a real provider API key. I
-ended up using OpenRouter, which also forced the configuration model to grow
-up.
-
-The old config described one provider and one model:
-
-```toml
-model = "claude-sonnet-4-20250514"
-```
-
-The current config has named providers and model profiles:
-
-```toml
-default_profile = "deepseek"
-
-[providers.openrouter]
-type = "openai"
-base_url = "https://openrouter.ai/api/v1"
-protocol = "chat_completions"
-api_key_env = "OPENROUTER_API_KEY"
-
-[model_profiles.deepseek]
-provider = "openrouter"
-model = "deepseek/deepseek-v4-flash"
-display_name = "DeepSeek"
-
-[model_profiles.kimi]
-provider = "openrouter"
-model = "moonshotai/kimi-k3"
-display_name = "Kimi"
-```
-
-The TUI opens on a session browser now. Starting a chat asks which configured
-model to use. Opening an old chat restores the provider, endpoint, protocol,
-and model that created it. `/model` can switch profiles without accidentally
-sending an OpenAI model ID to Anthropic or carrying provider state across the
-boundary.
-
-There is also `claux config init` for Anthropic, OpenAI, OpenRouter, and Ollama,
-plus `claux doctor` to check the configuration before finding out it is wrong
-halfway through a turn.
-
-This was the point where claux stopped being "Claude Code in Rust" and became a
-multi-provider harness with opinions of its own.
-
 ## The Human Can Change Their Mind
 
 The most useful feature I added is mid-turn steering.
@@ -119,6 +61,42 @@ The larger principle is that the human is still participating during an agent
 turn. I do not want to become a spectator just because the model started using
 tools.
 
+## It Stopped Pretending to Be Claude Code
+
+The original system prompt was modeled closely after Claude Code. That made
+sense when the project was an architecture exercise. It made less sense once I
+started using it as its own tool.
+
+claux now has a native, readable system prompt that describes the tools and
+permission boundaries it actually has. What you read is what the model gets.
+
+Authentication changed too. Early versions could reuse credentials from a
+Claude subscription. That was convenient, but it was not an API integration I
+could responsibly build around. claux now expects a real provider API key.
+
+Using OpenRouter forced the configuration model to grow up. Instead of one
+global model string, providers and model profiles are named separately:
+
+```toml
+[providers.openrouter]
+type = "openai"
+base_url = "https://openrouter.ai/api/v1"
+protocol = "chat_completions"
+api_key_env = "OPENROUTER_API_KEY"
+
+[model_profiles.deepseek]
+provider = "openrouter"
+model = "deepseek/deepseek-v4-flash"
+```
+
+The TUI opens on a session browser. Starting a chat asks which configured model
+to use. Opening an old chat restores the provider, endpoint, protocol, and
+model that created it. That prevents a resumed conversation from silently
+sending an OpenAI model ID to Anthropic.
+
+This was the point where claux stopped being "Claude Code in Rust" and became a
+multi-provider harness with opinions of its own.
+
 ## Undo Without Erasing Human Work
 
 Agent harnesses are good at changing six files when you expected one. Git can
@@ -142,12 +120,9 @@ commits or stash the repository behind my back. It snapshots tracked and
 non-ignored files itself, including modes and symlinks.
 
 Session storage moved from JSONL to SQLite along the way. Full conversations
-are persisted now, including tool calls and results, and old malformed
-histories are repaired when they load. Switching sessions also clears all the
-state that should not cross the boundary: messages, provider continuation
-cursors, cost counters, todo state, and temporary permission grants.
-
-That sounds obvious. It was several separate bugs.
+are persisted now, including tool calls and results. Switching sessions clears
+provider continuation cursors, cost counters, todo state, and temporary
+permission grants. That sounds obvious. It was several separate bugs.
 
 ## Permission Is Not Containment
 
@@ -177,60 +152,35 @@ and warns when it cannot. `workspace_write` fails closed. `unrestricted` is an
 explicit escape hatch. A project-local config can always tighten the policy,
 but cannot loosen it unless I trust that project.
 
-The rest of the boundary got the same treatment: Bash cancellation kills the
-whole subprocess tree, file reads are bounded and cancellable, binary command
-output is suppressed instead of fed to the model as replacement characters,
-WebFetch validates redirects against private-network access, and terminal
-control characters from tools are sanitized before rendering.
+For the same reason, Bash cancellation kills the whole subprocess tree. A
+cancelled compiler should not leave its child processes running after the
+conversation has moved on.
 
 Sub-agents inherit the parent session's permission mode too. A worker cannot
 quietly acquire more authority than the conversation that spawned it.
 
 ## The Protocol Edge Cases Are the Harness
 
-The happy-path loop from Part 1 still fits on a screen:
-
-1. Send messages
-2. Stream a response
-3. Run tool calls
-4. Send results
-5. Repeat
-
-The production version is mostly answers to "what if?"
+The happy-path loop from Part 1 still fits on a screen: send messages, stream a
+response, run tools, send results, repeat. The production version is mostly
+answers to "what if?"
 
 What if an SSE network chunk splits a multibyte UTF-8 character? The decoder
 has to buffer incomplete bytes instead of corrupting the response.
 
-What if the model returns malformed tool-call JSON? claux classifies that
-failure separately from an authentication or rate-limit error and retries the
-response once instead of executing an ambiguous partial batch.
-
 What if compaction rewrites history while the OpenAI Responses API has a
-continuation cursor? The cursor must be reset or the next request continues
-from a conversation that no longer exists.
+continuation cursor? claux used to retain the cursor from the old history. The
+next request could combine that stale response ID with a newly summarized
+conversation. Resetting provider state when history changes fixed a failure
+that only appeared after a long session.
 
-What if the model hits its output limit? That is not the same as the prompt
-being too large. One should increase the output allowance; the other should
-compact the input.
+What if cancellation arrives between a tool call and its result? Steering can
+skip half a parallel batch, and a malformed tool response can be retried. Every
+path still has to produce a matching result before the next provider request.
+Dropping one makes the conversation invalid.
 
-What if cancellation arrives between a tool call and its result? What if
-steering skips half a parallel batch? What if an unknown tool is requested?
-Every one still needs a result before the next provider request.
-
-There were dozens of fixes in this category:
-
-- Typed API failures instead of matching strings in error messages
-- Provider state resets after compaction and session changes
-- Prompt caching breakpoints for Anthropic
-- Transactional compaction that preserves history when summarization fails
-- Unicode-safe TUI input and terminal paste handling
-- Rate-limit errors that include the provider's actionable message
-- Exact command-scoped "always allow" grants for Bash
-- Cancellation checks immediately before file mutation
-- Foreign keys and private permissions for the session database
-
-This is the part I underestimated in April. An agent harness is a protocol
-state machine attached to a filesystem. Either side can punish small mistakes.
+These are not independent polish fixes. An agent harness is a protocol state
+machine attached to a filesystem. Either side can punish small mistakes.
 
 ## Stop Evaluating on Vibes
 
@@ -264,67 +214,38 @@ The isolated runs also went nine for nine.
 
 The next problem was embarrassingly practical: Harbor reported cost for Claude
 but showed claux as zero. claux tracked the usage internally, but did not expose
-it in a machine-readable form.
+it in a machine-readable form. One-shot mode now emits versioned JSON with the
+model, token counts, cache usage, and provider-reported or estimated cost.
 
-One-shot mode now has a versioned JSON contract:
+OpenRouter reports the real request cost when it is available. If neither the
+provider nor the configured pricing knows the model, claux reports unavailable
+instead of inventing zero.
 
-```json
-{
-  "schema_version": 1,
-  "result": "...",
-  "model": "deepseek/deepseek-v4-flash",
-  "usage": {
-    "input_tokens": 123,
-    "output_tokens": 45,
-    "cache_read_tokens": 67,
-    "cache_creation_tokens": 0,
-    "cost_usd": 0.01
-  }
-}
-```
+The full isolated matrix looked like this:
 
-OpenRouter reports the real request cost when it is available. Otherwise claux
-uses configured or built-in model pricing. If neither exists, it says the cost
-is unavailable instead of inventing zero.
-
-The first isolated telemetry smoke test passed and cost one cent. Then I ran
-the full matrix again:
-
-| Harness | Model | Result | Input tokens | Cached | Output tokens | Cost |
+| Harness | Model | Result | Median agent time | Input tokens | Output tokens | Cost |
 |---|---|---:|---:|---:|---:|---:|
-| Codex | GPT-5.6 Sol | 3/3 | 557,861 | 453,888 | 6,813 | unavailable |
-| Claude Code | Sonnet 5 | 3/3 | 1,214,607 | 1,176,257 | 12,653 | $0.77257 |
-| claux | DeepSeek V4 Flash | 3/3 | 615,789 | 495,360 | 23,790 | $0.02396 |
+| Codex | GPT-5.6 Sol | 3/3 | 1:05 | 557,861 | 6,813 | unavailable |
+| Claude Code | Sonnet 5 | 3/3 | 1:04 | 1,214,607 | 12,653 | $0.77257 |
+| claux | DeepSeek V4 Flash | 3/3 | 0:59 | 615,789 | 23,790 | $0.02396 |
 
-Codex did not report cost, so zero would be the wrong number. Claude Code and
-claux did. DeepSeek completed the same three verified recoveries for about 2.4
-cents total. Claude/Sonnet cost about 77 cents. That is not a model ranking --
-the harnesses and models differ, and one easy scenario is nowhere near enough
-data -- but it is exactly the kind of tradeoff I wanted the runner to expose.
+DeepSeek completed the same three verified recoveries for about 2.4 cents
+total. Claude/Sonnet cost about 77 cents. The median times were similar, but
+one DeepSeek run took 7:11 and generated 15,751 output tokens; its other runs
+took 0:40 and 0:59. Repeated trials expose that variance. A single run would
+have hidden it.
 
 This is still one incident. A model going three for three on an nginx typo does
 not prove it is generally better at infrastructure work. But the machinery is
 real now: same task, fresh machines, objective verifier, repeated trials,
-tokens, cache usage, runtime, and cost.
-
-That is enough to start asking better questions.
+tokens, runtime, and cost.
 
 ## Where We Are Now
 
-| | Part 3 | Part 4 |
-|---|---:|---:|
-| Rust files | 26 | 56 |
-| Rust lines | 4,000+ | 21,345 |
-| Tests | 60 | 350 passing |
-| Session storage | JSONL | SQLite |
-| Model config | One active provider | Named provider/model profiles |
-| Filesystem boundary | Permission prompts | Permissions + workspace containment |
-| Evaluation | Unit tests | Behavioral evals + isolated agent trials |
-
 There is plenty left. The Replaybook suite needs more than one scenario. MCP
-tools are not covered by the native filesystem sandbox. Landlock containment
-is Linux-specific. The eval numbers need many more tasks before anyone should
-read model rankings into them.
+tools are not covered by the native filesystem sandbox, and Landlock
+containment is Linux-specific. The eval numbers need more tasks before anyone
+should read model rankings into them.
 
 But claux is no longer a weekend rewrite of leaked TypeScript. I can start it,
 pick a cheap model, interrupt it when it heads the wrong direction, inspect or

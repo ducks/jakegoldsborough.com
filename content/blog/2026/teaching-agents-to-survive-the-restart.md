@@ -1,7 +1,7 @@
 ---
-title: "Teaching Agents to Survive the Restart"
+title: "Evaluating Infrastructure Agents in Running Systems"
 date: 2026-08-02
-description: "I connected Replaybook, Harbor, Nix, and claux to see whether agents can repair broken infrastructure instead of just making the health check green."
+description: "A passing health check is not a durable repair. I connected Replaybook, Harbor, Nix, and claux to test whether agents can actually fix broken services."
 taxonomies:
   tags:
     - ai
@@ -16,7 +16,7 @@ It starts a broken service, gives you a workstation with Docker access, and asks
 
 That was useful for humans. Then I wanted to know how agents would do.
 
-Not on a coding benchmark. On a running system with containers, state, bad configuration, and a verifier that can restart the service after the agent says it is finished.
+Not on a coding benchmark. On a running system with containers, state, bad configuration, and a verifier that restarts the service after the agent says it is finished.
 
 ## The stack
 
@@ -43,11 +43,26 @@ a real TCP connection. Make the fix survive a restart.
 
 It has to inspect the running containers and repair the deployed service.
 
-## The verifier matters
+Traditional coding benchmarks usually look like this:
 
-A health check is not enough.
+- edit code
+- compile
+- run tests
 
-An agent can start a second process on the expected port, get a 200 response, and report success. That is not a repair. It disappears when the container restarts.
+Replaybook starts with a running system instead:
+
+- investigate the services and their topology
+- repair the deployed service
+- survive a restart
+- verify the user-facing behavior
+
+The difference is state. The thing being evaluated is not just an artifact in a checkout. It is a system that has already been started and can retain, or lose, changes over time.
+
+## The verifier defines the benchmark
+
+A passing health check is not evidence of a repair.
+
+An agent can launch a second nginx process on the expected port, get a 200 response, and report success. The verifier restarts the container, the original broken configuration comes back, and the benchmark correctly fails. Manually started processes disappear. Ad-hoc shell changes disappear. Only a modification to the deployed system survives the restart.
 
 The verifier checks the user-facing path, restarts the affected services, then checks again:
 
@@ -64,7 +79,7 @@ if ! wait_for_health; then
 fi
 ```
 
-That one restart changed the results.
+Restarting the service measures durable repair instead of temporary success. That one restart changed the results.
 
 ## The first matrix
 
@@ -101,7 +116,7 @@ It has to:
 
 That is closer to incident response than code generation.
 
-The useful distinction is between making the current check green and actually changing the system into a healthy state.
+Traditional coding benchmarks ask whether an agent can produce the correct artifact. Replaybook asks whether the running system is actually healthy afterwards. The useful distinction is between making the current check green and changing the system into a healthy state that stays green.
 
 ## The part I did not expect
 
@@ -134,6 +149,6 @@ I also want to run the same matrix with Codex and Claude Code once the authentic
 
 This is still a small personal tool. It is not a serious benchmark yet.
 
-But the machinery is real now. Same incident, fresh machine, objective verifier, repeated trials, and enough detail to understand why an agent failed.
+But the evaluation harness is real now. Same incident, fresh machine, objective verifier, repeated trials, and enough detail to understand why an agent failed.
 
-That feels more useful than asking whether a model is “good at coding.”
+That feels more useful than asking whether a model is “good at coding.” Understanding why an agent failed is more valuable than a single benchmark score.

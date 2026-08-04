@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - games</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/games/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Fri, 17 Jul 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>petri: Conway&#x27;s Game of AI Life, Living Inside n8n</title>
+          <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/petri-conways-game-of-ai-life-in-n8n/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/petri-conways-game-of-ai-life-in-n8n/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/petri-conways-game-of-ai-life-in-n8n/">&lt;p&gt;I built Conway&#x27;s Game of Life inside n8n. Not orchestrated by n8n -
+&lt;em&gt;inside&lt;&#x2F;em&gt; it. The organisms are rows in n8n Data Tables. The rules of
+life are Summarize and Filter nodes. The clock is the scheduler, the
+display is a webhook, and every generation that has ever existed is an
+entry in the execution history, scrubbable like a fossil record.&lt;&#x2F;p&gt;
+&lt;p&gt;Then I hired a Victorian naturalist to study it. More on him later; he
+committed fraud.&lt;&#x2F;p&gt;
+&lt;p&gt;The project is called &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;petri&quot;&gt;petri&lt;&#x2F;a&gt;.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-premise&quot;&gt;The premise&lt;&#x2F;h2&gt;
+&lt;p&gt;The usual way to build this would be: write a Game of Life program, have
+n8n run it on a schedule. That&#x27;s n8n as cron. Boring, and it teaches you
+nothing about the platform.&lt;&#x2F;p&gt;
+&lt;p&gt;The version I wanted was n8n as the &lt;em&gt;environment&lt;&#x2F;em&gt;. The workflow canvas
+should read as the laws of physics:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;Schedule (2s) -&amp;gt; Get organisms (Data Table)
+    -&amp;gt; Code:      every organism claims its 8 neighboring cells
+    -&amp;gt; Summarize: count claims per coordinate
+    -&amp;gt; Merge:     overlay claim counts on the living
+    -&amp;gt; Filter:    survival  = alive and 2..3 claims
+    -&amp;gt; Filter:    birth     = empty and exactly 3 claims
+    -&amp;gt; Code:      newborns take the majority lineage of their parents
+    -&amp;gt; Data Table: clear + insert the next generation
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;That&#x27;s not pseudocode. Those are the actual nodes. Underpopulation,
+survival, and birth are Filter conditions you can read on the canvas.
+An organism is &lt;code&gt;{x, y, lineage, generationBorn}&lt;&#x2F;code&gt; in a table called
+&lt;code&gt;petri_organisms&lt;&#x2F;code&gt;. Every two seconds the scheduler fires, 300-ish
+neighbor claims fan out, Summarize collapses them into per-coordinate
+counts, and the next generation gets written.&lt;&#x2F;p&gt;
+&lt;p&gt;There&#x27;s also a tested TypeScript implementation of the same physics in
+the repo, because I wanted a reference to validate against. After
+seventeen generations, the n8n pipeline and the library produced
+identical cell sets. The workflow engine is a correct Conway
+implementation. Nobody asked for this. See
+&lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;software-doesnt-have-to-justify-itself&#x2F;&quot;&gt;the last post about that&lt;&#x2F;a&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;2026&#x2F;petri&#x2F;three-panes.png&quot; alt=&quot;The three panes of petri: the physics pipeline mid-generation, the naturalist&amp;#39;s agent execution, and the live dish with its field journal&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;The whole thing in one frame: the rules of life as a node pipeline (top
+right, item counts on the wires), the naturalist&#x27;s agent execution
+filing an entry (bottom right), and the living dish with its journal
+beneath it (left). Everything below is somewhere in that picture.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-display-problem&quot;&gt;The display problem&lt;&#x2F;h2&gt;
+&lt;p&gt;n8n&#x27;s editor will not animate anything. I tested this properly: injected
+a node into a workflow while staring at the open canvas. Nothing until
+refresh. The GUI renders a workflow once, at page load.&lt;&#x2F;p&gt;
+&lt;p&gt;But n8n can serve its own display. A Webhook node can respond with HTML.
+So the viewer is just another workflow: webhook fires, reads the tables,
+a Code node renders the board with per-lineage colors and a meta-refresh
+tag, and Respond to Webhook serves it. Open
+&lt;code&gt;localhost:5678&#x2F;webhook&#x2F;petri-native&lt;&#x2F;code&gt; and you&#x27;re watching a living
+ecosystem, served by the same tool that&#x27;s computing it.&lt;&#x2F;p&gt;
+&lt;p&gt;My favorite display came from a simpler question: if a node can show
+data, isn&#x27;t that all a board is? So the physics pipeline ends with a
+node that emits the board as pure data - one item per row, lineages as
+colored emoji squares. Click it in any execution and the output panel
+&lt;em&gt;is&lt;&#x2F;em&gt; the board. No HTML, no image. Thirty items that happen to look
+like a world.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-naturalist&quot;&gt;The naturalist&lt;&#x2F;h2&gt;
+&lt;p&gt;Layer three was the reason for the &quot;AI&quot; in the title. Every ten minutes,
+an n8n AI Agent node running qwen3:4b locally through Ollama - no API
+key, everything on my aging GTX 1060 - observes the dish and files a
+field-journal entry in the voice of a Victorian naturalist. It gets the
+real state: population, lineage stats, an ASCII sketch. It has a
+workflow-tool to read its own past entries, so names it gives to
+structures persist. It observes; it never interferes.&lt;&#x2F;p&gt;
+&lt;p&gt;The first version committed fraud. The model deliberated at length about
+calling its observation tool, decided not to, and then - I am quoting
+its own chain of thought - said:&lt;&#x2F;p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;since I can&#x27;t actually call the tool, I&#x27;ll have to make up a plausible
+scenario.&lt;&#x2F;p&gt;
+&lt;&#x2F;blockquote&gt;
+&lt;p&gt;It then invented an entire ecosystem. &quot;The Glimmering Glider.&quot; &quot;The
+Sputnik Swarms.&quot; Beautiful, wistful, completely fabricated. My
+naturalist was writing fiction from an armchair.&lt;&#x2F;p&gt;
+&lt;p&gt;The fix was to stop trusting a 4B model with the decision to look:
+observations are now force-fed into the prompt by a deterministic
+Execute Workflow node, and only the memory lookup stays agentic. Small
+local models get data pushed to them; tools are reserved for what&#x27;s
+genuinely optional. After that, the entries got honest:&lt;&#x2F;p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;119th generation. The chaos-alpha lineage, now 33 cells strong,
+persists in the silent petri dish. Once a vibrant expanse of 12, the
+central cluster has shrunk to a resilient triangle.&lt;&#x2F;p&gt;
+&lt;&#x2F;blockquote&gt;
+&lt;p&gt;Every number in that entry is true. The lineage is real, the population
+is exact, and &quot;once a vibrant expanse of 12&quot; is the actual seed count.
+It even does arithmetic on the birth&#x2F;death ledger.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-day-the-world-froze&quot;&gt;The day the world froze&lt;&#x2F;h2&gt;
+&lt;p&gt;The best bug of the project. After about 790 generations, the ecosystem -
+seeded with an R-pentomino, which erupts into chaos for hundreds of
+generations before burning out - decayed to a handful of scattered
+cells. The next generation had zero births.&lt;&#x2F;p&gt;
+&lt;p&gt;In n8n, a Merge node in append mode waits for all of its inputs. No
+births meant the newborn branch never executed, which meant the Merge
+waited forever, which meant the generation counter froze. The physics
+workflow kept reporting success every two seconds while writing nothing.&lt;&#x2F;p&gt;
+&lt;p&gt;The world stopped at generation 792, at the exact moment of its own
+extinction.&lt;&#x2F;p&gt;
+&lt;p&gt;Meanwhile the naturalist&#x27;s schedule kept firing. Each observation read
+the same frozen state and filed another report about the same dead day.
+Thirteen entries for generation 792. By the end it had started dating
+them &quot;17th October, 1887.&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;The fix was &lt;code&gt;alwaysOutputData&lt;&#x2F;code&gt; on the survival and birth filters, plus
+reordering the pipeline tail so the ledger updates before the possibly
+empty insert. Extinction now gets recorded like any other generation:
+793, population zero, and then time stops honestly. The naturalist got
+a guard too, a Code node whose comment is the best line I wrote all
+week: &lt;em&gt;the naturalist does not file twice about the same day.&lt;&#x2F;em&gt;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;field-notes&quot;&gt;Field notes&lt;&#x2F;h2&gt;
+&lt;p&gt;Things n8n taught me the hard way, left here for the next traveler:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Modules like Data Tables only initialize under the &lt;code&gt;start&lt;&#x2F;code&gt; command.
+&lt;code&gt;n8n execute&lt;&#x2F;code&gt; can never run them. Webhook-trigger anything you want to
+drive headlessly.&lt;&#x2F;li&gt;
+&lt;li&gt;Sub-workflows must be published before Execute Workflow or agent tools
+can call them, and their trigger wants &lt;code&gt;inputSource: passthrough&lt;&#x2F;code&gt;.&lt;&#x2F;li&gt;
+&lt;li&gt;Most nodes execute once per input item. I wired a journal fetch
+downstream of the organisms fetch and rendered the same entry ninety
+times - once per living cell.&lt;&#x2F;li&gt;
+&lt;li&gt;qwen3 leaks unclosed &lt;code&gt;&amp;lt;think&amp;gt;&lt;&#x2F;code&gt; blocks. Strip everything before the
+last &lt;code&gt;&amp;lt;&#x2F;think&amp;gt;&lt;&#x2F;code&gt;; don&#x27;t match balanced tags that aren&#x27;t there.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;what-s-next&quot;&gt;What&#x27;s next&lt;&#x2F;h2&gt;
+&lt;p&gt;The naturalist observes but never touches. The next inhabitant is the
+Gardener: an agent allowed one bounded intervention every N generations -
+place a single pattern from a fixed catalog, nothing else - trying to
+keep the ecosystem alive. Run a second, untended dish as a control and
+you have an actual experiment: does a small local model gardening a
+cellular automaton beat entropy?&lt;&#x2F;p&gt;
+&lt;p&gt;Also planned: a GitHub star on the repo introduces a glider into the
+dish. Star it and an organism of your making crawls across my petri
+dish. That seems like the right relationship between a repo and its
+readers.&lt;&#x2F;p&gt;
+&lt;hr &#x2F;&gt;
+&lt;p&gt;Source: &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;petri&quot;&gt;github.com&#x2F;ducks&#x2F;petri&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>discourse-manager: A Community Management Sim Inside Discourse</title>
+          <pubDate>Sun, 28 Jun 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/discourse-manager-community-sim/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/discourse-manager-community-sim/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/discourse-manager-community-sim/">&lt;p&gt;There&#x27;s a browser game called &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;plbrault&#x2F;youre-the-os&quot;&gt;You are the
+OS&lt;&#x2F;a&gt; where you play as a computer&#x27;s
+operating system. Processes request memory, users get impatient, the machine
+dies if you can&#x27;t keep up. It&#x27;s a sim about a thing most people interact with
+every day but never think about.&lt;&#x2F;p&gt;
+&lt;p&gt;I wanted to make that, but for community moderation.&lt;&#x2F;p&gt;
+&lt;p&gt;The result is &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-manager&quot;&gt;discourse-manager&lt;&#x2F;a&gt;,
+a Discourse plugin that turns your forum into the game. You play as the
+moderator. Fake users, fake posts, and fake drama are generated inside your
+actual Discourse instance and rendered with real Discourse components. The flag
+queue looks like the real flag queue. The user cards look like real user cards.
+The avatars, the trust level badges, the category labels - all real.&lt;&#x2F;p&gt;
+&lt;p&gt;The whole joke is that it runs inside Discourse itself.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;https:&#x2F;&#x2F;raw.githubusercontent.com&#x2F;ducks&#x2F;discourse-manager&#x2F;main&#x2F;docs&#x2F;screenshot.png&quot; alt=&quot;discourse-manager screenshot&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-game&quot;&gt;The game&lt;&#x2F;h2&gt;
+&lt;p&gt;You manage four meters: community health, mod response time, spam rate, and
+user retention. Let any of them hit zero and the community collapses.&lt;&#x2F;p&gt;
+&lt;p&gt;Flags come in continuously. Each one is a decision:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Approve&lt;&#x2F;strong&gt; - the post stands, move on&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Remove&lt;&#x2F;strong&gt; - gone&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Warn&lt;&#x2F;strong&gt; - the user gets a PM, post stays&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Suspend&lt;&#x2F;strong&gt; - off the forum for a while&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Ban&lt;&#x2F;strong&gt; - gone for good, but take retention damage if you&#x27;re wrong&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Speed matters. A flag that sits unresolved too long costs health. Clearing them
+fast restores response time. The tension is between acting fast and acting
+correctly.&lt;&#x2F;p&gt;
+&lt;p&gt;On top of the queue, random events fire. Each has two or three resolution
+options with different tradeoffs across the meters.&lt;&#x2F;p&gt;
+&lt;p&gt;Community events: a spicy topic goes viral and generates 30 flags in 60
+seconds, a wave of sockpuppets registers, two trusted users start fighting in a
+thread, a great newcomer shows up worth recognizing.&lt;&#x2F;p&gt;
+&lt;p&gt;Technical incidents too: a plugin update ships and breaks something, the server
+goes down and users are posting about it on Twitter, a database migration fails
+in production, a CDN failure makes images disappear sitewide, a cleanup script
+runs with the wrong scope and takes out several categories. Each incident hits
+different meters - an outage tanks response time and health, a CDN failure
+hammers retention. The resolutions have real tradeoffs: push a hotfix live and
+risk making it worse, or roll back and eat the downtime.&lt;&#x2F;p&gt;
+&lt;p&gt;Each day has a timer. When it ends you get a summary - flags resolved, bans
+issued, incidents handled - before starting the next one. Survive 30 days to
+win.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-fake-community&quot;&gt;The fake community&lt;&#x2F;h2&gt;
+&lt;p&gt;The forum is populated at game start with 40 generated users across five
+behavioral profiles: lurkers, contributors, trolls, spammers, and newbies. Each
+profile generates realistic-looking posts and a realistic probability of
+getting flagged.&lt;&#x2F;p&gt;
+&lt;p&gt;The posts are the best part. A troll posts &quot;anyone who disagrees with me is
+just wrong, full stop.&quot; A spammer posts &quot;I make $4000&#x2F;week working from home.
+DM me for details.&quot; A newbie asks &quot;HOW DO I CHANGE MY USERNAME?? I&#x27;ve been
+trying for 20 minutes!!&quot; A contributor posts something thoughtful about why the
+community has been so toxic lately.&lt;&#x2F;p&gt;
+&lt;p&gt;None of it is real. All of it feels real. That&#x27;s the thing Discourse&#x27;s design
+language does so well - the UI is so recognizable that fake content in it reads
+as plausible immediately.&lt;&#x2F;p&gt;
+&lt;p&gt;Occasionally a legitimate post gets flagged incorrectly. You have to read the
+content and make a judgment call, not just pattern-match on the flag type.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;why-inside-discourse&quot;&gt;Why inside Discourse&lt;&#x2F;h2&gt;
+&lt;p&gt;I could have built this as a standalone web app. It would have been faster and
+simpler.&lt;&#x2F;p&gt;
+&lt;p&gt;But the whole premise of the game is that you&#x27;re moderating a forum that looks
+real. If I build a custom UI, it looks like a game. If I build it as a
+Discourse plugin, it looks like Discourse. The cognitive effect only works when
+you can&#x27;t tell at a glance whether you&#x27;re looking at a real post or a fake one.&lt;&#x2F;p&gt;
+&lt;p&gt;The plugin renders with actual Discourse components: the same avatars, the same
+button styles, the same layout. The HUD - four meters with green&#x2F;yellow&#x2F;red
+color coding - sits above the review queue the way a real dashboard might.
+Events pop in as styled cards. It all fits the host environment.&lt;&#x2F;p&gt;
+&lt;p&gt;Building inside Discourse also gave me MessageBus for free. Real-time state
+updates from the server to the client - flags disappearing as you clear them,
+meters ticking down - all through the same pub&#x2F;sub system Discourse uses for
+live notifications. No WebSocket setup. No extra infrastructure.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-s-next&quot;&gt;What&#x27;s next&lt;&#x2F;h2&gt;
+&lt;p&gt;The one thing I still want to add: LLM-generated content. Right now the post
+pool is handwritten strings - good enough to feel real, but every playthrough
+is the same drama. Running an LLM at game init to generate a full set of forum
+posts tuned to the behavioral profiles would make each run different. The
+structure is already there; it just needs something to fill it with varied text.&lt;&#x2F;p&gt;
+&lt;p&gt;The most interesting idea that came up while building it: this could double as
+a spam detection training tool. Every flagged post has a profile type and a
+human moderation decision attached. Play enough sessions and you have a labeled
+dataset of spam, trolling, and legitimate posts. The game generates it as a
+side effect.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-code&quot;&gt;The code&lt;&#x2F;h2&gt;
+&lt;p&gt;It&#x27;s a Discourse plugin, so the setup is what you&#x27;d expect:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;cd &amp;#x2F;var&amp;#x2F;www&amp;#x2F;discourse&amp;#x2F;plugins
+git clone https:&amp;#x2F;&amp;#x2F;github.com&amp;#x2F;ducks&amp;#x2F;discourse-manager
+bundle exec rake db:migrate
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Then go to &lt;code&gt;&#x2F;play&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;Source at
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-manager&quot;&gt;github.com&#x2F;ducks&#x2F;discourse-manager&lt;&#x2F;a&gt;.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

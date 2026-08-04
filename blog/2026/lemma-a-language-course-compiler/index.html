@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="I&#x27;m learning Czech in the hope of moving to Czechia, and I wanted my course to be reproducible data instead of a pile of notes. Then I wanted Spanish and Swedish too - so the interesting part became building a lesson generator that contains no Czech, no Spanish, and no Swedish.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="lemma: A Compiler That Doesn&#x27;t Know Any Languages">
+    <meta property="og:description" content="I&#x27;m learning Czech in the hope of moving to Czechia, and I wanted my course to be reproducible data instead of a pile of notes. Then I wanted Spanish and Swedish too - so the interesting part became building a lesson generator that contains no Czech, no Spanish, and no Swedish.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lemma-a-language-course-compiler&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="lemma: A Compiler That Doesn&#x27;t Know Any Languages">
+    <meta name="twitter:description" content="I&#x27;m learning Czech in the hope of moving to Czechia, and I wanted my course to be reproducible data instead of a pile of notes. Then I wanted Spanish and Swedish too - so the interesting part became building a lesson generator that contains no Czech, no Spanish, and no Swedish.">
+
+    <title>lemma: A Compiler That Doesn&#x27;t Know Any Languages - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>lemma: A Compiler That Doesn&#x27;t Know Any Languages</h1>
+      <div class="meta">
+        
+        <p>Aug 02, 2026</p>
+        
+        <p>7 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/languages">#languages</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <p>I'm hoping to move to Czechia, so I'm learning Czech.</p>
+<p>The obvious way to do that is an app. Duolingo, Anki decks someone else made,
+a textbook. I didn't want any of those. I wanted the course itself to be
+<em>mine</em> - source data I own, that generates lessons and flashcards I can
+regenerate, diff, and extend forever. A language course structured like a
+software project.</p>
+<p>So I started building one. A directory of YAML: a curriculum listing what each
+lesson teaches, a lexicon of vocabulary, a bank of grammar points. A generator
+that turns all of it into lesson markdown and Anki decks.</p>
+<p>Then, a few lessons in, I said the sentence that starts every good project and
+half the messy ones:</p>
+<p><em>I'd also like to do this for Spanish. And Swedish.</em></p>
+<p>That is where it got interesting, because the moment there are three languages,
+the generator has a hard job: it has to know how to teach a language without
+knowing which language it's teaching.</p>
+<h2 id="the-thing-that-isn-t-czech">The thing that isn't Czech</h2>
+<p>When you write a Czech lesson generator, Czech leaks into it everywhere and you
+don't notice.</p>
+<p>Czech stress always lands on the first syllable. Czech has seven grammatical
+cases. Czech has the famous ř, the raised buzzing r that eats foreigners alive.
+Czech splits "you" into formal <em>vy</em> and informal <em>ty</em>, and getting that wrong is
+the fastest way to sound rude. Every one of those facts wants to become an
+<code>if</code> somewhere in the code, or worse, an unspoken assumption baked into how the
+lessons come out.</p>
+<p>Spanish has none of those cases but a wall of verb conjugation and the
+<em>ser</em>/<em>estar</em> trap. Swedish has pitch accent - two words spelled identically,
+meaning different things depending on a rise or fall - and <em>en</em>/<em>ett</em> noun
+gender, and word order that flips the verb to second position.</p>
+<p>If I let each of those live in the generator, I don't have one tool. I have
+three forks of a tool that will drift apart the first time I improve one of
+them.</p>
+<p>So the rule I gave the engine was: <strong>it knows nothing about any language.</strong></p>
+<p>Everything language-specific moves into a file the language owns. Each course
+gets a <code>language.yaml</code> profile that declares its own rules as data:</p>
+<pre data-lang="yaml" class="language-yaml "><code class="language-yaml" data-lang="yaml">name: &quot;Czech&quot;
+code: &quot;cs&quot;
+
+pronunciation:
+  stress_rule: &quot;first-syllable&quot;
+  hard_sounds:
+    - symbol: &quot;ř&quot;
+      note: &quot;A raised, buzzed trilled r. Roll an r and add a zh buzz...&quot;
+
+grammar_features:
+  cases: 7
+  noun_gender: [&quot;m-anim&quot;, &quot;m-inan&quot;, &quot;f&quot;, &quot;n&quot;]
+
+register:
+  has_tv_distinction: true
+  formal: &quot;vy&quot;
+  informal: &quot;ty&quot;
+  default_register: &quot;formal&quot;
+</code></pre>
+<p>The Swedish profile will say <code>cases: 0</code>, list <code>en</code>/<code>ett</code>, describe pitch accent
+in its <code>hard_sounds</code>, and set its own register defaults. Same engine. The
+engine reads the profile and does what it's told. It has no opinion about Czech
+because it has never heard of Czech.</p>
+<p>That is the whole design. One compiler, many languages, and the languages are
+data.</p>
+<h2 id="it-didn-t-start-as-a-compiler-i-was-proud-of">It didn't start as a compiler I was proud of</h2>
+<p>The first version of the generator was Python, and it worked. It read the YAML,
+it produced a lesson, it produced an Anki CSV. Fine.</p>
+<p>But I write my tools in Rust now - <a href="/blog/2026/raft-a-graph-over-the-plain-text-log/">raft</a>,
+my agent harness, a pile of others - and a course compiler I'll run for the
+next year and a half across three languages is exactly the kind of thing that
+should be a small, fast, typed binary I trust. So I rewrote it.</p>
+<p>The rewrite is the part I want to be honest about, because it's the part that's
+easy to do badly. I did not start the Rust version from scratch and hope it
+matched. I extracted it <em>from</em> the working Python, kept the exact same YAML
+inputs, and then made the Rust prove itself against the thing it replaced.</p>
+<p>I generated Czech lesson one with the old Python. I generated it with the new
+Rust. Then I diffed them.</p>
+<p>Every vocabulary card, every cloze, every pronunciation string: byte-identical.
+The only differences were the two I wanted - the engine now tags cards with the
+ISO code <code>cs</code> instead of the word "czech," and it emits a pronunciation section
+built from the profile that the Python never had. Same output where it should
+be the same, better output where the new design earned it.</p>
+<p>Then I deleted the Python. A rewrite you can't diff against the original is just
+a second thing you hope behaves like the first thing. A rewrite you can diff is
+a fact.</p>
+<h2 id="the-generator-refuses-to-make-things-up">The generator refuses to make things up</h2>
+<p>The best small decision in the engine is that it will not generate a lesson it
+can't back up.</p>
+<p>A lesson in the curriculum lists the vocabulary and grammar it uses by id:</p>
+<pre data-lang="yaml" class="language-yaml "><code class="language-yaml" data-lang="yaml">- lesson: 2
+  title: &quot;At the Immigration Office&quot;
+  vocabulary_ids: [&quot;pas&quot;, &quot;viza&quot;, &quot;povoleni-k-pobytu&quot;, &quot;adresa&quot;, ...]
+  grammar: [&quot;accusative-singular-intro&quot;, &quot;verb-mit-present&quot;, ...]
+</code></pre>
+<p>Those ids have to resolve to real entries in the lexicon and grammar files. If
+lesson two names a word I haven't written yet, the engine doesn't guess, doesn't
+stub, doesn't quietly skip it. It stops and tells me exactly what's missing:</p>
+<pre><code>lesson 2: 30 vocab id(s) missing from lexicon.yaml: pas, viza,
+povoleni-k-pobytu, adresa, bydlim, bydlis, mam, mas…
+</code></pre>
+<p>That error is not a failure. It's the to-do list. "Authoring lesson two" isn't
+writing prose - the engine writes the prose. It's filling in that list of
+words, with their real gender, plural, pronunciation, and notes, until the
+error goes away. <code>lemma status</code> walks the whole curriculum and shows me which
+lessons are ready and which are still just a promise:</p>
+<pre><code>Czech (cs) — 8 lessons designed
+  lesson 1: ready
+  lesson 2: NEEDS DATA — 30 vocab id(s) missing...
+</code></pre>
+<p>I like tools that make the unfinished parts loud. The curriculum can dream about
+lesson eight for months, but the compiler will keep calling it a promise until
+the data exists.</p>
+<h2 id="the-name-was-harder-than-the-compiler">The name was harder than the compiler</h2>
+<p>Of course it was. It always is.</p>
+<p>I wanted a name that meant "learn any language" without being a pile of
+syllables. I went through the whole miserable list. <code>lingua</code> - generic, taken a
+hundred times over. <code>omniglot</code> - perfect meaning, except omniglot.com has owned
+that word since before some of my coworkers were born, so I'd be invisible
+forever. Just <code>omni</code> - too vague, could be a hotel. <code>parrot</code> - the mimicry is
+right, the repetition is right, but it reads like a toy.</p>
+<p>I got as far as <code>Psittacus</code>, the scientific genus of parrots, which is a
+genuinely great name until you try to type <code>cd ~/dev/psittacus</code> for the fourth
+time with the silent P and give up.</p>
+<p>The one I landed on was hiding in the domain the whole time.</p>
+<p>A <strong>lemma</strong> is the canonical dictionary form of a word - the headword every
+inflection lists under. <em>pracovat</em> is the lemma; <em>pracuji</em>, <em>pracuješ</em>,
+<em>pracujeme</em> are its forms. My lexicon file is, quite literally, a list of
+lemmas. And in math and logic, a lemma is a small proven result you use as a
+stepping stone to a bigger theorem, which is exactly what each lesson is in a
+course that spirals toward fluency.</p>
+<p>Two meanings, both dead-on, one word, easy to type. I checked that the crates.io
+name was free, which is the only namespace I actually cared about, and stopped
+looking.</p>
+<p>Naming a language tool after the atomic unit of a lexicon felt less like picking
+a name and more like noticing one.</p>
+<h2 id="what-i-actually-have-now">What I actually have now</h2>
+<p>Two repositories.</p>
+<p>One is <code>lemma</code>: the engine. It reads a language directory and emits lessons and
+Anki decks, and it contains no Czech, no Spanish, no Swedish. Bump the engine
+once and every language gets the improvement; each course pins the engine
+version it trusts.</p>
+<p>The other is <code>language-studies</code>: my courses, one directory per language, pure
+data. Right now it holds Czech - a real curriculum aimed at the parts of Czech I
+actually need, which is not ordering beer for tourists but talking to the
+immigration office, renting a flat, reading the signs, and surviving a standup
+in a second language. Spanish and Swedish are two empty directories and a
+profile away.</p>
+<p>I have exactly one lesson fully written. That is not much of a course yet, and
+I'm not going to pretend the hard part is done - the hard part is sitting down
+and writing real, correct vocabulary for a hundred more lessons, and no compiler
+does that for me.</p>
+<p>But the machine is built, and it's built right. When I write the words, the
+lessons and the flashcards fall out the end, the same way every time, in a
+format I own. And when I finally start Swedish, I don't build a Swedish course
+generator. I write a profile, and the compiler that doesn't know any languages
+learns one more.</p>
+<p>Source: <a href="https://github.com/ducks/lemma">github.com/ducks/lemma</a></p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;lemma-a-language-course-compiler&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-lemma-a-language-course-compiler"
+      data-goatcounter-title="Helpful click on blog-2026-lemma-a-language-course-compiler"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;evaluating-infrastructure-agents-in-running-systems&#x2F;">Evaluating Infrastructure Agents in Running Systems</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 02, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A passing health check is not a durable repair. I connected Replaybook, Harbor, Nix, and claux to test whether agents can actually fix broken services.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-4&#x2F;">Rewriting Claude Code in Rust, Part 4: From Clone to Harness</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 01, 2026</p>
+                    
+                    <p>9 min read</p>
+                  </div>
+                  
+                    <p class="desc">Four months of dogfooding turned claux from a 4,000-line Claude Code rewrite into a sandboxed, multi-provider agent harness with 350 tests and isolated evaluations.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;schrodingers-life-website-dies-when-nobody-is-looking&#x2F;">Schrödinger&#x27;s Life: A Website That Dies When Nobody Is Looking</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 31, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">I built a shared digital creature that stays alive only while somebody has the page open. When the final observer leaves, it dies permanently.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/websockets">#websockets</a></p>
+                      
+                      <p><a href="/tags/experiment">#experiment</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;raft-a-graph-over-the-plain-text-log&#x2F;">raft: A Graph Over the Plain-Text Log</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 19, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">I kept a plain-text log of my work for months, then hit the wall where grep stops scaling. So I built a knowledge graph that grows out of the notes and repos I already have. Then I found out Andrej Karpathy keeps the same log.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/notes">#notes</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;replaybook-incident-replay-trainer&#x2F;">replaybook: Incident Replay Trainer for Infrastructure</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 30, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">A terminal trainer where you&#x27;re dropped into a broken Docker container and have to fix it. Turn your post-mortems into runnable scenarios.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/devops">#devops</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="I built a shared digital creature that stays alive only while somebody has the page open. When the final observer leaves, it dies permanently.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Schrödinger&#x27;s Life: A Website That Dies When Nobody Is Looking">
+    <meta property="og:description" content="I built a shared digital creature that stays alive only while somebody has the page open. When the final observer leaves, it dies permanently.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;schrodingers-life-website-dies-when-nobody-is-looking&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Schrödinger&#x27;s Life: A Website That Dies When Nobody Is Looking">
+    <meta name="twitter:description" content="I built a shared digital creature that stays alive only while somebody has the page open. When the final observer leaves, it dies permanently.">
+
+    <title>Schrödinger&#x27;s Life: A Website That Dies When Nobody Is Looking - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Schrödinger&#x27;s Life: A Website That Dies When Nobody Is Looking</h1>
+      <div class="meta">
+        
+        <p>Jul 31, 2026</p>
+        
+        <p>7 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/websockets">#websockets</a></p>
+          
+          <p><a href="/tags/experiment">#experiment</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      <p>I built a website with one rule:</p>
+<p>The creature is alive only while somebody is looking at it.</p>
+<p>Visit <a href="https://schrodingers.life">schrodingers.life</a> and your browser opens a
+WebSocket. As long as at least one visible tab stays connected, the current
+creature lives. When the final observer leaves, a 30-second countdown begins.
+If nobody comes back, the creature dies permanently and joins the graveyard.
+The next visitor opens the box on a new life.</p>
+<p>That is the whole application.</p>
+<p>The first life was a common robot with × eyes. By the time you read this, it
+may have lived for days or died before I finished this sentence.</p>
+<p>I expected this to be a small Rust and WebSocket project. It immediately became
+a stranger question: what will people do when closing a browser tab can kill
+something?</p>
+<h2 id="observation-is-a-websocket">Observation is a WebSocket</h2>
+<p>The server is an Axum application with a SQLite database. There are no accounts,
+cookies, logins, or analytics involved in deciding whether someone is looking.
+The observation itself is the connection.</p>
+<p>When the page is visible, it opens a WebSocket to <code>/observe</code>. Every ten seconds
+the browser sends <code>still-looking</code>. If the tab becomes hidden, it closes the
+socket:</p>
+<pre data-lang="javascript" class="language-javascript "><code class="language-javascript" data-lang="javascript">document.addEventListener(&quot;visibilitychange&quot;, () =&gt; {
+  document.hidden ? disconnect() : resumeObservation();
+});
+</code></pre>
+<p>That distinction matters. A tab abandoned in the background is not an
+observer. Attention is the resource, not merely an open browser process.</p>
+<p>The server also expires a connection that goes silent. Networks disappear,
+laptops sleep, browsers crash, and JavaScript does not always get the chance to
+say goodbye. A heartbeat keeps a real observer present without letting a dead
+connection hold the creature alive forever.</p>
+<p>Every connected browser gets the same state. The creature, its age, the number
+of observers, and the countdown all update over the WebSocket. There is only
+one box. Everybody is looking into it together.</p>
+<h2 id="the-final-observer">The final observer</h2>
+<p>Most connection counters get easier when they reach zero. Mine starts a death
+timer.</p>
+<p>When an observer disconnects, the server removes its UUID from a set. If anyone
+remains, nothing else happens. If the set becomes empty, the current life gets
+30 seconds:</p>
+<pre data-lang="rust" class="language-rust "><code class="language-rust" data-lang="rust">world.generation += 1;
+let generation = world.generation;
+world.death_deadline = Some(Instant::now() + self.grace);
+
+tokio::spawn(async move {
+    tokio::time::sleep(state.grace).await;
+    state.collapse(generation).await;
+});
+</code></pre>
+<p>The generation number is the important part.</p>
+<p>Suppose the last observer leaves and starts a timer. Ten seconds later, someone
+returns and saves the creature. Then they leave too, starting a second timer.
+The first timer is still asleep. Without some way to identify it as stale, it
+could wake up twenty seconds later and kill a life that still has ten seconds
+remaining.</p>
+<p>Every arrival or final departure advances the generation. A timer captures the
+generation that created it. When it wakes, it collapses the life only if its
+generation is still current and the observer set is still empty:</p>
+<pre data-lang="rust" class="language-rust "><code class="language-rust" data-lang="rust">if world.generation != generation || !world.observers.is_empty() {
+    return;
+}
+</code></pre>
+<p>A returning observer does not cancel a task or race a second lock. It changes
+the state that gives the old task permission to act. The timer can wake up,
+notice that history moved on without it, and quietly leave.</p>
+<p>This is a lot of care for an ASCII creature wearing a propeller hat. Death is
+the main feature. It should at least be correct.</p>
+<h2 id="death-has-to-mean-death">Death has to mean death</h2>
+<p>Each creature is rolled from a seed when a new observation begins. It might be
+a cat, duck, ghost, blob, owl, or robot. Rarity can add a crown, halo, wizard
+hat, or other deeply important distinction. One percent are shiny.</p>
+<p>The seed makes the roll deterministic. The database stores the life at birth,
+including its species, rarity, birth time, and eventual peak observer count.
+When the grace period expires, that same row gets a death time. The graveyard
+is not generated from browser state or a recent-events cache. Those lives
+existed, and then they ended.</p>
+<p>That raised an awkward infrastructure question: what happens if the apparatus
+itself restarts?</p>
+<p>Pretending the creature stayed alive while the only process capable of
+observing it was offline felt dishonest. Resurrecting it at startup felt worse.
+So the server reconciles every unfinished database row when it boots:</p>
+<pre data-lang="sql" class="language-sql "><code class="language-sql" data-lang="sql">UPDATE lives
+SET died_at = ?
+WHERE died_at IS NULL
+</code></pre>
+<p>An interrupted life goes to the graveyard. The apparatus does not get special
+permission to avoid the rule.</p>
+<p>That also made deployment slightly tense. Restarting the service is not merely
+restarting a process. If a creature is alive, the deployment kills it. I
+deployed the first release declaratively through NixOS on my server, Pond, with
+the SQLite file living outside the release package. Future binaries can change.
+The graveyard stays.</p>
+<h2 id="it-remembers-that-you-left">It remembers that you left</h2>
+<p>There is a mean version of this project where you return to a new creature and
+never learn what happened to the old one.</p>
+<p>I did not want that.</p>
+<p>The browser remembers the ID of the last life it observed in <code>localStorage</code>.
+When the tab becomes visible again, it checks the current state before opening
+a new observation. If that life is now in the graveyard, the page shows a
+memorial:</p>
+<blockquote>
+<p>Life #12 died while you were away.</p>
+</blockquote>
+<p>You see its species, rarity, and peak observation count. Then you can choose to
+open the box again.</p>
+<p>The server does not know who you are. The memorial is entirely local. It only
+knows that this browser looked at one life, went away, and came back after that
+life ended.</p>
+<p>That small pause changes the return from a refresh into a consequence.</p>
+<h2 id="the-domain-did-its-part">The domain did its part</h2>
+<p>The application was running before the domain admitted it.</p>
+<p>I published a date-versioned Linux binary through GitHub Actions, updated my
+<code>pond-nix</code> configuration to download that exact release, rebuilt the server,
+and confirmed the health endpoint:</p>
+<pre data-lang="json" class="language-json "><code class="language-json" data-lang="json">{&quot;status&quot;:&quot;ok&quot;}
+</code></pre>
+<p>Then <code>schrodingers.life</code> kept resolving to name.com's parking server.</p>
+<p>For a little while, the observation apparatus was online at Pond, Caddy was
+ready to proxy it, and the public internet was still staring at
+<code>91.195.240.94</code>. Let's Encrypt followed DNS to the parking page, failed its
+challenge, and Caddy waited to try again. The browser responded with the
+comforting message:</p>
+<blockquote>
+<p>The content of the page cannot be displayed.</p>
+</blockquote>
+<p>The new A record was correct. The old answer was merely cached. DNS eventually
+moved, Caddy got its certificate, and the box became reachable.</p>
+<p>I had just built a website whose life depends on being observed, then spent its
+first few minutes unable to observe it because DNS had not decided where it
+lived yet.</p>
+<p>Fair enough.</p>
+<h2 id="the-social-experiment">The social experiment</h2>
+<p>The site has no chat, user profiles, teams, achievements, or ownership. It does
+not say who the observers are. It shows only how many people are currently
+looking and the highest number who ever looked at that life at once.</p>
+<p>There is a lifetime record, because people need at least one number to become
+unreasonable about.</p>
+<p>I am curious what happens next.</p>
+<p>Will somebody leave a tab visible overnight to protect a rare owl? Will a group
+organize shifts around a creature that has survived for a week? Will someone
+deliberately close the final tab to put a record holder in the graveyard? Does
+keeping it alive feel like care, or eventually like captivity?</p>
+<p>The mechanics do not assign a moral answer. They just make every visitor part
+of the outcome.</p>
+<p>A normal website treats attention as a metric. More page views, more sessions,
+more time on site. This one treats attention as the condition for existence.
+Your presence does not increase a chart somewhere. It keeps one shared thing
+alive.</p>
+<p>And leaving is not neutral.</p>
+<h2 id="open-the-box">Open the box</h2>
+<p>I do not know whether people will keep the creatures alive or kill them for
+fun. Both seem plausible. The interesting part is that the application is too
+small to hide the choice behind anything else.</p>
+<p>Open the page and you are observing.</p>
+<p>Close it and, if nobody else is there, the countdown starts.</p>
+<p>That is enough machinery for a social experiment. A WebSocket, a mutex, a
+SQLite row, thirty seconds of uncertainty, and a graveyard that does not
+forget.</p>
+<p>Open the box: <a href="https://schrodingers.life">schrodingers.life</a></p>
+<p>Source:
+<a href="https://github.com/ducks/schrodingers-life">github.com/ducks/schrodingers-life</a></p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;schrodingers-life-website-dies-when-nobody-is-looking&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-schrodingers-life-website-dies-when-nobody-is-looking"
+      data-goatcounter-title="Helpful click on blog-2026-schrodingers-life-website-dies-when-nobody-is-looking"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;evaluating-infrastructure-agents-in-running-systems&#x2F;">Evaluating Infrastructure Agents in Running Systems</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 02, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">A passing health check is not a durable repair. I connected Replaybook, Harbor, Nix, and claux to test whether agents can actually fix broken services.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;lemma-a-language-course-compiler&#x2F;">lemma: A Compiler That Doesn&#x27;t Know Any Languages</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 02, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">I&#x27;m learning Czech in the hope of moving to Czechia, and I wanted my course to be reproducible data instead of a pile of notes. Then I wanted Spanish and Swedish too - so the interesting part became building a lesson generator that contains no Czech, no Spanish, and no Swedish.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/languages">#languages</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-4&#x2F;">Rewriting Claude Code in Rust, Part 4: From Clone to Harness</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 01, 2026</p>
+                    
+                    <p>9 min read</p>
+                  </div>
+                  
+                    <p class="desc">Four months of dogfooding turned claux from a 4,000-line Claude Code rewrite into a sandboxed, multi-provider agent harness with 350 tests and isolated evaluations.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;raft-a-graph-over-the-plain-text-log&#x2F;">raft: A Graph Over the Plain-Text Log</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 19, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">I kept a plain-text log of my work for months, then hit the wall where grep stops scaling. So I built a knowledge graph that grows out of the notes and repos I already have. Then I found out Andrej Karpathy keeps the same log.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/notes">#notes</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;replaybook-incident-replay-trainer&#x2F;">replaybook: Incident Replay Trainer for Infrastructure</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 30, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">A terminal trainer where you&#x27;re dropped into a broken Docker container and have to fix it. Turn your post-mortems into runnable scenarios.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/devops">#devops</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

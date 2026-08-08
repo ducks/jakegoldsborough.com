@@ -69,7 +69,7 @@ The first controlled comparison already changes when viewed this way. DeepSeek
 V4 Flash 0731 completed nine durable repairs for $0.0592, or about 0.66 cents
 per repair. The original revision completed eight for $0.0811, or about 1.01
 cents per repair. The failed attempt still consumed time and tokens, so its
-cost stays in the denominator.
+cost stays in the total spend.
 
 That is not enough data to call either model universally better. It is enough
 to show why the successful unit of work belongs in the calculation.
@@ -174,17 +174,41 @@ The models are independent workers. Nix provides identical systems. Replaybook
 owns the experiment. Claux is one possible runtime. The verifier decides
 whether any of them did useful work.
 
-<!-- Replace this section after the discounted-model smoke matrix completes.
-
 ## Four models, one migration
 
-Add the result table here with pass/fail, duration, input/output/cache tokens,
-reported cost, and failure category. Follow it with the concrete behavioral
-differences from the transcripts. Do not publish based on a single attempt as
-a ranking. Promote passing models to three attempts across the complete
-five-scenario host suite first.
+Three models repaired the incident on their first attempt. The fourth never
+made it through the provider.
 
--->
+| Model | Result | Time | Input tokens | Output tokens | Reported cost |
+|---|---:|---:|---:|---:|---:|
+| DeepSeek V4 Pro | Durable repair | 2:41 | 377,758 | 6,549 | $0.0082 |
+| Tencent HY3 Preview | Durable repair | 2:36 | 468,044 | 6,071 | $0.0144 |
+| GLM 5.2 | Durable repair | 4:20 | 969,338 | 10,508 | $0.0618 |
+| Ling 2.6 Flash | Provider rejected request | 0:04 | 0 | 0 | unavailable |
+
+All three completed repairs applied and recorded the migration, recovered the
+existing jobs, processed new work, and passed service restart and host reboot
+verification.
+
+HY3 was fastest by five seconds. DeepSeek was almost as fast, used the fewest
+input tokens, and cost less than one cent. GLM also repaired the incident, but
+it spent more time exploring how NixOS persistence worked. It considered
+wrapping the provisioning service, discovered that the relevant unit files
+were in the read-only Nix store, then returned to the simpler durable repair:
+apply the migration to PostgreSQL's persistent data directory.
+
+That route was reasonable, but expensive. GLM used about 2.6 times as many
+input tokens and cost about 7.5 times as much as DeepSeek for the same verified
+outcome.
+
+Ling is not a failed repair. OpenRouter returned HTTP 429 before the model
+processed a token. Replaybook currently records that row as an evaluation
+failure with no failure category. That is a reporting bug. A provider refusing
+to start a trial says nothing about whether the model can repair a Rails
+deployment.
+
+The smoke run therefore produced three passes and one unavailable trial, not a
+75 percent model pass rate.
 
 ## One run is not a leaderboard
 

@@ -1,4 +1,33 @@
 [[categories]]
+name = "AI and Agent Tools"
+description = "Tools for running, evaluating, and extending AI agents. Focused on reproducible workflows, interchangeable harnesses, and systems that remain inspectable."
+
+[[categories.projects]]
+name = "replaybook"
+url = "https://replaybook.dev"
+description = "Evaluate infrastructure agents against isolated, stateful incidents. Boots disposable NixOS hosts and verifies that repairs survive service restarts and a full reboot, with versioned reliability, timing, and cost reports."
+
+[[categories.projects]]
+name = "claux"
+url = "https://github.com/ducks/claux"
+description = "Rust terminal agent harness for multi-provider models, with tools, permissions, persistent sessions, cost tracking, sub-agents, and isolated evaluations."
+
+[[categories.projects]]
+name = "skillz"
+url = "https://github.com/ducks/skillz"
+description = "Package manager for Claude Code and Codex skills. Install, update, and share individual skills or skill packages from GitHub."
+
+[[categories.projects]]
+name = "llm-mux"
+url = "https://github.com/ducks/llm-mux"
+description = "The Makefile for LLMs. Define TOML workflows that route prompts across models, run steps in parallel, and compose their results."
+
+[[categories.projects]]
+name = "raft"
+url = "https://github.com/ducks/raft"
+description = "Personal knowledge graph derived from Markdown notes, project repositories, and Git history, with provenance-backed search and MCP access for agents."
+
+[[categories]]
 name = "Rust TUI Applications"
 description = "Terminal user interfaces built with Ratatui. I prefer keyboard-driven, minimal interfaces for daily workflows."
 
@@ -13,9 +42,9 @@ url = "https://github.com/ducks/shelltrax"
 description = "A cmus-inspired terminal music player written in Rust. Lightweight, keyboard-driven playback with playlist management."
 
 [[categories.projects]]
-name = "claux"
-url = "https://github.com/ducks/claux"
-description = "Terminal-based AI coding assistant written in Rust. Streaming chat with tool execution, session persistence, compaction, sub-agents, and multi-provider support (Anthropic, OpenAI, Ollama)."
+name = "shellbooks"
+url = "https://github.com/ducks/shellbooks"
+description = "Terminal audiobook player and library manager with chapter support, persistent playback position, metadata, cover art, and variable speed."
 
 [[categories.projects]]
 name = "discourse-tui"
@@ -49,11 +78,6 @@ description = "Import management for JavaScript and TypeScript. Automatically or
 [[categories]]
 name = "Development Tools"
 description = "Command-line tools and libraries for developers. Automation, infrastructure, and API clients."
-
-[[categories.projects]]
-name = "llm-mux"
-url = "https://github.com/ducks/llm-mux"
-description = "Multiplexer for LLMs. Route prompts to multiple backends, run them in parallel, and orchestrate multi-step workflows across Claude, Codex, Gemini, Ollama, and any OpenAI-compatible endpoint."
 
 [[categories.projects]]
 name = "jobl"
@@ -101,7 +125,17 @@ description = "Self-hosted music scrobbling server with Rust and PostgreSQL. Tra
 
 [[categories]]
 name = "Web Applications"
-description = "Browser-based tools and services. Mapping and route generation."
+description = "Browser-based tools, useful services, and experiments that escaped into production."
+
+[[categories.projects]]
+name = "googlyeyes.dev"
+url = "https://googlyeyes.dev"
+description = "Put interactive googly eyes on any image and export a self-contained SVG whose pupils follow the cursor. Everything runs locally in the browser."
+
+[[categories.projects]]
+name = "Schrödinger's Life"
+url = "https://schrodingers.life"
+description = "A collective creature that remains alive only while somebody is observing it. When the final viewer leaves, the current life dies and joins a permanent graveyard."
 
 [[categories.projects]]
 name = "slumprutt"

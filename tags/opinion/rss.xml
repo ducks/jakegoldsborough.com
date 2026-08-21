@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - opinion</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/opinion/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Sat, 08 Nov 2025 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Like a Pig in Shit: Why I Love AI &quot;Slop&quot;</title>
+          <pubDate>Sat, 08 Nov 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/like-a-pig-in-shit-ai-slop/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/like-a-pig-in-shit-ai-slop/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/like-a-pig-in-shit-ai-slop/">&lt;p&gt;I&#x27;ve shipped more projects in the last three months than I did in the previous
+year. Are they all perfect? No. Are they all polished production-grade code?
+Hell no. Do I care? Not even a little bit.&lt;&#x2F;p&gt;
+&lt;p&gt;I&#x27;m having the time of my life building whatever idea pops into my head, and AI
+is the reason I can actually finish things instead of just thinking about them.&lt;&#x2F;p&gt;
+&lt;p&gt;And look, shipping isn&#x27;t everything. Sometimes the best code never sees the
+light of day. Sometimes you build something just to learn, or just because it
+sounds fun. But there&#x27;s something deeply satisfying about making things that
+actually work - even if they&#x27;re just for you.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-i-ve-been-building&quot;&gt;What I&#x27;ve Been Building&lt;&#x2F;h2&gt;
+&lt;p&gt;In the last few months alone:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;vimdeck.nvim&quot;&gt;vimdeck.nvim&lt;&#x2F;a&gt;&lt;&#x2F;strong&gt;: Markdown presentations in Neovim using Treesitter&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;mdpreview.nvim&quot;&gt;mdpreview.nvim&lt;&#x2F;a&gt;&lt;&#x2F;strong&gt;: Live markdown preview in a split window&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-yaks&quot;&gt;discourse-yaks&lt;&#x2F;a&gt;&lt;&#x2F;strong&gt;: Virtual currency system for forum posts&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-transit-tracker&quot;&gt;discourse-transit-tracker&lt;&#x2F;a&gt;&lt;&#x2F;strong&gt;: Turn forums into live departure boards&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-invite-stats&quot;&gt;discourse-invite-stats&lt;&#x2F;a&gt;&lt;&#x2F;strong&gt;: Invite reporting and analytics plugin&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;shelltrax&quot;&gt;shelltrax&lt;&#x2F;a&gt;&lt;&#x2F;strong&gt;: TUI music player in Rust (my daily driver now)&lt;&#x2F;li&gt;
+&lt;li&gt;Plus a handful of smaller tools and fixes&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Some of these are polished. Some are &quot;good enough for me.&quot; All of them work.
+All of them solve real problems I had. And I built most of them in a day or
+two.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-slop-criticism&quot;&gt;The &quot;Slop&quot; Criticism&lt;&#x2F;h2&gt;
+&lt;p&gt;There&#x27;s this narrative that AI-generated code is &quot;slop.&quot; Low quality, generic,
+copy-pasted garbage that&#x27;s polluting the internet. And sure, that exists. That
+existed before AI when people would blindly copy from Stack Overflow. But
+the criticism misses something important:&lt;&#x2F;p&gt;
+&lt;p&gt;When you&#x27;re building for yourself, &quot;slop&quot; doesn&#x27;t matter.&lt;&#x2F;p&gt;
+&lt;p&gt;I&#x27;m not pushing half-baked code to production systems. I&#x27;m not claiming my
+afternoon projects are enterprise-ready. I&#x27;m building tools that solve my
+problems, learning by doing, and having fun.&lt;&#x2F;p&gt;
+&lt;p&gt;If the markdown preview plugin has rough edges, who cares? It works for me. If
+the presentation tool doesn&#x27;t handle every edge case, so what? It renders my
+slides.&lt;&#x2F;p&gt;
+&lt;p&gt;The &quot;slop&quot; criticism only matters when you&#x27;re shipping garbage and calling it
+gold. When you&#x27;re building for yourself? Ship it, iterate, move on.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-s-actually-happening&quot;&gt;What&#x27;s Actually Happening&lt;&#x2F;h2&gt;
+&lt;p&gt;Here&#x27;s what working with AI looks like for me:&lt;&#x2F;p&gt;
+&lt;p&gt;I have an idea. &quot;I want to do presentations in Neovim.&quot; Instead of spending a
+week researching markdown parsers and figlet integration and buffer management,
+I describe what I want and start building.&lt;&#x2F;p&gt;
+&lt;p&gt;The AI suggests approaches. Some work. Some don&#x27;t. We iterate. I learn what
+Treesitter can do. I understand how Neovim&#x27;s highlight system works. I see
+patterns I wouldn&#x27;t have thought of.&lt;&#x2F;p&gt;
+&lt;p&gt;A few hours later, I have a working plugin.&lt;&#x2F;p&gt;
+&lt;p&gt;Is it perfect? No. Did I learn a ton? Yes. Can I actually use it? Absolutely.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-joy-of-building&quot;&gt;The Joy of Building&lt;&#x2F;h2&gt;
+&lt;p&gt;What the critics miss is how much fun this is.&lt;&#x2F;p&gt;
+&lt;p&gt;I used to have a backlog of ideas that never got built. &quot;Someday I&#x27;ll make
+that.&quot; &quot;That would be cool but it&#x27;s too much work.&quot; &quot;I don&#x27;t have time to learn
+X framework.&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;Now? I just build it.&lt;&#x2F;p&gt;
+&lt;p&gt;Want to visualize invite relationships as an ASCII tree? Build it. Want live
+transit departures in a forum? Build it. Want to fix a bug in a YAML parser?
+Build it and submit the fix upstream.&lt;&#x2F;p&gt;
+&lt;p&gt;The barrier between &quot;I wish this existed&quot; and &quot;I built this&quot; has collapsed. And
+that&#x27;s incredible.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;but-is-it-actually-good-code&quot;&gt;But Is It Actually Good Code?&lt;&#x2F;h2&gt;
+&lt;p&gt;Sometimes yes, sometimes no. And that&#x27;s fine.&lt;&#x2F;p&gt;
+&lt;p&gt;The &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;kddnewton&#x2F;psych-pure&#x2F;pull&#x2F;30&quot;&gt;Ruby psych-pure bug fix&lt;&#x2F;a&gt; I
+submitted? That&#x27;s good code. Full test coverage, proper edge case handling,
+clean implementation. It&#x27;s going into a production library.&lt;&#x2F;p&gt;
+&lt;p&gt;The &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-transit-tracker&quot;&gt;transit tracker&lt;&#x2F;a&gt;? It
+works, handles 500k+ MTA stop times, and has solid patterns for data
+downloading and parsing. Could the UI be more polished? Sure. But it does what
+I need and I learned a ton building it.&lt;&#x2F;p&gt;
+&lt;p&gt;The key is knowing the difference. When it matters, I put in the work. When
+it&#x27;s just for me, I ship it and move on.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-real-productivity-hack&quot;&gt;The Real Productivity Hack&lt;&#x2F;h2&gt;
+&lt;p&gt;Working with AI isn&#x27;t about replacing thinking. It&#x27;s about spending your brain
+cycles on the interesting problems instead of the boring setup work.&lt;&#x2F;p&gt;
+&lt;p&gt;I don&#x27;t want to spend three hours setting up test infrastructure. I want to
+spend three hours solving the actual problem. AI handles the grunt work. I
+handle the decisions.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;you-can-vibe-and-still-be-productive&quot;&gt;You Can Vibe and Still Be Productive&lt;&#x2F;h2&gt;
+&lt;p&gt;Here&#x27;s the thing: you can have fun, move fast, and still produce quality work.
+It&#x27;s not either&#x2F;or.&lt;&#x2F;p&gt;
+&lt;p&gt;I&#x27;m &quot;vibing out&quot; projects. Building whatever sounds interesting. Shipping fast.
+And yet:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;The code works&lt;&#x2F;li&gt;
+&lt;li&gt;The tests pass&lt;&#x2F;li&gt;
+&lt;li&gt;The bugs get fixed&lt;&#x2F;li&gt;
+&lt;li&gt;The upstream contributions get merged&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;You can be a pig in shit and still do good work. The slop is the medium, not
+the output.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-gatekeeping-problem&quot;&gt;The Gatekeeping Problem&lt;&#x2F;h2&gt;
+&lt;p&gt;A lot of the &quot;AI slop&quot; criticism is just gatekeeping in disguise.&lt;&#x2F;p&gt;
+&lt;p&gt;&quot;Real programmers don&#x27;t use AI.&quot; &quot;You&#x27;re not actually learning.&quot; &quot;This is
+ruining software quality.&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;Meanwhile, I&#x27;m shipping. Learning by building. Contributing to open source.
+Having fun.&lt;&#x2F;p&gt;
+&lt;p&gt;The gatekeepers can argue about the &quot;right way&quot; to write code. I&#x27;m too busy
+building things.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-actually-matters&quot;&gt;What Actually Matters&lt;&#x2F;h2&gt;
+&lt;p&gt;At the end of the day, here&#x27;s what matters:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Does it work?&lt;&#x2F;li&gt;
+&lt;li&gt;Did you learn something?&lt;&#x2F;li&gt;
+&lt;li&gt;Are you having fun?&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;If the answer to those three questions is yes, then it doesn&#x27;t matter if
+someone on Twitter thinks your code is &quot;slop.&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;You&#x27;re building. They&#x27;re complaining. You win.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;like-a-pig-in-shit&quot;&gt;Like a Pig in Shit&lt;&#x2F;h2&gt;
+&lt;p&gt;So yeah, I&#x27;m rolling around in the AI slop. Building projects at a pace I never
+could before. Shipping tools that solve real problems. Learning by doing
+instead of just reading about it. Old me would think I was full of shit if I
+tried explaining this.&lt;&#x2F;p&gt;
+&lt;p&gt;Call it slop if you want. I&#x27;m too busy having the time of my life to care.&lt;&#x2F;p&gt;
+&lt;p&gt;The pig pen is the place for me.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - go</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/go/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Thu, 20 Aug 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>I Got Tired of gh Failing, So I Built Tongs</title>
+          <pubDate>Thu, 20 Aug 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/tongs-github-cli-built-for-agents/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/tongs-github-cli-built-for-agents/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/tongs-github-cli-built-for-agents/">&lt;p&gt;I was trying to review a pull request. &lt;code&gt;gh&lt;&#x2F;code&gt; failed.&lt;&#x2F;p&gt;
+&lt;p&gt;Not because the pull request was gone. Not because my token had expired. Not
+because GitHub was down. A GraphQL query somewhere inside &lt;code&gt;gh&lt;&#x2F;code&gt; had failed, and
+the ordinary pull request operation I wanted went down with it.&lt;&#x2F;p&gt;
+&lt;p&gt;This was not the first time.&lt;&#x2F;p&gt;
+&lt;p&gt;I had already started working around these failures with direct API calls. That
+works, but now every agent has to rediscover the endpoint, authentication,
+pagination, response shape, and whatever bit of GraphQL GitHub still requires
+for review threads. I did not want a growing pile of one-off &lt;code&gt;curl&lt;&#x2F;code&gt; and &lt;code&gt;jq&lt;&#x2F;code&gt;
+commands pretending to be a tool.&lt;&#x2F;p&gt;
+&lt;p&gt;So I wrote another GitHub CLI.&lt;&#x2F;p&gt;
+&lt;p&gt;It is called &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;tongs&quot;&gt;Tongs&lt;&#x2F;a&gt;, which retroactively stands
+for &lt;strong&gt;Typed Operations for Networked Git Services&lt;&#x2F;strong&gt;.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;rest-first-not-rest-only&quot;&gt;REST first, not REST only&lt;&#x2F;h2&gt;
+&lt;p&gt;The first design decision was simple: use REST for normal pull request work.&lt;&#x2F;p&gt;
+&lt;p&gt;Creating a pull request does not need GraphQL. Neither does inspecting one,
+editing its body, checking CI, submitting an approval, or merging it. Tongs uses
+the smaller REST operation for each of those instead of asking GitHub one large
+question and hoping every field remains available.&lt;&#x2F;p&gt;
+&lt;p&gt;GitHub does reserve some review-thread operations for GraphQL. Replying to and
+resolving a thread still use it, but those queries live inside that narrow part
+of the GitHub adapter. If GitHub changes a review-thread field, &lt;code&gt;tongs inspect&lt;&#x2F;code&gt;
+does not care.&lt;&#x2F;p&gt;
+&lt;p&gt;The point is not that GraphQL is bad. The point is that unrelated surfaces
+should fail independently.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-agent-native-means&quot;&gt;What agent-native means&lt;&#x2F;h2&gt;
+&lt;p&gt;Tongs calls itself agent-native. That does not mean it contains a model or asks
+an LLM what command to run. It means the command behaves like something an
+agent can safely build on.&lt;&#x2F;p&gt;
+&lt;p&gt;Every successful command returns the same outer JSON shape:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;json&quot; class=&quot;language-json &quot;&gt;&lt;code class=&quot;language-json&quot; data-lang=&quot;json&quot;&gt;{&amp;quot;schema_version&amp;quot;:&amp;quot;1&amp;quot;,&amp;quot;ok&amp;quot;:true,&amp;quot;data&amp;quot;:{}}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Failures have a stable error object and a useful exit code:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;json&quot; class=&quot;language-json &quot;&gt;&lt;code class=&quot;language-json&quot; data-lang=&quot;json&quot;&gt;{&amp;quot;schema_version&amp;quot;:&amp;quot;1&amp;quot;,&amp;quot;ok&amp;quot;:false,&amp;quot;error&amp;quot;:{&amp;quot;code&amp;quot;:&amp;quot;not_found&amp;quot;,&amp;quot;message&amp;quot;:&amp;quot;Not Found&amp;quot;,&amp;quot;status_code&amp;quot;:404}}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;There are no tables to scrape, decorative status lines to strip, or prompts
+waiting invisibly for input. Authentication checks environment variables, the
+git credential helper, and an existing &lt;code&gt;gh&lt;&#x2F;code&gt; login as a migration fallback. If
+none of those work, Tongs fails. It does not suddenly ask an unattended agent
+for a username.&lt;&#x2F;p&gt;
+&lt;p&gt;That last behavior required its own fix. My first credential-helper call could
+still fall through to Git&#x27;s interactive prompt. The CLI designed not to prompt
+prompted on its first real authentication failure. Setting Git&#x27;s terminal
+prompt flag to false fixed it.&lt;&#x2F;p&gt;
+&lt;p&gt;The useful distinction is not human CLI versus AI CLI. Humans also benefit from
+commands that return predictable data and fail without theater. Agents just
+make the sloppy parts impossible to ignore.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;pull-request-work-so-far&quot;&gt;Pull request work so far&lt;&#x2F;h2&gt;
+&lt;p&gt;Tongs detects the repository from the current git remote and, when possible,
+finds the open pull request for the current branch. You can also be explicit:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;tongs --repo discourse-org&amp;#x2F;mothership inspect 6620
+tongs --repo discourse-org&amp;#x2F;mothership reviews 6620
+tongs --repo discourse-org&amp;#x2F;mothership checks 6620
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Review threads are first-class operations rather than a blob hidden somewhere
+inside the pull request response. From inside the repository checkout:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;tongs reply --thread PRRT_node_id --body-file reply.md 6620
+tongs resolve --thread PRRT_node_id 6620
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;It can create and approve pull requests too:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;tongs create --title &amp;quot;Add useful feature&amp;quot; --body-file description.md
+tongs approve --body &amp;quot;Looks good&amp;quot; 6620
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Mutations support &lt;code&gt;--dry-run&lt;&#x2F;code&gt;. Approval and merge requests include the pull
+request&#x27;s current head SHA, so an agent cannot inspect one revision and quietly
+approve a different one after somebody pushes. Merge requires both an explicit
+method and &lt;code&gt;--yes&lt;&#x2F;code&gt;:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;tongs --dry-run merge --method squash 6620
+tongs merge --method squash --yes 6620
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;These are small constraints. That is the point. A safe tool should make the
+careful path the short path.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;github-is-the-first-provider&quot;&gt;GitHub is the first provider&lt;&#x2F;h2&gt;
+&lt;p&gt;I did not want to bake GitHub&#x27;s nouns and response shapes through the whole
+program, then discover later that adding GitLab meant rewriting it.&lt;&#x2F;p&gt;
+&lt;p&gt;The command layer talks to a provider interface. Repository detection,
+pull-request models, review threads, checks, and output schemas are shared.
+GitHub-specific REST and GraphQL live in the GitHub adapter. GitLab, Gitea, and
+Codeberg remotes can already be identified and parsed.&lt;&#x2F;p&gt;
+&lt;p&gt;Their API adapters do not exist yet.&lt;&#x2F;p&gt;
+&lt;p&gt;That boundary is deliberate. Tongs returns &lt;code&gt;provider_not_implemented&lt;&#x2F;code&gt; instead
+of sending a GitLab repository to GitHub and producing a much more creative
+error. The architecture is ready for more forges; the product is currently a
+GitHub client. Those are different claims.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;installing-it&quot;&gt;Installing it&lt;&#x2F;h2&gt;
+&lt;p&gt;Tongs is written in Go and published at
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;tongs&quot;&gt;github.com&#x2F;ducks&#x2F;tongs&lt;&#x2F;a&gt;. Install it with:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;go install github.com&amp;#x2F;ducks&amp;#x2F;tongs&amp;#x2F;cmd&amp;#x2F;tongs@latest
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;There is also a Nix flake for development and packaging. CI runs the full test
+suite with the race detector, &lt;code&gt;go vet&lt;&#x2F;code&gt;, and a clean build.&lt;&#x2F;p&gt;
+&lt;p&gt;It is early. GitHub is the only implemented provider, the command set is still
+smaller than &lt;code&gt;gh&lt;&#x2F;code&gt;, and I am sure the first other person to use it will find an
+operation I assumed nobody needed. That is useful information. I would rather
+grow it from actual agent workflows than clone every command in a mature CLI
+before knowing which ones matter.&lt;&#x2F;p&gt;
+&lt;p&gt;For now, Tongs does the part I built it for: inspect a pull request, understand
+its review state, make a deliberate change, and return something a program can
+trust.&lt;&#x2F;p&gt;
+&lt;p&gt;No unrelated GraphQL field gets a vote.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

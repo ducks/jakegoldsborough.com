@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="I wanted a GitHub CLI that agents could depend on: stable JSON, no prompts, safe mutations, and no giant GraphQL query standing between me and a pull request. So I built Tongs.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="I Got Tired of gh Failing, So I Built Tongs">
+    <meta property="og:description" content="I wanted a GitHub CLI that agents could depend on: stable JSON, no prompts, safe mutations, and no giant GraphQL query standing between me and a pull request. So I built Tongs.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;tongs-github-cli-built-for-agents&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="I Got Tired of gh Failing, So I Built Tongs">
+    <meta name="twitter:description" content="I wanted a GitHub CLI that agents could depend on: stable JSON, no prompts, safe mutations, and no giant GraphQL query standing between me and a pull request. So I built Tongs.">
+
+    <title>I Got Tired of gh Failing, So I Built Tongs - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>I Got Tired of gh Failing, So I Built Tongs</h1>
+      <div class="meta">
+        
+        <p>Aug 20, 2026</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/go">#go</a></p>
+          
+          <p><a href="/tags/cli">#cli</a></p>
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/github">#github</a></p>
+          
+        </div>
+      
+
+      <p>I was trying to review a pull request. <code>gh</code> failed.</p>
+<p>Not because the pull request was gone. Not because my token had expired. Not
+because GitHub was down. A GraphQL query somewhere inside <code>gh</code> had failed, and
+the ordinary pull request operation I wanted went down with it.</p>
+<p>This was not the first time.</p>
+<p>I had already started working around these failures with direct API calls. That
+works, but now every agent has to rediscover the endpoint, authentication,
+pagination, response shape, and whatever bit of GraphQL GitHub still requires
+for review threads. I did not want a growing pile of one-off <code>curl</code> and <code>jq</code>
+commands pretending to be a tool.</p>
+<p>So I wrote another GitHub CLI.</p>
+<p>It is called <a href="https://github.com/ducks/tongs">Tongs</a>, which retroactively stands
+for <strong>Typed Operations for Networked Git Services</strong>.</p>
+<h2 id="rest-first-not-rest-only">REST first, not REST only</h2>
+<p>The first design decision was simple: use REST for normal pull request work.</p>
+<p>Creating a pull request does not need GraphQL. Neither does inspecting one,
+editing its body, checking CI, submitting an approval, or merging it. Tongs uses
+the smaller REST operation for each of those instead of asking GitHub one large
+question and hoping every field remains available.</p>
+<p>GitHub does reserve some review-thread operations for GraphQL. Replying to and
+resolving a thread still use it, but those queries live inside that narrow part
+of the GitHub adapter. If GitHub changes a review-thread field, <code>tongs inspect</code>
+does not care.</p>
+<p>The point is not that GraphQL is bad. The point is that unrelated surfaces
+should fail independently.</p>
+<h2 id="what-agent-native-means">What agent-native means</h2>
+<p>Tongs calls itself agent-native. That does not mean it contains a model or asks
+an LLM what command to run. It means the command behaves like something an
+agent can safely build on.</p>
+<p>Every successful command returns the same outer JSON shape:</p>
+<pre data-lang="json" class="language-json "><code class="language-json" data-lang="json">{&quot;schema_version&quot;:&quot;1&quot;,&quot;ok&quot;:true,&quot;data&quot;:{}}
+</code></pre>
+<p>Failures have a stable error object and a useful exit code:</p>
+<pre data-lang="json" class="language-json "><code class="language-json" data-lang="json">{&quot;schema_version&quot;:&quot;1&quot;,&quot;ok&quot;:false,&quot;error&quot;:{&quot;code&quot;:&quot;not_found&quot;,&quot;message&quot;:&quot;Not Found&quot;,&quot;status_code&quot;:404}}
+</code></pre>
+<p>There are no tables to scrape, decorative status lines to strip, or prompts
+waiting invisibly for input. Authentication checks environment variables, the
+git credential helper, and an existing <code>gh</code> login as a migration fallback. If
+none of those work, Tongs fails. It does not suddenly ask an unattended agent
+for a username.</p>
+<p>That last behavior required its own fix. My first credential-helper call could
+still fall through to Git's interactive prompt. The CLI designed not to prompt
+prompted on its first real authentication failure. Setting Git's terminal
+prompt flag to false fixed it.</p>
+<p>The useful distinction is not human CLI versus AI CLI. Humans also benefit from
+commands that return predictable data and fail without theater. Agents just
+make the sloppy parts impossible to ignore.</p>
+<h2 id="pull-request-work-so-far">Pull request work so far</h2>
+<p>Tongs detects the repository from the current git remote and, when possible,
+finds the open pull request for the current branch. You can also be explicit:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">tongs --repo discourse-org&#x2F;mothership inspect 6620
+tongs --repo discourse-org&#x2F;mothership reviews 6620
+tongs --repo discourse-org&#x2F;mothership checks 6620
+</code></pre>
+<p>Review threads are first-class operations rather than a blob hidden somewhere
+inside the pull request response. From inside the repository checkout:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">tongs reply --thread PRRT_node_id --body-file reply.md 6620
+tongs resolve --thread PRRT_node_id 6620
+</code></pre>
+<p>It can create and approve pull requests too:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">tongs create --title &quot;Add useful feature&quot; --body-file description.md
+tongs approve --body &quot;Looks good&quot; 6620
+</code></pre>
+<p>Mutations support <code>--dry-run</code>. Approval and merge requests include the pull
+request's current head SHA, so an agent cannot inspect one revision and quietly
+approve a different one after somebody pushes. Merge requires both an explicit
+method and <code>--yes</code>:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">tongs --dry-run merge --method squash 6620
+tongs merge --method squash --yes 6620
+</code></pre>
+<p>These are small constraints. That is the point. A safe tool should make the
+careful path the short path.</p>
+<h2 id="github-is-the-first-provider">GitHub is the first provider</h2>
+<p>I did not want to bake GitHub's nouns and response shapes through the whole
+program, then discover later that adding GitLab meant rewriting it.</p>
+<p>The command layer talks to a provider interface. Repository detection,
+pull-request models, review threads, checks, and output schemas are shared.
+GitHub-specific REST and GraphQL live in the GitHub adapter. GitLab, Gitea, and
+Codeberg remotes can already be identified and parsed.</p>
+<p>Their API adapters do not exist yet.</p>
+<p>That boundary is deliberate. Tongs returns <code>provider_not_implemented</code> instead
+of sending a GitLab repository to GitHub and producing a much more creative
+error. The architecture is ready for more forges; the product is currently a
+GitHub client. Those are different claims.</p>
+<h2 id="installing-it">Installing it</h2>
+<p>Tongs is written in Go and published at
+<a href="https://github.com/ducks/tongs">github.com/ducks/tongs</a>. Install it with:</p>
+<pre data-lang="bash" class="language-bash "><code class="language-bash" data-lang="bash">go install github.com&#x2F;ducks&#x2F;tongs&#x2F;cmd&#x2F;tongs@latest
+</code></pre>
+<p>There is also a Nix flake for development and packaging. CI runs the full test
+suite with the race detector, <code>go vet</code>, and a clean build.</p>
+<p>It is early. GitHub is the only implemented provider, the command set is still
+smaller than <code>gh</code>, and I am sure the first other person to use it will find an
+operation I assumed nobody needed. That is useful information. I would rather
+grow it from actual agent workflows than clone every command in a mature CLI
+before knowing which ones matter.</p>
+<p>For now, Tongs does the part I built it for: inspect a pull request, understand
+its review state, make a deliberate change, and return something a program can
+trust.</p>
+<p>No unrelated GraphQL field gets a vote.</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;tongs-github-cli-built-for-agents&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-tongs-github-cli-built-for-agents"
+      data-goatcounter-title="Helpful click on blog-2026-tongs-github-cli-built-for-agents"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;namecom-cli-in-nushell&#x2F;">A tiny name.com CLI, and what nushell saves you</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 03, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">I needed to manage DNS records on a name.com domain from the command line. The tool ended up being about 150 lines of nushell. Here&#x27;s what nushell does on the way that bash doesn&#x27;t.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nushell">#nushell</a></p>
+                      
+                      <p><a href="/tags/cli">#cli</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dns">#dns</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;skillz-package-manager-for-claude-skills&#x2F;">skillz: A Package Manager for Claude Code Skills</a></h3>
+                  <div class="meta">
+                    
+                    <p>Mar 30, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">Claude Code has a skill system. There&#x27;s no package manager for it. So I built one. 200 lines of Rust, installs from GitHub, published to crates.io.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/cli">#cli</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;the-battleground-has-a-map-now&#x2F;">The Battleground Has a Map Now</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 15, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Agents of Empires started as three rows in a terminal. I gave the battleground a service map driven by the same referee events that decide who wins.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/games">#games</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;agents-of-empires-not-a-leaderboard-a-battleground&#x2F;">Agents of Empires: Not a Leaderboard, a Battleground</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 13, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">I dropped DeepSeek, Luna, and GLM into identical blank NixOS hosts and made them race to recover queued work, survive a reboot, and produce the first durable deployment.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/games">#games</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;what-25-of-ai-inference-bought-me&#x2F;">What $25 of AI Inference Bought Me</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 10, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">I spent $25 sending models into broken Linux hosts. It bought more experimentation than I expected, but the tokens were never the scarce part.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

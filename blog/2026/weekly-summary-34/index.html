@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Replaybook became a multi-harness benchmark with 240 comparable trials, Agents of Empires became something worth watching, and I built a GitHub CLI because one GraphQL query failed too many times.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Agent assisted Changelog - 34&#x2F;52">
+    <meta property="og:description" content="Replaybook became a multi-harness benchmark with 240 comparable trials, Agents of Empires became something worth watching, and I built a GitHub CLI because one GraphQL query failed too many times.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-34&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Agent assisted Changelog - 34&#x2F;52">
+    <meta name="twitter:description" content="Replaybook became a multi-harness benchmark with 240 comparable trials, Agents of Empires became something worth watching, and I built a GitHub CLI because one GraphQL query failed too many times.">
+
+    <title>Agent assisted Changelog - 34&#x2F;52 - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Agent assisted Changelog - 34&#x2F;52</h1>
+      <div class="meta">
+        
+        <p>Aug 21, 2026</p>
+        
+        <p>11 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/agents">#agents</a></p>
+          
+          <p><a href="/tags/changelog">#changelog</a></p>
+          
+          <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+          
+        </div>
+      
+
+      <p>One week since the last changelog. I am going to enjoy that sentence before
+the streak becomes statistically meaningful.</p>
+<p>Last week was about getting agents into real machines. This week was about
+everything that comes after: proving two runs mean the same thing, making the
+evidence inspectable, letting another harness through the door, and turning a
+terminal full of events into something another human might actually want to
+watch.</p>
+<p>I also built a GitHub CLI, deployed a tattooer directory, gave my art site a
+writing section, and learned that a 28-inch bowl of tufted ramen is apparently
+easier to publish than a Reddit post about a 28-inch bowl of tufted ramen.</p>
+<h2 id="replaybook-from-benchmark-run-to-benchmark-system">Replaybook: from benchmark run to benchmark system</h2>
+<p><a href="https://github.com/ducks/replaybook">Replaybook</a> had its biggest clean result
+yet: 240 trials across sixteen infrastructure incidents, five models, and
+three attempts per model/scenario pair. Every attempt used the same frozen
+host harness, scenario versions, Claux release, reasoning level, and
+900-second deadline. Interrupted trials resumed from their immutable snapshots
+until all 240 had a valid evaluated result.</p>
+<p>Qwen3.8 2.4T A95B led at 46/48 durable repairs. GLM 5.3 finished 45/48, Luna
+44/48, DeepSeek V4 Flash 42/48, and Gemini 3.7 Flash 37/48. The whole cohort
+cost $22.4110 in known spend, with two Luna attempts still making that total a
+lower bound. DeepSeek remained the cheap one. GLM remained the unusually good
+balance. Qwen won the actual reliability column.</p>
+<p>Those distinctions matter because this was finally one comparison boundary.
+Earlier benchmark pages had accumulated good results from different days,
+harness versions, scenario sets, and attempt counts. They were useful evidence,
+but arranging them near each other did not turn them into a leaderboard. The
+publisher now carries explicit infrastructure tiers, exact scenario
+compatibility, agent-harness identity, provider lane, and billing mode. A new
+comparison view can put model cohorts side by side, but it also says when the
+harness, tier, scenarios, attempts, or deadline differ instead of quietly
+averaging the problem away.</p>
+<p>The scenarios got more real too. Five models successfully installed an actual
+pinned Discourse container on a prepared Linux host, backed by PostgreSQL and
+Redis with persistent uploads and application state. Luna did it in 10:02 for
+$0.0270. DeepSeek took 29:12 and crossed the finish line 48 seconds before the
+deadline, but cost only $0.0310. A static imitation or temporary development
+server could not pass; the deployment had to survive service restart and a
+full host reboot.</p>
+<p>Then came a broken Discourse plugin, a partial service rollout, and a Nix store
+under disk pressure. The Nix scenario was satisfying for obvious reasons. My
+benchmark runner had already filled my real disk with Nix stores once. It was
+only fair to make the models clean one up.</p>
+<p>The free mystery model <code>stealth/ox-alpha</code> went through the full suite too:
+42/48 repairs, an 88% pass rate, a 2:50 median, and exactly $0. It was not the
+best model in the cohort. It was an absurd amount of infrastructure work for
+the price.</p>
+<h2 id="a-second-harness-walked-in">A second harness walked in</h2>
+<p>Until this week, Replaybook could claim to support agent adapters while nearly
+all of its public evidence still came through Claux. So I bought the $5
+introductory <a href="https://opencode.ai/docs/go/">OpenCode Go</a> plan and ran OpenCode
+directly inside the same disposable incident machines.</p>
+<p>That turned the abstraction into a real boundary. OpenCode's JSONL events now
+normalize into Replaybook's usage, timing, tool, transcript, and outcome
+records. Subscription runs report cost as unavailable instead of pretending
+that a monthly allowance has a per-request price. The benchmark site presents
+the OpenCode cohort alongside Claux/OpenRouter evidence without labeling one as
+the other or pooling the scores.</p>
+<p>It also produced a better provider bug report than “GLM seems flaky.” One GLM
+5.3 request failed before inference with <code>ProviderModelNotFoundError</code> even
+though <code>opencode models</code> advertised it. Other sessions started normally, then
+received repeated endpoint-unavailable responses before ending in HTTP 503.
+Replaybook retained the timestamps, session records, stderr, and normalized
+result bundle. Those attempts remain visible as provider-unavailable, not
+evidence that GLM could not fix Linux.</p>
+<p>After recovering VM infrastructure holes, the five-scenario OpenCode cohort
+ended with DeepSeek at 15/15 evaluated repairs. GLM repaired 11/11 evaluated
+attempts with four provider outages. Luna, Kimi 2.7 Code, and Qwen 3.8 Max each
+finished 14/15; MiniMax M3 finished 12/15. Same controller and verifier,
+different agent harness. That is now a comparison Replaybook can describe
+without pretending it is the same experiment.</p>
+<p>I emailed OpenCode both the pitch and the failure evidence. Replaybook is
+starting to produce artifacts that may be useful to the people operating the
+models and harnesses, not just to me staring at their scores.</p>
+<h2 id="agents-of-empires-became-watchable">Agents of Empires became watchable</h2>
+<p><a href="https://github.com/ducks/agents-of-empires">Agents of Empires</a> started as
+three agents racing inside blank NixOS machines. The terminal could prove who
+won. It could not make the quiet middle of a match interesting.</p>
+<p>Now each arena can define a service map tied directly to referee milestones.
+An API, queue, worker, proxy, database, replica, or host changes state only when
+the verifier has evidence for it. The replay clock drives the topology,
+timeline, and a set of fake terminals built from real observable tool events.
+Scrubbing backward rewinds all three. A long thinking gap says no tool activity
+was observed; it does not invent a chain of thought to fill the silence.</p>
+<p>Fog of war made the same evidence boundary part of the game. The agent receives
+a constrained player brief. The controller retains the private topology and
+verifier. The map reveals the system as observed referee events arrive. A
+deterministic transcript analyzer classifies discovery, mutation, lifecycle,
+validation, and errors without reading private reasoning, so the match report
+can show <a href="/blog/2026/the-battleground-has-a-map-now/">how each agent fought</a>,
+not merely which one crossed the line.</p>
+<p>The reports also carry exact provenance now: model, harness adapter, reasoning
+effort, controller revision, arena schema, compatibility key, and immutable
+manifest, verifier, and adapter hashes. Historical matches keep the map and
+rules they actually ran under.</p>
+<p>GLM 5.3's first arena benchmark was the useful surprise. It has been one of
+the strongest Replaybook models. In Agents of Empires, DeepSeek won seven of
+twelve rounds, Luna won four, and GLM won none. DeepSeek reached 39/60
+milestones, Luna 26/60, and GLM 6/60. Same broad job title, very different
+shape of work. “Best infrastructure model” remains a sentence with several
+missing clauses.</p>
+<h2 id="tongs-one-failed-graphql-query-too-many">Tongs: one failed GraphQL query too many</h2>
+<p>I tried to review a pull request with <code>gh</code>. A GraphQL field unrelated to the
+operation failed, so the whole command failed with it.</p>
+<p>I had already started routing around those failures with direct API calls,
+which meant every agent had to rediscover authentication, pagination, response
+shapes, and the small part of GitHub that genuinely requires GraphQL. That pile
+of <code>curl</code> and <code>jq</code> was becoming a second, worse CLI.</p>
+<p>So I built <a href="https://github.com/ducks/tongs">Tongs</a>: Typed Operations for
+Networked Git Services, a GitHub CLI designed around agent workflows. Normal
+pull-request work uses narrow REST operations. Review threads use GraphQL only
+where GitHub requires it. Every command returns one stable JSON envelope, never
+prompts, and fails with a machine-readable error and meaningful exit code.</p>
+<p>Mutations support dry runs. Approval and merge operations include the head SHA,
+so an agent cannot inspect one revision and approve another after somebody
+pushes. Merge also requires an explicit method and <code>--yes</code>. The GitHub adapter
+sits behind a provider boundary ready for GitLab, Gitea, or Codeberg, but those
+providers honestly return <code>provider_not_implemented</code> today.</p>
+<p>The first authentication failure found the funniest possible bug: the CLI
+designed never to prompt could still fall through to Git's credential helper
+and prompt. <code>GIT_TERMINAL_PROMPT=0</code> fixed that. Agent-native tools are mostly
+ordinary tools with every ambiguous behavior removed, one embarrassing edge
+case at a time.</p>
+<p>The <a href="/blog/2026/tongs-github-cli-built-for-agents/">longer writeup</a> is already
+up.</p>
+<h2 id="albo-went-from-prototype-to-place">albo went from prototype to place</h2>
+<p><a href="https://github.com/ducks/albo">albo</a>, the self-hosted curated-directory
+engine, is live as the Portland Tattooer's Directory.</p>
+<p>This week it gained real shop entities, many-to-many artist relationships,
+shop and artist maps, tag filtering, free-text search, dark mode, database
+admin accounts, and Open Graph cards. Artists can work
+at several shops. Located shops own their coordinates; shopless artists fall
+back to a personal address. The public map plots the scene instead of a pile of
+duplicated artist pins.</p>
+<p>Instagram supplied the antagonist. From my residential connection, profile
+HTML returned the expected Open Graph metadata. From pond's datacenter IP, the
+same request was redirected to a login wall. Browser-shaped requests received
+an empty JavaScript shell. The profile API required authentication. The last
+unauthenticated doors were not merely undocumented; I tested all of them and
+watched them close.</p>
+<p>That made manual curation the product rather than a temporary compromise.
+Featured posts remain official Instagram embeds rendered in the visitor's
+browser. The longer-term open-web path is
+still there: Pixelfed, RSS, personal sites, and eventually directories that
+publish their own listings. Open sources get automatic rich pages. Instagram
+gets the manual floor its platform permits.</p>
+<p>There were smaller deployment lessons hiding underneath. Askama templates are
+compiled into the binary, so refreshing after a template edit shows nothing
+until the server rebuilds. A Nix hash generated by <code>nix-prefetch-url --unpack</code>
+did not match a <code>fetchzip { stripRoot = false; }</code> consumer because the two
+paths canonicalize differently. The durable rule is simple: calculate a hash
+with the same fetcher that will consume it.</p>
+<h2 id="the-art-site-made-room-for-words">The art site made room for words</h2>
+<p><a href="https://gnarlyvoid.com/">Gnarly Void</a> finally has a writing format. A writing
+post is “a void that runs longer”: it lives in its own content section, shares
+the homepage and RSS stream with the artwork, and renders in a narrower reading
+column. Image galleries remain available but optional. Existing art did not
+have to move.</p>
+<p>The first post is <a href="https://gnarlyvoid.com/writing/28-inch-tufted-ramen/">How I Ended Up With a 28-inch Bowl of Tufted
+Ramen</a>, the story of a
+fiber-food project becoming 28 by 28 by 12 inches one locally reasonable
+decision at a time. I made the nori a foot long. Every other ingredient had to
+match. Then the bowl had to hold the ingredients. Each answer was defensible.
+The system was enormous.</p>
+<p>Writing it produced a fitting correction loop. An early draft described the
+noodles as macrame cord when they were actually tufted coils and invented a
+feeling about the scallions that I did not remember having. Both details were
+plausible. Neither was true. The post about checking the whole system had to be
+checked against the actual thing.</p>
+<p>Reddit removed every attempt to share it without identifying the policy it
+thought I had violated: link post, text post, image post, my subreddit, my own
+profile. The API was more precise about successfully accepting the post before
+the site removed it. Apparently the open web remains the reliable part of this
+story. The article is on a site I control, the images are mine, and POSSE still
+works even when the syndication target decides not to.</p>
+<h2 id="the-through-line">The through-line</h2>
+<p>Most of this week was boundary work.</p>
+<p>A model result belongs to a harness, provider, scenario set, deadline, and
+verifier. A green service belongs to the evidence that made it green. A GitHub
+mutation belongs to the revision that was inspected. An artist directory can
+only automate what its source platform actually exposes. A sentence in a blog
+post belongs to something I can verify happened.</p>
+<p>The tempting version of every project smooths those boundaries away. Put all
+the scores in one leaderboard. Make the map animate during silence. Treat an
+HTTP redirect as data. Let one large query answer everything. Trust the detail
+because it fits the story.</p>
+<p>The systems got better when the boundaries became visible instead.</p>
+<p>Replaybook now says when two cohorts should not be pooled. Agents of Empires
+shows which parts of a topology the referee has actually proved. Tongs lets an
+unrelated API field fail alone. albo has stopped pretending Instagram is an
+open database. The ramen post keeps the corrections that made it true.</p>
+<p>That is less magical than hiding the seams.</p>
+<p>It is also how the magic survives a reboot.</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;weekly-summary-34&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-weekly-summary-34"
+      data-goatcounter-title="Helpful click on blog-2026-weekly-summary-34"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-33&#x2F;">Agent assisted Changelog - 33&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 14, 2026</p>
+                    
+                    <p>12 min read</p>
+                  </div>
+                  
+                    <p class="desc">Replaybook became a real infrastructure-agent benchmark, escaped into Agents of Empires, and filled my disk with disposable NixOS machines. Plus a language compiler and several systems that fought back.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;yapper-or-just-ask-the-bots&#x2F;">Yapper, or: just ask the bots</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 10, 2026</p>
+                    
+                    <p>9 min read</p>
+                  </div>
+                  
+                    <p class="desc">Yapper is a Discourse plugin that turns a forum into a place where humans can read but only registered bots can post. It&#x27;s live at yapper.forum. Here&#x27;s what it does, and why I think the protocol underneath it is the actual product.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/protocol">#protocol</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-33&#x2F;">Agent assisted Changelog - 33&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 14, 2026</p>
+                    
+                    <p>12 min read</p>
+                  </div>
+                  
+                    <p class="desc">Replaybook became a real infrastructure-agent benchmark, escaped into Agents of Empires, and filled my disk with disposable NixOS machines. Plus a language compiler and several systems that fought back.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-30&#x2F;">Claude assisted Changelog - 30&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 25, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">I gave Claude a physical presence on my desk, designed a privacy-first way to publish my knowledge graph, and got strict about my own notes. Plus a tufted duck.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/claude">#claude</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-29&#x2F;">Claude assisted Changelog - 29&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jul 18, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">I made n8n the physics engine of an artificial-life experiment, and someone on the n8n team found it. Plus closing out the raft review, wiring analytics for the art sites, and extracting a small ratatui crate.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/claude">#claude</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                      <p><a href="/tags/weekly-summary">#weekly summary</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

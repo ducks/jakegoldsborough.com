@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Four months of dogfooding turned claux from a 4,000-line Claude Code rewrite into a sandboxed, multi-provider agent harness with 350 tests and isolated evaluations.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Rewriting Claude Code in Rust, Part 4: From Clone to Harness">
+    <meta property="og:description" content="Four months of dogfooding turned claux from a 4,000-line Claude Code rewrite into a sandboxed, multi-provider agent harness with 350 tests and isolated evaluations.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-4&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Rewriting Claude Code in Rust, Part 4: From Clone to Harness">
+    <meta name="twitter:description" content="Four months of dogfooding turned claux from a 4,000-line Claude Code rewrite into a sandboxed, multi-provider agent harness with 350 tests and isolated evaluations.">
+
+    <title>Rewriting Claude Code in Rust, Part 4: From Clone to Harness - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Rewriting Claude Code in Rust, Part 4: From Clone to Harness</h1>
+      <div class="meta">
+        
+        <p>Aug 01, 2026</p>
+        
+        <p>9 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+        </div>
+      
+
+      <p>At the end of <a href="/blog/2026/rewriting-claude-code-in-rust-part-3/">Part 3</a>,
+I described everything claux still needed as "polish."</p>
+<p>I was wrong.</p>
+<p>The agent loop was done. It could stream tokens, call tools, spawn sub-agents,
+and talk to multiple providers. That took about 4,000 lines of Rust.</p>
+<p>Four months later, claux is over 21,000 lines and has 350 passing tests. Most
+of that growth was not glamorous. It was cancellation, session isolation,
+malformed streaming events, filesystem boundaries, provider state, cost
+accounting, and discovering all the ways a tool-using language model can leave
+a conversation subtly invalid.</p>
+<p>In other words, it was the work that turned a rewrite into a harness.</p>
+<h2 id="the-human-can-change-their-mind">The Human Can Change Their Mind</h2>
+<p>The most useful feature I added is mid-turn steering.</p>
+<p>Say the model starts running a long test suite, or you notice it has
+misunderstood the problem after the third tool call. Most agent interfaces make
+you wait, kill the entire turn, or queue a message that the model will read
+after it finishes doing the wrong thing.</p>
+<p>In claux, you type while the tools are running and press Enter. The running
+tool is cancelled, the rest of the queued batch is skipped, and your message
+goes to the model immediately.</p>
+<p>The skipped calls still receive synthetic tool results. That detail matters.
+Both Anthropic and OpenAI require every tool call in the conversation to have
+a matching result. Dropping one makes the next API request invalid.</p>
+<p>The same idea works at a permission prompt. Instead of answering <code>y</code>, <code>n</code>, or
+<code>a</code>, you can type:</p>
+<pre><code>don&#x27;t edit that file, fix this in the parser instead
+</code></pre>
+<p>claux denies the pending tool and sends the text back as steering. It is one
+motion instead of deny, wait, prompt again.</p>
+<p>Ctrl+C uses the same machinery. It cancels the provider request or running
+tool, pairs any dangling tool calls with interrupted results, and leaves the
+session resumable. Press it twice to quit.</p>
+<p>The larger principle is that the human is still participating during an agent
+turn. I do not want to become a spectator just because the model started using
+tools.</p>
+<h2 id="it-stopped-pretending-to-be-claude-code">It Stopped Pretending to Be Claude Code</h2>
+<p>The original system prompt was modeled closely after Claude Code. That made
+sense when the project was an architecture exercise. It made less sense once I
+started using it as its own tool.</p>
+<p>claux now has a native, readable system prompt that describes the tools and
+permission boundaries it actually has. What you read is what the model gets.</p>
+<p>Authentication changed too. Early versions could reuse credentials from a
+Claude subscription. That was convenient, but it was not an API integration I
+could responsibly build around. claux now expects a real provider API key.</p>
+<p>Using OpenRouter forced the configuration model to grow up. Instead of one
+global model string, providers and model profiles are named separately:</p>
+<pre data-lang="toml" class="language-toml "><code class="language-toml" data-lang="toml">[providers.openrouter]
+type = &quot;openai&quot;
+base_url = &quot;https:&#x2F;&#x2F;openrouter.ai&#x2F;api&#x2F;v1&quot;
+protocol = &quot;chat_completions&quot;
+api_key_env = &quot;OPENROUTER_API_KEY&quot;
+
+[model_profiles.deepseek]
+provider = &quot;openrouter&quot;
+model = &quot;deepseek&#x2F;deepseek-v4-flash&quot;
+</code></pre>
+<p>The TUI opens on a session browser. Starting a chat asks which configured model
+to use. Opening an old chat restores the provider, endpoint, protocol, and
+model that created it. That prevents a resumed conversation from silently
+sending an OpenAI model ID to Anthropic.</p>
+<p>This was the point where claux stopped being "Claude Code in Rust" and became a
+multi-provider harness with opinions of its own.</p>
+<h2 id="undo-without-erasing-human-work">Undo Without Erasing Human Work</h2>
+<p>Agent harnesses are good at changing six files when you expected one. Git can
+undo that, but <code>git reset</code> is too blunt when you have unrelated work in the
+same tree.</p>
+<p>claux now captures a safe checkpoint around every turn:</p>
+<pre data-lang="text" class="language-text "><code class="language-text" data-lang="text">&#x2F;diff
+&#x2F;undo-turn
+</code></pre>
+<p><code>/diff</code> shows exactly what the last turn changed. <code>/undo-turn</code> restores those
+files only if they still match the state at the end of the turn. If I edited
+one afterward, the entire undo refuses to run rather than overwriting my newer
+work.</p>
+<p>The checkpoints are read-only with respect to Git. claux does not create
+commits or stash the repository behind my back. It snapshots tracked and
+non-ignored files itself, including modes and symlinks.</p>
+<p>Session storage moved from JSONL to SQLite along the way. Full conversations
+are persisted now, including tool calls and results. Switching sessions clears
+provider continuation cursors, cost counters, todo state, and temporary
+permission grants. That sounds obvious. It was several separate bugs.</p>
+<h2 id="permission-is-not-containment">Permission Is Not Containment</h2>
+<p>A permission prompt answers whether the model is allowed to try an operation.
+It does not constrain what the process can physically do after I click yes.</p>
+<p>Those need to be separate layers.</p>
+<p>The built-in Read, Write, Edit, Glob, and Grep tools now default to the
+workspace where claux started. Paths and symlinks are resolved before access,
+so <code>workspace/link-to-home/.ssh</code> does not become an escape hatch.</p>
+<p>Bash is harder. A compiler needs temporary directories. Git needs its metadata.
+A test may start child processes. On Linux, claux uses Landlock to let commands
+read the system while restricting writes to:</p>
+<ul>
+<li>The workspace</li>
+<li>System temporary directories</li>
+<li><code>/dev/null</code></li>
+<li>The repository's Git metadata</li>
+</ul>
+<p>Approving <code>cargo test</code> should not implicitly authorize writes to the rest of
+my home directory.</p>
+<p>The default <code>auto</code> policy enables that containment when the kernel supports it
+and warns when it cannot. <code>workspace_write</code> fails closed. <code>unrestricted</code> is an
+explicit escape hatch. A project-local config can always tighten the policy,
+but cannot loosen it unless I trust that project.</p>
+<p>For the same reason, Bash cancellation kills the whole subprocess tree. A
+cancelled compiler should not leave its child processes running after the
+conversation has moved on.</p>
+<p>Sub-agents inherit the parent session's permission mode too. A worker cannot
+quietly acquire more authority than the conversation that spawned it.</p>
+<h2 id="the-protocol-edge-cases-are-the-harness">The Protocol Edge Cases Are the Harness</h2>
+<p>The happy-path loop from Part 1 still fits on a screen: send messages, stream a
+response, run tools, send results, repeat. The production version is mostly
+answers to "what if?"</p>
+<p>What if an SSE network chunk splits a multibyte UTF-8 character? The decoder
+has to buffer incomplete bytes instead of corrupting the response.</p>
+<p>What if compaction rewrites history while the OpenAI Responses API has a
+continuation cursor? claux used to retain the cursor from the old history. The
+next request could combine that stale response ID with a newly summarized
+conversation. Resetting provider state when history changes fixed a failure
+that only appeared after a long session.</p>
+<p>What if cancellation arrives between a tool call and its result? Steering can
+skip half a parallel batch, and a malformed tool response can be retried. Every
+path still has to produce a matching result before the next provider request.
+Dropping one makes the conversation invalid.</p>
+<p>These are not independent polish fixes. An agent harness is a protocol state
+machine attached to a filesystem. Either side can punish small mistakes.</p>
+<h2 id="stop-evaluating-on-vibes">Stop Evaluating on Vibes</h2>
+<p>350 tests is useful, but most of them still test pieces: config resolution,
+stream decoding, permissions, storage, tool behavior.</p>
+<p>I added fixture-driven behavioral evaluations for complete multi-round turns.
+They use fake provider streams but real tools in isolated workspaces. An eval
+can assert that the model read the right file, received the right permission
+result, recovered from an interrupted tool, and left the expected files on
+disk. They run without credentials or a network connection.</p>
+<p>Then I connected claux to
+<a href="/blog/2026/replaybook-incident-replay-trainer/">replaybook</a>, my infrastructure
+incident trainer.</p>
+<p>Replaybook already knew how to start a genuinely broken service and verify an
+objective recovery condition. I converted its nginx 502 incident into a Harbor
+task, then ran three coding agents against the same prompt:</p>
+<ul>
+<li>Codex with GPT-5.6 Sol</li>
+<li>Claude Code with Sonnet 5</li>
+<li>claux with DeepSeek V4 Flash through OpenRouter</li>
+</ul>
+<p>The first run was nine trials. All nine fixed the incident. That was
+interesting, but they shared too much host state, so I built disposable NixOS
+workers. Each trial now gets a fresh VM, a fresh Docker environment, its own
+SSH port, and only the credential needed by that agent.</p>
+<p>The isolated runs also went nine for nine.</p>
+<p>The next problem was embarrassingly practical: Harbor reported cost for Claude
+but showed claux as zero. claux tracked the usage internally, but did not expose
+it in a machine-readable form. One-shot mode now emits versioned JSON with the
+model, token counts, cache usage, and provider-reported or estimated cost.</p>
+<p>OpenRouter reports the real request cost when it is available. If neither the
+provider nor the configured pricing knows the model, claux reports unavailable
+instead of inventing zero.</p>
+<p>The full isolated matrix looked like this:</p>
+<table><thead><tr><th>Harness</th><th>Model</th><th style="text-align: right">Result</th><th style="text-align: right">Median agent time</th><th style="text-align: right">Input tokens</th><th style="text-align: right">Output tokens</th><th style="text-align: right">Cost</th></tr></thead><tbody>
+<tr><td>Codex</td><td>GPT-5.6 Sol</td><td style="text-align: right">3/3</td><td style="text-align: right">1:05</td><td style="text-align: right">557,861</td><td style="text-align: right">6,813</td><td style="text-align: right">unavailable</td></tr>
+<tr><td>Claude Code</td><td>Sonnet 5</td><td style="text-align: right">3/3</td><td style="text-align: right">1:04</td><td style="text-align: right">1,214,607</td><td style="text-align: right">12,653</td><td style="text-align: right">$0.77257</td></tr>
+<tr><td>claux</td><td>DeepSeek V4 Flash</td><td style="text-align: right">3/3</td><td style="text-align: right">0:59</td><td style="text-align: right">615,789</td><td style="text-align: right">23,790</td><td style="text-align: right">$0.02396</td></tr>
+</tbody></table>
+<p>DeepSeek completed the same three verified recoveries for about 2.4 cents
+total. Claude/Sonnet cost about 77 cents. The median times were similar, but
+one DeepSeek run took 7:11 and generated 15,751 output tokens; its other runs
+took 0:40 and 0:59. Repeated trials expose that variance. A single run would
+have hidden it.</p>
+<p>This is still one incident. A model going three for three on an nginx typo does
+not prove it is generally better at infrastructure work. But the machinery is
+real now: same task, fresh machines, objective verifier, repeated trials,
+tokens, runtime, and cost.</p>
+<h2 id="where-we-are-now">Where We Are Now</h2>
+<p>There is plenty left. The Replaybook suite needs more than one scenario. MCP
+tools are not covered by the native filesystem sandbox, and Landlock
+containment is Linux-specific. The eval numbers need more tasks before anyone
+should read model rankings into them.</p>
+<p>But claux is no longer a weekend rewrite of leaked TypeScript. I can start it,
+pick a cheap model, interrupt it when it heads the wrong direction, inspect or
+undo its work, and measure what the turn cost.</p>
+<p>The rewrite taught me how Claude Code was built. Dogfooding taught me why the
+last 17,000 lines exist.</p>
+<hr />
+<p>Previous: <a href="/blog/2026/rewriting-claude-code-in-rust-part-3/">Part 3: TUI, Agents, and Multi-Provider</a></p>
+<p>Source: <a href="https://github.com/ducks/claux">github.com/ducks/claux</a></p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;rewriting-claude-code-in-rust-part-4&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-rewriting-claude-code-in-rust-part-4"
+      data-goatcounter-title="Helpful click on blog-2026-rewriting-claude-code-in-rust-part-4"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;tongs-github-cli-built-for-agents&#x2F;">I Got Tired of gh Failing, So I Built Tongs</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 20, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">I wanted a GitHub CLI that agents could depend on: stable JSON, no prompts, safe mutations, and no giant GraphQL query standing between me and a pull request. So I built Tongs.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/go">#go</a></p>
+                      
+                      <p><a href="/tags/cli">#cli</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/github">#github</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;the-battleground-has-a-map-now&#x2F;">The Battleground Has a Map Now</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 15, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Agents of Empires started as three rows in a terminal. I gave the battleground a service map driven by the same referee events that decide who wins.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/games">#games</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;agents-of-empires-not-a-leaderboard-a-battleground&#x2F;">Agents of Empires: Not a Leaderboard, a Battleground</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 13, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">I dropped DeepSeek, Luna, and GLM into identical blank NixOS hosts and made them race to recover queued work, survive a reboot, and produce the first durable deployment.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/games">#games</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;what-25-of-ai-inference-bought-me&#x2F;">What $25 of AI Inference Bought Me</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 10, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">I spent $25 sending models into broken Linux hosts. It bought more experimentation than I expected, but the tokens were never the scarce part.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;infrastructure-agents-priced-per-repair&#x2F;">Infrastructure Agents, Priced Per Repair</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 08, 2026</p>
+                    
+                    <p>9 min read</p>
+                  </div>
+                  
+                    <p class="desc">I sent several models into copies of the same broken Linux host. The useful number was not token price. It was the cost of a repair that survived restart and reboot.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>
+

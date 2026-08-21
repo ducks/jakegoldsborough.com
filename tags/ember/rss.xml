@@ -1,0 +1,553 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - ember</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/ember/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Mon, 25 May 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Building a Travel Itinerary Plugin Inside Discourse</title>
+          <pubDate>Mon, 25 May 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/building-discourse-itinerary/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/building-discourse-itinerary/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/building-discourse-itinerary/">&lt;p&gt;I built a Discourse plugin that turns a category of topics into a chronological
+travel itinerary. One topic per trip, then a flight topic, a hotel topic, a
+note topic, all linked back to the trip. The plugin renders them on &#x2F;itinerary
+as a clean list and per-trip timeline grouped by day.&lt;&#x2F;p&gt;
+&lt;p&gt;You can see the result here:
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-itinerary&quot;&gt;discourse-itinerary on GitHub&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;why-discourse-for-this&quot;&gt;Why Discourse for This?&lt;&#x2F;h2&gt;
+&lt;p&gt;Same reason I keep doing this: Discourse topics are extremely flexible, and
+seeing how far I can push them keeps teaching me the platform. A trip is just
+a topic. A flight is just a topic. The relationship between them is a custom
+field pointing at the parent trip. Everything else (permissions, search,
+edit history, who posted what, comments) comes for free.&lt;&#x2F;p&gt;
+&lt;p&gt;That was the bet anyway. Reality had some opinions.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-data-model&quot;&gt;The Data Model&lt;&#x2F;h2&gt;
+&lt;p&gt;After a couple of rewrites, the model settled at:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Category&lt;&#x2F;strong&gt; = &quot;Itinerary&quot;. One per forum. Auto-created by the plugin on
+first boot, with a configurable site setting if the admin wants to point
+it at a different category.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Topic with &lt;code&gt;itinerary_item_type = trip&lt;&#x2F;code&gt;&lt;&#x2F;strong&gt; = a trip (the container).&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Other itinerary topics&lt;&#x2F;strong&gt; = items (flight, train, hotel, event,
+transfer, note) that point at their parent trip via
+&lt;code&gt;itinerary_parent_trip_id&lt;&#x2F;code&gt; on the topic&#x27;s custom_fields.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Earlier versions used a tag (&lt;code&gt;itinerary&lt;&#x2F;code&gt;) to mark which topics belonged to
+the plugin. That got dropped once &lt;code&gt;itinerary_item_type&lt;&#x2F;code&gt; existed. The tag was
+load-bearing nostalgia, not real structure.&lt;&#x2F;p&gt;
+&lt;p&gt;All metadata lives in &lt;code&gt;topic_custom_fields&lt;&#x2F;code&gt;:&lt;&#x2F;p&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Field&lt;&#x2F;th&gt;&lt;th&gt;Type&lt;&#x2F;th&gt;&lt;th&gt;Example&lt;&#x2F;th&gt;&lt;&#x2F;tr&gt;&lt;&#x2F;thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;itinerary_item_type&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;td&gt;string&lt;&#x2F;td&gt;&lt;td&gt;&lt;code&gt;flight&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;itinerary_parent_trip_id&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;td&gt;integer&lt;&#x2F;td&gt;&lt;td&gt;&lt;code&gt;123&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;itinerary_starts_at&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;td&gt;string&lt;&#x2F;td&gt;&lt;td&gt;&lt;code&gt;2026-09-20T14:30&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;itinerary_ends_at&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;td&gt;string&lt;&#x2F;td&gt;&lt;td&gt;&lt;code&gt;2026-09-21T09:15&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;itinerary_origin&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;td&gt;string&lt;&#x2F;td&gt;&lt;td&gt;&lt;code&gt;PDX&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;itinerary_destination&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;td&gt;string&lt;&#x2F;td&gt;&lt;td&gt;&lt;code&gt;MAD&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;itinerary_location&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;td&gt;string&lt;&#x2F;td&gt;&lt;td&gt;&lt;code&gt;Madrid&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;itinerary_confirmation_code&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;td&gt;string&lt;&#x2F;td&gt;&lt;td&gt;&lt;code&gt;ABC123&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;itinerary_status&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;td&gt;string&lt;&#x2F;td&gt;&lt;td&gt;&lt;code&gt;booked&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;&#x2F;tbody&gt;&lt;&#x2F;table&gt;
+&lt;p&gt;Timestamps are stored as ISO-8601 strings, not DateTime. Lexical sorting
+on the raw column does the right thing for &lt;code&gt;YYYY-MM-DDTHH:MM&lt;&#x2F;code&gt;, which means
+I never have to parse them on the database side.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-plugin-api-trapdoors&quot;&gt;The Plugin API Trapdoors&lt;&#x2F;h2&gt;
+&lt;p&gt;Discourse plugins have a deceptively friendly API. You write a &lt;code&gt;plugin.rb&lt;&#x2F;code&gt;,
+drop some assets under &lt;code&gt;assets&#x2F;javascripts&#x2F;discourse&#x2F;&lt;&#x2F;code&gt;, and things mostly
+work. Until they don&#x27;t, and you have to figure out why.&lt;&#x2F;p&gt;
+&lt;p&gt;Here are the ones that actually stopped me cold.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-route-map-filename-convention&quot;&gt;The route-map filename convention&lt;&#x2F;h3&gt;
+&lt;p&gt;To register Ember client routes from a plugin, you put a file named
+&lt;code&gt;&amp;lt;plugin-slug&amp;gt;-route-map.js&lt;&#x2F;code&gt; in &lt;code&gt;assets&#x2F;javascripts&#x2F;discourse&#x2F;&lt;&#x2F;code&gt;. Discourse
+scans &lt;code&gt;requirejs.entries&lt;&#x2F;code&gt; for anything matching &lt;code&gt;&#x2F;route-map$&#x2F;&lt;&#x2F;code&gt; and invokes
+its default export to build out the route tree.&lt;&#x2F;p&gt;
+&lt;p&gt;I named the file correctly. The file loaded. The composer connector loaded.
+The route map itself never ran.&lt;&#x2F;p&gt;
+&lt;p&gt;Turns out Ember resolves the actual route modules by name. With this
+route map:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;js&quot; class=&quot;language-js &quot;&gt;&lt;code class=&quot;language-js&quot; data-lang=&quot;js&quot;&gt;export default function () {
+  this.route(&amp;quot;itinerary&amp;quot;, function () {
+    this.route(&amp;quot;show&amp;quot;, { path: &amp;quot;&amp;#x2F;:trip_id&amp;quot; });
+  });
+}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Ember will look for &lt;code&gt;routes&#x2F;itinerary&#x2F;index.js&lt;&#x2F;code&gt; and &lt;code&gt;routes&#x2F;itinerary&#x2F;show.js&lt;&#x2F;code&gt;.
+Not &lt;code&gt;routes&#x2F;itinerary-index.js&lt;&#x2F;code&gt; or &lt;code&gt;routes&#x2F;itinerary-show.js&lt;&#x2F;code&gt;, which is what
+I had originally. The dot in the route name becomes a path separator. I had
+copied the route map from discourse-cakeday but missed the nested directory
+convention for the route files.&lt;&#x2F;p&gt;
+&lt;p&gt;You don&#x27;t get an error for this. The route map just silently doesn&#x27;t match
+anything client-side and the URL falls through to Rails.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;rails-has-to-serve-the-html-for-an-ember-route&quot;&gt;Rails has to serve the HTML for an Ember route&lt;&#x2F;h3&gt;
+&lt;p&gt;This was the big one. After fixing the route file paths, &lt;code&gt;&#x2F;itinerary&lt;&#x2F;code&gt; still
+404&#x27;d. The error came from Rails, not Ember. The plugin had JSON routes:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;ruby&quot; class=&quot;language-ruby &quot;&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;Discourse::Application.routes.append do
+  get &amp;quot;&amp;#x2F;itinerary&amp;#x2F;trips&amp;quot; =&amp;gt; &amp;quot;itinerary#index&amp;quot;,
+      defaults: { format: :json },
+      constraints: { format: :json }
+  get &amp;quot;&amp;#x2F;itinerary&amp;#x2F;trips&amp;#x2F;:id&amp;quot; =&amp;gt; &amp;quot;itinerary#show&amp;quot;,
+      defaults: { format: :json },
+      constraints: { format: :json, id: &amp;#x2F;\d+&amp;#x2F; }
+end
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;But none of those match a browser request for &lt;code&gt;GET &#x2F;itinerary&lt;&#x2F;code&gt; (which wants
+HTML). Rails 404s, the browser never gets the Discourse app shell, Ember
+never loads, the route map never runs.&lt;&#x2F;p&gt;
+&lt;p&gt;discourse-cakeday works because it mounts a full Rails Engine at &lt;code&gt;&#x2F;cakeday&lt;&#x2F;code&gt;,
+which catches the HTML request and serves the SPA bootstrap. Discourse
+plugins like discourse-invite-stats use the simpler pattern:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;ruby&quot; class=&quot;language-ruby &quot;&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;get &amp;quot;&amp;#x2F;itinerary&amp;quot; =&amp;gt; &amp;quot;itinerary#page&amp;quot;, constraints: { format: :html }
+get &amp;quot;&amp;#x2F;itinerary&amp;#x2F;*path&amp;quot; =&amp;gt; &amp;quot;itinerary#page&amp;quot;, constraints: { format: :html }
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;With an action that just renders the empty layout:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;ruby&quot; class=&quot;language-ruby &quot;&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;def page
+  render &amp;quot;default&amp;#x2F;empty&amp;quot;
+end
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The empty layout is the SPA bootstrap. Ember takes over from there.&lt;&#x2F;p&gt;
+&lt;p&gt;I burned a couple of hours on this before searching for it. Sometimes the
+fastest way to debug a plugin is to read three other plugins that do the
+same thing.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;composer-fields-and-glimmer-autotracking&quot;&gt;Composer fields and Glimmer autotracking&lt;&#x2F;h3&gt;
+&lt;p&gt;The composer panel for itinerary fields shows different inputs depending on
+the item type. Flight has origin and destination, hotel has location, note
+has neither. The conditional rendering was driven by getters:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;js&quot; class=&quot;language-js &quot;&gt;&lt;code class=&quot;language-js&quot; data-lang=&quot;js&quot;&gt;get itemType() {
+  return this.composer.itinerary_item_type;
+}
+
+get showsRoute() {
+  return [&amp;quot;flight&amp;quot;, &amp;quot;train&amp;quot;, &amp;quot;transfer&amp;quot;].includes(this.itemType);
+}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This silently broke. The user could pick &quot;Flight&quot; from the dropdown, but
+the route inputs never appeared. The dropdown&#x27;s change handler was firing.
+The composer model was being updated. But the template never re-rendered.&lt;&#x2F;p&gt;
+&lt;p&gt;The reason: &lt;code&gt;this.composer.set(&quot;itinerary_item_type&quot;, value)&lt;&#x2F;code&gt; doesn&#x27;t go
+through a &lt;code&gt;@tracked&lt;&#x2F;code&gt; property. Glimmer&#x27;s autotracking can&#x27;t follow
+&lt;code&gt;composer.set(...)&lt;&#x2F;code&gt; on non-tracked composer fields. The getter reads from
+the composer correctly the first time, then becomes a dead read.&lt;&#x2F;p&gt;
+&lt;p&gt;Fix:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;js&quot; class=&quot;language-js &quot;&gt;&lt;code class=&quot;language-js&quot; data-lang=&quot;js&quot;&gt;@tracked itemType;
+
+@action
+setItemType(e) {
+  this.itemType = e.target.value || null;
+  this.composer.set(&amp;quot;itinerary_item_type&amp;quot;, this.itemType);
+}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Keep a local &lt;code&gt;@tracked&lt;&#x2F;code&gt; copy of anything you read from the composer model
+in conditional getters. The composer side stays in sync via the
+&lt;code&gt;.set()&lt;&#x2F;code&gt; call.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;datetime-local-silently-drops-half-filled-values&quot;&gt;datetime-local silently drops half-filled values&lt;&#x2F;h3&gt;
+&lt;p&gt;I had separate inputs for &quot;Starts at&quot; and &quot;Ends at&quot; with &lt;code&gt;type=&quot;datetime-local&quot;&lt;&#x2F;code&gt;.
+The user creates a flight, types a date, doesn&#x27;t bother with the time,
+clicks save. The flight saves. The trip page shows &quot;No items in this trip
+yet.&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;The flight was actually saved, just without &lt;code&gt;itinerary_starts_at&lt;&#x2F;code&gt;. The
+TripItemFinder filters out items without a start time, so the flight
+existed in the DB but never reached the timeline.&lt;&#x2F;p&gt;
+&lt;p&gt;Why? &lt;code&gt;&amp;lt;input type=&quot;datetime-local&quot;&amp;gt;&lt;&#x2F;code&gt; doesn&#x27;t fire &lt;code&gt;input&lt;&#x2F;code&gt; or &lt;code&gt;change&lt;&#x2F;code&gt; until
+both the date and time portions are populated. A half-filled value is
+&quot;invalid&quot; to the browser, and you get nothing.&lt;&#x2F;p&gt;
+&lt;p&gt;I split the field into a &lt;code&gt;&amp;lt;input type=&quot;date&quot;&amp;gt;&lt;&#x2F;code&gt; plus an optional
+&lt;code&gt;&amp;lt;input type=&quot;time&quot;&amp;gt;&lt;&#x2F;code&gt;. The composer combines them into the stored format
+(&lt;code&gt;YYYY-MM-DD&lt;&#x2F;code&gt; if just date, &lt;code&gt;YYYY-MM-DDTHH:MM&lt;&#x2F;code&gt; if both). The timeline
+component already knew how to render both formats.&lt;&#x2F;p&gt;
+&lt;p&gt;Two inputs, one stored field, no silent data loss.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;topics-need-a-title-that-discourse-will-accept&quot;&gt;Topics need a title that Discourse will accept&lt;&#x2F;h3&gt;
+&lt;p&gt;Once the composer worked, I hit the wall I&#x27;d been ignoring: Discourse&#x27;s
+title length validator requires 15 characters minimum, plus a &quot;title seems
+unclear&quot; heuristic that rejects titles like &quot;Flight&quot; or &quot;Lisbon&quot;. For a
+travel itinerary where the &quot;data&quot; is in custom fields, making the user
+invent a meaningful 15-char title for every flight is hostile.&lt;&#x2F;p&gt;
+&lt;p&gt;Discourse doesn&#x27;t have per-category overrides for &lt;code&gt;min_topic_title_length&lt;&#x2F;code&gt;.
+The validator reads the global site setting, full stop. I considered three
+options:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;Lower the global. Affects every topic on the forum.&lt;&#x2F;li&gt;
+&lt;li&gt;Monkey-patch the validator to skip checks for itinerary topics. Fragile.&lt;&#x2F;li&gt;
+&lt;li&gt;Synthesize the title from the structured fields the user is already
+filling in.&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;Option 3 is the move. The composer already collects item type, origin,
+destination, location. Build the title from those and the user never has
+to type one.&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;js&quot; class=&quot;language-js &quot;&gt;&lt;code class=&quot;language-js&quot; data-lang=&quot;js&quot;&gt;synthesizeTitle() {
+  const type = this.itemType;
+  if (!type || type === &amp;quot;trip&amp;quot;) return;
+
+  const cap = (s) =&amp;gt; s.charAt(0).toUpperCase() + s.slice(1);
+  const o = this.composer.itinerary_origin;
+  const d = this.composer.itinerary_destination;
+  const loc = this.composer.itinerary_location;
+
+  let title = cap(type);
+  if ([&amp;quot;flight&amp;quot;, &amp;quot;train&amp;quot;, &amp;quot;transfer&amp;quot;].includes(type) &amp;amp;&amp;amp; (o || d)) {
+    title = `${cap(type)}: ${o || &amp;quot;?&amp;quot;} -&amp;gt; ${d || &amp;quot;?&amp;quot;}`;
+  } else if (loc) {
+    title = `${cap(type)}: ${loc}`;
+  }
+  this.composer.set(&amp;quot;title&amp;quot;, title);
+}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Trip topics still take the user&#x27;s title (you name a trip meaningfully;
+&quot;European trip 2026&quot; is more useful than &quot;Trip&quot;). Items get derived titles:
+&quot;Flight: PDX -&amp;gt; MAD&quot;, &quot;Hotel: Madrid Marriott&quot;, &quot;Event: Symphony&quot;.&lt;&#x2F;p&gt;
+&lt;p&gt;I also hide the title input via a body class when the composer is in
+itinerary-item mode, so users don&#x27;t see a phantom input that gets
+overwritten on every field change.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-other-stuff&quot;&gt;The Other Stuff&lt;&#x2F;h2&gt;
+&lt;p&gt;A few smaller things that made the plugin feel like a real tool.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;auto-creating-the-category&quot;&gt;Auto-creating the category&lt;&#x2F;h3&gt;
+&lt;p&gt;The plugin provisions an &quot;Itinerary&quot; category on first boot. The slug-first
+lookup means if an admin already has a category called &quot;itinerary&quot; or
+&quot;ITINERARY&quot;, we adopt it instead of creating a duplicate (which would fail
+uniqueness anyway). The provisioner also adds the category id to
+&lt;code&gt;default_categories_muted&lt;&#x2F;code&gt; so new users don&#x27;t see itinerary topics
+cluttering &#x2F;latest.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;sidebar-link&quot;&gt;Sidebar link&lt;&#x2F;h3&gt;
+&lt;p&gt;Discourse&#x27;s &lt;code&gt;api.addCommunitySectionLink&lt;&#x2F;code&gt; adds a link to the sidebar&#x27;s
+Community section. With the category muted by default, the sidebar link
+becomes the canonical entrypoint. No URL guessing required.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;add-buttons&quot;&gt;Add buttons&lt;&#x2F;h3&gt;
+&lt;p&gt;Two big buttons: &quot;+ Add trip&quot; on &#x2F;itinerary, &quot;+ Add leg&quot; on
+&#x2F;itinerary&#x2F;:trip_id. Each opens the standard composer pre-scoped to the
+itinerary category, with the right &lt;code&gt;itinerary_item_type&lt;&#x2F;code&gt; (for trip) or
+&lt;code&gt;itinerary_parent_trip_id&lt;&#x2F;code&gt; (for leg) seeded on the composer model after the
+modal opens. The composer panel&#x27;s conditional rendering picks up the
+seeded values and shows the right fields.&lt;&#x2F;p&gt;
+&lt;p&gt;This pattern is straight from discourse-kanban: rather than build a custom
+modal, lean on Discourse&#x27;s existing composer with sensible defaults. You
+get rich text, drafts, file uploads, all the auth machinery, for free.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;screenshots&quot;&gt;Screenshots&lt;&#x2F;h2&gt;
+&lt;p&gt;Coming once I&#x27;ve populated my own itinerary further. I want the screenshots
+to show realistic data rather than the &quot;Flight to madrid for meetup&quot; test
+post that&#x27;s currently in my dev instance.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;takeaways&quot;&gt;Takeaways&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;strong&gt;Plugins built on topics keep paying off.&lt;&#x2F;strong&gt; Search, permissions, edit
+history, mentions, attachments. None of it is plugin code. It&#x27;s all
+Discourse, and I get it by default by storing data in topics.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;The plugin API has trapdoors.&lt;&#x2F;strong&gt; Most of them aren&#x27;t documented because
+nobody hits them until they hit them. Reading three working plugins
+side-by-side is faster than reading docs.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Glimmer autotracking is invisible until it isn&#x27;t.&lt;&#x2F;strong&gt; If a getter reads a
+non-&lt;code&gt;@tracked&lt;&#x2F;code&gt; value and you&#x27;re surprised it doesn&#x27;t re-render, that&#x27;s the
+likely cause. Always.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Synthesize what you can.&lt;&#x2F;strong&gt; The user shouldn&#x27;t have to type a topic title
+when the structured fields already encode it. Hide the title input, derive
+it, move on.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Per-category validation overrides would be great.&lt;&#x2F;strong&gt; Discourse already
+has site-wide setting overrides per category for things like default tags
+and minimum trust levels. Extending the per-category override surface to
+title and post length validators would let plugins like this stop fighting
+the global validators. Filed in the back of my brain for a future
+contribution.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;try-it&quot;&gt;Try It&lt;&#x2F;h2&gt;
+&lt;p&gt;The plugin is open source:
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-itinerary&quot;&gt;ducks&#x2F;discourse-itinerary&lt;&#x2F;a&gt;.
+Symlink it into your &lt;code&gt;plugins&#x2F;&lt;&#x2F;code&gt; directory, restart Rails, visit
+&#x2F;itinerary, and you&#x27;ve got a travel timeline backed entirely by Discourse
+topics.&lt;&#x2F;p&gt;
+&lt;p&gt;Now I just need to actually go on a trip.&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>Building The Guest Spot: Part 2 - Two Refactors</title>
+          <pubDate>Sun, 26 Oct 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/building-the-guest-spot-part-2/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/building-the-guest-spot-part-2/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/building-the-guest-spot-part-2/">&lt;p&gt;In &lt;a href=&quot;&#x2F;blog&#x2F;2025&#x2F;building-the-guest-spot-part-1&#x2F;&quot;&gt;Part 1&lt;&#x2F;a&gt;, I built an Instagram-style showcase using a custom &lt;code&gt;GuestSpotPost&lt;&#x2F;code&gt; model. It worked. But it also meant maintaining a parallel data structure instead of leveraging what Discourse already provides.&lt;&#x2F;p&gt;
+&lt;p&gt;This post covers two major refactors: first from custom models to Discourse Topics, then from custom feed infrastructure to plugin outlets. Each time, less code gave me more features.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;why-refactor&quot;&gt;Why Refactor?&lt;&#x2F;h2&gt;
+&lt;p&gt;The custom model approach had problems:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Duplicate logic: Comments, moderation, spam protection already exist for Topics&lt;&#x2F;li&gt;
+&lt;li&gt;Extra maintenance: Every time Discourse updates, potential breakage&lt;&#x2F;li&gt;
+&lt;li&gt;Missing features: No native file upload, no revision history, no trust levels&lt;&#x2F;li&gt;
+&lt;li&gt;More code: Separate serializers, separate permissions, separate everything&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Discourse Topics already have everything we need:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;First post holds the caption and images&lt;&#x2F;li&gt;
+&lt;li&gt;Title can be auto-generated&lt;&#x2F;li&gt;
+&lt;li&gt;Categories handle public vs private&lt;&#x2F;li&gt;
+&lt;li&gt;Pinning is built-in&lt;&#x2F;li&gt;
+&lt;li&gt;Commenting works out of the box&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;The showcase is just a custom view of Topics in the &quot;Public Feed&quot; category.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-refactor&quot;&gt;The Refactor&lt;&#x2F;h2&gt;
+&lt;h3 id=&quot;backend-changes&quot;&gt;Backend Changes&lt;&#x2F;h3&gt;
+&lt;p&gt;Deleted the entire &lt;code&gt;GuestSpotPost&lt;&#x2F;code&gt; model and migrations. Instead, the controller now works with Topics:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;ruby&quot; class=&quot;language-ruby &quot;&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;# app&amp;#x2F;controllers&amp;#x2F;guest_spot&amp;#x2F;posts_controller.rb
+def index
+  category_id = CategoryHelper.public_feed_category_id
+
+  topics = Topic
+    .where(category_id: category_id)
+    .where(deleted_at: nil)
+    .includes(:user, posts: :uploads)
+    .order(created_at: :desc)
+    .limit(50)
+
+  pinned_topics = Topic
+    .where(category_id: category_id)
+    .where(deleted_at: nil)
+    .where.not(pinned_at: nil)
+    .includes(:user, posts: :uploads)
+    .order(created_at: :desc)
+
+  render json: {
+    posts: serialize_data(topics, GuestSpotPostSerializer),
+    pinned: serialize_data(pinned_topics, GuestSpotPostSerializer)
+  }
+end
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The serializer extracts what we need from Topics:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;ruby&quot; class=&quot;language-ruby &quot;&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;# app&amp;#x2F;serializers&amp;#x2F;guest_spot_post_serializer.rb
+class GuestSpotPostSerializer &amp;lt; ApplicationSerializer
+  attributes :id, :user_id, :username, :caption, :image_urls, :created_at, :pinned
+
+  def caption
+    object.first_post&amp;amp;.raw || &amp;quot;&amp;quot;
+  end
+
+  def image_urls
+    object.first_post.uploads.map { |upload| UrlHelper.absolute(upload.url) }
+  end
+
+  def pinned
+    object.pinned_at.present?
+  end
+end
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Caption is the post content. Images come from uploads. Pinned status is the native &lt;code&gt;pinned_at&lt;&#x2F;code&gt; field.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;creating-posts&quot;&gt;Creating Posts&lt;&#x2F;h3&gt;
+&lt;p&gt;Instead of &lt;code&gt;GuestSpotPost.create&lt;&#x2F;code&gt;, we use &lt;code&gt;TopicCreator&lt;&#x2F;code&gt;:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;ruby&quot; class=&quot;language-ruby &quot;&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;def create
+  category_id = CategoryHelper.public_feed_category_id
+  title = &amp;quot;@#{current_user.username} - #{Time.now.to_i}&amp;quot;
+
+  topic_creator = TopicCreator.new(
+    current_user,
+    Guardian.new(current_user),
+    category: category_id,
+    title: title,
+    raw: params[:caption] || &amp;quot;&amp;quot;
+  )
+
+  topic = topic_creator.create
+  render_serialized(topic, GuestSpotPostSerializer)
+end
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Auto-generated titles keep them unique. The caption goes in the first post&#x27;s raw content. Image uploads attach automatically through Discourse&#x27;s existing upload system.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;frontend-changes&quot;&gt;Frontend Changes&lt;&#x2F;h3&gt;
+&lt;p&gt;Frontend barely changed. The serializer provides the same JSON structure, so components worked as-is. The only update was changing &lt;code&gt;@post.id&lt;&#x2F;code&gt; to reference topic IDs instead of custom model IDs.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;what-this-got-us&quot;&gt;What This Got Us&lt;&#x2F;h3&gt;
+&lt;p&gt;The refactor from custom models to Topics gave us:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Comments work natively (no custom implementation)&lt;&#x2F;li&gt;
+&lt;li&gt;Moderation tools work (flags, hiding, deleting)&lt;&#x2F;li&gt;
+&lt;li&gt;File uploads work (native uploader)&lt;&#x2F;li&gt;
+&lt;li&gt;Revision history works (edit tracking)&lt;&#x2F;li&gt;
+&lt;li&gt;Trust levels work (spam protection)&lt;&#x2F;li&gt;
+&lt;li&gt;All for free, by using what Discourse already provides&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;But I still had a custom feed with its own routes, controllers, and serializers. That was the next problem to solve.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;going-native-deleting-the-custom-feed&quot;&gt;Going Native: Deleting the Custom Feed&lt;&#x2F;h2&gt;
+&lt;p&gt;In Part 1, I built a custom &lt;code&gt;GuestSpotPost&lt;&#x2F;code&gt; model. Then I realized that was
+overkill and refactored to use Discourse Topics. But I kept the custom feed
+with its own routes, controllers, and serializers.&lt;&#x2F;p&gt;
+&lt;p&gt;After implementing that custom feed, I realized there was an uncomfortable
+disconnect. Users would browse an Instagram-style feed, click a post, and
+suddenly land in Discourse&#x27;s standard topic view. The context switch was jarring.&lt;&#x2F;p&gt;
+&lt;p&gt;The question became: why maintain a custom feed at all? If the custom model
+was unnecessary, maybe the custom feed was too.&lt;&#x2F;p&gt;
+&lt;p&gt;Discourse already has everything we need:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Category pages show topic lists&lt;&#x2F;li&gt;
+&lt;li&gt;Category permissions control who can post and who can view&lt;&#x2F;li&gt;
+&lt;li&gt;Native pinning highlights featured content&lt;&#x2F;li&gt;
+&lt;li&gt;Theme system allows extensive visual customization&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Instead of maintaining a parallel feed system, we could just make the Public
+Feed category look great using plugin outlets.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;the-deletion&quot;&gt;The Deletion&lt;&#x2F;h3&gt;
+&lt;p&gt;I deleted the entire custom feed infrastructure:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Removed (1,078 lines)&lt;&#x2F;strong&gt;:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Custom feed routes and controllers (&lt;code&gt;guest_spot&#x2F;feed_controller.rb&lt;&#x2F;code&gt;,
+&lt;code&gt;guest_spot&#x2F;posts_controller.rb&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;Custom post serializer (&lt;code&gt;guest_spot_post_serializer.rb&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;All custom Ember components (&lt;code&gt;guest-spot-feed.gjs&lt;&#x2F;code&gt;,
+&lt;code&gt;guest-spot-post-card.gjs&lt;&#x2F;code&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;Custom route definitions and templates&lt;&#x2F;li&gt;
+&lt;li&gt;Multiple initializers for hiding UI elements&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;&lt;strong&gt;Added (264 lines)&lt;&#x2F;strong&gt;:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Single plugin outlet connector:
+&lt;code&gt;assets&#x2F;javascripts&#x2F;discourse&#x2F;connectors&#x2F;topic-list-item&#x2F;guest-spot-item.gjs&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;CSS Grid layout for responsive cards&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Net result: 814 fewer lines of code.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;plugin-outlets-the-right-pattern&quot;&gt;Plugin Outlets: The Right Pattern&lt;&#x2F;h3&gt;
+&lt;p&gt;Discourse provides plugin outlets - extension points where plugins can inject
+custom HTML. There are two types:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Regular outlets&lt;&#x2F;strong&gt; inject content but Discourse still renders the default
+elements. &lt;strong&gt;Wrapper outlets&lt;&#x2F;strong&gt; completely replace the template.&lt;&#x2F;p&gt;
+&lt;p&gt;I used the &lt;code&gt;topic-list-item&lt;&#x2F;code&gt; wrapper outlet to completely replace how topics
+display in the Public Feed category:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;javascript&quot; class=&quot;language-javascript &quot;&gt;&lt;code class=&quot;language-javascript&quot; data-lang=&quot;javascript&quot;&gt;import Component from &amp;quot;@glimmer&amp;#x2F;component&amp;quot;;
+import avatar from &amp;quot;discourse&amp;#x2F;helpers&amp;#x2F;avatar&amp;quot;;
+import replaceEmoji from &amp;quot;discourse&amp;#x2F;helpers&amp;#x2F;replace-emoji&amp;quot;;
+import formatDate from &amp;quot;discourse&amp;#x2F;helpers&amp;#x2F;format-date&amp;quot;;
+
+export default class GuestSpotItem extends Component {
+  get isPublicFeed() {
+    return this.args.outletArgs?.topic?.category?.slug === &amp;quot;public-feed&amp;quot;;
+  }
+
+  get truncatedExcerpt() {
+    const excerpt = this.args.outletArgs?.topic?.excerpt || &amp;quot;&amp;quot;;
+    if (excerpt.length &amp;lt;= 50) {
+      return excerpt;
+    }
+    return excerpt.substring(0, 50) + &amp;quot;...&amp;quot;;
+  }
+
+  &amp;lt;template&amp;gt;
+    {{#if this.isPublicFeed}}
+      &amp;lt;td class=&amp;quot;topic-list-data guest-spot-card&amp;quot;&amp;gt;
+        &amp;lt;div class=&amp;quot;guest-spot-author&amp;quot;&amp;gt;
+          &amp;lt;a href=&amp;quot;&amp;#x2F;u&amp;#x2F;{{this.args.outletArgs.topic.creator.username}}&amp;quot;&amp;gt;
+            {{avatar this.args.outletArgs.topic.creator imageSize=&amp;quot;medium&amp;quot;}}
+            &amp;lt;span class=&amp;quot;username&amp;quot;&amp;gt;
+              {{this.args.outletArgs.topic.creator.username}}
+            &amp;lt;&amp;#x2F;span&amp;gt;
+          &amp;lt;&amp;#x2F;a&amp;gt;
+        &amp;lt;&amp;#x2F;div&amp;gt;
+
+        &amp;lt;div class=&amp;quot;guest-spot-image&amp;quot;&amp;gt;
+          &amp;lt;a href={{this.args.outletArgs.topic.url}}&amp;gt;
+            &amp;lt;img src={{this.args.outletArgs.topic.image_url}} alt=&amp;quot;&amp;quot; &amp;#x2F;&amp;gt;
+          &amp;lt;&amp;#x2F;a&amp;gt;
+        &amp;lt;&amp;#x2F;div&amp;gt;
+
+        &amp;lt;div class=&amp;quot;guest-spot-excerpt&amp;quot;&amp;gt;
+          {{replaceEmoji this.truncatedExcerpt}}
+        &amp;lt;&amp;#x2F;div&amp;gt;
+
+        &amp;lt;div class=&amp;quot;guest-spot-metadata&amp;quot;&amp;gt;
+          &amp;lt;div class=&amp;quot;meta-item&amp;quot;&amp;gt;
+            Views: {{this.args.outletArgs.topic.views}}
+          &amp;lt;&amp;#x2F;div&amp;gt;
+          &amp;lt;div class=&amp;quot;meta-item&amp;quot;&amp;gt;
+            Replies: {{this.args.outletArgs.topic.posts_count}}
+          &amp;lt;&amp;#x2F;div&amp;gt;
+          &amp;lt;div class=&amp;quot;meta-item&amp;quot;&amp;gt;
+            Posted: {{formatDate this.args.outletArgs.topic.createdAt
+            leaveAgo=true}}
+          &amp;lt;&amp;#x2F;div&amp;gt;
+        &amp;lt;&amp;#x2F;div&amp;gt;
+      &amp;lt;&amp;#x2F;td&amp;gt;
+    {{else}}
+      {{@default}}
+    {{&amp;#x2F;if}}
+  &amp;lt;&amp;#x2F;template&amp;gt;
+}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The component checks if we&#x27;re in the public-feed category. If yes, render the
+custom card layout. If no, render the default (&lt;code&gt;{{@default}}&lt;&#x2F;code&gt;).&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;css-grid-for-responsive-layout&quot;&gt;CSS Grid for Responsive Layout&lt;&#x2F;h3&gt;
+&lt;p&gt;Instead of JavaScript handling the layout, CSS Grid does all the work:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;scss&quot; class=&quot;language-scss &quot;&gt;&lt;code class=&quot;language-scss&quot; data-lang=&quot;scss&quot;&gt;.category-public-feed {
+  .topic-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+
+    @media (max-width: 480px) {
+      grid-template-columns: 1fr;
+    }
+
+    tr.topic-list-item {
+      display: flex;
+      flex-direction: column;
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--primary-very-low);
+      transition: transform 0.2s;
+
+      &amp;amp;:hover {
+        transform: translateY(-2px);
+      }
+    }
+  }
+}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;On mobile, it collapses to a single column. On tablet and desktop, it flows
+naturally based on available space.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;guest-spot-mobile-3.png&quot; alt=&quot;Mobile view of The Guest Spot showing a nature image from Tattoo Mike&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;guest-spot-feed-1.png&quot; alt=&quot;Desktop view of The Guest Spot showing a grid of tattoo pictures&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;discovery-process&quot;&gt;Discovery Process&lt;&#x2F;h3&gt;
+&lt;p&gt;Finding the right plugin outlet took some research. I used &lt;code&gt;rg&lt;&#x2F;code&gt; to search
+Discourse core for available outlets:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;rg &amp;quot;PluginOutlet&amp;quot; app&amp;#x2F;assets&amp;#x2F;javascripts&amp;#x2F;discourse&amp;#x2F;app&amp;#x2F;components&amp;#x2F; \
+  | grep topic-list
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Found several candidates:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;topic-list-before-link&lt;&#x2F;code&gt; - Injects before the title link (still renders
+default content)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;topic-list-after-title&lt;&#x2F;code&gt; - Injects after the title (still renders default
+content)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;topic-list-item&lt;&#x2F;code&gt; - Wrapper outlet (replaces entire template)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;The wrapper outlet was key. Regular outlets would have shown both my custom
+card and the default topic row, creating duplicate content.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;what-works-now&quot;&gt;What Works Now&lt;&#x2F;h3&gt;
+&lt;p&gt;The native approach gives us:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Comments work out of the box (no custom implementation needed)&lt;&#x2F;li&gt;
+&lt;li&gt;All Discourse features work (moderation, flags, bookmarks, etc.)&lt;&#x2F;li&gt;
+&lt;li&gt;814 fewer lines of code to maintain&lt;&#x2F;li&gt;
+&lt;li&gt;Better mobile support (Grid automatically adapts)&lt;&#x2F;li&gt;
+&lt;li&gt;No custom API (no serializers, controllers, or routes)&lt;&#x2F;li&gt;
+&lt;li&gt;Pin&#x2F;unpin still works (using Discourse&#x27;s native pinning)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;The showcase is now just &quot;a really nicely styled Discourse category&quot; instead
+of &quot;a custom app built on top of Discourse.&quot;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;vibe-coding-pros-and-cons&quot;&gt;Vibe Coding: Pros and Cons&lt;&#x2F;h2&gt;
+&lt;p&gt;This project is a perfect example of &quot;vibe coding&quot; - building something by
+feel, iterating quickly, and learning what works through trial and error.&lt;&#x2F;p&gt;
+&lt;p&gt;I started with a custom model because that felt right. Then I realized Topics
+already did everything I needed. I built a custom feed because I wanted full
+control. Then I realized plugin outlets gave me that control without the
+maintenance burden.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;The downside&lt;&#x2F;strong&gt;: I went too fast and tried too much. Each iteration meant
+throwing away code. The custom model, the custom feed infrastructure - all
+that work ended up deleted. If I&#x27;d researched Discourse patterns first, I
+could have gone straight to the plugin outlet approach.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;The upside&lt;&#x2F;strong&gt;: I learned way more by doing it wrong first. I understand why
+wrapper outlets exist, because I felt the pain of duplicate content with
+regular outlets. I understand why Discourse&#x27;s native features are powerful,
+because I tried to rebuild them and saw how much work that is.&lt;&#x2F;p&gt;
+&lt;p&gt;Fast iteration meant I could course-correct. I wasn&#x27;t six months into building
+a custom ORM before realizing Topics existed. I was a few days in, so
+refactoring didn&#x27;t hurt. The velocity of vibe coding let me try ideas, see
+them fail, and pivot quickly.&lt;&#x2F;p&gt;
+&lt;p&gt;The final result is simple and maintainable. It took three iterations to get
+there, but each iteration taught me something. Now I know how to not do things,
+which is just as valuable as knowing how to do them.&lt;&#x2F;p&gt;
+&lt;p&gt;The code is on GitHub: &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;discourse-guest-spot&quot;&gt;discourse-guest-spot&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

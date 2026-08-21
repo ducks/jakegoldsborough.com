@@ -1,4 +1,4 @@
-# AI-AGENTS.md
+# AGENTS.md
 
 This file provides guidance to AI coding agents (Claude Code, etc.) when working with code in this repository.
 
@@ -60,7 +60,7 @@ work. To draft one:
   worth a wry one-line acknowledgment in the intro).
 - **Frontmatter**: `title: Agent assisted Changelog - <N>/52`, the
   posting date, a `description` teasing 2-3 concrete items, and tags
-  `[claude, changelog, weekly summary]`. (Older posts in the series are
+  `[agents, changelog, weekly summary]`. (Older posts in the series are
   titled "Claude assisted Changelog"; the series is generic now, since
   the work involves multiple agents.)
 - **Sources**: the daily notes in `~/agents/notes/<year>/` for the days

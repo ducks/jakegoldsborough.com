@@ -25,12 +25,19 @@
         <ol>
           {% for series_page in series_pages %}
             <li{% if series_page.permalink == page.permalink %} class="current" aria-current="page"{% endif %}>
-              <span class="post-series-number">{{ loop.index }}</span>
+              <span class="post-series-number">{% if loop.index < 10 %}0{% endif %}{{ loop.index }}</span>
+              <div class="post-series-entry">
+                {% if series_page.permalink == page.permalink %}
+                  <span class="post-series-current-title">{{ series_page.title }}</span>
+                {% else %}
+                  <a href="{{ series_page.permalink }}">{{ series_page.title }}</a>
+                {% endif %}
+                {% if series_page.description %}
+                  <span class="post-series-description">{{ series_page.description }}</span>
+                {% endif %}
+              </div>
               {% if series_page.permalink == page.permalink %}
-                <span class="post-series-current-title">{{ series_page.title }}</span>
                 <span class="post-series-current-label">current</span>
-              {% else %}
-                <a href="{{ series_page.permalink }}">{{ series_page.title }}</a>
               {% endif %}
             </li>
           {% endfor %}

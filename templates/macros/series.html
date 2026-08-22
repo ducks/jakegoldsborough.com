@@ -15,12 +15,20 @@
     {% if series_pages | length > 1 %}
       {% set series_pages = series_pages | sort(attribute="date") %}
       <aside class="post-series" aria-label="{{ page.extra.series }} series">
-        <p class="post-series-title">Part of the <strong>{{ page.extra.series }}</strong> series</p>
+        <div class="post-series-header">
+          <span class="post-series-label">Series</span>
+          <div class="post-series-heading">
+            <strong>{{ page.extra.series }}</strong>
+            <span class="post-series-count">{{ series_pages | length }} posts</span>
+          </div>
+        </div>
         <ol>
           {% for series_page in series_pages %}
             <li{% if series_page.permalink == page.permalink %} class="current" aria-current="page"{% endif %}>
+              <span class="post-series-number">{{ loop.index }}</span>
               {% if series_page.permalink == page.permalink %}
-                <span>{{ series_page.title }}</span>
+                <span class="post-series-current-title">{{ series_page.title }}</span>
+                <span class="post-series-current-label">current</span>
               {% else %}
                 <a href="{{ series_page.permalink }}">{{ series_page.title }}</a>
               {% endif %}

@@ -8,6 +8,8 @@ taxonomies:
   tags:
     - nixos
     - linux
+extra:
+  series: "NixOS as a Daily Driver"
 ---
 
 ### Intro
@@ -19,10 +21,6 @@ So far in this series, we have:
 - added our config to version control
 - introduced NixVim, a declarative way to configure Neovim
 - learned about NixOS dev environments
-
-Catch up here:
-[NixOS Daily Driver series list](/tags/nixos)
-
 
 This post is a bit of a detour as we'll be completing a fresh reinstall
 to enable disk encryption. We will be getting back to our configuration soon
@@ -193,5 +191,3 @@ it to our new, freshly installed and encrypted system.
 Spoiler: it does not go as smoothly as I had hoped.
 
 ---
-
-*Zero to Nixty: [← Part 6](/blog/2025/nixos-daily-driver-6/) · [Part 8 →](/blog/2025/nixos-daily-driver-8/)*

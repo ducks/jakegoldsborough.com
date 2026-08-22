@@ -8,6 +8,8 @@ taxonomies:
     - tools
     - rust
     - dev
+extra:
+  series: "Lok"
 ---
 
 Part 2 ended with two promises: parallel workflow execution and dead code cleanup.
@@ -278,8 +280,3 @@ dedupes by title within a single run, but doesn't check for existing open
 issues with similar titles.
 
 The source is at [github.com/ducks/lok](https://github.com/ducks/lok).
-
----
-
-Previous: [Part 2: Workflows and Local LLMs](/blog/2026/lok-workflows-and-local-llms) |
-Next: [Part 4: The Self-Healing Loop](/blog/2026/lok-the-self-healing-loop)

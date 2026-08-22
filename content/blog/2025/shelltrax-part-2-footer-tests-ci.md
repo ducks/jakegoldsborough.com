@@ -7,10 +7,12 @@ taxonomies:
     - rust
     - tui
     - ci
+extra:
+  series: "Building Shelltrax"
 ---
 
-In [Part 1](@/blog/2025/introducing-shelltrax.md), I built the core of shelltrax
-- a TUI music player in Rust. It had library navigation, file browsing,
+In Part 1, I built the core of shelltrax—a TUI music player in Rust. It had
+library navigation, file browsing,
 audio playback, and a footer with song info and status. One big problem though,
 the footer would stop updating after the first song and I really wanted to fix
 that.

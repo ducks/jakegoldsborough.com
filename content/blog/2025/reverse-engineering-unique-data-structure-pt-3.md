@@ -8,10 +8,9 @@ taxonomies:
   tags:
     - APIs
     - typescript
+extra:
+  series: "Reverse Engineering a Unique Data Structure"
 ---
-
-Second part of the series, Search, can be found here:
-[Search for Places and Courses](/blog/2025/reverse-engineering-unique-data-structure-pt-2/)
 
 In the previous two posts, we learned how to `GET`, scrub, and parse `Courses`
 data, as well as how to use the search endpoint for `Places` and `Courses`.

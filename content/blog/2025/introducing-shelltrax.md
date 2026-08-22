@@ -8,6 +8,8 @@ taxonomies:
   tags:
     - rust
     - tui
+extra:
+  series: "Building Shelltrax"
 ---
 
 ### Shelltrax

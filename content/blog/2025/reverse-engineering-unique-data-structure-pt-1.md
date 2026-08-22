@@ -8,6 +8,8 @@ taxonomies:
   tags:
     - APIs
     - typescript
+extra:
+  series: "Reverse Engineering a Unique Data Structure"
 ---
 
 **Note: Real app name and URL have been replaced**

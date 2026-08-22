@@ -10,6 +10,8 @@ taxonomies:
     - aws
     - ruby
     - oss
+extra:
+  series: "The AWS Credential Chain Saga"
 ---
 
 ### The Problem
@@ -129,7 +131,3 @@ matter -- they can make life easier for the next developer who comes along.
 
 This turned out to be just the beginning. After getting the feature merged, I
 discovered it didn't actually work due to credential chain precedence issues.
-Read more in [Part
-2](/blog/2025/contributing-to-aws-sdk-ruby-pt2/)
-and [Part
-3](/blog/2025/contributing-to-aws-sdk-ruby-pt3/).

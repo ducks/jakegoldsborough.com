@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% import "macros/helpful.html" as helpful %}
+{% import "macros/series.html" as series %}
 
 {% block hero %}
   {% if page.components | first != "blog" %}
@@ -25,6 +26,8 @@
           {% endfor %}
         </div>
       {% endif %}
+
+      {{ series::navigation(page=page) }}
 
       {{ page.content | safe }}
 

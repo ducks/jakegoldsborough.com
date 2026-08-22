@@ -8,6 +8,8 @@ taxonomies:
     - rust
     - tools
     - dev
+extra:
+  series: "Rewriting Claude Code in Rust"
 ---
 
 Claude Code's source leaked on March 31st. A source map in the npm package

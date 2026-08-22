@@ -8,6 +8,8 @@ taxonomies:
   tags:
     - nixos
     - linux
+extra:
+  series: "NixOS as a Daily Driver"
 ---
 
 First, it's worth explaining what NixOS is and why I or anyone would want to
@@ -97,5 +99,3 @@ In the next post, I will go over how to install NixOS and maybe a bit of the
 configuration.
 
 ---
-
-*Zero to Nixty: [Part 2 →](/blog/2025/nixos-daily-driver-2/)*

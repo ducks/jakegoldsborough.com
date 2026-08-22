@@ -8,6 +8,8 @@ taxonomies:
   tags:
     - nixos
     - linux
+extra:
+  series: "NixOS as a Daily Driver"
 ---
 
 ### Recap
@@ -16,8 +18,6 @@ In the last post, we successfully got our configuration stored in version contro
 This will make it very simple to pass our config around if needed. We also
 learned about Dotter, a dotfile configuration management tool, which we will
 be using again today.
-
-See that post [here](/blog/2025/nixos-daily-driver-4/)
 
 ### Intro
 
@@ -247,5 +247,3 @@ Next time will be all about development work. We will introduce Nixvim and
 They are very powerful and make developing on NixOS much easier.
 
 ---
-
-*Zero to Nixty: [← Part 4](/blog/2025/nixos-daily-driver-4/) · [Part 6 →](/blog/2025/nixos-daily-driver-6/)*

@@ -8,6 +8,8 @@ taxonomies:
     - discourse
     - ruby
     - community
+extra:
+  series: "Building The Guest Spot"
 ---
 
 I'm not exactly a social butterfly. I can enjoy small groups of like minded people

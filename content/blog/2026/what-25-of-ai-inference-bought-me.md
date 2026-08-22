@@ -8,6 +8,8 @@ taxonomies:
     - infrastructure
     - dev
     - tools
+extra:
+  series: "Replaybook"
 ---
 
 This weekend my OpenRouter bill crossed twenty-five dollars.

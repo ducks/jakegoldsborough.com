@@ -7,11 +7,12 @@ taxonomies:
     - discourse
     - ruby
     - oss
+extra:
+  series: "Building Yaks"
 ---
 
-[Part 1](/blog/2025/building-yaks-virtual-currency-part-1/) covered the
-backend architecture and [Part 2](/blog/2025/building-yaks-virtual-currency-part-2/)
-covered topic pinning and the expiration system. This post covers two more
+Part 1 covered the backend architecture and Part 2 covered topic pinning and
+the expiration system. This post covers two more
 complex features: topic boosting (pinning topics globally with visual
 highlighting) and custom avatar flair (letting users customize their forum
 identity).

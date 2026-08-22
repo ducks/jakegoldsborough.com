@@ -27,7 +27,7 @@
 
     <title>{% if page.title %}{{ page.title }} - {% endif %}{{ config.title }}</title>
 
-    <link rel="stylesheet" href="{{ get_url(path='css/style.css') }}" />
+    <link rel="stylesheet" href="{{ get_url(path='css/style.css', cachebust=true) }}" />
 
     {# Optional favicon #}
     <link rel="icon" href="{{ get_url(path='images/favicon.png') }}" />
@@ -78,4 +78,3 @@
         async src="//stats.jakegoldsborough.com/count.js"></script>
   </body>
 </html>
-

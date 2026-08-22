@@ -10,6 +10,8 @@ taxonomies:
     - claude
     - tools
     - oss
+extra:
+  series: "Glow"
 ---
 
 When I wrote about [glow](https://github.com/ducks/glow) - the tool that turns my one-giant-key macropad into a Claude status lamp - I ended on a throwaway line: *it drives any VIA/QMK keyboard, point it at a VID/PID.* I meant it as a "this generalizes" flourish. Then I looked down at the keyboard I actually type on all day, a Framework Laptop 16 with an RGB keyboard module, and thought the thought again.
@@ -147,4 +149,4 @@ The whole desk glows now. I asked this very keyboard a question to write this se
 
 ---
 
-Source: [github.com/ducks/glow](https://github.com/ducks/glow) · The first one: [glow: I gave Claude a physical presence on my desk](/blog/2026/glow-the-big-button-that-glows-with-claude/)
+Source: [github.com/ducks/glow](https://github.com/ducks/glow)

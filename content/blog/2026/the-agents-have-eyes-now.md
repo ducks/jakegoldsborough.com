@@ -1,13 +1,15 @@
 ---
 title: "The Agents Have Eyes Now"
 date: 2026-08-22
-description: "Replaybook can now hand an infrastructure agent a production topology diagram. Kimi K3 read the map, found two hidden configuration drifts, and went four for four."
+description: "Replaybook can now hand infrastructure agents a production topology diagram. Kimi K3 and Gemini 3.7 Flash both swept the first visual scenario."
 taxonomies:
   tags:
     - ai
     - infrastructure
     - dev
     - tools
+extra:
+  series: "Replaybook"
 ---
 
 Until now, every agent I ran through
@@ -70,14 +72,20 @@ repair, restarted the relevant services, rebooted the host, and ran the checks
 again.
 
 The first smoke test passed in 1 minute 12 seconds. I followed it with three
-fresh trials. Kimi passed all three in 1:33, 1:41, and 1:57.
+fresh trials. Kimi passed all three in 1:33, 1:41, and 1:57. Gemini 3.7 Flash
+also swept its three trials, with a 2:28 median.
 
-| trials | passed | median | input tokens | output tokens | cost |
-| ---: | ---: | ---: | ---: | ---: | ---: |
-| 3 | 3 | 1:41 | 52,949 | 9,520 | $0.40 |
+| model | trials | passed | median | input tokens | output tokens | cost |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Kimi K3 | 3 | 3 | 1:41 | 52,949 | 9,520 | $0.40 |
+| Gemini 3.7 Flash | 3 | 3 | 2:28 | 634,626 | 29,346 | $0.41 |
 
 That makes four independent hosts and four durable repairs so far. It is one
 scenario and a tiny sample, but it is a hell of a first look.
+
+Qwen 3.8 was scheduled for the same cohort, but all three attempts ended in an
+agent runtime error before the first round. I am counting those as unavailable,
+not failed repairs. It never reached the host.
 
 ## The picture is an input, not an answer key
 

@@ -8,6 +8,8 @@ taxonomies:
     - rust
     - tools
     - dev
+extra:
+  series: "Rewriting Claude Code in Rust"
 ---
 
 [Part 1](/blog/2026/rewriting-claude-code-in-rust-with-claude/) got a working
@@ -240,7 +242,5 @@ But honestly, the inline REPL with permissions is already usable. The
 permission prompt was the last thing blocking daily use.
 
 ---
-
-Previous: [Part 1: Rewriting Claude Code in Rust, With Claude](/blog/2026/rewriting-claude-code-in-rust-with-claude/)
 
 Source: [github.com/ducks/claux](https://github.com/ducks/claux)

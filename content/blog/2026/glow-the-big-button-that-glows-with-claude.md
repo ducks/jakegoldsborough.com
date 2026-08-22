@@ -9,6 +9,8 @@ taxonomies:
     - claude
     - tools
     - oss
+extra:
+  series: "Glow"
 ---
 
 I bought a [Keychron Q0 Mini](https://www.keychron.com/products/keychron-q0-mini-8k-action-key) as a joke.
@@ -137,7 +139,5 @@ I want to be clear that I did not buy a giant button because I had a plan for it
 That's most of my favorite projects. Not "the market needs an ambient AI status indicator." Just "I have this dumb button, and this light, and a free evening, and how hard could it be." Hard enough to be fun. Easy enough to finish. And now there's a purple glow on my desk that turns blue when I ask a question, and I grin every time.
 
 ---
-
-*Part two: [the whole desk lights up now, across three agents](/blog/2026/glow-whole-desk-framework-udev/) - extending glow to my Framework keyboard, a udev war story, and the same status signal running from Claude Code, claux, and Codex.*
 
 Source: [github.com/ducks/glow](https://github.com/ducks/glow)

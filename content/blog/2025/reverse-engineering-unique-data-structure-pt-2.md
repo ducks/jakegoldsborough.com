@@ -8,10 +8,9 @@ taxonomies:
   tags:
     - APIs
     - typescript
+extra:
+  series: "Reverse Engineering a Unique Data Structure"
 ---
-
-First part of the series, Courses, can be found here:
-[Courses](/blog/2025/reverse-engineering-unique-data-structure-pt-1/)
 
 #### Search for Places
 In the first post in this series, we were able to parse and extract a list
@@ -75,8 +74,7 @@ Now, you can take that `slug` and plug it into the courses call:
 
 `/courses.data?placeId=charlotte-nc`
 
-See the first [post](/blog/2025/reverse-engineering-unique-data-structure-pt-1/)
-on how to parse and extract that data.
+The first post covers how to parse and extract that data.
 
 #### Search for Courses
 

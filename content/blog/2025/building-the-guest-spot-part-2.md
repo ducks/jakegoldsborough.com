@@ -8,9 +8,13 @@ taxonomies:
     - discourse
     - ruby
     - ember
+extra:
+  series: "Building The Guest Spot"
 ---
 
-In [Part 1](/blog/2025/building-the-guest-spot-part-1/), I built an Instagram-style showcase using a custom `GuestSpotPost` model. It worked. But it also meant maintaining a parallel data structure instead of leveraging what Discourse already provides.
+In Part 1, I built an Instagram-style showcase using a custom `GuestSpotPost`
+model. It worked. But it also meant maintaining a parallel data structure
+instead of leveraging what Discourse already provides.
 
 This post covers two major refactors: first from custom models to Discourse Topics, then from custom feed infrastructure to plugin outlets. Each time, less code gave me more features.
 

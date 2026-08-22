@@ -8,6 +8,8 @@ taxonomies:
     - rust
     - tools
     - dev
+extra:
+  series: "Rewriting Claude Code in Rust"
 ---
 
 At the end of [Part 3](/blog/2026/rewriting-claude-code-in-rust-part-3/),
@@ -255,7 +257,5 @@ The rewrite taught me how Claude Code was built. Dogfooding taught me why the
 last 17,000 lines exist.
 
 ---
-
-Previous: [Part 3: TUI, Agents, and Multi-Provider](/blog/2026/rewriting-claude-code-in-rust-part-3/)
 
 Source: [github.com/ducks/claux](https://github.com/ducks/claux)

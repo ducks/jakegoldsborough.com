@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "macros/series.html" as series %}
 
 {% block content %}
   <article>
@@ -18,6 +19,8 @@
         {% endfor %}
       </p>
     {% endif %}
+
+    {{ series::navigation(page=page) }}
 
     {{ page.content | safe }}
 

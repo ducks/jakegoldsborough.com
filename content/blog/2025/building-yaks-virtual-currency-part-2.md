@@ -7,10 +7,11 @@ taxonomies:
     - discourse
     - ruby
     - oss
+extra:
+  series: "Building Yaks"
 ---
 
-In [Part 1](/blog/2025/building-yaks-virtual-currency-part-1), I covered
-the backend architecture for Yaks: wallets, transactions, and the service
+Part 1 covered the backend architecture for Yaks: wallets, transactions, and the service
 layer. The database models were in place, but the system could only apply
 one feature (post highlighting) and had no way to clean up expired features.
 

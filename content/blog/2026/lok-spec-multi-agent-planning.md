@@ -10,6 +10,8 @@ taxonomies:
     - tools
     - rust
     - dev
+extra:
+  series: "Lok"
 ---
 
 The hardest part of building software isn't writing code. It's figuring out what
@@ -275,7 +277,3 @@ that the architecture makes sense. The system does not get smarter by hiding
 decisions from you. It gets more useful by making decisions inspectable.
 
 The source is at [github.com/ducks/lok](https://github.com/ducks/lok).
-
----
-
-Previous: [Part 4: The Self-Healing Loop](/blog/2026/lok-the-self-healing-loop)

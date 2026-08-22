@@ -8,11 +8,9 @@ taxonomies:
   tags:
     - nixos
     - linux
+extra:
+  series: "NixOS as a Daily Driver"
 ---
-
-Check out the whole series here:
-
-[NixOS as a Daily Driver - Zero to Nixty](/tags/nixos)
 
 ### Intro
 
@@ -169,5 +167,3 @@ If you're reading this and have suggestions or you're curious about something,
 let me know: [nixos@jakegoldsborough.com](mailto:nixos@jakegoldsborough.com)
 
 ---
-
-*Zero to Nixty: [← Part 7.5](/blog/2025/nixos-daily-driver-7-5/) · [Part 9 →](/blog/2025/nixos-daily-driver-9/)*

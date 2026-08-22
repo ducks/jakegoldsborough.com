@@ -8,12 +8,12 @@ description: "Implementing custom user titles and the Yaks earning system.
   This post covers serializer overrides for titles and building a complete
   earning system with rate limiting, trust level requirements, and real-time
   balance updates."
+extra:
+  series: "Building Yaks"
 ---
 
-[Part 1](/blog/2025/building-yaks-virtual-currency-part-1/) covered the
-backend architecture, [Part 2](/blog/2025/building-yaks-virtual-currency-part-2/)
-covered topic pinning and expiration, and [Part 3](/blog/2025/building-yaks-virtual-currency-part-3/)
-covered topic boosting and custom avatar flair. This post covers two more
+Part 1 covered the backend architecture, Part 2 covered topic pinning and
+expiration, and Part 3 covered topic boosting and custom avatar flair. This post covers two more
 major features: custom user titles and the automatic earning system.
 
 ## Custom User Titles

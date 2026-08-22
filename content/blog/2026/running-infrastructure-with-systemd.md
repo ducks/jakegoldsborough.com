@@ -7,6 +7,8 @@ taxonomies:
     - self-hosting
     - infrastructure
     - systemd
+extra:
+  series: "Running Personal Infrastructure"
 ---
 
 I run all my personal infrastructure on a single VPS using systemd

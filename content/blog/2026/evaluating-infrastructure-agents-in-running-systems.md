@@ -8,6 +8,8 @@ taxonomies:
     - rust
     - infrastructure
     - dev
+extra:
+  series: "Replaybook"
 ---
 
 I have been building [Replaybook](https://github.com/ducks/replaybook) as an incident replay trainer.

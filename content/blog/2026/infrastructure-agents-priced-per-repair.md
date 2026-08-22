@@ -8,6 +8,8 @@ taxonomies:
     - infrastructure
     - dev
     - tools
+extra:
+  series: "Replaybook"
 ---
 
 This morning I sent four language models into four copies of the same broken

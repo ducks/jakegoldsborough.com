@@ -7,6 +7,8 @@ taxonomies:
     - discourse
     - ruby
     - oss
+extra:
+  series: "Building Yaks"
 ---
 
 I'm building a virtual currency system for Discourse. Users earn and spend

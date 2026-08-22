@@ -9,14 +9,15 @@ taxonomies:
     - aws
     - ruby
     - oss
+extra:
+  series: "The AWS Credential Chain Saga"
 ---
 
 
 ### The Plot Twist
 
-Remember that [AWS SDK
-contribution](/blog/2025/contributing-to-aws-sdk-ruby/)
-I wrote about? The one where I fixed missing `credential_source = Environment`
+Remember that AWS SDK contribution I wrote about? The one where I fixed
+missing `credential_source = Environment`
 support? Well, turns out that was only half the story.
 
 After my PR got merged and we updated our Discourse deployment to `aws-sdk-core
@@ -154,10 +155,3 @@ waiting on the upstream architectural fix.
 Sometimes the best contribution you can make is clearly identifying and
 documenting a problem, even when the solution isn't obvious. That's exactly
 what happened here.
-
-### The Adventure Continues
-
-Read [Part
-3](/blog/2025/contributing-to-aws-sdk-ruby-pt3/) to
-see how the maintainers responded to the bug report and the workaround I ended
-up implementing.

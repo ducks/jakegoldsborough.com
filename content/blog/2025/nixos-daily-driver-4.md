@@ -8,6 +8,8 @@ taxonomies:
   tags:
     - nixos
     - linux
+extra:
+  series: "NixOS as a Daily Driver"
 ---
 
 ### From TTY to Tiling
@@ -184,5 +186,3 @@ use. This will probably include some `hypr` config and introducing Nixvim. Nixvi
 is a way to manage your neovim plugins in a NixOS-y way.
 
 ---
-
-*Zero to Nixty: [← Part 3](/blog/2025/nixos-daily-driver-3/) · [Part 5 →](/blog/2025/nixos-daily-driver-5/)*

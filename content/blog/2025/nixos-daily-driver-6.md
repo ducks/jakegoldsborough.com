@@ -8,14 +8,14 @@ taxonomies:
   tags:
     - nixos
     - linux
+extra:
+  series: "NixOS as a Daily Driver"
 ---
 
 ### Recap
 
 In the last post, we added some quality of life enhancements. This included
 key remapping and getting hypridle and hyprlock set up.
-
-See that post [here](/blog/2025/nixos-daily-driver-5).
 
 ### Intro
 
@@ -167,5 +167,3 @@ In this post, we have:
   development workflows
 
 ---
-
-*Zero to Nixty: [← Part 5](/blog/2025/nixos-daily-driver-5/) · [Part 7.5 →](/blog/2025/nixos-daily-driver-7-5/)*

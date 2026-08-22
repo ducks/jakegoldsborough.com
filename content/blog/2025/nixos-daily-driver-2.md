@@ -9,10 +9,9 @@ taxonomies:
   tags:
     - nixos
     - linux
+extra:
+  series: "NixOS as a Daily Driver"
 ---
-
-See [Part 1](/blog/2025/nixos-daily-driver-1) where I cover why you would want
-to run NixOS as a daily driver.
 
 In this post, we will cover installation on a personal machine and setting up
 a basic configuration file.
@@ -203,5 +202,3 @@ window manager, and install some key daily-driver tools including Neovim, Git,
 and LibreWolf.
 
 ---
-
-*Zero to Nixty: [← Part 1](/blog/2025/nixos-daily-driver-1/) · [Part 3 →](/blog/2025/nixos-daily-driver-3/)*

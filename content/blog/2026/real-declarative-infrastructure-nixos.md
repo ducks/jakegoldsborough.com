@@ -7,10 +7,12 @@ taxonomies:
     - nixos
     - self-hosting
     - infrastructure
+extra:
+  series: "Running Personal Infrastructure"
 ---
 
-In my [previous post](/blog/2026/running-infrastructure-with-systemd/), I
-described running infrastructure with systemd services and bash scripts. It
+In my previous post, I described running infrastructure with systemd services
+and bash scripts. It
 worked, but the update script kept growing with edge cases.
 
 ```bash
@@ -436,6 +438,4 @@ That's real declarative infrastructure.
 - [pond-nix](https://github.com/ducks/pond-nix)
 - [nixos-infect](https://github.com/elitak/nixos-infect)
 - [NixOS Manual](https://nixos.org/manual/nixos/stable/)
-- [Previous post: Running Infrastructure with Systemd](/blog/2026/running-infrastructure-with-systemd/)
-
 

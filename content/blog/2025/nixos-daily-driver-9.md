@@ -8,13 +8,14 @@ taxonomies:
   tags:
     - nixos
     - framework
+extra:
+  series: "NixOS as a Daily Driver"
 ---
 
 I recently got a new
 [Framework 16](https://frame.work/products/laptop16-diy-amd-7040) (thanks
 Discourse!). In the previous post, we talked about encrypting the machine and
-refactoring our config into a modular layout. You can read about that and more
-in the [NixOS As A Daily Driver](/tags/nixos) series.
+refactoring our config into a modular layout.
 
 Today I will be showing how I got Wi-Fi working because it did not work on NixOS
 by default. The Framework 16 ships with an Intel AX210 Wi-Fi module.
@@ -76,5 +77,3 @@ After rebooting, my `iwlwifi` driver loaded, `wlp2s0` came up, and `nmtui` was
 able to both see and connect to the SSIDs.
 
 ---
-
-*Zero to Nixty: [← Part 8](/blog/2025/nixos-daily-driver-8/)*

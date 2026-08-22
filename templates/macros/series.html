@@ -1,0 +1,33 @@
+{% macro navigation(page) %}
+  {% if page.extra and page.extra.series %}
+    {% set_global series_pages = [] %}
+    {% set blog = get_section(path="blog/_index.md") %}
+
+    {% for subsection_path in blog.subsections %}
+      {% set subsection = get_section(path=subsection_path) %}
+      {% for candidate in subsection.pages %}
+        {% if candidate.extra and candidate.extra.series == page.extra.series %}
+          {% set_global series_pages = series_pages | concat(with=candidate) %}
+        {% endif %}
+      {% endfor %}
+    {% endfor %}
+
+    {% if series_pages | length > 1 %}
+      {% set series_pages = series_pages | sort(attribute="date") %}
+      <aside class="post-series" aria-label="{{ page.extra.series }} series">
+        <p class="post-series-title">Part of the <strong>{{ page.extra.series }}</strong> series</p>
+        <ol>
+          {% for series_page in series_pages %}
+            <li{% if series_page.permalink == page.permalink %} class="current" aria-current="page"{% endif %}>
+              {% if series_page.permalink == page.permalink %}
+                <span>{{ series_page.title }}</span>
+              {% else %}
+                <a href="{{ series_page.permalink }}">{{ series_page.title }}</a>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ol>
+      </aside>
+    {% endif %}
+  {% endif %}
+{% endmacro navigation %}

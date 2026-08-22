@@ -8,6 +8,8 @@ taxonomies:
     - tools
     - devops
     - oss
+extra:
+  series: "Replaybook"
 ---
 
 Post-mortems are the most underused artifact in software engineering.

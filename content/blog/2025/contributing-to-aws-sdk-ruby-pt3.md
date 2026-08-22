@@ -7,15 +7,14 @@ taxonomies:
     - aws
     - ruby
     - oss
+extra:
+  series: "The AWS Credential Chain Saga"
 ---
 
 ### The Saga Continues
 
-If you've been following along ([Part
-1](/blog/2025/contributing-to-aws-sdk-ruby/) and
-[Part
-2](/blog/2025/contributing-to-aws-sdk-ruby-pt2/)),
-you know I've been on a journey fixing AWS SDK Ruby credential handling. First
+If you've been following along, you know I've been on a journey fixing AWS SDK
+Ruby credential handling. First
 I added the missing `credential_source = Environment` implementation, then I
 discovered it didn't actually work due to credential chain precedence issues.
 

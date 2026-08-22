@@ -49,6 +49,20 @@ push to `main`. There is no staging environment — merging to `main` deploys.
 - Other top-level pages (`content/contact.md`, `content/request-an-article.md`,
   etc.) are simple standalone Markdown pages using the default page template.
 
+### Blog series
+
+To add a post to a series, add one field to its YAML frontmatter:
+
+```yaml
+extra:
+  series: "Replaybook"
+```
+
+The standard post template finds every post with the same exact series name,
+orders them by publication date, and renders a linked series box with the
+current post highlighted. Do not add hand-written previous/next or catch-up
+links; the generated series navigation is the source of truth.
+
 ## Weekly changelog posts
 
 The recurring "Agent assisted Changelog" series summarizes the week's

@@ -8,6 +8,8 @@ taxonomies:
     - rust
     - tools
     - dev
+extra:
+  series: "Rewriting Claude Code in Rust"
 ---
 
 [Part 2](/blog/2026/rewriting-claude-code-in-rust-part-2/) left off at 1,530
@@ -274,7 +276,5 @@ These are all polish. The architecture supports them. I'll add them as I use
 the tool and hit the gaps.
 
 ---
-
-Previous: [Part 2: Sessions, Commands, and Permissions](/blog/2026/rewriting-claude-code-in-rust-part-2/)
 
 Source: [github.com/ducks/claux](https://github.com/ducks/claux)

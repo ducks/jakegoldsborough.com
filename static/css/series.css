@@ -1,0 +1,27 @@
+.post-series {
+  margin: 2rem 0;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--fg);
+  border-left: 4px solid var(--accent-main);
+}
+
+.post-series-title {
+  margin: 0 0 0.75rem;
+}
+
+.post-series ol {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.post-series li {
+  margin: 0.35rem 0;
+}
+
+.post-series li.current {
+  font-weight: bold;
+}
+
+.post-series li.current::marker {
+  color: var(--accent-main);
+}

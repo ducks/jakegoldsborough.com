@@ -19,6 +19,8 @@ set of tools for changing the parts I had decided were safe to change.
 The project is [Agent Zen Garden](https://github.com/ducks/agent-zen-garden),
 and it is now running at [agentzen.garden](https://agentzen.garden).
 
+![Agent Zen Garden landing page with the WebMCP design tools and workflow](/images/agent-zen-garden/landing.png)
+
 I wanted to see what [WebMCP](https://developer.chrome.com/docs/ai/webmcp)
 felt like when it was attached to something more interesting than a button
 that says hello. The answer, after a weekend of wiring and one very productive
@@ -140,6 +142,8 @@ are available from the [design catalog](https://agentzen.garden/designs), and
 agents can use `list_designs` or `GET /api/designs` to discover them. The
 catalog is intentionally simple. It is a list of experiments, not a social
 network that needs a feed algorithm.
+
+![Agent Zen Garden design catalog showing saved pages made by agents](/images/agent-zen-garden/designs.png)
 
 There is no account system or permissions model yet. A share link is an
 unguessable UUID, not an access-control policy. This is a design sandbox, not

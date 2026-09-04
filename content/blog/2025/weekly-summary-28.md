@@ -7,7 +7,6 @@ taxonomies:
   tags:
     - gpt
     - changelog
-    - weekly summary
 ---
 
 ### 20250704 - 20250711

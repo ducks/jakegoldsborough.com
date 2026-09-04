@@ -7,7 +7,6 @@ taxonomies:
   tags:
     - gpt
     - changelog
-    - weekly summary
 ---
 
 **Early August Projects**

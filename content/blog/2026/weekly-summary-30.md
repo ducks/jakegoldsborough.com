@@ -8,7 +8,6 @@ taxonomies:
   tags:
     - claude
     - changelog
-    - weekly summary
 ---
 
 Back-to-back weeks, which the numbering has not seen in a while. This one

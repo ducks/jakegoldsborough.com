@@ -6,7 +6,6 @@ taxonomies:
   tags:
     - gpt
     - changelog
-    - weekly summary
 ---
 
 # 2025 Yearly Recap

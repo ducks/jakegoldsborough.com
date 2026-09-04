@@ -8,7 +8,6 @@ taxonomies:
   tags:
     - gpt
     - changelog
-    - weekly summary
 ---
 
 **AWS SDK Ruby contributions and follow-up**

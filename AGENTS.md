@@ -74,7 +74,7 @@ work. To draft one:
   worth a wry one-line acknowledgment in the intro).
 - **Frontmatter**: `title: Agent assisted Changelog - <N>/52`, the
   posting date, a `description` teasing 2-3 concrete items, and tags
-  `[agents, changelog, weekly summary]`. (Older posts in the series are
+  `[agents, changelog]`. (Older posts in the series are
   titled "Claude assisted Changelog"; the series is generic now, since
   the work involves multiple agents.)
 - **Sources**: the daily notes in `~/agents/notes/<year>/` for the days

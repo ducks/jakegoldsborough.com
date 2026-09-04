@@ -8,7 +8,6 @@ taxonomies:
   tags:
     - agents
     - changelog
-    - weekly summary
 ---
 
 Three weeks since the last changelog. The numbering jumped from 30 to 33, but

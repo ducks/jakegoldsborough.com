@@ -6,7 +6,6 @@ description: Starting a weekly reflection series covering site deployment, Raspb
   hunting progress.
 taxonomies:
   tags:
-    - weekly summary
     - rust
     - rockpro64
 ---

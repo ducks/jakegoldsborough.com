@@ -8,7 +8,6 @@ taxonomies:
   tags:
     - claude
     - changelog
-    - weekly summary
 ---
 
 It has been a minute since the last one of these - the numbering says 29

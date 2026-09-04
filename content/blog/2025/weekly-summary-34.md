@@ -8,7 +8,6 @@ taxonomies:
   tags:
     - gpt
     - changelog
-    - weekly summary
 ---
 
 This week balanced travel research, disc golf writing edits, technical

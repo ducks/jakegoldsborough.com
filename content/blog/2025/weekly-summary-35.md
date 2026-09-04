@@ -7,7 +7,6 @@ taxonomies:
   tags:
     - gpt
     - changelog
-    - weekly summary
 ---
 
 This week covered a mix of personal projects, resume updates, and site tweaks.

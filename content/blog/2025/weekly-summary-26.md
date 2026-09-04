@@ -8,7 +8,6 @@ taxonomies:
   tags:
     - gpt
     - changelog
-    - weekly summary
 ---
 
 ## NixOS Workflow & Improvements

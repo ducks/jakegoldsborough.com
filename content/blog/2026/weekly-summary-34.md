@@ -8,7 +8,6 @@ taxonomies:
   tags:
     - agents
     - changelog
-    - weekly summary
 ---
 
 One week since the last changelog. I am going to enjoy that sentence before

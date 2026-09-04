@@ -8,7 +8,6 @@ taxonomies:
   tags:
     - gpt
     - changelog
-    - weekly summary
 ---
 
 The week covered a mix of practical, technical, and personal topics.

@@ -5,7 +5,6 @@ description: Celebrating RockPro64 revival, continuing Swedish studies, starting
   inspection work, and solving NixOS Hyprland boot issues.
 taxonomies:
   tags:
-    - weekly summary
     - rockpro64
     - nixos
 ---

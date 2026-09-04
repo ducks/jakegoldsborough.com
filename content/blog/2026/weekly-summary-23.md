@@ -9,7 +9,6 @@ taxonomies:
   tags:
     - claude
     - changelog
-    - weekly summary
 ---
 
 A long week on personal infrastructure, with the through-line being

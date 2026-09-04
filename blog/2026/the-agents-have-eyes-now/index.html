@@ -1,0 +1,1870 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Replaybook can now hand infrastructure agents a production topology diagram. Six models made 18 durable repairs, and Luna beat the flagship on speed and cost.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="The Agents Have Eyes Now">
+    <meta property="og:description" content="Replaybook can now hand infrastructure agents a production topology diagram. Six models made 18 durable repairs, and Luna beat the flagship on speed and cost.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;the-agents-have-eyes-now&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="The Agents Have Eyes Now">
+    <meta name="twitter:description" content="Replaybook can now hand infrastructure agents a production topology diagram. Six models made 18 durable repairs, and Luna beat the flagship on speed and cost.">
+
+    <title>The Agents Have Eyes Now - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css?h=4ae15179b7c33c92f362" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>The Agents Have Eyes Now</h1>
+      <div class="meta">
+        
+        <p>Aug 22, 2026</p>
+        
+        <p>6 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/infrastructure">#infrastructure</a></p>
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+        </div>
+      
+
+      
+  
+    
+    
+
+    
+      
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+      
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+
+    
+      
+      <aside class="post-series" aria-label="Replaybook series">
+        <div class="post-series-header">
+          <span class="post-series-label">Series</span>
+          <div class="post-series-heading">
+            <strong>Replaybook</strong>
+            <span class="post-series-count">5 posts</span>
+          </div>
+        </div>
+        <ol>
+          
+            <li>
+              <span class="post-series-number">01</span>
+              <div class="post-series-entry">
+                
+                  <a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;replaybook-incident-replay-trainer&#x2F;">replaybook: Incident Replay Trainer for Infrastructure</a>
+                
+                
+                  <span class="post-series-description">A terminal trainer where you&#x27;re dropped into a broken Docker container and have to fix it. Turn your post-mortems into runnable scenarios.</span>
+                
+              </div>
+              
+            </li>
+          
+            <li>
+              <span class="post-series-number">02</span>
+              <div class="post-series-entry">
+                
+                  <a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;evaluating-infrastructure-agents-in-running-systems&#x2F;">Evaluating Infrastructure Agents in Running Systems</a>
+                
+                
+                  <span class="post-series-description">A passing health check is not a durable repair. I connected Replaybook, Harbor, Nix, and claux to test whether agents can actually fix broken services.</span>
+                
+              </div>
+              
+            </li>
+          
+            <li>
+              <span class="post-series-number">03</span>
+              <div class="post-series-entry">
+                
+                  <a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;infrastructure-agents-priced-per-repair&#x2F;">Infrastructure Agents, Priced Per Repair</a>
+                
+                
+                  <span class="post-series-description">I sent several models into copies of the same broken Linux host. The useful number was not token price. It was the cost of a repair that survived restart and reboot.</span>
+                
+              </div>
+              
+            </li>
+          
+            <li>
+              <span class="post-series-number">04</span>
+              <div class="post-series-entry">
+                
+                  <a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;what-25-of-ai-inference-bought-me&#x2F;">What $25 of AI Inference Bought Me</a>
+                
+                
+                  <span class="post-series-description">I spent $25 sending models into broken Linux hosts. It bought more experimentation than I expected, but the tokens were never the scarce part.</span>
+                
+              </div>
+              
+            </li>
+          
+            <li class="current" aria-current="page">
+              <span class="post-series-number">05</span>
+              <div class="post-series-entry">
+                
+                  <span class="post-series-current-title">The Agents Have Eyes Now</span>
+                
+                
+                  <span class="post-series-description">Replaybook can now hand infrastructure agents a production topology diagram. Six models made 18 durable repairs, and Luna beat the flagship on speed and cost.</span>
+                
+              </div>
+              
+                <span class="post-series-current-label">current</span>
+              
+            </li>
+          
+        </ol>
+      </aside>
+    
+  
+
+
+      <p>Until now, every agent I ran through
+<a href="/blog/2026/evaluating-infrastructure-agents-in-running-systems/">Replaybook</a>
+was blind.</p>
+<p>It could read the incident report. It could SSH into a broken NixOS machine,
+inspect services, edit configuration, and restart things. Once it claimed the
+repair was finished, an external verifier restarted the services again,
+rebooted the host, and checked whether the system was actually durable.</p>
+<p>That has been enough to produce a useful infrastructure benchmark. It is not
+how infrastructure work always arrives, though. Sometimes the most important
+piece of context is a topology diagram, a dashboard, or a screenshot somebody
+dropped into the ticket.</p>
+<p>So I gave the agents eyes.</p>
+<p>The first visual Replaybook scenario drops an agent into a reservation system
+where public health returns HTTP 502 and accepted reservations never leave the
+pending state. The incident report says the attached production topology is
+authoritative. It does not explain what drifted.</p>
+<p>This is the diagram the agent receives:</p>
+<p><img src="/images/2026/replaybook/reservation-topology.png" alt="Production topology for the reservation service, showing Nginx routing to the API, PostgreSQL state, and a Redis queue shared by the API and worker" /></p>
+<p>The running host contains two small but consequential lies:</p>
+<ul>
+<li>Nginx sends health traffic to port 3101 even though the API in the diagram
+listens on 3100.</li>
+<li>The API enqueues reservations in Redis DB 4, while the worker waits for jobs
+in DB 7.</li>
+</ul>
+<p>The agent has to compare the map with the live system, repair both paths, and
+recover the reservations that were already accepted. It cannot flush Redis,
+recreate PostgreSQL, replace the depicted components, hard-code a healthy
+response, or leave an unmanaged process behind.</p>
+<p>Then Replaybook restarts the services and reboots the machine.</p>
+<h2 id="kimi-read-the-map">Kimi read the map</h2>
+<p>Kimi K3 was the first model through the scenario. Its diagnosis was pleasantly
+unambiguous:</p>
+<blockquote>
+<p>Found both faults: nginx <code>/health</code> proxies to port 3101 (API is on 3100), and
+the worker consumes Redis DB 7 while the API enqueues to DB 4.</p>
+</blockquote>
+<p>It corrected the Nginx upstream, moved the worker back to Redis DB 4, and let
+the worker drain the existing queue normally. All four reservations that were
+pending before the agent connected reached <code>completed</code> in PostgreSQL. It then
+created a new reservation through the public endpoint and watched that one
+complete too.</p>
+<p>Most importantly, it did not stop at "curl returned 200." It inspected the
+provisioning unit and noticed that the corrected configuration files would not
+be overwritten on boot. Replaybook independently confirmed the immediate
+repair, restarted the relevant services, rebooted the host, and ran the checks
+again.</p>
+<p>The first smoke test passed in 1 minute 12 seconds. I followed it with three
+fresh trials. Kimi passed all three in 1:33, 1:41, and 1:57. Gemini 3.7 Flash
+also swept its three trials, with a 2:28 median.</p>
+<p>Then I widened the field. GPT-5.6 Luna, GPT-5.6 Sol, Ox Alpha, and MiMo V2.5
+each received three fresh machines. All four swept the scenario too.</p>
+<table><thead><tr><th>model</th><th style="text-align: right">trials</th><th style="text-align: right">passed</th><th style="text-align: right">median</th><th style="text-align: right">input tokens</th><th style="text-align: right">output tokens</th><th style="text-align: right">cost</th></tr></thead><tbody>
+<tr><td>GPT-5.6 Luna</td><td style="text-align: right">3</td><td style="text-align: right">3</td><td style="text-align: right">1:14</td><td style="text-align: right">9,769</td><td style="text-align: right">17,511</td><td style="text-align: right">$0.06</td></tr>
+<tr><td>Kimi K3</td><td style="text-align: right">3</td><td style="text-align: right">3</td><td style="text-align: right">1:41</td><td style="text-align: right">52,949</td><td style="text-align: right">9,520</td><td style="text-align: right">$0.40</td></tr>
+<tr><td>GPT-5.6 Sol</td><td style="text-align: right">3</td><td style="text-align: right">3</td><td style="text-align: right">2:06</td><td style="text-align: right">156</td><td style="text-align: right">21,001</td><td style="text-align: right">$0.71</td></tr>
+<tr><td>Gemini 3.7 Flash</td><td style="text-align: right">3</td><td style="text-align: right">3</td><td style="text-align: right">2:28</td><td style="text-align: right">634,626</td><td style="text-align: right">29,346</td><td style="text-align: right">$0.41</td></tr>
+<tr><td>Ox Alpha</td><td style="text-align: right">3</td><td style="text-align: right">3</td><td style="text-align: right">3:25</td><td style="text-align: right">69,092</td><td style="text-align: right">8,424</td><td style="text-align: right">$0.00</td></tr>
+<tr><td>MiMo V2.5</td><td style="text-align: right">3</td><td style="text-align: right">3</td><td style="text-align: right">4:09</td><td style="text-align: right">39,693</td><td style="text-align: right">16,902</td><td style="text-align: right">$0.01</td></tr>
+</tbody></table>
+<p>That is 18 evaluated trials and 18 durable repairs. It is one scenario and a
+small sample, but it is a hell of a first look.</p>
+<p>The result I did not expect was Luna. Sol is OpenAI's flagship and cost about
+twelve times as much in this cohort. It completed the same repairs, but Luna
+did them 52 seconds faster at the median. Sol may still separate itself on a
+harder visual incident. Here, the cheaper model was both sufficient and
+quicker.</p>
+<p>Qwen 3.8 was scheduled for the same cohort, but all three attempts ended in an
+agent runtime error before the first round. I am counting those as unavailable,
+not failed repairs. It never reached the host.</p>
+<p>The <a href="https://ducks.github.io/replaybook/benchmarks.html">published benchmark</a>
+now separates text infrastructure from visual infrastructure. The verifier is
+the same, but the evidence channel is not. I do not want a model's ability to
+read a diagram silently pooled with incidents where every useful clue arrived
+as text, logs, or shell output.</p>
+<h2 id="the-picture-is-an-input-not-an-answer-key">The picture is an input, not an answer key</h2>
+<p>The topology diagram lives in the scenario pack beside the host definition,
+instruction, oracle repair, and verifier. The scenario declares it as an image
+artifact. Replaybook carries that artifact through the execution snapshot and
+hands it to the configured agent harness. In this run, Claux sent the text and
+image together to the model.</p>
+<p>The model never receives the oracle or verifier. Those stay on the controller,
+outside the guest machine. The diagram says what production is supposed to
+look like, but the agent still has to inspect what is actually running and
+decide how to reconcile the two.</p>
+<p>That distinction matters. A visual benchmark should not be an image-shaped
+multiple-choice question. I want the image to be the kind of imperfect but
+useful artifact an engineer would actually inherit: a system map, a dashboard
+captured during an incident, a deployment plan, or a storage layout.</p>
+<p>The shell is still where the repair happens. It is no longer the agent's whole
+world.</p>
+<h2 id="what-this-does-not-prove">What this does not prove</h2>
+<p>Eighteen passes do not establish which model is the best multimodal
+infrastructure agent. This scenario has one diagram, one kind of drift, and no
+text-only control yet. It also does not tell me whether the models truly
+reasoned spatially or simply extracted the labels well enough to compare them
+with configuration files.</p>
+<p>Those are testable questions now.</p>
+<p>I can run the same incident without the diagram. I can introduce a stale or
+partially wrong map and see whether the agent trusts evidence from the machine.
+I can attach a dashboard where the failure is visible only in a time series. I
+can give it a migration plan and verify whether the finished deployment matches
+the picture after a reboot.</p>
+<p>That is the part I am excited about. Infrastructure agents should not only be
+good at typing commands into a terminal. They should be able to gather context
+from the same messy collection of artifacts humans use, make a repair in a real
+system, and leave that system standing.</p>
+<p>The agents have eyyyyyes now.</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;the-agents-have-eyes-now&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-the-agents-have-eyes-now"
+      data-goatcounter-title="Helpful click on blog-2026-the-agents-have-eyes-now"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;letting-an-agent-design-a-portfolio-page&#x2F;">I Let an Agent Design a Portfolio Page</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 31, 2026</p>
+                    
+                    <p>8 min read</p>
+                  </div>
+                  
+                    <p class="desc">Agent Zen Garden turns a web page into a design surface for browser agents. I gave Codex a blank portfolio layout and found the useful boundary between agent precision and human taste.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/web">#web</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;gym-jams-turn-an-album-into-a-workout&#x2F;">gym-jams: Turn an Album Into a Workout</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 25, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">An album has a fixed length, a tempo map, and an energy arc. That&#x27;s a workout plan wearing headphones. librosa provides the ears, a one-shot LLM does the planning.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;tongs-github-cli-built-for-agents&#x2F;">I Got Tired of gh Failing, So I Built Tongs</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 20, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">I wanted a GitHub CLI that agents could depend on: stable JSON, no prompts, safe mutations, and no giant GraphQL query standing between me and a pull request. So I built Tongs.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/go">#go</a></p>
+                      
+                      <p><a href="/tags/cli">#cli</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/github">#github</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;the-battleground-has-a-map-now&#x2F;">The Battleground Has a Map Now</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 15, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Agents of Empires started as three rows in a terminal. I gave the battleground a service map driven by the same referee events that decide who wins.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/games">#games</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;agents-of-empires-not-a-leaderboard-a-battleground&#x2F;">Agents of Empires: Not a Leaderboard, a Battleground</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 13, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">I dropped DeepSeek, Luna, and GLM into identical blank NixOS hosts and made them race to recover queued work, survive a reboot, and produce the first durable deployment.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/games">#games</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>

@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Replaybook became a real infrastructure-agent benchmark, escaped into Agents of Empires, and filled my disk with disposable NixOS machines. Plus a language compiler and several systems that fought back.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Agent assisted Changelog - 33&#x2F;52">
+    <meta property="og:description" content="Replaybook became a real infrastructure-agent benchmark, escaped into Agents of Empires, and filled my disk with disposable NixOS machines. Plus a language compiler and several systems that fought back.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-33&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Agent assisted Changelog - 33&#x2F;52">
+    <meta name="twitter:description" content="Replaybook became a real infrastructure-agent benchmark, escaped into Agents of Empires, and filled my disk with disposable NixOS machines. Plus a language compiler and several systems that fought back.">
+
+    <title>Agent assisted Changelog - 33&#x2F;52 - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css?h=4ae15179b7c33c92f362" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Agent assisted Changelog - 33&#x2F;52</h1>
+      <div class="meta">
+        
+        <p>Aug 14, 2026</p>
+        
+        <p>12 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/agents">#agents</a></p>
+          
+          <p><a href="/tags/changelog">#changelog</a></p>
+          
+        </div>
+      
+
+      
+  
+
+
+      <p>Three weeks since the last changelog. The numbering jumped from 30 to 33, but
+the work did not exactly pause while the posts did.</p>
+<p>This stretch started with a compiler for language courses and ended with three
+AI agents racing inside blank Linux machines while an external referee waited
+to reboot them. In between, I spent about $25 on model inference, completed a
+132-trial infrastructure benchmark, filled my disk with Nix stores, resumed the
+whole thing, and found several new ways for a benchmark to lie.</p>
+<h2 id="replaybook-the-agents-entered-real-machines">Replaybook: the agents entered real machines</h2>
+<p><a href="https://github.com/ducks/replaybook">Replaybook</a> started as an incident-response
+trainer for humans. Then I put agents in the incidents. The early version used
+Docker, which created the wrong incentives: an agent with Docker tools sees a
+Docker problem, even when the thing I want to measure is Linux operations.</p>
+<p>The evaluator now boots disposable NixOS guests and runs the agent directly
+inside them as root. The machine has systemd, PostgreSQL, Redis, Nginx, writable
+configuration, persistent state, and a real reboot button. The controller keeps
+the oracle, answer, verifier, and customer identifiers outside the guest. A
+repair has to work immediately, after the relevant services restart, and after
+the entire host disappears and comes back.</p>
+<p>The scenario that made the design click was a Ruby application with Sidekiq
+watching the wrong Redis database. The web process put jobs into DB 0 while the
+worker waited on DB 1. An early verifier checked that the queue drained and the
+right number of completion rows existed. That sounded good until Laguna used
+<code>BRPOP</code> to inspect the queue. <code>BRPOP</code> does not inspect a job. It removes one.</p>
+<p>The agent fixed the Redis configuration, processed the remaining customer work,
+created a test job of its own, saw the expected final count, and declared
+success. One original customer job was gone.</p>
+<p>The verifier now creates opaque job IDs before the agent arrives and requires
+those exact IDs to reach PostgreSQL. The same behavior fails as
+<code>backlog_not_recovered</code>. That one run contains most of the Replaybook thesis:
+health is not recovery, a count is not identity, and the model's explanation is
+not evidence.</p>
+<p>From there the scenario pack grew into missing Rails migrations, poisoned
+Sidekiq queues, ActiveRecord pool exhaustion, partial rollouts, Node event-loop
+blocking, a Rust file-descriptor leak, Gunicorn saturation, shared Discourse
+uploads, multisite migrations, signing-secret rollouts, and an interrupted
+Discourse deployment. The public incidents moved into
+<a href="https://github.com/ducks/replaybook-infra">replaybook-infra</a>, separate from the
+controller, and the typed scenario format now owns setup, preflight, lifecycle,
+and verification. Users can bring a different scenario pack or a different
+agent harness without changing what counts as success.</p>
+<p>The largest run so far was 132 trials: eleven incidents, four model
+configurations, three attempts each. It recorded 122 durable repairs out of 131
+evaluated attempts, one provider-unavailable trial, a 3:04 overall median, and
+$6.6771 in known spend. DeepSeek V4 Flash 0731 and GLM 5.2 both went 33/33.
+Luna repaired 30 of 32 evaluated incidents. MiniMax repaired 26 of 33, including
+three that became durable only after the fifteen-minute deadline and correctly
+remained scored as timeouts.</p>
+<p>That matrix also filled my disk. Nix had accumulated guest stores until the VM
+builders started failing halfway through a 132-run job. I moved old backups to
+external drives, garbage-collected the store, taught the runner to resume an
+interrupted matrix without repeating valid results, baked the Claux binary into
+the guest image, and hardened the VM and proxy readiness windows. The run
+resumed from 87 good artifacts and completed the remaining 45. A benchmark
+runner eventually has to benchmark its own ability to survive a benchmark.</p>
+<p>I wrote the longer arguments in <a href="/blog/2026/infrastructure-agents-priced-per-repair/">Infrastructure Agents, Priced Per
+Repair</a> and <a href="/blog/2026/what-25-of-ai-inference-bought-me/">What $25 of AI
+Inference Bought Me</a>. The useful
+economic unit is not price per token or even price per attempt. It is price per
+durable repair. As I write this, another twelve attempts are running against
+the interrupted Discourse deploy.</p>
+<h2 id="agents-of-empires-the-benchmark-escaped">Agents of Empires: the benchmark escaped</h2>
+<p>Replaybook produces useful tables. I like the tables. I also could not stop
+thinking about the distracted-boyfriend meme where the girlfriend is a static
+leaderboard and the other girl is three agents fighting over a map.</p>
+<p>The first version of <a href="https://github.com/ducks/agents-of-empires">Agents of
+Empires</a> was wildly overdesigned.
+Each model would get a territory and a different server class, discover the
+network through fog of war, defend its own services, infiltrate the others, and
+spawn subagents by researching technology. BattleBots plus Age of Empires plus
+Pokemon, except every Pokemon is a systemd unit.</p>
+<p>That is still the direction. It was not the right first implementation.</p>
+<p>I restarted with build races. Each agent enters an identical blank NixOS guest
+and gets the same service contract. The first durable deployment wins. A health
+check earns a milestone, but it does not finish the match. The deployment must
+recover existing state, process fresh work exactly once, survive service
+restart, and survive a referee-controlled host reboot.</p>
+<p>The first real queue race looked stuck for minutes because the referee was
+waiting for pre-existing work to recover. It was not stuck. The quiet part was
+the test. Luna eventually crossed the finish line in four minutes. GLM brought
+up a healthy service but lost the accepted backlog. DeepSeek never passed the
+first health check.</p>
+<p>Then the finish line broke the winner. The host reboot severed the SSH session
+running Luna, so the controller initially marked the winning agent as failed.
+The arena itself had interrupted the agent during the verification step that
+proved it won. That now records as an arena-caused interruption, and a bounded
+post-match drain collects final usage from agents still running without moving
+the match clock.</p>
+<p>It has grown quickly: first build, durable queue, zero-downtime rollout,
+primary failover, and an external distributed-cache arena. Matches record an
+append-only event log, transcripts, final state, token usage, cost, controller
+revision, adapter hashes, arena hashes, and verifier hashes. A static match site
+supports interactive replay and separates current results from old runs made
+under different rules. Seat-rotated series prevent territory position from
+quietly deciding the winner.</p>
+<p>The first four-arena benchmark was unambiguous. Luna won all four races, passed
+20/20 milestones, and finished with a 1:19 median. GLM reached 5/20 milestones.
+DeepSeek reached 2/20. That is not a universal model ranking. It is a very clear
+result for four frozen arenas under one controller.</p>
+<p>The portable arena SDK and separate
+<a href="https://github.com/ducks/aoe-arenas">aoe-arenas</a> repository now prove the
+framework can load someone else's arena rather than keeping every challenge in
+the engine. The silly idea is turning into a real plugin system.</p>
+<p>I wrote up the first contact in <a href="/blog/2026/agents-of-empires-not-a-leaderboard-a-battleground/">Agents of Empires: Not a Leaderboard, a
+Battleground</a>.
+It is not the strategy game yet. It is finally sturdy enough that adding the
+game might mean something.</p>
+<h2 id="lemma-one-compiler-three-languages">lemma: one compiler, three languages</h2>
+<p>Before the infrastructure-agent spiral, I extracted my Czech course generator
+into <a href="https://github.com/ducks/lemma">lemma</a>, a Rust compiler that does not know
+any languages.</p>
+<p>Everything language-specific lives in a <code>language.yaml</code> profile: cases,
+pronunciation, stress, gender, register, grammar features, and template
+overrides. Czech declares seven cases and a formal <code>vy</code> default. Spanish
+declares no cases, the <code>ser</code>/<code>estar</code> split, and <code>tú</code>/<code>usted</code>. Swedish declares
+<code>en</code>/<code>ett</code>, V2 word order, pitch accent, and no formal/informal distinction at
+all. The same engine generated lesson one and 56 Anki cards for each language
+without a Swedish or Spanish branch appearing in the Rust.</p>
+<p>The rewrite started from a working Python generator, so I made the Rust version
+prove parity rather than asking me to trust it. The old and new generators
+produced byte-identical vocabulary and cloze cards; the only differences were
+intentional improvements. Then I deleted the Python.</p>
+<p>Publishing found the fun bug. I had checked crates.io search and concluded the
+name <code>lemma</code> was free. The search endpoint had returned a rate-limited 404, and
+I rounded that up to availability while ignoring the publish endpoint's warning
+that the crate already existed. <code>make release</code> tagged and pushed before the
+publish step, leaving a phantom release for a crate I did not own.</p>
+<p>I deleted the tag, checked the authoritative sparse index, and published the
+package as <code>lemma-compiler</code>. The library is still <code>lemma</code>, the binary is still
+<code>lemma</code>, and the repository is still <code>ducks/lemma</code>; only <code>cargo install</code> needs
+the longer name. The full story is in <a href="/blog/2026/lemma-a-language-course-compiler/">lemma: A Compiler That Doesn't Know Any
+Languages</a>.</p>
+<h2 id="the-systems-fought-back">The systems fought back</h2>
+<p>The real machines kept supplying incidents while I built simulated ones.</p>
+<p><a href="https://github.com/ducks/shelltrax">Shelltrax</a> had two different failure
+stories. A panic could leave the terminal in raw mode with stale characters,
+which made the next command print diagonally across the screen. The fix was an
+idempotent terminal guard, panic-hook restoration, cursor recovery, and an
+explicit clear on startup. Then PulseAudio lost its output device while the app
+still considered playback active. Stream creation now retries against the
+current default device, and a failed resume reconstructs the track instead of
+leaving the UI lying about its state.</p>
+<p>The release command for the terminal fix still printed diagonally because I ran
+it in the same terminal the old version had already damaged. New code cannot
+travel backward in time. <code>stty sane</code> fixed the shell, and the release went out.</p>
+<p>On pond, beanledger entered a restart loop because three tables were owned by
+<code>postgres</code> while the migration user was <code>beanledger</code>. The split had been
+dormant since a manual bootstrap months earlier; a new migration was simply the
+first one to <code>ALTER users</code> and expose it. I backed up the database, reassigned
+the three tables, and restored the service.</p>
+<p>Then I tried to write a self-healing migration and recreated the bug myself by
+testing it as the PostgreSQL superuser. The after-state check caught it. A
+second attempt exposed the deeper impossibility: the non-owner application role
+cannot write a migration that grants itself ownership of a table it does not
+own. The durable conclusion was not another migration. The repository already
+creates fresh databases correctly; this was a one-time historical artifact.
+Sometimes the right fix is to repair the machine and decline to invent code.</p>
+<p>Underneath the evaluations, <a href="https://github.com/ducks/claux">Claux</a> gained
+provider profiles, model selection, consistent rate-limit errors, cancellation
+checks before filesystem mutation, one-shot transcript checkpoints, model and
+tool timing, reasoning-level support, and credential isolation. Those changes
+were not benchmark decoration. They are why Replaybook can distinguish model
+time from tool time, preserve a partial trajectory after timeout, and rotate a
+key without baking it into a guest image.</p>
+<p>I also scoped moving Home Assistant off my development desktop and onto a real
+homeserver. Proxmox finally supports ARM64, but not the RockPro64: it expects
+UEFI and ACPI, while the RK3399 board boots through device tree. If I reuse that
+board, it gets NixOS directly. If I want Proxmox, that is a reason to buy a
+small x86 machine rather than spend a weekend pretending firmware friction is
+a hobby.</p>
+<h2 id="outside-the-terminal">Outside the terminal</h2>
+<p>The art site got a URL migration and two new pieces.</p>
+<p>All 22 existing Gnarly Void entries moved from numeric paths like <code>/voids/22/</code>
+to descriptive canonical slugs, with the numeric URLs preserved as redirects.
+Void 22 was <a href="https://gnarlyvoid.com/voids/loaded-tufted-die/">Loaded</a>, a tufted
+die at throw-pillow scale with a dense foam core. The copy originally said it
+had never been rolled. That was less fun than the truth the object wanted, so
+now it lands with a soft thud and a verdict.</p>
+<p>Void 23 is <a href="https://gnarlyvoid.com/voids/two-decks-adx/">Deck 001 &amp; Deck
+002</a>, a pair of tufted skateboard
+decks from a group show at ADX. One is monochrome geometry; the other is a stack
+of warm sunset stripes. It was also a reminder not to invent external links. I
+guessed the ADX domain, guessed wrong, and corrected it to
+<code>artdesignxchange.com</code> before shipping.</p>
+<p>There was one especially nice open-source moment too: someone opened a pull
+request against <a href="https://github.com/ducks/claude-nixos">claude-nixos</a>. I did not
+know anyone was using it. I merged their fix, then reconciled the setup guide
+with the newer <code>nix-ld</code> runtime on a follow-up branch. A project can sit quietly
+for months and then reveal that it has a user.</p>
+<h2 id="the-through-line">The through-line</h2>
+<p>The language compiler, the incident benchmark, and the agent battleground look
+like three unrelated projects. They are all the same move.</p>
+<p>Put the important rules in data. Keep the evaluator outside the thing being
+evaluated. Make the unfinished state loud. Preserve enough evidence to explain
+why something passed. Refuse to turn a plausible count, a clean health check,
+or a 404 from a rate-limited API into a fact.</p>
+<p>The fun part is that each project keeps attacking its own assumptions. Agents
+found holes in Replaybook's verifier. Reboots found holes in Agents of Empires'
+accounting. crates.io found a hole in my release process. PostgreSQL found a
+hole in my confidence about a "safe" migration.</p>
+<p>I keep building systems that tell me when I am wrong. Apparently that is the
+genre now.</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;weekly-summary-33&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-weekly-summary-33"
+      data-goatcounter-title="Helpful click on blog-2026-weekly-summary-33"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-35&#x2F;">Agent assisted Changelog - 35&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Sep 04, 2026</p>
+                    
+                    <p>10 min read</p>
+                  </div>
+                  
+                    <p class="desc">Replaybook grew from a benchmark into a provider-aware evidence system, Agent Zen Garden became a real WebMCP submission, and Claux spent the week learning how to fail more honestly.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-34&#x2F;">Agent assisted Changelog - 34&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 21, 2026</p>
+                    
+                    <p>11 min read</p>
+                  </div>
+                  
+                    <p class="desc">Replaybook became a multi-harness benchmark with 240 comparable trials, Agents of Empires became something worth watching, and I built a GitHub CLI because one GraphQL query failed too many times.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;yapper-or-just-ask-the-bots&#x2F;">Yapper, or: just ask the bots</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 10, 2026</p>
+                    
+                    <p>9 min read</p>
+                  </div>
+                  
+                    <p class="desc">Yapper is a Discourse plugin that turns a forum into a place where humans can read but only registered bots can post. It&#x27;s live at yapper.forum. Here&#x27;s what it does, and why I think the protocol underneath it is the actual product.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/protocol">#protocol</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-35&#x2F;">Agent assisted Changelog - 35&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Sep 04, 2026</p>
+                    
+                    <p>10 min read</p>
+                  </div>
+                  
+                    <p class="desc">Replaybook grew from a benchmark into a provider-aware evidence system, Agent Zen Garden became a real WebMCP submission, and Claux spent the week learning how to fail more honestly.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-34&#x2F;">Agent assisted Changelog - 34&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 21, 2026</p>
+                    
+                    <p>11 min read</p>
+                  </div>
+                  
+                    <p class="desc">Replaybook became a multi-harness benchmark with 240 comparable trials, Agents of Empires became something worth watching, and I built a GitHub CLI because one GraphQL query failed too many times.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>

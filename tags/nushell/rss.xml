@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - nushell</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/nushell/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Wed, 03 Jun 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>A tiny name.com CLI, and what nushell saves you</title>
+          <pubDate>Wed, 03 Jun 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/namecom-cli-in-nushell/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/namecom-cli-in-nushell/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/namecom-cli-in-nushell/">&lt;p&gt;I run a small VPS (pond-nix) that hosts a few personal services behind Caddy. Adding a new service means two things: a NixOS module that runs the service, and a DNS record on name.com pointing at the box. The NixOS side is declarative and versioned. The DNS side was &quot;log into name.com, click Add Record, type the same thing I typed last time.&quot; I wanted to fix that.&lt;&#x2F;p&gt;
+&lt;p&gt;What I built is &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;namecom-cli&quot;&gt;namecom-cli&lt;&#x2F;a&gt;, a small nushell wrapper around the &lt;a href=&quot;https:&#x2F;&#x2F;docs.name.com&#x2F;api&#x2F;v1&#x2F;overview&quot;&gt;name.com Core API&lt;&#x2F;a&gt;. Three subcommands so far:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;nu&quot; class=&quot;language-nu &quot;&gt;&lt;code class=&quot;language-nu&quot; data-lang=&quot;nu&quot;&gt;namecom login                            # interactive credential setup
+namecom list jobl.dev                    # list every DNS record on a domain
+namecom add  jobl.dev stats A 1.2.3.4    # add an A record
+namecom del  jobl.dev 12345678           # delete by record id
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;About 150 lines including the README. I want to walk through three places nushell made the tool smaller than the bash equivalent would have been.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;json-in-tables-out&quot;&gt;JSON in, tables out&lt;&#x2F;h2&gt;
+&lt;p&gt;The name.com API returns JSON for everything. Listing records gives you back a structure like:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;json&quot; class=&quot;language-json &quot;&gt;&lt;code class=&quot;language-json&quot; data-lang=&quot;json&quot;&gt;{
+  &amp;quot;records&amp;quot;: [
+    {&amp;quot;id&amp;quot;: 1, &amp;quot;host&amp;quot;: &amp;quot;stats&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;A&amp;quot;, &amp;quot;answer&amp;quot;: &amp;quot;1.2.3.4&amp;quot;, &amp;quot;ttl&amp;quot;: 300},
+    {&amp;quot;id&amp;quot;: 2, &amp;quot;host&amp;quot;: &amp;quot;ci&amp;quot;,    &amp;quot;type&amp;quot;: &amp;quot;A&amp;quot;, &amp;quot;answer&amp;quot;: &amp;quot;1.2.3.4&amp;quot;, &amp;quot;ttl&amp;quot;: 300}
+  ]
+}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;In bash, that&#x27;s a &lt;code&gt;jq&lt;&#x2F;code&gt; pipeline away from being useful. In nushell, it&#x27;s already a table. The whole &lt;code&gt;list-records&lt;&#x2F;code&gt; command is:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;nu&quot; class=&quot;language-nu &quot;&gt;&lt;code class=&quot;language-nu&quot; data-lang=&quot;nu&quot;&gt;export def main [domain: string] {
+  let result = (api-get $&amp;quot;&amp;#x2F;core&amp;#x2F;v1&amp;#x2F;domains&amp;#x2F;($domain)&amp;#x2F;records&amp;quot;)
+  $result.records? | default []
+}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;That return value is a real nushell table, which means a user can pipe it through anything else nushell knows about:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;nu&quot; class=&quot;language-nu &quot;&gt;&lt;code class=&quot;language-nu&quot; data-lang=&quot;nu&quot;&gt;namecom list jobl.dev | where type == &amp;quot;A&amp;quot;
+namecom list jobl.dev | sort-by host | select host type answer
+namecom list jobl.dev | where answer == &amp;quot;1.2.3.4&amp;quot; | get id
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;I didn&#x27;t write the &lt;code&gt;where&lt;&#x2F;code&gt;, &lt;code&gt;sort-by&lt;&#x2F;code&gt;, or &lt;code&gt;select&lt;&#x2F;code&gt; plumbing. Nushell brought it for free because the data shape is structured.&lt;&#x2F;p&gt;
+&lt;p&gt;In bash you&#x27;d write all that as &lt;code&gt;jq&lt;&#x2F;code&gt; filters per call. The user has to know jq syntax. The errors come out as jq errors instead of shell errors. And every script that consumes the output has to reparse JSON. Here, the consumer is already in the language.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;authentication-without-leaking-the-token-to-ps&quot;&gt;Authentication without leaking the token to ps&lt;&#x2F;h2&gt;
+&lt;p&gt;name.com&#x27;s API uses HTTP Basic Auth. The obvious thing is to pass the credentials to curl with &lt;code&gt;-u username:token&lt;&#x2F;code&gt;. The problem is that on shared hosts (or anywhere with multiple users), &lt;code&gt;ps aux&lt;&#x2F;code&gt; shows every running process&#x27;s command line including arguments. The token shows up in plain text every time the tool runs.&lt;&#x2F;p&gt;
+&lt;p&gt;The fix is to build the Authorization header explicitly and pass it via &lt;code&gt;--headers&lt;&#x2F;code&gt;:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;nu&quot; class=&quot;language-nu &quot;&gt;&lt;code class=&quot;language-nu&quot; data-lang=&quot;nu&quot;&gt;export def auth-header [] {
+  let creds = (load-credentials)
+  let token = ($&amp;quot;($creds.username):($creds.token)&amp;quot; | encode base64)
+  $&amp;quot;Basic ($token)&amp;quot;
+}
+
+export def api-get [path: string] {
+  let url = $&amp;quot;(base-url)($path)&amp;quot;
+  http get --headers [Authorization (auth-header)] $url
+}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Two notes on this. First, nushell ships an &lt;code&gt;http get&lt;&#x2F;code&gt; builtin: no curl call needed, no separate Content-Type parsing, no manual JSON decode. The response comes back as a parsed record automatically. Second, &lt;code&gt;encode base64&lt;&#x2F;code&gt; is a builtin pipe stage, not a separate &lt;code&gt;base64&lt;&#x2F;code&gt; invocation. The whole auth helper is six lines and reads top-to-bottom.&lt;&#x2F;p&gt;
+&lt;p&gt;The bash equivalent involves either &lt;code&gt;curl -H &quot;Authorization: Basic $(echo -n &quot;$user:$tok&quot; | base64)&quot;&lt;&#x2F;code&gt; (works, looks awful, hard to test independently) or factoring it into a helper function that&#x27;s still doing the same thing with more ceremony.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;toml-is-parsed-for-free&quot;&gt;TOML is parsed for free&lt;&#x2F;h2&gt;
+&lt;p&gt;Credentials live in &lt;code&gt;~&#x2F;.config&#x2F;namecom&#x2F;credentials.toml&lt;&#x2F;code&gt;:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;toml&quot; class=&quot;language-toml &quot;&gt;&lt;code class=&quot;language-toml&quot; data-lang=&quot;toml&quot;&gt;username = &amp;quot;your-namecom-username&amp;quot;
+token    = &amp;quot;your-api-token&amp;quot;
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Loading them is literally:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;nu&quot; class=&quot;language-nu &quot;&gt;&lt;code class=&quot;language-nu&quot; data-lang=&quot;nu&quot;&gt;export def load-credentials [] {
+  let creds = (open $path)
+  if ($creds.username? | is-empty) or ($creds.token? | is-empty) {
+    error make { msg: $&amp;quot;credentials file ($path) is missing username or token&amp;quot; }
+  }
+  $creds
+}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;&lt;code&gt;open&lt;&#x2F;code&gt; looks at the extension, picks a parser, returns a record. No &lt;code&gt;toml-cli&lt;&#x2F;code&gt; install, no &lt;code&gt;yq -p toml&lt;&#x2F;code&gt;, no hand-rolled regex. The whole loader is the file&#x27;s existence check plus a sanity check on the keys.&lt;&#x2F;p&gt;
+&lt;p&gt;I learned the hard way that this works for TOML but not for a bare &lt;code&gt;key = &quot;value&quot;&lt;&#x2F;code&gt; text file with no extension. Nushell&#x27;s &lt;code&gt;open&lt;&#x2F;code&gt; returns the raw string in that case. (Initial version of the tool used a custom format; first run of &lt;code&gt;namecom login&lt;&#x2F;code&gt; immediately broke because &lt;code&gt;creds.username&lt;&#x2F;code&gt; was being called on a string. Renaming the file to &lt;code&gt;.toml&lt;&#x2F;code&gt; was the fix.)&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-doesn-t-go-well-in-nushell&quot;&gt;What doesn&#x27;t go well in nushell&lt;&#x2F;h2&gt;
+&lt;p&gt;A few rough edges worth flagging if you&#x27;re thinking about doing something similar:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;External CLIs need the &lt;code&gt;^&lt;&#x2F;code&gt; prefix.&lt;&#x2F;strong&gt; I needed &lt;code&gt;chmod&lt;&#x2F;code&gt; to set 0600 perms on the credentials file. &lt;code&gt;chmod 600 $path&lt;&#x2F;code&gt; doesn&#x27;t work because nushell looks for a builtin. The fix is &lt;code&gt;^chmod 600 $path&lt;&#x2F;code&gt; so it shells out. Easy once you know, surprising the first time.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;No package manager that anyone uses.&lt;&#x2F;strong&gt; &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;nushell&#x2F;nupm&quot;&gt;nupm&lt;&#x2F;a&gt; exists but is explicitly experimental. Distribution is &quot;git clone, symlink the script onto PATH.&quot; That&#x27;s fine for personal tools but a real friction point for anything you want strangers to install.&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Error messages from inside the &lt;code&gt;http&lt;&#x2F;code&gt; family can be cryptic.&lt;&#x2F;strong&gt; A misformatted credentials file produced &quot;Data cannot be accessed with a cell path&quot; because the parsed &lt;code&gt;creds&lt;&#x2F;code&gt; was a string instead of a record. The fix was obvious in hindsight but the message didn&#x27;t point at the cause.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;login-is-a-misnomer-but-a-useful-one&quot;&gt;Login is a misnomer, but a useful one&lt;&#x2F;h2&gt;
+&lt;p&gt;name.com doesn&#x27;t expose a programmatic token-mint endpoint. Tokens are created in the user&#x27;s web dashboard. So &lt;code&gt;namecom login&lt;&#x2F;code&gt; can&#x27;t actually fetch a token. What it does is point you at the right page (optionally with &lt;code&gt;xdg-open&lt;&#x2F;code&gt;), prompt for the token (with input suppression), write the file with 0600 perms, and validate it works by calling &lt;code&gt;&#x2F;core&#x2F;v1&#x2F;hello&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;That&#x27;s not OAuth. But the difference between &quot;log in&quot; and &quot;edit a file in your config directory with the right name and permissions&quot; is real. Calling the command &lt;code&gt;login&lt;&#x2F;code&gt; reads correctly even though the implementation is honest about what&#x27;s possible.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-actually-useful-thing&quot;&gt;The actually-useful thing&lt;&#x2F;h2&gt;
+&lt;p&gt;I&#x27;m using this from pond-nix&#x27;s deploy flow now. When I add a new Caddy vhost, I can &lt;code&gt;namecom add&lt;&#x2F;code&gt; the matching DNS record in one command instead of opening a browser. It&#x27;s not a big tool, but the friction cost of adding new things to the VPS dropped from &quot;context-switch into the browser&quot; to &quot;one extra shell line.&quot; That&#x27;s the win.&lt;&#x2F;p&gt;
+&lt;p&gt;If you want it: &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;namecom-cli&quot;&gt;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;namecom-cli&lt;&#x2F;a&gt;. ~150 lines of nushell, MIT-licensed, no warranty, file an issue if name.com&#x27;s API shape drifts.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

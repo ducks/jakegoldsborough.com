@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - zola</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/zola/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Sat, 16 May 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>A &#x27;Was this helpful?&#x27; button for a static blog</title>
+          <pubDate>Sat, 16 May 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/was-this-helpful-button/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/was-this-helpful-button/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/was-this-helpful-button/">&lt;p&gt;I write a lot here. I don&#x27;t have comments. I don&#x27;t want comments. But I do want some signal about which posts are actually landing - not &quot;did someone load the page&quot; (GoatCounter already tells me that) but &quot;did this post help someone.&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;So I added a small button at the bottom of every post:&lt;&#x2F;p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Was this helpful?
+[ Yep, this helped ]&lt;&#x2F;p&gt;
+&lt;&#x2F;blockquote&gt;
+&lt;p&gt;Click it once and it swaps to a thank-you line. Click is recorded as a GoatCounter event. No login, no comment box, no thumbs down. Per-browser dedupe via localStorage so the same person can&#x27;t pad the number by refreshing.&lt;&#x2F;p&gt;
+&lt;p&gt;This post is how it works.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;constraints&quot;&gt;Constraints&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;The site is a static Zola build. I don&#x27;t want a backend, a database, or auth.&lt;&#x2F;li&gt;
+&lt;li&gt;I already use &lt;a href=&quot;https:&#x2F;&#x2F;www.goatcounter.com&#x2F;&quot;&gt;GoatCounter&lt;&#x2F;a&gt; for analytics. I don&#x27;t want a second analytics dependency.&lt;&#x2F;li&gt;
+&lt;li&gt;It has to keep working with JavaScript off, in the sense of not being broken. The widget can be inert when JS is disabled, but the page shouldn&#x27;t render a button that lies about doing something.&lt;&#x2F;li&gt;
+&lt;li&gt;No thumbs down. Negative feedback without a way to discuss it is just background noise.&lt;&#x2F;li&gt;
+&lt;li&gt;Mobile-friendly. A pill-shaped button with a 44px tap target on small screens.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;the-shape&quot;&gt;The shape&lt;&#x2F;h2&gt;
+&lt;p&gt;Three new files plus three small edits to existing templates.&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;templates&amp;#x2F;macros&amp;#x2F;helpful.html      (new — Tera macro)
+static&amp;#x2F;css&amp;#x2F;helpful.css             (new — scoped styles)
+static&amp;#x2F;js&amp;#x2F;helpful.js               (new — ~25 lines)
+templates&amp;#x2F;page.html                (import + render the macro)
+templates&amp;#x2F;base.html                (load the JS)
+static&amp;#x2F;css&amp;#x2F;style.css               (@import the CSS)
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The whole feature is under 70 lines total.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;goatcounter-does-the-click&quot;&gt;GoatCounter does the click&lt;&#x2F;h2&gt;
+&lt;p&gt;The first thing I learned reading &lt;a href=&quot;https:&#x2F;&#x2F;www.goatcounter.com&#x2F;help&#x2F;events&quot;&gt;the GoatCounter events docs&lt;&#x2F;a&gt;: you don&#x27;t have to write a click handler. Any element with a &lt;code&gt;data-goatcounter-click&lt;&#x2F;code&gt; attribute gets bound automatically. The attribute&#x27;s value is the event name; &lt;code&gt;data-goatcounter-title&lt;&#x2F;code&gt; sets a human-readable title.&lt;&#x2F;p&gt;
+&lt;p&gt;So the Tera macro just stamps the button:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;jinja&quot; class=&quot;language-jinja &quot;&gt;&lt;code class=&quot;language-jinja&quot; data-lang=&quot;jinja&quot;&gt;{% macro widget(page) %}
+  {% set slug = page.path
+       | replace(from=&amp;quot;&amp;#x2F;&amp;quot;, to=&amp;quot;-&amp;quot;)
+       | trim_start_matches(pat=&amp;quot;-&amp;quot;)
+       | trim_end_matches(pat=&amp;quot;-&amp;quot;) %}
+  {% set event_name = &amp;quot;helpful-&amp;quot; ~ slug %}
+  &amp;lt;aside class=&amp;quot;helpful&amp;quot; data-helpful-path=&amp;quot;{{ page.path }}&amp;quot;&amp;gt;
+    &amp;lt;p class=&amp;quot;helpful-prompt&amp;quot;&amp;gt;Was this helpful?&amp;lt;&amp;#x2F;p&amp;gt;
+    &amp;lt;button
+      type=&amp;quot;button&amp;quot;
+      class=&amp;quot;helpful-button&amp;quot;
+      data-helpful-action=&amp;quot;vote&amp;quot;
+      data-goatcounter-click=&amp;quot;{{ event_name }}&amp;quot;
+      data-goatcounter-title=&amp;quot;Helpful click on {{ slug }}&amp;quot;
+    &amp;gt;Yep, this helped&amp;lt;&amp;#x2F;button&amp;gt;
+    &amp;lt;p class=&amp;quot;helpful-thanks&amp;quot; hidden&amp;gt;✓ Glad it helped&amp;lt;&amp;#x2F;p&amp;gt;
+  &amp;lt;&amp;#x2F;aside&amp;gt;
+{% endmacro widget %}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The slug is the post path with slashes replaced by dashes and the leading&#x2F;trailing dashes trimmed. So &lt;code&gt;&#x2F;blog&#x2F;2026&#x2F;was-this-helpful-button&#x2F;&lt;&#x2F;code&gt; becomes &lt;code&gt;helpful-blog-2026-was-this-helpful-button&lt;&#x2F;code&gt;. Each post is its own row in GoatCounter&#x27;s event list.&lt;&#x2F;p&gt;
+&lt;p&gt;One gotcha: GoatCounter rejects event paths that start with &lt;code&gt;&#x2F;&lt;&#x2F;code&gt; (the path doubles as the event name, and they reserve &lt;code&gt;&#x2F;&lt;&#x2F;code&gt; as a real-path marker). If you forget to strip the leading slash, your events silently don&#x27;t get recorded.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;javascript-handles-the-dedupe&quot;&gt;JavaScript handles the dedupe&lt;&#x2F;h2&gt;
+&lt;p&gt;GoatCounter records the click. localStorage remembers it. The script only does the visual swap:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;js&quot; class=&quot;language-js &quot;&gt;&lt;code class=&quot;language-js&quot; data-lang=&quot;js&quot;&gt;(function () {
+  var widget = document.querySelector(&amp;#x27;.helpful[data-helpful-path]&amp;#x27;);
+  if (!widget) return;
+
+  var path = widget.getAttribute(&amp;#x27;data-helpful-path&amp;#x27;);
+  var storageKey = &amp;#x27;helpful:&amp;#x27; + path;
+  var button = widget.querySelector(&amp;#x27;[data-helpful-action=&amp;quot;vote&amp;quot;]&amp;#x27;);
+  var thanks = widget.querySelector(&amp;#x27;.helpful-thanks&amp;#x27;);
+
+  function showThanks() {
+    button.hidden = true;
+    thanks.hidden = false;
+  }
+
+  try {
+    if (localStorage.getItem(storageKey)) {
+      showThanks();
+      return;
+    }
+  } catch (e) {
+    &amp;#x2F;&amp;#x2F; Private browsing &amp;#x2F; storage disabled: continue without persistence.
+  }
+
+  button.addEventListener(&amp;#x27;click&amp;#x27;, function () {
+    try {
+      localStorage.setItem(storageKey, Date.now().toString());
+    } catch (e) {
+      &amp;#x2F;&amp;#x2F; ignore
+    }
+    showThanks();
+  });
+})();
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Twenty-five lines. No framework, no dependencies, no async, no fetch. The &lt;code&gt;try&#x2F;catch&lt;&#x2F;code&gt; blocks around localStorage are for Safari private mode and embedded webviews, where &lt;code&gt;localStorage&lt;&#x2F;code&gt; throws on access rather than just being absent.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;edge-cases-i-thought-about&quot;&gt;Edge cases I thought about&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;strong&gt;Tracker blockers.&lt;&#x2F;strong&gt; If your readers run uBlock Origin or similar, count.js gets blocked and the click goes nowhere. The UI still swaps state, so they don&#x27;t see a broken button - the dashboard just under-counts. Acceptable for a directional metric.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;localStorage disabled.&lt;&#x2F;strong&gt; Try&#x2F;catch keeps the UI working; users in this mode can vote again across reloads. Tolerable for a directional metric.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;Same person, multiple browsers.&lt;&#x2F;strong&gt; Each browser counts once. There&#x27;s no way to deduplicate without auth, and I don&#x27;t want auth.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;JS disabled.&lt;&#x2F;strong&gt; The button renders but does nothing. I&#x27;d rather show a friendly prompt that can&#x27;t be acted on than hide the section entirely. If you find that offensive, a one-liner in &lt;code&gt;&amp;lt;noscript&amp;gt;&lt;&#x2F;code&gt; hides it.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-i-learned-about-goatcounter&quot;&gt;What I learned about GoatCounter&lt;&#x2F;h2&gt;
+&lt;p&gt;Three things that aren&#x27;t obvious from the docs:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Events show up in the same Pages view as pageviews.&lt;&#x2F;strong&gt; I expected a separate &quot;Events&quot; tab. There isn&#x27;t one. The events are inlined into the regular pages list, marked with their event title.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;The GIF response is always 200.&lt;&#x2F;strong&gt; GoatCounter returns a 1x1 GIF for every count request, regardless of whether the hit was actually recorded. You can&#x27;t tell from HTTP status alone whether your event registered. The signal is whether it shows up in the dashboard.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;&lt;code&gt;data-goatcounter-click&lt;&#x2F;code&gt; is dramatically simpler than calling &lt;code&gt;window.goatcounter.count()&lt;&#x2F;code&gt; manually.&lt;&#x2F;strong&gt; First version of this widget did the manual call. Second version reads the data attribute. Same behavior, less code, less to break.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;h2 id=&quot;what-i-m-not-doing&quot;&gt;What I&#x27;m not doing&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;No &quot;X people found this helpful&quot; counter.&lt;&#x2F;strong&gt; GoatCounter&#x27;s API doesn&#x27;t expose per-page event counts to the client, so showing the number would require a backend. I don&#x27;t care enough.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;No reading-time gate.&lt;&#x2F;strong&gt; I considered only showing the button after 30 seconds or 60% scroll, to filter skim-clicks. I&#x27;ll add it if the noise becomes annoying. For now, every click is signal.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;No newsletter pitch on click.&lt;&#x2F;strong&gt; &quot;Glad it helped - want more?&quot; would convert better. But I don&#x27;t have a newsletter, so it&#x27;d be a lie.&lt;&#x2F;p&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;try-it&quot;&gt;Try it&lt;&#x2F;h2&gt;
+&lt;p&gt;There&#x27;s one at the bottom of this post. If this was useful, click it.&lt;&#x2F;p&gt;
+&lt;p&gt;I&#x27;ll know whether the post landed because the dashboard will tell me. Not in pageviews. In &lt;code&gt;helpful-blog-2026-was-this-helpful-button&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

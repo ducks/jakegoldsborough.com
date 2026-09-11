@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Claux got a failure taxonomy and exit codes that mean something, Agents of Empires stopped blaming the controller for lost races and grew a weekly bracket, and I learned what an agent will write into your git history if you do not ask.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Agent assisted Changelog - 36&#x2F;52">
+    <meta property="og:description" content="Claux got a failure taxonomy and exit codes that mean something, Agents of Empires stopped blaming the controller for lost races and grew a weekly bracket, and I learned what an agent will write into your git history if you do not ask.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-36&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Agent assisted Changelog - 36&#x2F;52">
+    <meta name="twitter:description" content="Claux got a failure taxonomy and exit codes that mean something, Agents of Empires stopped blaming the controller for lost races and grew a weekly bracket, and I learned what an agent will write into your git history if you do not ask.">
+
+    <title>Agent assisted Changelog - 36&#x2F;52 - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css?h=4ae15179b7c33c92f362" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Agent assisted Changelog - 36&#x2F;52</h1>
+      <div class="meta">
+        
+        <p>Sep 11, 2026</p>
+        
+        <p>11 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/agents">#agents</a></p>
+          
+          <p><a href="/tags/changelog">#changelog</a></p>
+          
+        </div>
+      
+
+      
+  
+
+
+      <p>One actual week this time. It started with three architecture reviews and
+ended with a tournament bracket, which is roughly the arc of every project I
+touch: first find out what is actually broken, then build the thing that was
+the point all along.</p>
+<h2 id="three-reviews-thirty-one-issues">Three reviews, thirty-one issues</h2>
+<p>I had an agent do a deep review of <a href="https://github.com/ducks/claux">Claux</a>,
+<a href="https://github.com/ducks/replaybook">Replaybook</a>, and
+<a href="https://github.com/ducks/llm-mux">llm-mux</a> as harnesses: runtime, provider
+boundaries, sandboxing, persistence, observability, and the contracts between
+them. Each review fanned out to sub-reviewers per subsystem, then every
+high-severity claim got re-verified against the source before it was allowed
+into the report. That last step mattered. One reviewer cited line numbers for a
+file that was a third the length it claimed; the finding was right, the
+citations were not.</p>
+<p>The Claux review became twenty-five GitHub issues with file and line
+references, a failure scenario, and a suggested fix each. The two that stung
+were the boring ones: OpenAI's context-overflow body puts the useful
+identifier in <code>code</code> while the classifier read <code>type</code> first, so auto-compaction
+on overflow had never fired for a first-party provider; and the Anthropic
+stream reader never looked at <code>stop_reason</code>, so a truncated answer was reported
+to Replaybook as a completed one. Both are still open, on purpose, because the
+fix that unblocks them landed first.</p>
+<p>The <a href="/blog/2026/llm-mux-workflow-orchestration/">llm-mux</a> review found a
+dangling-symlink escape in the apply path and a
+project-config trust filter that stripped <code>command</code> but not <code>env</code>. Both got
+fixed the same week, along with side-effect-free dry runs and bounded retries,
+and shipped as <code>v20260905.0.0</code>. The Replaybook review found that the
+benchmark classifier had been reading a script that was missing from every
+execution snapshot, one real provider key in twenty-three retained transcripts
+from before the credential proxy existed, and a publisher that validated only
+the current release. The key got rotated. The rest is on the list.</p>
+<h2 id="claux-learned-to-say-why-it-failed">Claux learned to say why it failed</h2>
+<p>Claux went through six releases this week, from <code>v20260904.0.0</code> to
+<code>v20260909.0.0</code>, and closed thirteen issues. The one I care about is the
+failure taxonomy.</p>
+<p>Until now <code>ApiFailureKind</code> had four variants and no transient class. A 429, a
+503, a connection reset, and an expired credential all fell into <code>Other</code>,
+ended the turn, and left the process with exit status 1 and a sentence on
+stderr. Replaybook classified those sentences with a regex table. Agents of
+Empires could only tell "the model failed" from "the SSH session died" by
+checking for status 255 and a reboot marker.</p>
+<p>Now failures are typed: <code>rate_limited</code>, <code>unavailable</code>, <code>network</code>,
+<code>authentication</code>, <code>model_not_found</code>, <code>policy_rejection</code>, <code>protocol_error</code>,
+<code>cancelled</code>, and the three recovery kinds that already existed. Transient
+kinds are retried up to three times with backoff and jitter, honoring a capped
+<code>Retry-After</code>, gated on the existing rule that a partially surfaced tool batch
+is never reissued, and the backoff sleep is selected against the cancellation
+token so Ctrl-C during a thirty-second wait returns immediately. One-shot JSON
+is written on failure too, with a null result and an <code>outcome.failure</code> object,
+and the exit code encodes the kind: 10 through 18, chosen to never collide with
+SSH's 255 or the shell's 126 to 128-plus-signal range. That last constraint
+exists because the Agents of Empires adapter runs Claux over SSH and had been
+attributing transport drops to the player.</p>
+<p>The rest of the week's Claux work was the kind of thing that only shows up
+after a review: permission rules with globs (<code>Bash(git *)</code>, <code>Edit(src/**)</code>) and
+a pre-tool hook that can answer allow, deny, or ask as JSON; a child-process
+environment built from the configuration's own <code>api_key_env</code> names instead of
+a fixed pattern list; bounded Bash output capture that drains without storing;
+unique <code>tool_use</code> ids even when a gateway repeats them; a compaction marker
+that no longer produces two consecutive user messages; a bounded <code>api_key_cmd</code>
+with a Windows shell; NAT64 and 6to4 ranges in the WebFetch policy; and a
+<code>SHA256SUMS</code> asset on every release so the two consumers can stop computing
+digests locally. Separately I shipped background Bash jobs owned by the
+session, a live tool-activity line in the TUI, terminal-mode restoration on
+every shutdown path, and task-preserving compaction. The unit test count went
+from 473 to 524 over the week.</p>
+<h2 id="agents-of-empires-stopped-blaming-the-controller">Agents of Empires stopped blaming the controller</h2>
+<p>The most useful number from the <a href="https://github.com/ducks/agents-of-empires">Agents of
+Empires</a> review was not in the
+code. (Background on the arena is in <a href="/blog/2026/agents-of-empires-not-a-leaderboard-a-battleground/">Not a Leaderboard, a
+Battleground</a>
+and <a href="/blog/2026/the-battleground-has-a-map-now/">The Battleground Has a Map
+Now</a>.) In the two four-arena suite runs on disk, 29 of 72 agent appearances
+were recorded as controller failures with the reason "post-match drain
+deadline expired." Eleven of GLM 5.3's twelve appearances were in that bucket.
+None of those agents had been failed by the controller. They had lost the
+race: a rival reached durable first, the match froze, and anyone still
+building was terminated at the drain deadline and counted as infrastructure.
+The leaderboard was honest about the label and wrong about the meaning.</p>
+<p>That is now an <code>AgentOutraced</code> event, an <code>incomplete</code> terminal state, and a
+player outcome ranked by the milestones the agent had verified, which is what
+the spec always said should happen. <code>AgentTerminated</code> still exists for
+genuine controller kills, so old event logs reduce unchanged. Re-rendering the
+August 20 run under the new accounting turns GLM 5.3 from "eleven controller
+failures" into "zero durable, eleven outraced, six of sixty milestones," which
+is the true and considerably less flattering result. The evaluated rate on the
+site goes from under half to over ninety percent without touching a verifier.
+The adapter also now reads Claux's typed failures and exit codes, so a rate
+limit is <code>unavailable</code> and a context overflow is <code>failed</code>, and a present
+result file no longer implies success. Both consumers pin
+<code>claux v20260908.0.0</code> by SHA-256 now, and I talked myself out of a "latest"
+default: the pin is part of the evidence.</p>
+<p>Then I wanted a weekly season with a bracket and random draws, and the
+draw-first idea turned out to be the interesting part. A season manifest names
+a fleet of any size and an arena pool. <code>season draw</code> derives heat composition,
+the arena per round, and every seat from a published seed (season id, week,
+optional salt) and writes <code>draw.json</code> before any inference runs, so anyone can
+re-derive the bracket. Heats are three seats because arenas declare three
+territories; byes and milestone-ranked wildcards fill the rounds for fleets
+that do not divide evenly. A second, secret variation seed goes to verifiers
+as <code>AOE_SCENARIO_SEED</code>; only its SHA-256 commitment is published with the
+draw, and <code>week.json</code> reveals it after the week completes, so competitors
+cannot predict verifier-side values and anyone can check the reveal. A seat
+whose result is unavailable earns the heat one replay; a repeat forfeits and is
+never a loss. The race still stops at the first durable deployment. Losing it
+is the result.</p>
+<p>The report got a season page, a bracket page per week with every seat's
+outcome as durable, outraced, failed, or forfeit, and the homepage became a
+tournament hub. <code>season run</code> has not driven a real VM yet; the draw has been
+verified against the real manifests and the accounting against fixtures. The
+first paid week is next.</p>
+<h2 id="replaybook-became-an-evidence-workspace">Replaybook became an evidence workspace</h2>
+<p>Replaybook's site stopped being a leaderboard with a compare tab and became an
+Evidence workspace: dark surfaces, a per-attempt wall where a fully evaluated
+three-attempt cell is red at 0 or 1, yellow at 2, green at 3, and gray when the
+evidence is incomplete or unavailable, with the old compare and explore URLs
+redirecting and preserving their selections. Models are now family cards with
+provider and reasoning configurations underneath; the previous "41 models" was
+counting configurations, and the honest numbers are 29 served model IDs and 43
+provider, model, and reasoning combinations, kept separate pending verified
+aliases.</p>
+<p>New evidence landed too. Claude Fable 5.1 went 32 of 33 repairs across the
+combined text and visual run; Gemini 3.8 Flash went 24 of 33 with protocol
+failures and much higher token use. The large OpenCode Go core run reached 114
+of 120 valid results after retries, with the remainder still returning
+provider-unavailable on the Nix disk-pressure cells. OpenRouter's six-model
+core baseline is published with Sonnet replacing Ox Alpha. New host matrices
+require an invocation-level provider, and I backfilled provider metadata on the
+older OpenRouter results by hand, which is exactly the kind of "never hand
+edit" activity the repository rules exist to make uncomfortable.</p>
+<h2 id="the-part-where-the-agent-wrote-a-url-into-my-history">The part where the agent wrote a URL into my history</h2>
+<p>Two things this week were the agent's doing and my fault for not looking.</p>
+<p>First, a deep review of Claux was published as a hosted artifact on claude.ai
+without my asking. Private to my account, but a security review of my own code
+and two downstream repos is not something I want leaving the machine by
+default. I turned the artifact tool off in settings.</p>
+<p>Second, and worse: every commit the agent wrote this week ended with a
+<code>Claude-Session:</code> trailer linking to the conversation. It was an attribution
+convention the harness told it to follow, formatted like a Co-Authored-By
+line, and it applied it mechanically to around thirty commits across three
+repos without a word. I noticed after seventeen of them had gone out in
+tagged Claux releases. The unpushed ones were rewritten; the pushed ones are
+inert URLs only my login can open, and I decided a force-push and three moved
+release tags were not worth it. The setting is off now.</p>
+<p>The lesson is not "agents are careless." It is that I had drawn the caution
+boundary around actions the agent takes and not around text it writes into my
+artifacts. A commit message is an action. So is a filename. The agent, to its
+credit, said exactly that when I asked it how it had missed the obvious.</p>
+<h2 id="smaller-things">Smaller things</h2>
+<p>I started looking at what leaving Hyprland would take. Nothing has moved
+yet, but there is now a river config on a branch in my dotfiles: same keys,
+gruvbox, no effects, with swaybg, swayidle, swaylock, grim, and slurp standing
+in for the Hypr-branded pieces. The surprise was that <code>river</code> 0.4 is not a
+window manager anymore. It is a compositor that does rendering, protocols,
+Xwayland, and outputs, and expects a separate window manager process speaking
+a stable protocol, in any language, hot-swappable, crash-survivable. The old
+tiling river is <code>river-classic</code>. The config targets classic and has not been booted
+into yet, but the 0.4 split is exactly the substrate for a declarative, Nix-shaped window manager
+that I have wanted and never had the appetite to write a compositor for.</p>
+<p>Agent Zen Garden is submitted, live, and being used by people who are not me.
+Heart Eyes Tattoo got real artists and a mobile-first pass.</p>
+<h2 id="the-through-line">The through-line</h2>
+<p>This week was about attribution, in both senses.</p>
+<p>Replaybook and Agents of Empires both had numbers that were correctly labeled
+and wrongly understood: "controller failure" for a lost race, "41 models" for
+41 configurations. Claux had the same problem one layer down, where a rate
+limit and a bad credential and a truncated answer all produced the same
+sentence. Fixing those meant adding a type, an event, or a column, not
+changing what was measured. The measurements were fine. The names were lying
+by omission.</p>
+<p>And the same week, the tools attributing my work to an agent session did it in
+a way I had not consented to, because I had not asked. The boundary I want
+around agents is the one I keep building into the benchmarks: say what you
+did, say who did it, and make the label mean the same thing to the next person
+who reads it.</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;weekly-summary-36&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-weekly-summary-36"
+      data-goatcounter-title="Helpful click on blog-2026-weekly-summary-36"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-35&#x2F;">Agent assisted Changelog - 35&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Sep 04, 2026</p>
+                    
+                    <p>10 min read</p>
+                  </div>
+                  
+                    <p class="desc">Replaybook grew from a benchmark into a provider-aware evidence system, Agent Zen Garden became a real WebMCP submission, and Claux spent the week learning how to fail more honestly.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-34&#x2F;">Agent assisted Changelog - 34&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 21, 2026</p>
+                    
+                    <p>11 min read</p>
+                  </div>
+                  
+                    <p class="desc">Replaybook became a multi-harness benchmark with 240 comparable trials, Agents of Empires became something worth watching, and I built a GitHub CLI because one GraphQL query failed too many times.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-33&#x2F;">Agent assisted Changelog - 33&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 14, 2026</p>
+                    
+                    <p>12 min read</p>
+                  </div>
+                  
+                    <p class="desc">Replaybook became a real infrastructure-agent benchmark, escaped into Agents of Empires, and filled my disk with disposable NixOS machines. Plus a language compiler and several systems that fought back.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;yapper-or-just-ask-the-bots&#x2F;">Yapper, or: just ask the bots</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 10, 2026</p>
+                    
+                    <p>9 min read</p>
+                  </div>
+                  
+                    <p class="desc">Yapper is a Discourse plugin that turns a forum into a place where humans can read but only registered bots can post. It&#x27;s live at yapper.forum. Here&#x27;s what it does, and why I think the protocol underneath it is the actual product.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/protocol">#protocol</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-35&#x2F;">Agent assisted Changelog - 35&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Sep 04, 2026</p>
+                    
+                    <p>10 min read</p>
+                  </div>
+                  
+                    <p class="desc">Replaybook grew from a benchmark into a provider-aware evidence system, Agent Zen Garden became a real WebMCP submission, and Claux spent the week learning how to fail more honestly.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>

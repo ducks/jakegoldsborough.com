@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Agent Zen Garden turns a web page into a design surface for browser agents. I gave Codex a blank portfolio layout and found the useful boundary between agent precision and human taste.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="I Let an Agent Design a Portfolio Page">
+    <meta property="og:description" content="Agent Zen Garden turns a web page into a design surface for browser agents. I gave Codex a blank portfolio layout and found the useful boundary between agent precision and human taste.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;letting-an-agent-design-a-portfolio-page&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="I Let an Agent Design a Portfolio Page">
+    <meta name="twitter:description" content="Agent Zen Garden turns a web page into a design surface for browser agents. I gave Codex a blank portfolio layout and found the useful boundary between agent precision and human taste.">
+
+    <title>I Let an Agent Design a Portfolio Page - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css?h=4ae15179b7c33c92f362" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>I Let an Agent Design a Portfolio Page</h1>
+      <div class="meta">
+        
+        <p>Aug 31, 2026</p>
+        
+        <p>8 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/web">#web</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      
+  
+
+
+      <p>I built a little website and then handed the website to an agent.</p>
+<p>Not the whole website. The agent did not get a blank repository and a vague
+instruction to "make it nice." It got a page with a few fixed layouts and a
+set of tools for changing the parts I had decided were safe to change.</p>
+<p>The project is <a href="https://github.com/ducks/agent-zen-garden">Agent Zen Garden</a>,
+and it is now running at <a href="https://agentzen.garden">agentzen.garden</a>.</p>
+<p><img src="/images/agent-zen-garden/landing.png" alt="Agent Zen Garden landing page with the WebMCP design tools and workflow" /></p>
+<p>I wanted to see what <a href="https://developer.chrome.com/docs/ai/webmcp">WebMCP</a>
+felt like when it was attached to something more interesting than a button
+that says hello. The answer, after a weekend of wiring and one very productive
+Codex session, is a small design sandbox where an agent can build a page and a
+human can decide whether it is any good.</p>
+<h2 id="the-blank-canvas-problem">The blank canvas problem</h2>
+<p>Agents are very good at making changes. They are less reliable at deciding
+which changes are worth making when the possible surface area is infinite.</p>
+<p>Give an agent an empty directory and "design a portfolio" and it can produce
+anything from a lovely landing page to six hundred lines of gradients and a
+navigation system that only works in its own imagination. The problem is not
+that it cannot write CSS. The problem is that "good" is doing a lot of work in
+that sentence.</p>
+<p>So the garden starts with constraints. There are a few HTML layouts with named
+slots: a headline, a navigation area, an image, a set of cards, a footer. The
+structure is fixed. The agent can inspect the available slots and selectors,
+then change the copy, typography, colors, spacing, and images without having
+to invent an entire application architecture first.</p>
+<p>The constraints are not meant to make the agent less creative. They make the
+creative decisions visible.</p>
+<h2 id="the-tool-loop">The tool loop</h2>
+<p>The page exposes a small design API through WebMCP. An agent can discover the
+tools directly from the page when the browser supports the native API, and the
+same operations remain available as ordinary HTTP endpoints for everything
+else.</p>
+<p>The basic loop is:</p>
+<pre><code>list_layouts
+select_layout name=&quot;A Quiet Portfolio&quot;
+examine_layout
+set_style
+set_copy
+add_font
+add_image
+export_pdf
+</code></pre>
+<p><code>examine_layout</code> is the important one. It returns the named slots, the CSS
+selectors, and the current stylesheet. The agent gets a map before it starts
+moving furniture around.</p>
+<p><code>set_style</code> merges declarations into a selector's existing rule. <code>set_copy</code>
+updates a named slot rather than asking the agent to rewrite arbitrary HTML.
+<code>add_font</code> loads a Google Font, and <code>add_image</code> puts a public image URL into an
+image or background slot. At the end, <code>export_pdf</code> renders the result with
+Chromium so the output is not just whatever happened to look right in the
+agent's text response.</p>
+<p>The native WebMCP layer is deliberately thin. It reads the page's manifest and
+registers each operation with <code>document.modelContext</code>. The server still owns
+the implementation. A browser agent gets page-specific tools; the server gets
+to keep its validation, filesystem writes, and live reload in one place.</p>
+<h2 id="i-gave-it-a-portfolio">I gave it a portfolio</h2>
+<p>For the first real session, I gave Codex the portfolio layout and let it work
+through the tool loop. It inspected the structure, chose a direction, changed
+the type and spacing, replaced the placeholder copy, and iterated against the
+actual page instead of describing a page it hoped existed.</p>
+<p>The useful part was not that it could call <code>set_style</code>. Any competent agent
+can write:</p>
+<pre data-lang="css" class="language-css "><code class="language-css" data-lang="css">.hero-headline {
+  letter-spacing: -0.04em;
+  font-size: clamp(3rem, 9vw, 8rem);
+}
+</code></pre>
+<p>The useful part was that the change happened in a running design surface with
+known selectors, and the next inspection reflected what was actually there.
+It could make a change, look at the result, and make a smaller change. That is
+closer to working with a designer's file than to asking a chatbot for a block
+of CSS and pasting it in with your fingers crossed.</p>
+<p>I still had opinions. I still said when something was too busy, when the
+spacing felt wrong, and when a clever treatment was not helping. The agent was
+fast at the exhaustive part: trying the variations, keeping the selectors
+straight, and applying the boring changes consistently. I supplied the
+direction and the vetoes.</p>
+<p>That division feels more honest than pretending the agent has taste in the
+same way a person does.</p>
+<h2 id="a-design-should-survive-the-process">A design should survive the process</h2>
+<p>The first version stored sessions in memory. That was fine until I asked the
+obvious question: what happens when I send somebody a link and then restart
+the service?</p>
+<p>The answer was a 404, because the files were on disk but the server had
+forgotten that the session existed. The filesystem had a better memory than
+the application.</p>
+<p>Now selecting a layout creates an isolated workspace:</p>
+<pre><code>workspaces&#x2F;&lt;session-id&gt;&#x2F;
+├── index.html
+└── style.css
+</code></pre>
+<p>The session catalog lives in SQLite. It stores the layout, creation time, and
+optional metadata such as the design name, agent, provider, model, and harness.
+The files and the catalog come back when the process restarts.</p>
+<p><code>select_layout</code> returns both a live preview URL and a share URL. Recent designs
+are available from the <a href="https://agentzen.garden/designs">design catalog</a>, and
+agents can use <code>list_designs</code> or <code>GET /api/designs</code> to discover them. The
+catalog is intentionally simple. It is a list of experiments, not a social
+network that needs a feed algorithm.</p>
+<p><img src="/images/agent-zen-garden/designs.png" alt="Agent Zen Garden design catalog showing saved pages made by agents" /></p>
+<p>There is no account system or permissions model yet. A share link is an
+unguessable UUID, not an access-control policy. This is a design sandbox, not
+the place I would put somebody's banking dashboard.</p>
+<h2 id="what-webmcp-changes">What WebMCP changes</h2>
+<p>I could build most of this with a local agent and a command-line API. The
+interesting difference is that the tools belong to the page.</p>
+<p>The agent does not need a separate integration that knows the garden's private
+endpoints. It visits the page, discovers the manifest, and gets operations that
+are specific to the surface in front of it. A different page could expose
+different tools: a music sequencer could provide tracks and effects, a diagram
+editor could provide nodes and edges, and a data dashboard could provide
+filters and annotations.</p>
+<p>That makes a website feel less like a document an agent is looking at and more
+like an application an agent can participate in.</p>
+<p>It is also not magic. WebMCP support is still browser-dependent, and the
+fallback path matters. The HTTP API means a non-WebMCP client can still create
+and edit a session. The browser integration is an additional affordance, not a
+requirement that every user install a particular agent in a particular browser.</p>
+<h2 id="the-line-between-useful-and-ridiculous">The line between useful and ridiculous</h2>
+<p>There is a version of this project that is just a website builder with an
+agent bolted onto it. That is not especially interesting. We have had website
+builders for a long time, and most of them have fewer opinions about CSS than
+I do.</p>
+<p>The bit I want to keep exploring is the boundary between human intent and
+agent execution:</p>
+<ul>
+<li>the human picks the direction and says what feels wrong;</li>
+<li>the agent traces the available structure and makes precise changes;</li>
+<li>the page shows the result instead of returning a paragraph about the result;</li>
+<li>both of us can keep iterating without losing the state of the work.</li>
+</ul>
+<p>That is a small thing, but it is a different shape of interaction from
+"generate me a website." It is closer to handing an assistant a design file
+and saying, "make the headline feel less timid, but leave the rest alone."</p>
+<h2 id="what-s-next">What's next</h2>
+<p>I want to add more layouts, better visual inspection, and a way to compare
+versions of a design without turning the garden into a full Git client. A
+comment or annotation layer would be useful too: point at a section, leave a
+note, let the agent make a change, then decide whether the result is closer.</p>
+<p>The danger is obvious. Every time I add another tool, I make the sandbox more
+capable and the idea less clear. The garden should stay small enough that a
+person can understand what the agent is allowed to do.</p>
+<p>For now, it is a page with a few layouts, a persistent workspace, and an agent
+that can actually change what is on screen.</p>
+<p>I made a tool to let an agent design a website. It immediately made me want to
+design a better website for the tool.</p>
+<p>That seems about right.</p>
+<hr />
+<p>Source: <a href="https://github.com/ducks/agent-zen-garden">github.com/ducks/agent-zen-garden</a></p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;letting-an-agent-design-a-portfolio-page&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-letting-an-agent-design-a-portfolio-page"
+      data-goatcounter-title="Helpful click on blog-2026-letting-an-agent-design-a-portfolio-page"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;gym-jams-turn-an-album-into-a-workout&#x2F;">gym-jams: Turn an Album Into a Workout</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 25, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">An album has a fixed length, a tempo map, and an energy arc. That&#x27;s a workout plan wearing headphones. librosa provides the ears, a one-shot LLM does the planning.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;the-agents-have-eyes-now&#x2F;">The Agents Have Eyes Now</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 22, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Replaybook can now hand infrastructure agents a production topology diagram. Six models made 18 durable repairs, and Luna beat the flagship on speed and cost.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;tongs-github-cli-built-for-agents&#x2F;">I Got Tired of gh Failing, So I Built Tongs</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 20, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">I wanted a GitHub CLI that agents could depend on: stable JSON, no prompts, safe mutations, and no giant GraphQL query standing between me and a pull request. So I built Tongs.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/go">#go</a></p>
+                      
+                      <p><a href="/tags/cli">#cli</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/github">#github</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;the-battleground-has-a-map-now&#x2F;">The Battleground Has a Map Now</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 15, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Agents of Empires started as three rows in a terminal. I gave the battleground a service map driven by the same referee events that decide who wins.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/games">#games</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;agents-of-empires-not-a-leaderboard-a-battleground&#x2F;">Agents of Empires: Not a Leaderboard, a Battleground</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 13, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">I dropped DeepSeek, Luna, and GLM into identical blank NixOS hosts and made them race to recover queued work, survive a reboot, and produce the first durable deployment.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/games">#games</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>

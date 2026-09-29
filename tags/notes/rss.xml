@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - notes</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/notes/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Sun, 19 Jul 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>raft: A Graph Over the Plain-Text Log</title>
+          <pubDate>Sun, 19 Jul 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/raft-a-graph-over-the-plain-text-log/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/raft-a-graph-over-the-plain-text-log/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/raft-a-graph-over-the-plain-text-log/">&lt;p&gt;For a while now I&#x27;ve kept a plain-text log of what I work on. One markdown
+file per day in &lt;code&gt;~&#x2F;claude&#x2F;notes&lt;&#x2F;code&gt;, written in past tense, no structure beyond
+headings. What I did, why, what broke, what I left unfinished. It is the most
+useful habit I have picked up in years, and it cost nothing to start: a
+folder and the discipline to append to it.&lt;&#x2F;p&gt;
+&lt;p&gt;The problem with a log is that it only grows. Mine is a bit over a year of
+entries now - enough that the thing I kept wanting to ask it, grep could not
+answer.&lt;&#x2F;p&gt;
+&lt;p&gt;Not &quot;where did I mention n8n&quot; - grep does that fine. The questions grep can&#x27;t
+touch are the ones about &lt;em&gt;shape&lt;&#x2F;em&gt;:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;what did I leave unfinished, and how long ago?&lt;&#x2F;li&gt;
+&lt;li&gt;which projects keep showing up together even though I never wrote down that
+they&#x27;re related?&lt;&#x2F;li&gt;
+&lt;li&gt;what did this idea eventually turn into?&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Those are questions about the relationships &lt;em&gt;between&lt;&#x2F;em&gt; entries, and a flat log
+has no relationships. It&#x27;s a pile. So I built the thing that reads the pile
+and finds the shape.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;raft&quot;&gt;raft&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;raft&quot;&gt;raft&lt;&#x2F;a&gt; is a personal knowledge graph that
+grows out of what you already have - markdown notes, project repos, and git
+history. It&#x27;s a Rust CLI. You point it at some directories, it builds an
+index, and you ask it questions.&lt;&#x2F;p&gt;
+&lt;p&gt;The important design decision is that &lt;strong&gt;the notes stay the source of truth.&lt;&#x2F;strong&gt;
+raft never writes to them. The index is a SQLite file it derives from the
+files and can rebuild from scratch at any time; delete it and nothing is
+lost. The plain text is canonical, the way Karpathy&#x27;s log is canonical and
+the way mine has always been. raft is a lens you hold up to it, not a place
+your data goes to live.&lt;&#x2F;p&gt;
+&lt;p&gt;It reads two kinds of source: trees of markdown notes, and directories of
+project repos (where it pulls branch and recent-commit metadata from git).
+Every organism in the graph - note, project, entity, open loop - carries
+provenance: which file it came from, whether a relationship was something I
+wrote explicitly or something raft inferred, and how much to trust it.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-command-that-hooked-me&quot;&gt;The command that hooked me&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;code&gt;raft dangling&lt;&#x2F;code&gt; lists open loops - the unchecked boxes and follow-up bullets
+scattered across the log - stalest first. The first time I ran it against my
+real notes, it dredged this up:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt; 245d  Playback progress bar in footer
+       2025-11-15  ...notes&amp;#x2F;2025&amp;#x2F;2025-11-15.md  (seen 2x)
+ 245d  Progress tracking per episode (resume where you left off)
+       2025-11-15  ...notes&amp;#x2F;2025&amp;#x2F;2025-11-15.md
+ 245d  Seek forward&amp;#x2F;backward
+       2025-11-15  ...notes&amp;#x2F;2025&amp;#x2F;2025-11-15.md
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Those are shellcast TODOs I wrote down 245 days ago and completely forgot.
+The log remembered them; I couldn&#x27;t have. That is the whole pitch, right
+there: a log you never re-read is a log that forgets. &lt;code&gt;dangling&lt;&#x2F;code&gt; is the log
+re-reading itself and handing you back the threads you dropped.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-one-that-surprised-me&quot;&gt;The one that surprised me&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;code&gt;raft connect&lt;&#x2F;code&gt; looks for pairs of projects and entities that keep
+co-occurring in the notes over time, affinity-scored so hub words don&#x27;t drown
+everything, and shows me connections I never wrote down:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;keep showing up together:
+  0.89  replaybook &amp;lt;-&amp;gt; break.sh            [4 notes over 14 days]
+  0.82  llm-mux    &amp;lt;-&amp;gt; claux               [7 notes over 90 days]
+  0.68  date-ver   &amp;lt;-&amp;gt; burrow              [4 notes over 206 days]
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;llm-mux and claux traveling together over ninety days is real - they&#x27;re both
+LLM tooling and I clearly think about them as a pair without ever having said
+so. &lt;code&gt;date-ver&lt;&#x2F;code&gt; and &lt;code&gt;burrow&lt;&#x2F;code&gt; co-occurring across 206 days is the kind of
+long-arc connection I&#x27;d never reconstruct by hand. The graph can see the
+shape of my own work better than I can describe it.&lt;&#x2F;p&gt;
+&lt;p&gt;This one needed a fix, and it&#x27;s a nice illustration of the provenance
+principle. Early on, &lt;code&gt;connect&lt;&#x2F;code&gt; was flooded with junk pairs like
+&lt;code&gt;birdhaus.art &amp;lt;-&amp;gt; index.html&lt;&#x2F;code&gt; - because raft was treating every backticked
+code span in my notes as a possible entity, and those weak guesses scored the
+same as real relationships. The rule I hold myself to is that an inferred
+edge must carry its confidence and never masquerade as a fact. So weak
+span-guesses get a low weight, and &lt;code&gt;connect&lt;&#x2F;code&gt; grew a &lt;code&gt;--min-weight&lt;&#x2F;code&gt; flag that
+filters them out by default. Inference is allowed; pretending inference is
+fact is not.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;then-i-found-the-gist&quot;&gt;Then I found the gist&lt;&#x2F;h2&gt;
+&lt;p&gt;I built all of this because the itch was real. Months of logging, a genuine
+wall where grep stopped scaling, a tool to climb it.&lt;&#x2F;p&gt;
+&lt;p&gt;Today - after raft was already built, released, and reindexing my notes on a
+daily timer - I found &lt;a href=&quot;https:&#x2F;&#x2F;gist.github.com&#x2F;karpathy&#x2F;442a6bf555914893e9891c11519de94f&quot;&gt;Andrej Karpathy&#x27;s gist&lt;&#x2F;a&gt;
+where he describes keeping exactly the log I keep. One append-only file,
+timestamped, never edited, grepped when needed. The same instinct, from
+someone whose instincts are worth paying attention to.&lt;&#x2F;p&gt;
+&lt;p&gt;I&#x27;ll be honest: it felt good. Not because he validated raft - he doesn&#x27;t
+mention anything like it - but because he validated the &lt;em&gt;foundation&lt;&#x2F;em&gt;. The
+plain-text log, the files-you-own-forever, the deliberate absence of an app
+to rot. That&#x27;s the soil raft grows in, and finding out one of the sharpest
+people in the field plants in the same soil was a quiet, useful bit of
+reassurance.&lt;&#x2F;p&gt;
+&lt;p&gt;And here&#x27;s the part that made me grin: he builds the log and stops there,
+on purpose. The whole point of his approach is that there&#x27;s no tooling to
+maintain - just text and grep. raft is the thing he deliberately &lt;em&gt;doesn&#x27;t&lt;&#x2F;em&gt;
+build: the layer above the log, for when the pile gets big enough that you
+want to see its shape and grep can&#x27;t show you.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;using-it&quot;&gt;Using it&lt;&#x2F;h2&gt;
+&lt;p&gt;The real test of a tool like this was never whether the code is good. It&#x27;s
+whether I actually reach for it. So the last thing I did was the least
+glamorous and the most important: &lt;code&gt;cargo install&lt;&#x2F;code&gt;ed it so &lt;code&gt;raft&lt;&#x2F;code&gt; is on my
+PATH, and set up a systemd timer to reindex every morning so the answers are
+never stale. A knowledge tool you have to remember to feed is a knowledge
+tool you stop using.&lt;&#x2F;p&gt;
+&lt;p&gt;Now it&#x27;s just there. I type &lt;code&gt;raft dangling&lt;&#x2F;code&gt; when I&#x27;ve lost the thread, and
+the log hands it back.&lt;&#x2F;p&gt;
+&lt;hr &#x2F;&gt;
+&lt;p&gt;Source: &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;raft&quot;&gt;github.com&#x2F;ducks&#x2F;raft&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

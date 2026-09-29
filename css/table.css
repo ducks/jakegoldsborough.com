@@ -1,0 +1,65 @@
+/* Base styles (shared) */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+  font-family: monospace;
+  font-size: 0.95em;
+}
+
+th, td {
+  border: 1px solid;
+  padding: 0.5em 0.75em;
+  text-align: center;
+}
+
+kbd {
+  border-radius: 3px;
+  padding: 0 4px;
+  font-family: inherit;
+  font-size: 0.95em;
+}
+
+/* Light mode (default) */
+body:not(.dark) table {
+  background-color: #fbf1c7;
+  color: #3c3836;
+}
+
+body:not(.dark) th {
+  background-color: #ebdbb2;
+  font-weight: bold;
+}
+
+body:not(.dark) th,
+body:not(.dark) td {
+  border-color: #d5c4a1;
+}
+
+body:not(.dark) kbd {
+  background-color: #ebdbb2;
+  border: 1px solid #d5c4a1;
+  color: #3c3836;
+}
+
+/* Dark mode */
+body.dark table {
+  background-color: #282828;
+  color: #ebdbb2;
+}
+
+body.dark th {
+  background-color: #3c3836;
+  font-weight: bold;
+}
+
+body.dark th,
+body.dark td {
+  border-color: #665c54;
+}
+
+body.dark kbd {
+  background-color: #3c3836;
+  border: 1px solid #665c54;
+  color: #ebdbb2;
+}

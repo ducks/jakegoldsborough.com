@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - hardware</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/hardware/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Fri, 24 Jul 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>glow, part two: the whole desk lights up now (and it works across three agents)</title>
+          <pubDate>Fri, 24 Jul 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/glow-whole-desk-framework-udev/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/glow-whole-desk-framework-udev/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/glow-whole-desk-framework-udev/">&lt;p&gt;When I wrote about &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;glow&quot;&gt;glow&lt;&#x2F;a&gt; - the tool that turns my one-giant-key macropad into a Claude status lamp - I ended on a throwaway line: &lt;em&gt;it drives any VIA&#x2F;QMK keyboard, point it at a VID&#x2F;PID.&lt;&#x2F;em&gt; I meant it as a &quot;this generalizes&quot; flourish. Then I looked down at the keyboard I actually type on all day, a Framework Laptop 16 with an RGB keyboard module, and thought the thought again.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;em&gt;Huh. How hard could that be.&lt;&#x2F;em&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;The answer this time was funny, because it inverted the first project exactly. Last time the protocol was the war and permissions were free. This time the protocol was free and &lt;strong&gt;permissions were the war.&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-protocol-was-already-done&quot;&gt;The protocol was already done&lt;&#x2F;h2&gt;
+&lt;p&gt;The Framework Laptop 16 keyboard module runs a QMK fork. QMK means VIA, and VIA means the same raw-HID interface - usage page &lt;code&gt;0xFF60&lt;&#x2F;code&gt; - that glow already speaks to the Keychron. So there was, delightfully, nothing to build. I enumerated the keyboard and there it was:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;usage_page=0x0001  iface 0   # keyboard
+usage_page=0xff60  iface 1   # &amp;lt;- the VIA raw interface, same as the Q0
+usage_page=0x000c  iface 2   # consumer&amp;#x2F;media
+usage_page=0xff31  iface 3   # vendor
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Interface 1, usage page &lt;code&gt;0xFF60&lt;&#x2F;code&gt;. The exact thing glow looks for. I pointed glow at the Framework&#x27;s VID:PID (&lt;code&gt;32ac:0012&lt;&#x2F;code&gt;) and ran it under &lt;code&gt;sudo&lt;&#x2F;code&gt;, and the keyboard went green. First try. The whole &quot;does host RGB control even work&quot; question that ate the first afternoon was already answered - I&#x27;d answered it for a different keyboard, and the protocol carried over for free.&lt;&#x2F;p&gt;
+&lt;p&gt;That should have been the end of it. It was the beginning of the actual problem.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;why-sudo-though&quot;&gt;Why sudo, though&lt;&#x2F;h2&gt;
+&lt;p&gt;I ran it under &lt;code&gt;sudo&lt;&#x2F;code&gt; because without &lt;code&gt;sudo&lt;&#x2F;code&gt; it failed:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;hid.HIDException: unable to open device
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;That&#x27;s a permissions error. The keyboard&#x27;s &lt;code&gt;&#x2F;dev&#x2F;hidraw*&lt;&#x2F;code&gt; node is owned &lt;code&gt;root:root&lt;&#x2F;code&gt;, and my user can&#x27;t open it. This is worth pausing on, because the Keychron &lt;em&gt;never&lt;&#x2F;em&gt; had this problem - and the reason it didn&#x27;t is the whole story.&lt;&#x2F;p&gt;
+&lt;p&gt;When I checked, the Keychron&#x27;s node was &lt;code&gt;root:input&lt;&#x2F;code&gt; - owned by root, but group-readable by &lt;code&gt;input&lt;&#x2F;code&gt;, and I&#x27;m in the &lt;code&gt;input&lt;&#x2F;code&gt; group. The Framework&#x27;s node was &lt;code&gt;root:root&lt;&#x2F;code&gt; - no group access at all. Same class of device, different default permissions, and I&#x27;d simply never noticed because the Keychron happened to land in a group I was already in.&lt;&#x2F;p&gt;
+&lt;p&gt;The fix is a udev rule: match the keyboard, set its group to &lt;code&gt;input&lt;&#x2F;code&gt;. On NixOS that&#x27;s declarative, which is normally a joy and was, this time, a small trap I set for myself. Into my config:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;nix&quot; class=&quot;language-nix &quot;&gt;&lt;code class=&quot;language-nix&quot; data-lang=&quot;nix&quot;&gt;services.udev.extraRules = &amp;#x27;&amp;#x27;
+  KERNEL==&amp;quot;hidraw*&amp;quot;, ATTRS{idVendor}==&amp;quot;32ac&amp;quot;, ATTRS{idProduct}==&amp;quot;0012&amp;quot;, MODE=&amp;quot;0660&amp;quot;, GROUP=&amp;quot;input&amp;quot;
+&amp;#x27;&amp;#x27;;
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;&lt;code&gt;nixos-rebuild switch&lt;&#x2F;code&gt;. Rule installed. And the node was still &lt;code&gt;root:root&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;a-rule-that-matches-but-doesn-t-apply&quot;&gt;A rule that matches but doesn&#x27;t apply&lt;&#x2F;h2&gt;
+&lt;p&gt;Here&#x27;s the first thing that cost me time, and it&#x27;s a genuinely confusing property of udev: &lt;strong&gt;a rule can be correct, be installed, be matched by the device - and still not change the permissions on a device that already exists.&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;udev sets permissions when a device is &lt;em&gt;added&lt;&#x2F;em&gt;. The rule fires on the &lt;code&gt;add&lt;&#x2F;code&gt; event, at enumeration. My keyboard was enumerated at boot, before the rule existed. Rebuilding installed the rule for next time, but nothing re-ran the &lt;code&gt;add&lt;&#x2F;code&gt; event for the already-present keyboard.&lt;&#x2F;p&gt;
+&lt;p&gt;Normally you&#x27;d just unplug and replug the device to re-trigger enumeration. But this is a &lt;strong&gt;built-in laptop keyboard.&lt;&#x2F;strong&gt; There is no cable. I&#x27;m not opening the chassis to reseat a ribbon connector to change a file&#x27;s group.&lt;&#x2F;p&gt;
+&lt;p&gt;So: retrigger it in software. This is where I went in a circle. The obvious command:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;sudo udevadm control --reload
+sudo udevadm trigger --attr-match=idVendor=32ac
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Reload the rules, trigger the device matching my keyboard&#x27;s vendor. Ran it. Checked the node. Still &lt;code&gt;root:root&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;I could even prove the rule was &lt;em&gt;right&lt;&#x2F;em&gt; - &lt;code&gt;udevadm test&lt;&#x2F;code&gt; on the device showed udev computing &lt;code&gt;GROUP=input&lt;&#x2F;code&gt; for it. The rule matched. The group was calculated. The node on disk didn&#x27;t change. That gap - &quot;udev agrees the group should be &lt;code&gt;input&lt;&#x2F;code&gt;, the file says &lt;code&gt;root&lt;&#x2F;code&gt;&quot; - is a deeply annoying place to stand.&lt;&#x2F;p&gt;
+&lt;p&gt;The problem was the trigger, not the rule. &lt;code&gt;--attr-match=idVendor=32ac&lt;&#x2F;code&gt; matches the &lt;em&gt;USB device&lt;&#x2F;em&gt;, and triggering the USB device re-runs its rules - but the thing I care about is a &lt;em&gt;child&lt;&#x2F;em&gt; &lt;code&gt;hidraw&lt;&#x2F;code&gt; node hanging off it, and a bare trigger fired a &lt;code&gt;change&lt;&#x2F;code&gt; event, not the &lt;code&gt;add&lt;&#x2F;code&gt; that actually (re)applies &lt;code&gt;GROUP&lt;&#x2F;code&gt; and &lt;code&gt;MODE&lt;&#x2F;code&gt;. The incantation that works targets the hidraw node directly and forces an add:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;sudo udevadm trigger --action=add &amp;#x2F;sys&amp;#x2F;class&amp;#x2F;hidraw&amp;#x2F;hidraw5
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Node flipped to &lt;code&gt;root:input&lt;&#x2F;code&gt;. Finally.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;four-nodes-and-only-one-is-the-one&quot;&gt;Four nodes, and only one is the one&lt;&#x2F;h2&gt;
+&lt;p&gt;I ran glow again, unprivileged, feeling good. It failed. Same permissions error.&lt;&#x2F;p&gt;
+&lt;p&gt;The keyboard exposes &lt;strong&gt;four&lt;&#x2F;strong&gt; hidraw nodes - &lt;code&gt;hidraw5&lt;&#x2F;code&gt; through &lt;code&gt;hidraw8&lt;&#x2F;code&gt;, one per HID interface. I&#x27;d triggered &lt;code&gt;hidraw5&lt;&#x2F;code&gt; and flipped its group. But glow doesn&#x27;t open just any node; it opens the one carrying the VIA interface, usage page &lt;code&gt;0xFF60&lt;&#x2F;code&gt;. And that wasn&#x27;t &lt;code&gt;hidraw5&lt;&#x2F;code&gt;. Mapping them out:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;&amp;#x2F;dev&amp;#x2F;hidraw5  usage_page 0x0001   # keyboard
+&amp;#x2F;dev&amp;#x2F;hidraw6  usage_page 0xff60   # &amp;lt;- the one glow opens
+&amp;#x2F;dev&amp;#x2F;hidraw7  usage_page 0x000c   # consumer
+&amp;#x2F;dev&amp;#x2F;hidraw8  usage_page 0xff31   # vendor
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The VIA interface was &lt;code&gt;hidraw6&lt;&#x2F;code&gt;. I&#x27;d spent my &lt;code&gt;add&lt;&#x2F;code&gt;-trigger on &lt;code&gt;hidraw5&lt;&#x2F;code&gt;, watched it flip, declared victory, and glow was over on &lt;code&gt;hidraw6&lt;&#x2F;code&gt; still staring at a &lt;code&gt;root:root&lt;&#x2F;code&gt; node. Same trigger, right node:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;sudo udevadm trigger --action=add &amp;#x2F;sys&amp;#x2F;class&amp;#x2F;hidraw&amp;#x2F;hidraw6
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;&lt;code&gt;hidraw6&lt;&#x2F;code&gt; went &lt;code&gt;root:input&lt;&#x2F;code&gt;. glow ran with no &lt;code&gt;sudo&lt;&#x2F;code&gt;. The Framework keyboard went purple.&lt;&#x2F;p&gt;
+&lt;p&gt;And - this is the part that makes the manual flailing worth it - &lt;strong&gt;none of that dance is needed again.&lt;&#x2F;strong&gt; The whole &lt;code&gt;udevadm trigger&lt;&#x2F;code&gt; sequence was only to fix devices that were already enumerated before the rule existed. On the next boot, the rule is present when the keyboard enumerates, so it applies to all four nodes at &lt;code&gt;add&lt;&#x2F;code&gt; time, cleanly, with no intervention. The one-time cost of &quot;I couldn&#x27;t replug a built-in keyboard&quot; is exactly one time.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;making-glow-actually-drive-both&quot;&gt;Making glow actually drive both&lt;&#x2F;h2&gt;
+&lt;p&gt;With permissions solved, the feature itself was small - which is how it should be when the hard part was somewhere unglamorous. glow now takes a &lt;code&gt;GLOW_BOARDS&lt;&#x2F;code&gt; list of &lt;code&gt;vid:pid&lt;&#x2F;code&gt; pairs and drives every one in a single pass:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;sh&quot; class=&quot;language-sh &quot;&gt;&lt;code class=&quot;language-sh&quot; data-lang=&quot;sh&quot;&gt;# the default is now both of my boards
+glow purple      # Q0 and Framework keyboard, together
+
+# or target your own
+GLOW_BOARDS=&amp;quot;3434:040b&amp;quot; glow green
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;A board that isn&#x27;t plugged in is skipped rather than failing the rest, so an undocked laptop or an unplugged macropad just quietly does nothing. The Claude Code hooks didn&#x27;t change at all - they call &lt;code&gt;glow-hook &amp;lt;color&amp;gt;&lt;&#x2F;code&gt;, which calls &lt;code&gt;glow&lt;&#x2F;code&gt;, which now fans out to every board. I wired nothing new. I submitted a prompt and both keyboards went blue at once.&lt;&#x2F;p&gt;
+&lt;p&gt;That&#x27;s the moment this stopped being &quot;the button&quot; and became &quot;the desk.&quot; I glance up and the whole surface in front of me is the same color, reporting the same thing: purple idle, blue working, green my turn, orange needs me. It&#x27;s louder in the good way. Ambient status you can&#x27;t miss.&lt;&#x2F;p&gt;
+&lt;video autoplay loop muted playsinline width=&quot;100%&quot;&gt;
+  &lt;source src=&quot;&#x2F;images&#x2F;2026&#x2F;glow&#x2F;desk-demo.mp4&quot; type=&quot;video&#x2F;mp4&quot;&gt;
+&lt;&#x2F;video&gt;
+&lt;h2 id=&quot;not-tied-to-one-keyboard-or-one-agent&quot;&gt;Not tied to one keyboard, or one agent&lt;&#x2F;h2&gt;
+&lt;p&gt;Decoupling glow from a single board made me notice it was never really tied to a single &lt;em&gt;agent&lt;&#x2F;em&gt; either. The whole integration is four lines that run &lt;code&gt;glow-hook &amp;lt;color&amp;gt;&lt;&#x2F;code&gt; on lifecycle events. Anything with lifecycle events can drive it.&lt;&#x2F;p&gt;
+&lt;p&gt;Claude Code was first because it has hooks. But I don&#x27;t only use Claude Code, and the other two agents I live in turned out to reach the same four states.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;claux&quot;&gt;claux&lt;&#x2F;a&gt; is my own agent harness - the one I built because I want an agent I can open up and change. It already had a plugin-hook system (run a command on session-start, tool-start, and so on), but it was missing exactly the two events that bracket your attention: the turn ending, and the agent stopping to ask permission. So I added them - &lt;code&gt;on_turn_end&lt;&#x2F;code&gt; and &lt;code&gt;on_permission_request&lt;&#x2F;code&gt; - as generic triggers. Nothing about glow lives in claux&#x27;s code; the status lamp is entirely config, four &lt;code&gt;[[plugins]]&lt;&#x2F;code&gt; blocks pointing at &lt;code&gt;glow-hook&lt;&#x2F;code&gt;. That&#x27;s the whole point of a hackable harness: the event you need is a small patch away, and the thing consuming it stays yours.&lt;&#x2F;p&gt;
+&lt;p&gt;Codex was the surprise. I remembered it having a &lt;code&gt;notify&lt;&#x2F;code&gt; option that fires once, when a turn completes - which would get you exactly one of the four colors. But recent Codex grew a full Claude-Code-style hooks system: a &lt;code&gt;hooks.json&lt;&#x2F;code&gt; with &lt;code&gt;SessionStart&lt;&#x2F;code&gt;, &lt;code&gt;PreToolUse&lt;&#x2F;code&gt;, &lt;code&gt;Stop&lt;&#x2F;code&gt;, and - the good one - a dedicated &lt;code&gt;PermissionRequest&lt;&#x2F;code&gt; event. On Claude Code, &quot;needs you&quot; and &quot;just your turn&quot; both arrive as one generic &lt;code&gt;Notification&lt;&#x2F;code&gt;, and I had to pattern-match the message text to tell a real permission prompt from an idle ping (I got that filter wrong at first, and the light stuck orange when it shouldn&#x27;t have). Codex hands you &lt;code&gt;PermissionRequest&lt;&#x2F;code&gt; as its own event. The bug I&#x27;d fought simply can&#x27;t happen there; the event &lt;em&gt;is&lt;&#x2F;em&gt; the distinction.&lt;&#x2F;p&gt;
+&lt;p&gt;So the same &lt;code&gt;glow-hook&lt;&#x2F;code&gt; script, unchanged, now lights the same keyboards from three different agents. Purple&#x2F;blue&#x2F;green&#x2F;orange means the same thing whether I&#x27;m in Claude Code, claux, or Codex. The status signal outlived any one tool - which, when I think about why I liked the idea in the first place, is exactly right. It was never &quot;an ambient indicator for Claude.&quot; It&#x27;s an ambient indicator for &lt;em&gt;whatever is working&lt;&#x2F;em&gt;, and the agent is just this week&#x27;s whatever.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-pattern-again&quot;&gt;The pattern, again&lt;&#x2F;h2&gt;
+&lt;p&gt;The shape of this project is one I keep re-learning: &lt;strong&gt;the thing you expect to be hard is done, and the hour goes somewhere you didn&#x27;t budget for.&lt;&#x2F;strong&gt; Last time I braced for &quot;can I even control RGB from the host&quot; and it worked quickly, then I lost an hour to a single wrong byte. This time I braced for the protocol and it was free, then I lost an hour to udev not re-applying a group to a node I couldn&#x27;t replug.&lt;&#x2F;p&gt;
+&lt;p&gt;Both times the fix was small and the lesson was the same as it ever is: when the state on disk disagrees with the state in your head - the group should be &lt;code&gt;input&lt;&#x2F;code&gt;, the file says &lt;code&gt;root&lt;&#x2F;code&gt; - believe the disk and go find the gap. It&#x27;s never where the confidence is.&lt;&#x2F;p&gt;
+&lt;p&gt;The whole desk glows now. I asked this very keyboard a question to write this sentence, and it turned blue under my hands while I typed it.&lt;&#x2F;p&gt;
+&lt;hr &#x2F;&gt;
+&lt;p&gt;Source: &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;glow&quot;&gt;github.com&#x2F;ducks&#x2F;glow&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>glow: I gave Claude a physical presence on my desk</title>
+          <pubDate>Mon, 20 Jul 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/glow-the-big-button-that-glows-with-claude/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/glow-the-big-button-that-glows-with-claude/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/glow-the-big-button-that-glows-with-claude/">&lt;p&gt;I bought a &lt;a href=&quot;https:&#x2F;&#x2F;www.keychron.com&#x2F;products&#x2F;keychron-q0-mini-8k-action-key&quot;&gt;Keychron Q0 Mini&lt;&#x2F;a&gt; as a joke.&lt;&#x2F;p&gt;
+&lt;p&gt;It&#x27;s a macropad, except it&#x27;s basically one giant key. A single satisfying THUNK of a button. There is no reason to own it. I owned it anyway, because the idea of a big dumb button made me laugh and I wanted to see what I&#x27;d do with it.&lt;&#x2F;p&gt;
+&lt;p&gt;Then I saw &lt;a href=&quot;https:&#x2F;&#x2F;openai.com&#x2F;&quot;&gt;Work Louder&#x27;s Co-Lab&lt;&#x2F;a&gt; with OpenAI, where the keyboard&#x27;s lighting reacts to what the AI is doing. And the button has RGB. And I thought the thought that has started every good project I&#x27;ve ever built:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;em&gt;&quot;Huh. How hard could that be.&quot;&lt;&#x2F;em&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;The result is &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;glow&quot;&gt;glow&lt;&#x2F;a&gt;. The big button now lights up with whatever Claude Code is doing. Purple when it&#x27;s idle. Blue while it&#x27;s working. Green when it&#x27;s my turn. Orange when it needs me. I glance at it from across the room and I know Claude&#x27;s state without looking at the screen.&lt;&#x2F;p&gt;
+&lt;video autoplay loop muted playsinline width=&quot;100%&quot;&gt;
+  &lt;source src=&quot;&#x2F;images&#x2F;2026&#x2F;glow&#x2F;button-demo.mp4&quot; type=&quot;video&#x2F;mp4&quot;&gt;
+&lt;&#x2F;video&gt;
+&lt;p&gt;Here&#x27;s how I got there, including the hour I lost to setting the wrong byte.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;first-the-button-did-nothing&quot;&gt;First, the button did nothing&lt;&#x2F;h2&gt;
+&lt;p&gt;Out of the box, the key emits nothing. I pressed it under &lt;code&gt;wev&lt;&#x2F;code&gt; (the Wayland event viewer) and got a blank line. Not an error - a registered key event with no keysym attached. The switch works, it&#x27;s just mapped to a dead keycode.&lt;&#x2F;p&gt;
+&lt;p&gt;Fixing that is the easy half. Keychron boards run &lt;a href=&quot;https:&#x2F;&#x2F;qmk.fm&#x2F;&quot;&gt;QMK&lt;&#x2F;a&gt; with &lt;a href=&quot;https:&#x2F;&#x2F;www.caniusevia.com&#x2F;&quot;&gt;VIA&lt;&#x2F;a&gt; support, so I opened the Keychron Launcher (their VIA build), remapped the key to F13, and pressed it again. F13 is a real keycode that no physical keyboard has a key for, which makes it a clean &quot;this press means &lt;em&gt;my button&lt;&#x2F;em&gt;&quot; signal.&lt;&#x2F;p&gt;
+&lt;p&gt;Except &lt;code&gt;wev&lt;&#x2F;code&gt; didn&#x27;t show F13. It showed this:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;key: 191; state: 1 (pressed)
+sym: XF86Tools    (269025153)
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;On this Wayland stack, F13 comes through as &lt;code&gt;XF86Tools&lt;&#x2F;code&gt;. The F13-F24 range gets mapped to XF86 multimedia symbols by the keymap. This is exactly the kind of thing you only learn by reading the actual output instead of assuming, so: read the actual output. The Hyprland bind became:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;bind = , XF86Tools, exec, ~&amp;#x2F;.config&amp;#x2F;hypr&amp;#x2F;scripts&amp;#x2F;big-button
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Press button, script runs. Input half done. Now the light.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-rgb-is-where-it-got-interesting&quot;&gt;The RGB is where it got interesting&lt;&#x2F;h2&gt;
+&lt;p&gt;The dream was host control: my computer decides the color, the keyboard obeys. The question was whether that&#x27;s possible without flashing custom firmware.&lt;&#x2F;p&gt;
+&lt;p&gt;QMK&#x27;s VIA feature exposes a &lt;strong&gt;raw-HID interface&lt;&#x2F;strong&gt; - a vendor-defined USB HID endpoint that the VIA app uses to configure the board live. If VIA can set the RGB (and it can - there&#x27;s a lighting tab), then the protocol to set RGB exists, and I can speak it myself.&lt;&#x2F;p&gt;
+&lt;p&gt;The board shows up as four HID interfaces. The VIA one is identifiable by its USB usage page, &lt;code&gt;0xFF60&lt;&#x2F;code&gt;. I dumped each interface&#x27;s report descriptor:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;hidraw11:  05 01 09 06 ...   # keyboard
+hidraw12:  06 60 ff 09 61 ...  # &amp;lt;- 0xFF60, the VIA raw interface
+hidraw13:  05 01 09 02 ...   # mouse&amp;#x2F;media
+hidraw14:  06 31 ff ...       # Keychron&amp;#x27;s own vendor page
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;&lt;code&gt;hidraw12&lt;&#x2F;code&gt; it is. Now I just had to send it the right bytes.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-hour-i-lost&quot;&gt;The hour I lost&lt;&#x2F;h2&gt;
+&lt;p&gt;The VIA protocol for RGB is documented in QMK&#x27;s source. Commands look like:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;report = [0x00, command, channel, value_id, ...args]   # padded to 33 bytes
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;I wanted: set the effect to solid color, set brightness, set the color. I wrote it, ran it, and watched the button.&lt;&#x2F;p&gt;
+&lt;p&gt;It changed color. And then kept changing. A slow fade through the whole rainbow, forever.&lt;&#x2F;p&gt;
+&lt;p&gt;So the commands were landing - the keyboard was clearly listening - but the animation never stopped. I assumed I had the wrong &lt;em&gt;effect&lt;&#x2F;em&gt; number. QMK has dozens of RGB effects; &quot;solid color&quot; is one of them, and I was setting it to some cycling effect by mistake. I wrote a probe that stepped through effect IDs 0 through 7, setting each one and pausing so I could watch.&lt;&#x2F;p&gt;
+&lt;p&gt;Every single one animated. Every one.&lt;&#x2F;p&gt;
+&lt;p&gt;That&#x27;s the tell I should have caught sooner: if &lt;em&gt;no&lt;&#x2F;em&gt; effect ID produces a solid color, the problem isn&#x27;t the effect ID. I was writing to the wrong field entirely. I went and read the actual constants in &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;qmk&#x2F;qmk_firmware&#x2F;blob&#x2F;master&#x2F;quantum&#x2F;via.h&quot;&gt;&lt;code&gt;qmk&#x2F;via.h&lt;&#x2F;code&gt;&lt;&#x2F;a&gt;:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;id_qmk_rgb_matrix_brightness    = 1
+id_qmk_rgb_matrix_effect        = 2
+id_qmk_rgb_matrix_effect_speed  = 3
+id_qmk_rgb_matrix_color         = 4
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;I&#x27;d been sending the effect to value-id &lt;strong&gt;3&lt;&#x2F;strong&gt;. Value-id 3 is effect &lt;em&gt;speed&lt;&#x2F;em&gt;. I was never setting the effect at all - I was setting the &lt;em&gt;speed&lt;&#x2F;em&gt; of whatever animation was already running, and then changing its color. The rainbow cycled the whole time because I never told it to stop cycling.&lt;&#x2F;p&gt;
+&lt;p&gt;The effect id is &lt;strong&gt;2&lt;&#x2F;strong&gt;. One byte. I changed the 3 to a 2:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;effect-&amp;gt;solid: sent [7, 3, 2, 1]
+color-&amp;gt;purple: sent [7, 3, 4, 192, 255]
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Solid purple. Frozen. Locked. The button held a single steady color for the first time.&lt;&#x2F;p&gt;
+&lt;p&gt;The lesson is the same one that gets me every time: when the story you&#x27;ve built (&quot;wrong effect number&quot;) stops explaining the evidence (&quot;&lt;em&gt;every&lt;&#x2F;em&gt; effect animates&quot;), the story is wrong, not the evidence. Read the source constants instead of guessing enum positions by trial. It would have taken five minutes at the start and cost me an hour instead.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;wiring-it-to-claude&quot;&gt;Wiring it to Claude&lt;&#x2F;h2&gt;
+&lt;p&gt;Once I could set any color from a shell command, the status lamp was almost trivial, because Claude Code has &lt;a href=&quot;https:&#x2F;&#x2F;docs.claude.com&#x2F;en&#x2F;docs&#x2F;claude-code&quot;&gt;hooks&lt;&#x2F;a&gt; - shell commands that fire on lifecycle events. The events map almost perfectly onto the states I wanted:&lt;&#x2F;p&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;event&lt;&#x2F;th&gt;&lt;th&gt;color&lt;&#x2F;th&gt;&lt;th&gt;meaning&lt;&#x2F;th&gt;&lt;&#x2F;tr&gt;&lt;&#x2F;thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;SessionStart&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;td&gt;purple&lt;&#x2F;td&gt;&lt;td&gt;idle &#x2F; ready&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;UserPromptSubmit&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;td&gt;blue&lt;&#x2F;td&gt;&lt;td&gt;working&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;Stop&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;td&gt;green&lt;&#x2F;td&gt;&lt;td&gt;your turn&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;Notification&lt;&#x2F;code&gt;&lt;&#x2F;td&gt;&lt;td&gt;orange&lt;&#x2F;td&gt;&lt;td&gt;needs your input&lt;&#x2F;td&gt;&lt;&#x2F;tr&gt;
+&lt;&#x2F;tbody&gt;&lt;&#x2F;table&gt;
+&lt;p&gt;Four lines in &lt;code&gt;settings.json&lt;&#x2F;code&gt;, each running &lt;code&gt;glow-hook &amp;lt;color&amp;gt;&lt;&#x2F;code&gt;. The hook runs the color-setter backgrounded and swallows all errors, so an unplugged keyboard never breaks a Claude session.&lt;&#x2F;p&gt;
+&lt;p&gt;I added them expecting to restart Claude to pick them up. I didn&#x27;t have to. The moment I sent my next message, the button went blue. When the turn ended, green. It was reacting to the conversation I was having &lt;em&gt;while&lt;&#x2F;em&gt; wiring it. That was the moment it stopped being a project and started being a thing on my desk that&#x27;s alive.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;one-real-design-note&quot;&gt;One real design note&lt;&#x2F;h2&gt;
+&lt;p&gt;My first palette had working as yellow and needs-you as orange. In practice you can&#x27;t tell them apart across a room - they&#x27;re both warm, and &quot;warm&quot; is all your peripheral vision gets. I moved working to blue. Blue &#x2F; orange &#x2F; green are three genuinely distinct colors; the light is legible from anywhere now.&lt;&#x2F;p&gt;
+&lt;p&gt;There is no red in the palette. That&#x27;s a personal decree. I hate red. Orange carries the &quot;needs you&quot; weight instead, and honestly it&#x27;s nicer.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;it-s-not-really-about-claude&quot;&gt;It&#x27;s not really about Claude&lt;&#x2F;h2&gt;
+&lt;p&gt;glow is a generic tool. It drives any VIA&#x2F;QMK keyboard&#x27;s RGB from the host - point it at your board with a VID&#x2F;PID, get a &lt;code&gt;glow &amp;lt;color&amp;gt;&lt;&#x2F;code&gt; command. The Claude status lamp is one use of it. Anything that can run a command can drive the light: a CI run going green, a long build finishing, a deploy, a pomodoro timer. The keyboard becomes an ambient status display for whatever you care about.&lt;&#x2F;p&gt;
+&lt;p&gt;No firmware flash, no VIA app open, no daemon. It talks to the raw-HID interface directly and sends the same bytes VIA would.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-joke-was-the-point&quot;&gt;The joke was the point&lt;&#x2F;h2&gt;
+&lt;p&gt;I want to be clear that I did not buy a giant button because I had a plan for it. I bought it because it was funny. The plan showed up later, the way plans do when you leave yourself a weird enough object to poke at.&lt;&#x2F;p&gt;
+&lt;p&gt;That&#x27;s most of my favorite projects. Not &quot;the market needs an ambient AI status indicator.&quot; Just &quot;I have this dumb button, and this light, and a free evening, and how hard could it be.&quot; Hard enough to be fun. Easy enough to finish. And now there&#x27;s a purple glow on my desk that turns blue when I ask a question, and I grin every time.&lt;&#x2F;p&gt;
+&lt;hr &#x2F;&gt;
+&lt;p&gt;Source: &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;glow&quot;&gt;github.com&#x2F;ducks&#x2F;glow&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

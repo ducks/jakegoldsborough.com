@@ -79,7 +79,7 @@ reality violates the format.
 That is software engineering.
 
 This is the same shift I wrote about in [I Don't Type Every Word You
-Read](/blog/2026/no-I-dont-type-every-word-you-read/). The work did not vanish.
+Read](/blog/2026/no-i-dont-type-every-word-you-read/). The work did not vanish.
 It moved. Less of it lives in producing every character by hand. More of it
 lives in direction, judgment, verification, and responsibility.
 

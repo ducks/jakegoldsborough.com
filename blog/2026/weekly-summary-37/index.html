@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Agents of Empires became a cup circuit, a three-way harness final exposed another accounting boundary, and Timecapsule got a discovery inbox for an archive that does not confuse finding something with owning it.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Agent assisted Changelog - 37&#x2F;52">
+    <meta property="og:description" content="Agents of Empires became a cup circuit, a three-way harness final exposed another accounting boundary, and Timecapsule got a discovery inbox for an archive that does not confuse finding something with owning it.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-37&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Agent assisted Changelog - 37&#x2F;52">
+    <meta name="twitter:description" content="Agents of Empires became a cup circuit, a three-way harness final exposed another accounting boundary, and Timecapsule got a discovery inbox for an archive that does not confuse finding something with owning it.">
+
+    <title>Agent assisted Changelog - 37&#x2F;52 - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css?h=4ae15179b7c33c92f362" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Agent assisted Changelog - 37&#x2F;52</h1>
+      <div class="meta">
+        
+        <p>Sep 19, 2026</p>
+        
+        <p>6 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/agents">#agents</a></p>
+          
+          <p><a href="/tags/changelog">#changelog</a></p>
+          
+        </div>
+      
+
+      
+  
+
+
+      <p>In <a href="/blog/2026/weekly-summary-36/">the last summary</a>, the first paid Agents of
+Empires tournament was still next. There are now cups, champions, a domain,
+replays, and enough conversations about tournament formats that I briefly
+considered duplicating the entrants just to fill a bracket. The software is
+getting better. My ability to leave the scope alone remains unproven.</p>
+<h2 id="the-battleground-became-a-cup-circuit">The battleground became a cup circuit</h2>
+<p><a href="https://github.com/ducks/agents-of-empires">Agents of Empires</a> is now live at
+<a href="https://agents-of-empires.dev/">agents-of-empires.dev</a>. The homepage explains
+the idea and points to cups; each cup has its own description and tournament
+history; each tournament has a bracket and links to the actual attempts. The
+replay defaults to 5x, because watching someone else's infrastructure wait to
+boot should at least be faster than watching your own.</p>
+<p>The usual format is six entrants, two three-agent opening heats, and a final
+with the two winners plus a wildcard. Publishing a draw and running it are
+separate operations. That means I can announce the field before spending
+anything, then run exactly that bracket later.</p>
+<p>The first clean <a href="https://agents-of-empires.dev/seasons/opencode-cup/2026-W37-20260913-021918/">OpenCode Cup</a>
+had DeepSeek win its opening build race in 43.2 seconds and the durable job
+queue final in 89.8. All three heats finished on their first attempt. No
+forfeits, no replays. Getting there was less tidy.</p>
+<p>Earlier tests produced enough failures that I could not tell whether I was
+watching poor play or a broken adapter. The fixes included explicit guest
+model definitions instead of hoping OpenCode refreshed its catalog, making
+the configured memory floor reach the actual VMs, and keeping the rollout
+continuity monitor alive for the match's configured duration.</p>
+<p>There was also a tournament that crowned a contender after everybody failed.
+That is a perfectly reasonable way to invent a sport I did not mean to invent.
+Heat winners now need a durable deployment. Sporting draws and unavailable
+seats have separate, bounded replay budgets, and an exhausted bracket can end
+without a champion. Tied wildcard ranks use a seeded lottery, not alphabetical
+order or the cheapest bill.</p>
+<p>Kimi took the first published
+<a href="https://agents-of-empires.dev/seasons/vercel-cup/2026-W37-20260913-173203/">Vercel Cup</a>.
+Different routes, different fields, different stories. Still not a model
+ranking. <a href="https://github.com/ducks/replaybook">Replaybook</a> is where I do the
+evaluation work; this is where I want to pick a contender and watch a race.</p>
+<h2 id="one-pool-frozen-draws">One pool, frozen draws</h2>
+<p>Adding cups made the model lists annoying almost immediately. OpenRouter,
+OpenCode Go, and Vercel AI Gateway each expose a different slice of the world,
+and maintaining those lists independently was an invitation to drift.</p>
+<p>AoE now has one shared model registry. Each cup selects its provider slice,
+and <code>season draw --entrants 6</code> samples a field without requiring the whole
+eligible pool to enter. The selected entrants and eligible pool are frozen
+into the draw. Refreshing a catalog tomorrow must not change the tournament
+I announced today.</p>
+<p>The refresh script defaults to a dry run. New discoveries stay disabled until
+reviewed, and refreshes preserve deliberate access blocks and premium-model
+opt-ins. Finding a model in a catalog is not proof that my account can run it,
+or that I want to pay for it.</p>
+<p>I also floated a budget cup that draws from whatever is on sale. That remains
+an idea, not another thing quietly running up a bill in the background.</p>
+<h2 id="same-model-different-harnesses">Same model, different harnesses</h2>
+<p>The new adapter is for <a href="https://github.com/SamSaffron/term-llm">term-llm</a>.
+The first <a href="https://agents-of-empires.dev/seasons/harness-cup/">Harness Cup</a>
+put it against <a href="https://github.com/ducks/claux">Claux</a> and OpenCode, all
+configured for OpenRouter GPT-5.6 Luna, high reasoning, one vCPU, and 768 MiB
+of memory per guest.</p>
+<p>term-llm won in 45.216 seconds. The outside referee verified the service,
+record round-trip, service restart, and host reboot. OpenCode was outraced.
+Claux's guest rebooted and the SSH connection dropped, but the retained
+evidence does not establish who initiated that reboot. There was no referee
+reboot marker for its seat and no recorded reboot command in its tool trace.
+That stays an unresolved harness error, not a story about a model deciding to
+restart its machine.</p>
+<p>The accounting needed attention too. Missing provider costs had looked like
+zero dollars, and token totals did not consistently include cache categories.
+Future adapter output now normalizes fresh input, cache reads, and cache
+writes; reporting distinguishes a known total from an incomplete subtotal.
+The original event logs remain unchanged. Usage captured while losing agents
+drain after the finish is also not a synchronized race-only measurement.</p>
+<p>We recorded this as an exhibition, then published it as a single-round cup.
+Three entrants and one final are enough. I considered two opening heats with
+duplicate entries from each harness, then decided to wait for more distinct
+harnesses. A bracket should describe the competition, not manufacture a need
+for more seats.</p>
+<h2 id="timecapsule-starts-with-an-inbox">Timecapsule starts with an inbox</h2>
+<p>The other thread was an archive of Angine de Poitrine material. I wanted to
+find scattered recordings and links without turning every discovery into a
+published claim about a performance, its date, or its rights.</p>
+<p>Timecapsule is a local prototype for that flow. Internet Archive discovery
+produces private metadata snapshots in an inbox. I review a candidate,
+approve it into a Markdown record with source and rights notes, then build a
+static archive. Repeating discovery does not reset review decisions. An
+upload date does not silently become a concert date. Approval does not deploy
+a website or download the recording.</p>
+<p>The optional TypeSafe/Jev integration sits between discovery and review. It
+can suggest relevance and material type from metadata, and I can preview the
+exact request before making a paid call. It does not watch the video, approve
+the entry, or decide that I have permission to republish it. I have not run a
+paid enrichment call yet.</p>
+<p>The first implementation has sixteen tests covering the unglamorous parts:
+deduplication, retained decisions, approval recovery, validation, escaping,
+private/public separation, and byte-identical offline builds. YouTube
+discovery and a visual review inbox are not wired in yet. There is no public
+repository link for this one yet either; it is still local work.</p>
+<h2 id="the-through-line">The through-line</h2>
+<p>This week kept coming back to what a result actually authorizes me to say.</p>
+<p>A model being listed does not mean an account can use it. A null charge does
+not mean the race was free. An SSH disconnect does not identify who rebooted
+the machine. Finding a recording does not establish its date or give me
+permission to copy it.</p>
+<p>The useful work is in keeping those distinctions visible without making the
+whole thing miserable to use. I still want the bracket to be fun and the
+archive to be inviting. I just want the next person clicking through to find
+the evidence, not a more confident version of my guess.</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;weekly-summary-37&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-weekly-summary-37"
+      data-goatcounter-title="Helpful click on blog-2026-weekly-summary-37"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-36&#x2F;">Agent assisted Changelog - 36&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Sep 11, 2026</p>
+                    
+                    <p>11 min read</p>
+                  </div>
+                  
+                    <p class="desc">Claux got a failure taxonomy and exit codes that mean something, Agents of Empires stopped blaming the controller for lost races and grew a weekly bracket, and I learned what an agent will write into your git history if you do not ask.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-35&#x2F;">Agent assisted Changelog - 35&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Sep 04, 2026</p>
+                    
+                    <p>10 min read</p>
+                  </div>
+                  
+                    <p class="desc">Replaybook grew from a benchmark into a provider-aware evidence system, Agent Zen Garden became a real WebMCP submission, and Claux spent the week learning how to fail more honestly.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-34&#x2F;">Agent assisted Changelog - 34&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 21, 2026</p>
+                    
+                    <p>11 min read</p>
+                  </div>
+                  
+                    <p class="desc">Replaybook became a multi-harness benchmark with 240 comparable trials, Agents of Empires became something worth watching, and I built a GitHub CLI because one GraphQL query failed too many times.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;weekly-summary-33&#x2F;">Agent assisted Changelog - 33&#x2F;52</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 14, 2026</p>
+                    
+                    <p>12 min read</p>
+                  </div>
+                  
+                    <p class="desc">Replaybook became a real infrastructure-agent benchmark, escaped into Agents of Empires, and filled my disk with disposable NixOS machines. Plus a language compiler and several systems that fought back.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/changelog">#changelog</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;yapper-or-just-ask-the-bots&#x2F;">Yapper, or: just ask the bots</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 10, 2026</p>
+                    
+                    <p>9 min read</p>
+                  </div>
+                  
+                    <p class="desc">Yapper is a Discourse plugin that turns a forum into a place where humans can read but only registered bots can post. It&#x27;s live at yapper.forum. Here&#x27;s what it does, and why I think the protocol underneath it is the actual product.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/protocol">#protocol</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>

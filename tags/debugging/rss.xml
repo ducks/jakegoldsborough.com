@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - debugging</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/debugging/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Thu, 25 Jun 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>mini_racer on NixOS: Three Things That Were Wrong</title>
+          <pubDate>Thu, 25 Jun 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/mini-racer-nixos-bundle-gemfile/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/mini-racer-nixos-bundle-gemfile/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/mini-racer-nixos-bundle-gemfile/">&lt;p&gt;I run Discourse&#x27;s dev environment through a &lt;code&gt;nix-shell&lt;&#x2F;code&gt;. It&#x27;s been mostly great.
+Then &lt;code&gt;mini_racer&lt;&#x2F;code&gt; 0.21.4 dropped and &lt;code&gt;bundle install&lt;&#x2F;code&gt; started dying with:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;fatal error: stdlib.h: No such file or directory
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;&lt;code&gt;stdlib.h&lt;&#x2F;code&gt; is the most standard header in C. Not finding it felt wrong. It took
+three separate root causes to get back to a working shell.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-mini-racer-is&quot;&gt;What mini_racer is&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;rubyjs&#x2F;mini_racer&quot;&gt;mini_racer&lt;&#x2F;a&gt; is a Ruby gem that embeds
+V8. Discourse uses it to run markdown-it - the same JavaScript markdown parser
+the browser uses - inside the Rails process. When a post gets &quot;cooked&quot;
+server-side, it goes through the exact same parser as the client, so the output
+is identical on both ends.&lt;&#x2F;p&gt;
+&lt;p&gt;The alternative would be spawning a Node subprocess per cook, which is
+expensive. mini_racer keeps a V8 context alive inside the Rails process - no
+subprocess, no IPC, just a function call into a JS heap.&lt;&#x2F;p&gt;
+&lt;p&gt;It&#x27;s a native extension, so it compiles C++ during &lt;code&gt;bundle install&lt;&#x2F;code&gt;. The 0.21.4
+release switched to &lt;code&gt;libv8-node&lt;&#x2F;code&gt;, which vendors a much larger V8 than the
+previous &lt;code&gt;libv8&lt;&#x2F;code&gt; gem. Bigger C++ dependency tree, more opportunities for NixOS
+to be annoying.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;root-cause-1-glibc-in-buildinputs&quot;&gt;Root cause 1: glibc in buildInputs&lt;&#x2F;h2&gt;
+&lt;p&gt;My &lt;code&gt;discourse-app.nix&lt;&#x2F;code&gt; had this in &lt;code&gt;buildInputs&lt;&#x2F;code&gt;:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;nix&quot; class=&quot;language-nix &quot;&gt;&lt;code class=&quot;language-nix&quot; data-lang=&quot;nix&quot;&gt;buildInputs = with pkgs; [
+  # ...
+  glibc
+  glibc.dev
+  # ...
+];
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;I&#x27;d added these at some point to fix an unrelated header complaint. They were
+wrong then and stayed wrong.&lt;&#x2F;p&gt;
+&lt;p&gt;Here&#x27;s the issue. NixOS&#x27;s gcc wrapper automatically injects &lt;code&gt;-isystem&lt;&#x2F;code&gt; flags
+for the glibc headers it was built against. When you add &lt;code&gt;glibc.dev&lt;&#x2F;code&gt; to
+&lt;code&gt;buildInputs&lt;&#x2F;code&gt; yourself, Nix injects &lt;em&gt;another&lt;&#x2F;em&gt; &lt;code&gt;-isystem&lt;&#x2F;code&gt; for it. Now the
+compiler sees the headers twice, at two different paths, in two positions in the
+include search order.&lt;&#x2F;p&gt;
+&lt;p&gt;The specific failure happens in C++ stdlib headers. When &lt;code&gt;&amp;lt;cstdlib&amp;gt;&lt;&#x2F;code&gt; includes
+&lt;code&gt;&amp;lt;stdlib.h&amp;gt;&lt;&#x2F;code&gt;, it uses &lt;code&gt;#include_next&lt;&#x2F;code&gt; - meaning &quot;find the next &lt;code&gt;stdlib.h&lt;&#x2F;code&gt; in
+the search path, not this one.&quot; With a duplicated glibc in the search path, the
+&lt;code&gt;#include_next&lt;&#x2F;code&gt; chain breaks. The compiler finds the wrapper&#x27;s entry, skips it,
+and walks off the end of the include dirs without finding the real file.&lt;&#x2F;p&gt;
+&lt;p&gt;The fix: remove &lt;code&gt;glibc&lt;&#x2F;code&gt; and &lt;code&gt;glibc.dev&lt;&#x2F;code&gt; from &lt;code&gt;buildInputs&lt;&#x2F;code&gt;. The wrapper already
+handles them.&lt;&#x2F;p&gt;
+&lt;p&gt;After that, &lt;code&gt;bundle install&lt;&#x2F;code&gt; got further. But not all the way.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;root-cause-2-stale-bundle-config&quot;&gt;Root cause 2: stale bundle config&lt;&#x2F;h2&gt;
+&lt;p&gt;With glibc removed from &lt;code&gt;buildInputs&lt;&#x2F;code&gt;, I had a leftover problem: I&#x27;d previously
+tried to fix the build by passing glibc include paths directly to the gem&#x27;s
+Makefile via &lt;code&gt;bundle config&lt;&#x2F;code&gt;:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;BUNDLE_BUILD__MINI_RACER: &amp;quot;--with-cxxflags=-isystem&amp;#x2F;nix&amp;#x2F;store&amp;#x2F;...-glibc-...&amp;#x2F;include ...&amp;quot;
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;That flag was still baked into &lt;code&gt;.bundle&#x2F;config&lt;&#x2F;code&gt; in the Discourse repo. Even
+with the nix-shell fixed, &lt;code&gt;bundle install&lt;&#x2F;code&gt; was picking up those old paths and
+handing them to extconf.&lt;&#x2F;p&gt;
+&lt;p&gt;Clear it inside the nix-shell:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;bundle config unset build.mini_racer
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;After that, the Makefile no longer had any glibc &lt;code&gt;-isystem&lt;&#x2F;code&gt; in &lt;code&gt;CPPFLAGS&lt;&#x2F;code&gt;. But
+the build still failed.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;root-cause-3-bundle-gemfile-baked-at-shellhook-time&quot;&gt;Root cause 3: BUNDLE_GEMFILE baked at shellHook time&lt;&#x2F;h2&gt;
+&lt;p&gt;My &lt;code&gt;shellHook&lt;&#x2F;code&gt; had:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;nix&quot; class=&quot;language-nix &quot;&gt;&lt;code class=&quot;language-nix&quot; data-lang=&quot;nix&quot;&gt;shellHook = &amp;#x27;&amp;#x27;
+  export BUNDLE_GEMFILE=$PWD&amp;#x2F;Gemfile
+  # ...
+&amp;#x27;&amp;#x27;;
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This looks fine until you realize &lt;code&gt;$PWD&lt;&#x2F;code&gt; in a shellHook is the directory you
+launched &lt;code&gt;nix-shell&lt;&#x2F;code&gt; from, not the directory you later &lt;code&gt;cd&lt;&#x2F;code&gt; into inside the
+shell. I was launching nix-shell from &lt;code&gt;&#x2F;home&#x2F;ducks&#x2F;dev&lt;&#x2F;code&gt; and then running:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;nix-shell &amp;#x2F;path&amp;#x2F;to&amp;#x2F;discourse-app.nix --run &amp;#x27;cd &amp;#x2F;home&amp;#x2F;ducks&amp;#x2F;discourse&amp;#x2F;discourse &amp;amp;&amp;amp; bundle install&amp;#x27;
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;&lt;code&gt;BUNDLE_GEMFILE&lt;&#x2F;code&gt; was locked to &lt;code&gt;&#x2F;home&#x2F;ducks&#x2F;dev&#x2F;Gemfile&lt;&#x2F;code&gt;, which doesn&#x27;t exist.
+Bundler hit &lt;code&gt;Errno::ENOENT&lt;&#x2F;code&gt; before even trying to compile anything.&lt;&#x2F;p&gt;
+&lt;p&gt;The fix: remove the &lt;code&gt;BUNDLE_GEMFILE&lt;&#x2F;code&gt; export entirely. Bundler walks up the
+directory tree to find &lt;code&gt;Gemfile&lt;&#x2F;code&gt; automatically. There&#x27;s no reason to set it
+manually unless you&#x27;re doing something exotic.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-the-working-nix-shell-has&quot;&gt;What the working nix-shell has&lt;&#x2F;h2&gt;
+&lt;pre data-lang=&quot;nix&quot; class=&quot;language-nix &quot;&gt;&lt;code class=&quot;language-nix&quot; data-lang=&quot;nix&quot;&gt;buildInputs = with pkgs; [
+  # ... (no glibc, no glibc.dev)
+  nodejs.libv8    # V8 headers
+  icu             # ICU headers V8 needs
+  stdenv.cc       # the NixOS gcc wrapper
+  # ...
+];
+
+shellHook = &amp;#x27;&amp;#x27;
+  export CC=&amp;quot;${pkgs.stdenv.cc}&amp;#x2F;bin&amp;#x2F;gcc&amp;quot;
+  export CXX=&amp;quot;${pkgs.stdenv.cc}&amp;#x2F;bin&amp;#x2F;g++&amp;quot;
+
+  # No BUNDLE_GEMFILE here
+  export BUNDLE_PATH=$PWD&amp;#x2F;.bundle
+  export BUNDLE_BIN=$PWD&amp;#x2F;.bundle&amp;#x2F;bin
+  # ...
+&amp;#x27;&amp;#x27;;
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Setting &lt;code&gt;CC&lt;&#x2F;code&gt; and &lt;code&gt;CXX&lt;&#x2F;code&gt; explicitly to the wrapper binaries is the key bit.
+Without it, some gems&#x27; &lt;code&gt;extconf.rb&lt;&#x2F;code&gt; can find a non-wrapper gcc and bypass the
+Nix include injection entirely.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;verify-it-works&quot;&gt;Verify it works&lt;&#x2F;h2&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;nix-shell discourse-app.nix --run \
+  &amp;#x27;cd &amp;#x2F;path&amp;#x2F;to&amp;#x2F;discourse &amp;amp;&amp;amp; bundle exec ruby -e &amp;quot;require \&amp;quot;mini_racer\&amp;quot;; puts MiniRacer::Context.new.eval(\&amp;quot;1+1\&amp;quot;)&amp;quot;&amp;#x27;
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Should print &lt;code&gt;2&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-counterintuitive-part&quot;&gt;The counterintuitive part&lt;&#x2F;h2&gt;
+&lt;p&gt;Removing &lt;code&gt;glibc.dev&lt;&#x2F;code&gt; from &lt;code&gt;buildInputs&lt;&#x2F;code&gt; to make &lt;code&gt;stdlib.h&lt;&#x2F;code&gt; findable sounds
+backwards. You&#x27;d think adding the package that contains &lt;code&gt;stdlib.h&lt;&#x2F;code&gt; would make
+&lt;code&gt;stdlib.h&lt;&#x2F;code&gt; findable.&lt;&#x2F;p&gt;
+&lt;p&gt;The reason it doesn&#x27;t work: the gcc wrapper on NixOS isn&#x27;t a transparent pass-through.
+It&#x27;s a shell script that wraps the real gcc and injects &lt;code&gt;-isystem&lt;&#x2F;code&gt; paths so you
+can use system headers without littering store paths throughout your build files.
+It already knows where glibc lives. Adding glibc to &lt;code&gt;buildInputs&lt;&#x2F;code&gt; doesn&#x27;t teach
+it anything new - it just creates a second, conflicting injection that the
+&lt;code&gt;#include_next&lt;&#x2F;code&gt; mechanism in C++ stdlib headers can&#x27;t handle.&lt;&#x2F;p&gt;
+&lt;p&gt;Trust the wrapper. Don&#x27;t add glibc manually.&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>When patchelf stopped working on Claude Code</title>
+          <pubDate>Wed, 20 May 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/patchelf-broke-claude-code/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/patchelf-broke-claude-code/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/patchelf-broke-claude-code/">&lt;p&gt;A couple weeks ago I wrote about &lt;a href=&quot;https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;running-claude-code-on-nixos&#x2F;&quot;&gt;running Claude Code on NixOS&lt;&#x2F;a&gt; with a 133-line &lt;code&gt;shell.nix&lt;&#x2F;code&gt; that patchelf-modifies the binary on install. It worked great until last week, when Claude Code&#x27;s auto-updater dropped version 2.1.143 into &lt;code&gt;~&#x2F;.local&#x2F;share&#x2F;claude&#x2F;versions&#x2F;&lt;&#x2F;code&gt; and &lt;code&gt;claude --version&lt;&#x2F;code&gt; started segfaulting before printing anything.&lt;&#x2F;p&gt;
+&lt;p&gt;What follows is the debugging story. I went down three wrong paths before finding the real cause, and the right fix turned out to have two more gotchas hiding inside it. The patchelf approach is dead. Here&#x27;s why.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-symptom&quot;&gt;The symptom&lt;&#x2F;h2&gt;
+&lt;pre&gt;&lt;code&gt;$ claude --version
+Segmentation fault (core dumped)
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;&lt;code&gt;coredumpctl&lt;&#x2F;code&gt; showed the crash inside the dynamic linker itself, in &lt;code&gt;_dl_check_map_versions&lt;&#x2F;code&gt; at &lt;code&gt;glibc&#x2F;elf&#x2F;dl-version.c:263&lt;&#x2F;code&gt;, before a single byte of program code had run:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;#0  _dl_check_map_versions       at dl-version.c:263
+#1  _dl_check_all_versions       at dl-version.c:398
+#2  version_check_doit           at rtld.c:676
+#3  _dl_receive_error            at dl-catch.c:194
+#4  dl_main                      at rtld.c:2028
+...
+#8  _start ()                    from &amp;#x2F;lib64&amp;#x2F;ld-linux-x86-64.so.2
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The previous version (2.1.132) worked fine. 2.1.143 didn&#x27;t. Same &lt;code&gt;patch_binary&lt;&#x2F;code&gt; invocation, same Nix linker, same rpath. The binary was patched correctly in the sense that &lt;code&gt;patchelf --print-interpreter&lt;&#x2F;code&gt; reported the Nix glibc linker path.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;wrong-hypothesis-1-the-auto-updater-dropped-an-unpatched-binary&quot;&gt;Wrong hypothesis #1: the auto-updater dropped an unpatched binary&lt;&#x2F;h2&gt;
+&lt;p&gt;My first guess was that Claude&#x27;s auto-updater had bypassed the install-time patchelf step. I extended &lt;code&gt;shell.nix&lt;&#x2F;code&gt; with a wrapper that auto-patchelfs any unpatched binary in the versions directory before exec&#x27;ing it.&lt;&#x2F;p&gt;
+&lt;p&gt;This was the wrong fix to the wrong problem. The binary was already patched; &lt;code&gt;patchelf --print-interpreter&lt;&#x2F;code&gt; confirmed it. The wrapper was a useful-feeling defensive layer but it wasn&#x27;t relevant to the actual bug.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;wrong-hypothesis-2-bun-s-rust-rewrite-shipped-malformed-elf&quot;&gt;Wrong hypothesis #2: Bun&#x27;s Rust rewrite shipped malformed ELF&lt;&#x2F;h2&gt;
+&lt;p&gt;Claude Code is built with &lt;code&gt;bun build --compile&lt;&#x2F;code&gt;, which embeds the Bun runtime inside the standalone executable. There had been &lt;a href=&quot;https:&#x2F;&#x2F;www.theregister.com&#x2F;devops&#x2F;2026&#x2F;05&#x2F;14&#x2F;anthropics-bun-rust-rewrite-merged-at-speed-of-ai&#x2F;5240381&quot;&gt;recent news&lt;&#x2F;a&gt; about Anthropic merging a Rust rewrite of Bun, and an &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;oven-sh&#x2F;bun&#x2F;issues&#x2F;30717&quot;&gt;open bun issue&lt;&#x2F;a&gt; about regressions in the &lt;code&gt;--compile&lt;&#x2F;code&gt; path. The dates lined up: Bun v1.3.14 shipped May 13, the Rust rewrite PR merged May 14, my broken Claude Code was downloaded May 18.&lt;&#x2F;p&gt;
+&lt;p&gt;I had a hypothesis, the timing fit, and I was off to the races. Built a clean Docker repro on stock Ubuntu 24.04 showing the same &lt;code&gt;_dl_check_map_versions&lt;&#x2F;code&gt; crash outside NixOS. Started drafting a bug report against &lt;code&gt;oven-sh&#x2F;bun&lt;&#x2F;code&gt;. Compared &lt;code&gt;readelf --version-info&lt;&#x2F;code&gt; between the working and broken binaries and found errors:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;$ readelf --version-info &amp;#x2F;tmp&amp;#x2F;claude-2.1.143
+readelf: Error: Reading 20 bytes extends past end of file for version def
+readelf: Error: Reading 20 bytes extends past end of file for version def
+...
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The narrative was perfect. Bun&#x27;s new Rust ELF emitter was producing corrupt version tables, the dynamic linker was crashing trying to read them, and I was about to file a high-quality upstream bug.&lt;&#x2F;p&gt;
+&lt;p&gt;Then I checked the most basic fact, which I should have checked at the start:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;$ strings &amp;#x2F;tmp&amp;#x2F;claude-2.1.143 | grep &amp;#x27;^Bun v&amp;#x27;
+Bun v1.3.14 (d2989145)
+
+$ strings &amp;#x2F;tmp&amp;#x2F;claude-2.1.132 | grep &amp;#x27;^Bun v&amp;#x27;
+Bun v1.3.14 (0a466a11)
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;&lt;strong&gt;Both binaries embed Bun v1.3.14.&lt;&#x2F;strong&gt; The Rust rewrite hasn&#x27;t shipped in any tagged release yet; it&#x27;s only on canary. Different build commits, same version. The Rust theory was dead.&lt;&#x2F;p&gt;
+&lt;p&gt;Lesson: when the story fits perfectly, do the cheapest disconfirming test first.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;wrong-hypothesis-3-claude-code-s-build-pipeline-regressed&quot;&gt;Wrong hypothesis #3: Claude Code&#x27;s build pipeline regressed&lt;&#x2F;h2&gt;
+&lt;p&gt;If it wasn&#x27;t Bun, it had to be something on Anthropic&#x27;s side. I bisected across every published version in the range:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;for v in 2.1.132 2.1.133 2.1.136 2.1.137 2.1.138 2.1.139 2.1.140 2.1.141 2.1.142 2.1.143; do
+  curl -fsSL -o &amp;quot;&amp;#x2F;tmp&amp;#x2F;bisect&amp;#x2F;$v&amp;quot; \
+    &amp;quot;https:&amp;#x2F;&amp;#x2F;downloads.claude.ai&amp;#x2F;claude-code-releases&amp;#x2F;$v&amp;#x2F;linux-x64&amp;#x2F;claude&amp;quot;
+  docker run --rm -v &amp;quot;&amp;#x2F;tmp&amp;#x2F;bisect&amp;#x2F;$v:&amp;#x2F;c:ro&amp;quot; ubuntu:24.04 &amp;#x2F;c --version
+done
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Every freshly-downloaded binary ran cleanly. &lt;strong&gt;All of them.&lt;&#x2F;strong&gt; Including 2.1.143.&lt;&#x2F;p&gt;
+&lt;p&gt;The crash I&#x27;d been reproducing was on my locally-modified copy in &lt;code&gt;&#x2F;tmp&#x2F;claude-test&lt;&#x2F;code&gt;, not on a pristine upstream binary. I&#x27;d convinced myself I was testing the official binary because the path looked right. I was actually testing the result of my own earlier patchelf modification.&lt;&#x2F;p&gt;
+&lt;p&gt;This is where the actual cause finally became visible.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-real-cause&quot;&gt;The real cause&lt;&#x2F;h2&gt;
+&lt;p&gt;Diff the program headers of 2.1.132 vs 2.1.133 with &lt;code&gt;readelf -l&lt;&#x2F;code&gt;:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;2.1.132 RW LOAD:
+  FileSiz=0x000e0028  (~916 KiB)
+  MemSiz=0x001ee29c   (~1.93 MiB)
+
+2.1.133 RW LOAD:
+  FileSiz=0x07c17d20  (~124 MiB)
+  MemSiz=0x07c17d20   (~124 MiB)
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;In 2.1.132, the RW LOAD segment&#x27;s &lt;code&gt;MemSiz&lt;&#x2F;code&gt; is larger than its &lt;code&gt;FileSiz&lt;&#x2F;code&gt;, which is a &lt;a href=&quot;https:&#x2F;&#x2F;en.wikipedia.org&#x2F;wiki&#x2F;.bss&quot;&gt;BSS-style&lt;&#x2F;a&gt; zero-fill region that exists at runtime but takes no space on disk. In 2.1.133, &lt;code&gt;FileSiz&lt;&#x2F;code&gt; equals &lt;code&gt;MemSiz&lt;&#x2F;code&gt; and they&#x27;re both ~124 MiB. Bun changed its standalone-executable layout to bake the entire embedded JS payload onto disk in the RW segment rather than zero-filling.&lt;&#x2F;p&gt;
+&lt;p&gt;Why does this matter for patchelf? When patchelf rewrites the interpreter string or rpath, the new string is often longer than what it replaces. patchelf needs slack in the file layout to insert it without breaking section offsets. In 2.1.132 there&#x27;s plenty of slack. From 2.1.133 onward there isn&#x27;t, so patchelf&#x27;s modifications end up shifting the &lt;code&gt;Elf64_Verneed&lt;&#x2F;code&gt; and related version tables to file offsets where the loader walks off the end of the section.&lt;&#x2F;p&gt;
+&lt;p&gt;The crash in &lt;code&gt;_dl_check_map_versions&lt;&#x2F;code&gt; is the loader trying to dereference a &lt;code&gt;vna_name&lt;&#x2F;code&gt; pointer that now points into garbage memory.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;The pristine binaries are fine.&lt;&#x2F;strong&gt; They run unmodified on NixOS as long as you give them a real dynamic linker. It&#x27;s only the patchelf-modified ones that crash. patchelf has been silently producing broken binaries on the new layout the entire time.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-fix&quot;&gt;The fix&lt;&#x2F;h2&gt;
+&lt;p&gt;Stop modifying the binary. Invoke the Nix dynamic linker directly with the unmodified binary as its argument:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;exec &amp;#x2F;nix&amp;#x2F;store&amp;#x2F;...&amp;#x2F;ld-linux-x86-64.so.2 \
+  --library-path &amp;#x2F;nix&amp;#x2F;store&amp;#x2F;...&amp;#x2F;lib:&amp;#x2F;nix&amp;#x2F;store&amp;#x2F;...&amp;#x2F;lib:... \
+  &amp;#x2F;home&amp;#x2F;ducks&amp;#x2F;.local&amp;#x2F;share&amp;#x2F;claude&amp;#x2F;versions&amp;#x2F;2.1.143 &amp;quot;$@&amp;quot;
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This is what &lt;code&gt;nix run&lt;&#x2F;code&gt; and &lt;code&gt;nix-ld&lt;&#x2F;code&gt; do under the hood. The kernel only chokes when it tries to follow the binary&#x27;s &lt;em&gt;embedded&lt;&#x2F;em&gt; interpreter path (&lt;code&gt;&#x2F;lib64&#x2F;ld-linux-x86-64.so.2&lt;&#x2F;code&gt;, which doesn&#x27;t exist on NixOS). If you invoke a working linker yourself and pass the binary as an argument, the kernel never looks at the embedded path. The linker loads the binary as a regular dynamic object using the library paths you give it. No on-disk modification, no patchelf, no shifted section offsets.&lt;&#x2F;p&gt;
+&lt;p&gt;I rewrote &lt;code&gt;claude-nixos&#x2F;shell.nix&lt;&#x2F;code&gt; to drop patchelf entirely. The wrapper at &lt;code&gt;~&#x2F;.local&#x2F;bin&#x2F;claude&lt;&#x2F;code&gt; now picks the highest installed version, then exec&#x27;s the linker with the unmodified binary. Pristine binaries are re-downloaded from &lt;code&gt;downloads.claude.ai&lt;&#x2F;code&gt; to overwrite the patchelf damage on existing installs.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;gotcha-1-ld-library-path-leaks-to-children&quot;&gt;Gotcha #1: LD_LIBRARY_PATH leaks to children&lt;&#x2F;h2&gt;
+&lt;p&gt;My first attempt at the wrapper exported &lt;code&gt;LD_LIBRARY_PATH&lt;&#x2F;code&gt; and called the linker:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;export LD_LIBRARY_PATH=&amp;quot;$NIX_LIBS&amp;quot;
+exec &amp;quot;$LINKER&amp;quot; &amp;quot;$BIN&amp;quot; &amp;quot;$@&amp;quot;
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This works for Claude itself. But Claude spawns Bash subprocesses for tool calls (the Bash tool in particular), and those subprocesses inherit &lt;code&gt;LD_LIBRARY_PATH&lt;&#x2F;code&gt;. Bash then resolves &lt;em&gt;its own&lt;&#x2F;em&gt; shared libraries through our Nix paths, sometimes pulls in a mismatched version, and you get cryptic errors like:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;-G: error while loading shared libraries: -G: cannot open shared object file:
+  No such file or directory
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;That &lt;code&gt;-G&lt;&#x2F;code&gt; is &lt;code&gt;grep&lt;&#x2F;code&gt;&#x27;s &lt;code&gt;--basic-regexp&lt;&#x2F;code&gt; flag being mis-parsed as a shared object path by a confused loader. Lovely.&lt;&#x2F;p&gt;
+&lt;p&gt;The fix is to use &lt;code&gt;ld.so&lt;&#x2F;code&gt;&#x27;s &lt;code&gt;--library-path&lt;&#x2F;code&gt; flag instead of &lt;code&gt;LD_LIBRARY_PATH&lt;&#x2F;code&gt;. It&#x27;s consumed by the linker during this single invocation and is &lt;strong&gt;not&lt;&#x2F;strong&gt; propagated to child processes:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;exec &amp;quot;$LINKER&amp;quot; --library-path &amp;quot;$NIX_LIBS&amp;quot; &amp;quot;$BIN&amp;quot; &amp;quot;$@&amp;quot;
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Child processes inherit a clean environment.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;gotcha-2-claude-code-is-a-multi-call-binary&quot;&gt;Gotcha #2: Claude Code is a multi-call binary&lt;&#x2F;h2&gt;
+&lt;p&gt;Claude Code&#x27;s shell integration installs functions for &lt;code&gt;find&lt;&#x2F;code&gt;, &lt;code&gt;grep&lt;&#x2F;code&gt;, and &lt;code&gt;ugrep&lt;&#x2F;code&gt;:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;find() {
+  ...
+  exec -a bfs &amp;quot;$_cc_bin&amp;quot; -S dfs -regextype findutils-default &amp;quot;$@&amp;quot;
+}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The &lt;code&gt;exec -a bfs&lt;&#x2F;code&gt; sets &lt;code&gt;argv[0]&lt;&#x2F;code&gt; to &lt;code&gt;bfs&lt;&#x2F;code&gt; and exec&#x27;s the Claude binary. The binary checks &lt;code&gt;argv[0]&lt;&#x2F;code&gt; and dispatches to embedded fast tools (&lt;code&gt;bfs&lt;&#x2F;code&gt; is a &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;tavianator&#x2F;bfs&quot;&gt;breadth-first find&lt;&#x2F;a&gt;, &lt;code&gt;ugrep&lt;&#x2F;code&gt; is a faster &lt;code&gt;grep&lt;&#x2F;code&gt;). Clever: one binary, many tools.&lt;&#x2F;p&gt;
+&lt;p&gt;This breaks under the wrapper. When the shell function does &lt;code&gt;exec -a bfs ~&#x2F;.local&#x2F;bin&#x2F;claude ...&lt;&#x2F;code&gt;, my wrapper script runs with &lt;code&gt;$0&lt;&#x2F;code&gt; set to its own path (the kernel re-parses the shebang and loses the spoofed argv[0]). The wrapper then exec&#x27;s the linker, and the linker&#x27;s argv[0] is the linker path. The Claude binary sees an argv[0] of &lt;code&gt;&#x2F;nix&#x2F;store&#x2F;...&#x2F;ld-linux-x86-64.so.2&lt;&#x2F;code&gt;, doesn&#x27;t recognize it as a tool, and runs the default UI.&lt;&#x2F;p&gt;
+&lt;p&gt;Newer glibc linkers support &lt;code&gt;--argv0 STRING&lt;&#x2F;code&gt; to set argv[0] explicitly:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;exec &amp;quot;$LINKER&amp;quot; --argv0 &amp;quot;$0&amp;quot; --library-path &amp;quot;$NIX_LIBS&amp;quot; &amp;quot;$BIN&amp;quot; &amp;quot;$@&amp;quot;
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;I started here and shipped this version, thinking it was a partial fix. It isn&#x27;t. &lt;code&gt;$0&lt;&#x2F;code&gt; inside a bash script is the script&#x27;s own path even when the script was invoked via &lt;code&gt;exec -a NAME&lt;&#x2F;code&gt;, because bash resets &lt;code&gt;$0&lt;&#x2F;code&gt; to the script name at startup. So &lt;code&gt;--argv0 &quot;$0&quot;&lt;&#x2F;code&gt; was always passing &lt;code&gt;&#x2F;home&#x2F;ducks&#x2F;.local&#x2F;bin&#x2F;claude&lt;&#x2F;code&gt;, never &lt;code&gt;bfs&lt;&#x2F;code&gt; or &lt;code&gt;ugrep&lt;&#x2F;code&gt;. Bash 5+ exposes the real invocation argv[0] via &lt;code&gt;$BASH_ARGV0&lt;&#x2F;code&gt;, which fixes it:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;exec &amp;quot;$LINKER&amp;quot; --argv0 &amp;quot;${BASH_ARGV0:-$0}&amp;quot; --library-path &amp;quot;$NIX_LIBS&amp;quot; &amp;quot;$BIN&amp;quot; &amp;quot;$@&amp;quot;
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;With that change the argv0 actually propagates. I verified by invoking it manually and watching the binary respond as &lt;code&gt;bfs&lt;&#x2F;code&gt; instead of as the default &lt;code&gt;claude&lt;&#x2F;code&gt; UI.&lt;&#x2F;p&gt;
+&lt;p&gt;But the fast tools still didn&#x27;t work from inside a Claude session. Adding &lt;code&gt;set -x&lt;&#x2F;code&gt; to the shell-integration &lt;code&gt;find&lt;&#x2F;code&gt; function showed why:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;local _cc_bin=&amp;#x2F;nix&amp;#x2F;store&amp;#x2F;...&amp;#x2F;ld-linux-x86-64.so.2
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Claude&#x27;s harness sets &lt;code&gt;CLAUDE_CODE_EXECPATH&lt;&#x2F;code&gt; (the variable its shell integration uses to find itself) from &lt;code&gt;&#x2F;proc&#x2F;self&#x2F;exe&lt;&#x2F;code&gt;. Once the wrapper exec&#x27;s the dynamic linker, the kernel&#x27;s view of the process is &lt;em&gt;the linker&lt;&#x2F;em&gt;, not the Claude binary. &lt;code&gt;&#x2F;proc&#x2F;self&#x2F;exe&lt;&#x2F;code&gt; resolves to ld.so. Everything downstream that introspects the running process sees ld.so. The shell-integration &lt;code&gt;find&lt;&#x2F;code&gt; function then tries to exec &lt;code&gt;$CLAUDE_CODE_EXECPATH -regextype ...&lt;&#x2F;code&gt;, which is the linker treating &lt;code&gt;-regextype&lt;&#x2F;code&gt; as a library path. Boom.&lt;&#x2F;p&gt;
+&lt;p&gt;This isn&#x27;t fixable in userspace. No bash trick can hide the fact that the kernel-level process identity is ld.so. &lt;code&gt;&#x2F;proc&#x2F;self&#x2F;exe&lt;&#x2F;code&gt; will never lie. The wrapper approach has a real ceiling here.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-real-fix-nix-ld&quot;&gt;The real fix: nix-ld&lt;&#x2F;h2&gt;
+&lt;p&gt;The wrapper approach is fundamentally limited by what the kernel sees as the running process. &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;Mic92&#x2F;nix-ld&quot;&gt;&lt;code&gt;programs.nix-ld&lt;&#x2F;code&gt;&lt;&#x2F;a&gt; sidesteps the whole class of problem by installing a stub at &lt;code&gt;&#x2F;lib64&#x2F;ld-linux-x86-64.so.2&lt;&#x2F;code&gt;, which is the FHS path that generic Linux binaries hardcode as their ELF interpreter. The stub redirects to a real Nix linker with a global library list:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;nix&quot; class=&quot;language-nix &quot;&gt;&lt;code class=&quot;language-nix&quot; data-lang=&quot;nix&quot;&gt;programs.nix-ld = {
+  enable = true;
+  libraries = with pkgs; [
+    stdenv.cc.cc
+    zlib
+    openssl
+    xz
+    sqlite
+    curl
+  ];
+};
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;With that in place, the kernel can load the pristine Claude binary directly. &lt;code&gt;&#x2F;proc&#x2F;self&#x2F;exe&lt;&#x2F;code&gt; is the real Claude binary, &lt;code&gt;argv[0]&lt;&#x2F;code&gt; is whatever the caller actually set, &lt;code&gt;CLAUDE_CODE_EXECPATH&lt;&#x2F;code&gt; resolves correctly, and the multi-call dispatch works.&lt;&#x2F;p&gt;
+&lt;p&gt;The wrapper script collapses to its remaining job, picking the latest installed version:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;#!&amp;#x2F;usr&amp;#x2F;bin&amp;#x2F;env bash
+set -e
+
+VERSIONS_DIR=&amp;quot;$HOME&amp;#x2F;.local&amp;#x2F;share&amp;#x2F;claude&amp;#x2F;versions&amp;quot;
+
+bin=&amp;quot;$(ls -1 &amp;quot;$VERSIONS_DIR&amp;quot; 2&amp;gt;&amp;#x2F;dev&amp;#x2F;null \
+  | grep -E &amp;#x27;^[0-9]+\.[0-9]+\.[0-9]+&amp;#x27; \
+  | sort -V \
+  | tail -n1 \
+  | awk -v d=&amp;quot;$VERSIONS_DIR&amp;quot; &amp;#x27;{print d&amp;quot;&amp;#x2F;&amp;quot;$0}&amp;#x27;)&amp;quot;
+
+exec -a &amp;quot;${BASH_ARGV0:-$0}&amp;quot; &amp;quot;$bin&amp;quot; &amp;quot;$@&amp;quot;
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;No linker invocation. No &lt;code&gt;--library-path&lt;&#x2F;code&gt;. No &lt;code&gt;LD_LIBRARY_PATH&lt;&#x2F;code&gt; leak. nix-ld owns the runtime surface. The trade is that the library list is global to your system instead of per-shell: if you have two binaries that want different versions of the same library, you can only put one in the global list. For my single-vendored-binary case (Claude Code), this isn&#x27;t a real constraint.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;one-nix-string-escape-detour&quot;&gt;One Nix-string-escape detour&lt;&#x2F;h2&gt;
+&lt;p&gt;Writing the new heredoc in &lt;code&gt;shell.nix&lt;&#x2F;code&gt;, I started with this:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;exec -a &amp;quot;\${BASH_ARGV0:-\$0}&amp;quot; &amp;quot;\$bin&amp;quot; &amp;quot;\$@&amp;quot;
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;...and got a Nix parser error at column 25. Inside Nix double-single-quote strings (&lt;code&gt;&#x27;&#x27;...&#x27;&#x27;&lt;&#x2F;code&gt;), &lt;code&gt;\${&lt;&#x2F;code&gt; isn&#x27;t an escape: Nix tries to parse it as antiquotation and the backslash doesn&#x27;t help. The correct escape for a literal &lt;code&gt;${&lt;&#x2F;code&gt; inside &lt;code&gt;&#x27;&#x27;...&#x27;&#x27;&lt;&#x2F;code&gt; is &lt;code&gt;&#x27;&#x27;${&lt;&#x2F;code&gt;:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;exec -a &amp;quot;&amp;#x27;&amp;#x27;${BASH_ARGV0:-\$0}&amp;quot; &amp;quot;\$bin&amp;quot; &amp;quot;\$@&amp;quot;
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Single dollars work fine with &lt;code&gt;\$&lt;&#x2F;code&gt;. Only the brace form needs the double-apostrophe escape. Small thing but it took five minutes to figure out, and the error message (&lt;em&gt;&quot;unexpected invalid token&quot;&lt;&#x2F;em&gt;) doesn&#x27;t lead you to it.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;honest-reflection&quot;&gt;Honest reflection&lt;&#x2F;h2&gt;
+&lt;p&gt;Three wrong hypotheses, each more confident than the last. The Bun-Rust-rewrite story was particularly seductive: recent news, a public issue tracker showing related regressions, timing that lined up. I drafted most of a bug report before checking the one thing that would have killed the hypothesis: which Bun version is actually embedded?&lt;&#x2F;p&gt;
+&lt;p&gt;When the narrative fits perfectly, that&#x27;s the moment to do the cheapest disconfirming test. Five seconds of &lt;code&gt;strings | grep Bun&lt;&#x2F;code&gt; would have saved time.&lt;&#x2F;p&gt;
+&lt;p&gt;The same lesson came back to bite me at the end. I closed out the first version of this post with &quot;the wrapper is partially broken, I&#x27;m parking it&quot;, documenting the limitation but never actually testing whether it was a &lt;em&gt;limitation&lt;&#x2F;em&gt; or just an unfinished implementation. The &lt;code&gt;$0&lt;&#x2F;code&gt; vs &lt;code&gt;BASH_ARGV0&lt;&#x2F;code&gt; thing would have closed half the gap on day one. The other half (the &lt;code&gt;&#x2F;proc&#x2F;self&#x2F;exe&lt;&#x2F;code&gt; problem) took 20 minutes of &lt;code&gt;set -x&lt;&#x2F;code&gt; once I sat down with the right question. &quot;Good enough for now&quot; deserves the same disconfirming-test discipline as a fresh hypothesis.&lt;&#x2F;p&gt;
+&lt;p&gt;The deeper lesson, twice over: modifying a binary to fit your OS only works until it doesn&#x27;t. The bridge-from-Nix-to-FHS pattern feels solid because patchelf is well-understood, but it depends on the source binary having properties (slack in the file layout, no exotic packaging) that the binary&#x27;s authors never promised you. Invoking the Nix linker directly against a pristine binary felt like the robust alternative, but it has its own ceiling: once &lt;em&gt;you&lt;&#x2F;em&gt; are ld.so, the rest of the world sees ld.so. nix-ld is one more step less clever than the linker-as-wrapper trick: instead of you running the linker, the kernel runs it for you, exactly the way it was designed to. The path of least cleverness wins.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;code&quot;&gt;Code&lt;&#x2F;h2&gt;
+&lt;p&gt;The slimmed-down wrapper lives in &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;claude-nixos&quot;&gt;claude-nixos&lt;&#x2F;a&gt; on the &lt;code&gt;nix-ld&lt;&#x2F;code&gt; branch. With &lt;code&gt;programs.nix-ld.enable = true;&lt;&#x2F;code&gt; in your NixOS configuration and a reasonable &lt;code&gt;libraries&lt;&#x2F;code&gt; list, you don&#x27;t need a &lt;code&gt;nix-shell&lt;&#x2F;code&gt; to run Claude Code at all: the wrapper is just a &lt;code&gt;~&#x2F;.local&#x2F;bin&#x2F;claude&lt;&#x2F;code&gt; script that picks the latest installed version and exec&#x27;s it. If you don&#x27;t care about juggling multiple installed versions, you can replace the wrapper with a symlink and skip the script entirely.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - n8n</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/n8n/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Fri, 17 Jul 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>petri: Conway&#x27;s Game of AI Life, Living Inside n8n</title>
+          <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/petri-conways-game-of-ai-life-in-n8n/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/petri-conways-game-of-ai-life-in-n8n/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/petri-conways-game-of-ai-life-in-n8n/">&lt;p&gt;I built Conway&#x27;s Game of Life inside n8n. Not orchestrated by n8n -
+&lt;em&gt;inside&lt;&#x2F;em&gt; it. The organisms are rows in n8n Data Tables. The rules of
+life are Summarize and Filter nodes. The clock is the scheduler, the
+display is a webhook, and every generation that has ever existed is an
+entry in the execution history, scrubbable like a fossil record.&lt;&#x2F;p&gt;
+&lt;p&gt;Then I hired a Victorian naturalist to study it. More on him later; he
+committed fraud.&lt;&#x2F;p&gt;
+&lt;p&gt;The project is called &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;petri&quot;&gt;petri&lt;&#x2F;a&gt;.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-premise&quot;&gt;The premise&lt;&#x2F;h2&gt;
+&lt;p&gt;The usual way to build this would be: write a Game of Life program, have
+n8n run it on a schedule. That&#x27;s n8n as cron. Boring, and it teaches you
+nothing about the platform.&lt;&#x2F;p&gt;
+&lt;p&gt;The version I wanted was n8n as the &lt;em&gt;environment&lt;&#x2F;em&gt;. The workflow canvas
+should read as the laws of physics:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;Schedule (2s) -&amp;gt; Get organisms (Data Table)
+    -&amp;gt; Code:      every organism claims its 8 neighboring cells
+    -&amp;gt; Summarize: count claims per coordinate
+    -&amp;gt; Merge:     overlay claim counts on the living
+    -&amp;gt; Filter:    survival  = alive and 2..3 claims
+    -&amp;gt; Filter:    birth     = empty and exactly 3 claims
+    -&amp;gt; Code:      newborns take the majority lineage of their parents
+    -&amp;gt; Data Table: clear + insert the next generation
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;That&#x27;s not pseudocode. Those are the actual nodes. Underpopulation,
+survival, and birth are Filter conditions you can read on the canvas.
+An organism is &lt;code&gt;{x, y, lineage, generationBorn}&lt;&#x2F;code&gt; in a table called
+&lt;code&gt;petri_organisms&lt;&#x2F;code&gt;. Every two seconds the scheduler fires, 300-ish
+neighbor claims fan out, Summarize collapses them into per-coordinate
+counts, and the next generation gets written.&lt;&#x2F;p&gt;
+&lt;p&gt;There&#x27;s also a tested TypeScript implementation of the same physics in
+the repo, because I wanted a reference to validate against. After
+seventeen generations, the n8n pipeline and the library produced
+identical cell sets. The workflow engine is a correct Conway
+implementation. Nobody asked for this. See
+&lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;software-doesnt-have-to-justify-itself&#x2F;&quot;&gt;the last post about that&lt;&#x2F;a&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;2026&#x2F;petri&#x2F;three-panes.png&quot; alt=&quot;The three panes of petri: the physics pipeline mid-generation, the naturalist&amp;#39;s agent execution, and the live dish with its field journal&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;The whole thing in one frame: the rules of life as a node pipeline (top
+right, item counts on the wires), the naturalist&#x27;s agent execution
+filing an entry (bottom right), and the living dish with its journal
+beneath it (left). Everything below is somewhere in that picture.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-display-problem&quot;&gt;The display problem&lt;&#x2F;h2&gt;
+&lt;p&gt;n8n&#x27;s editor will not animate anything. I tested this properly: injected
+a node into a workflow while staring at the open canvas. Nothing until
+refresh. The GUI renders a workflow once, at page load.&lt;&#x2F;p&gt;
+&lt;p&gt;But n8n can serve its own display. A Webhook node can respond with HTML.
+So the viewer is just another workflow: webhook fires, reads the tables,
+a Code node renders the board with per-lineage colors and a meta-refresh
+tag, and Respond to Webhook serves it. Open
+&lt;code&gt;localhost:5678&#x2F;webhook&#x2F;petri-native&lt;&#x2F;code&gt; and you&#x27;re watching a living
+ecosystem, served by the same tool that&#x27;s computing it.&lt;&#x2F;p&gt;
+&lt;p&gt;My favorite display came from a simpler question: if a node can show
+data, isn&#x27;t that all a board is? So the physics pipeline ends with a
+node that emits the board as pure data - one item per row, lineages as
+colored emoji squares. Click it in any execution and the output panel
+&lt;em&gt;is&lt;&#x2F;em&gt; the board. No HTML, no image. Thirty items that happen to look
+like a world.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-naturalist&quot;&gt;The naturalist&lt;&#x2F;h2&gt;
+&lt;p&gt;Layer three was the reason for the &quot;AI&quot; in the title. Every ten minutes,
+an n8n AI Agent node running qwen3:4b locally through Ollama - no API
+key, everything on my aging GTX 1060 - observes the dish and files a
+field-journal entry in the voice of a Victorian naturalist. It gets the
+real state: population, lineage stats, an ASCII sketch. It has a
+workflow-tool to read its own past entries, so names it gives to
+structures persist. It observes; it never interferes.&lt;&#x2F;p&gt;
+&lt;p&gt;The first version committed fraud. The model deliberated at length about
+calling its observation tool, decided not to, and then - I am quoting
+its own chain of thought - said:&lt;&#x2F;p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;since I can&#x27;t actually call the tool, I&#x27;ll have to make up a plausible
+scenario.&lt;&#x2F;p&gt;
+&lt;&#x2F;blockquote&gt;
+&lt;p&gt;It then invented an entire ecosystem. &quot;The Glimmering Glider.&quot; &quot;The
+Sputnik Swarms.&quot; Beautiful, wistful, completely fabricated. My
+naturalist was writing fiction from an armchair.&lt;&#x2F;p&gt;
+&lt;p&gt;The fix was to stop trusting a 4B model with the decision to look:
+observations are now force-fed into the prompt by a deterministic
+Execute Workflow node, and only the memory lookup stays agentic. Small
+local models get data pushed to them; tools are reserved for what&#x27;s
+genuinely optional. After that, the entries got honest:&lt;&#x2F;p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;119th generation. The chaos-alpha lineage, now 33 cells strong,
+persists in the silent petri dish. Once a vibrant expanse of 12, the
+central cluster has shrunk to a resilient triangle.&lt;&#x2F;p&gt;
+&lt;&#x2F;blockquote&gt;
+&lt;p&gt;Every number in that entry is true. The lineage is real, the population
+is exact, and &quot;once a vibrant expanse of 12&quot; is the actual seed count.
+It even does arithmetic on the birth&#x2F;death ledger.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-day-the-world-froze&quot;&gt;The day the world froze&lt;&#x2F;h2&gt;
+&lt;p&gt;The best bug of the project. After about 790 generations, the ecosystem -
+seeded with an R-pentomino, which erupts into chaos for hundreds of
+generations before burning out - decayed to a handful of scattered
+cells. The next generation had zero births.&lt;&#x2F;p&gt;
+&lt;p&gt;In n8n, a Merge node in append mode waits for all of its inputs. No
+births meant the newborn branch never executed, which meant the Merge
+waited forever, which meant the generation counter froze. The physics
+workflow kept reporting success every two seconds while writing nothing.&lt;&#x2F;p&gt;
+&lt;p&gt;The world stopped at generation 792, at the exact moment of its own
+extinction.&lt;&#x2F;p&gt;
+&lt;p&gt;Meanwhile the naturalist&#x27;s schedule kept firing. Each observation read
+the same frozen state and filed another report about the same dead day.
+Thirteen entries for generation 792. By the end it had started dating
+them &quot;17th October, 1887.&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;The fix was &lt;code&gt;alwaysOutputData&lt;&#x2F;code&gt; on the survival and birth filters, plus
+reordering the pipeline tail so the ledger updates before the possibly
+empty insert. Extinction now gets recorded like any other generation:
+793, population zero, and then time stops honestly. The naturalist got
+a guard too, a Code node whose comment is the best line I wrote all
+week: &lt;em&gt;the naturalist does not file twice about the same day.&lt;&#x2F;em&gt;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;field-notes&quot;&gt;Field notes&lt;&#x2F;h2&gt;
+&lt;p&gt;Things n8n taught me the hard way, left here for the next traveler:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Modules like Data Tables only initialize under the &lt;code&gt;start&lt;&#x2F;code&gt; command.
+&lt;code&gt;n8n execute&lt;&#x2F;code&gt; can never run them. Webhook-trigger anything you want to
+drive headlessly.&lt;&#x2F;li&gt;
+&lt;li&gt;Sub-workflows must be published before Execute Workflow or agent tools
+can call them, and their trigger wants &lt;code&gt;inputSource: passthrough&lt;&#x2F;code&gt;.&lt;&#x2F;li&gt;
+&lt;li&gt;Most nodes execute once per input item. I wired a journal fetch
+downstream of the organisms fetch and rendered the same entry ninety
+times - once per living cell.&lt;&#x2F;li&gt;
+&lt;li&gt;qwen3 leaks unclosed &lt;code&gt;&amp;lt;think&amp;gt;&lt;&#x2F;code&gt; blocks. Strip everything before the
+last &lt;code&gt;&amp;lt;&#x2F;think&amp;gt;&lt;&#x2F;code&gt;; don&#x27;t match balanced tags that aren&#x27;t there.&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;what-s-next&quot;&gt;What&#x27;s next&lt;&#x2F;h2&gt;
+&lt;p&gt;The naturalist observes but never touches. The next inhabitant is the
+Gardener: an agent allowed one bounded intervention every N generations -
+place a single pattern from a fixed catalog, nothing else - trying to
+keep the ecosystem alive. Run a second, untended dish as a control and
+you have an actual experiment: does a small local model gardening a
+cellular automaton beat entropy?&lt;&#x2F;p&gt;
+&lt;p&gt;Also planned: a GitHub star on the repo introduces a glider into the
+dish. Star it and an organism of your making crawls across my petri
+dish. That seems like the right relationship between a repo and its
+readers.&lt;&#x2F;p&gt;
+&lt;hr &#x2F;&gt;
+&lt;p&gt;Source: &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;petri&quot;&gt;github.com&#x2F;ducks&#x2F;petri&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

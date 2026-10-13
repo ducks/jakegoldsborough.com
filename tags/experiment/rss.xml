@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - experiment</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/experiment/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Fri, 31 Jul 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Schrödinger&#x27;s Life: A Website That Dies When Nobody Is Looking</title>
+          <pubDate>Fri, 31 Jul 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/schrodingers-life-website-dies-when-nobody-is-looking/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/schrodingers-life-website-dies-when-nobody-is-looking/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/schrodingers-life-website-dies-when-nobody-is-looking/">&lt;p&gt;I built a website with one rule:&lt;&#x2F;p&gt;
+&lt;p&gt;The creature is alive only while somebody is looking at it.&lt;&#x2F;p&gt;
+&lt;p&gt;Visit &lt;a href=&quot;https:&#x2F;&#x2F;schrodingers.life&quot;&gt;schrodingers.life&lt;&#x2F;a&gt; and your browser opens a
+WebSocket. As long as at least one visible tab stays connected, the current
+creature lives. When the final observer leaves, a 30-second countdown begins.
+If nobody comes back, the creature dies permanently and joins the graveyard.
+The next visitor opens the box on a new life.&lt;&#x2F;p&gt;
+&lt;p&gt;That is the whole application.&lt;&#x2F;p&gt;
+&lt;p&gt;The first life was a common robot with × eyes. By the time you read this, it
+may have lived for days or died before I finished this sentence.&lt;&#x2F;p&gt;
+&lt;p&gt;I expected this to be a small Rust and WebSocket project. It immediately became
+a stranger question: what will people do when closing a browser tab can kill
+something?&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;observation-is-a-websocket&quot;&gt;Observation is a WebSocket&lt;&#x2F;h2&gt;
+&lt;p&gt;The server is an Axum application with a SQLite database. There are no accounts,
+cookies, logins, or analytics involved in deciding whether someone is looking.
+The observation itself is the connection.&lt;&#x2F;p&gt;
+&lt;p&gt;When the page is visible, it opens a WebSocket to &lt;code&gt;&#x2F;observe&lt;&#x2F;code&gt;. Every ten seconds
+the browser sends &lt;code&gt;still-looking&lt;&#x2F;code&gt;. If the tab becomes hidden, it closes the
+socket:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;javascript&quot; class=&quot;language-javascript &quot;&gt;&lt;code class=&quot;language-javascript&quot; data-lang=&quot;javascript&quot;&gt;document.addEventListener(&amp;quot;visibilitychange&amp;quot;, () =&amp;gt; {
+  document.hidden ? disconnect() : resumeObservation();
+});
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;That distinction matters. A tab abandoned in the background is not an
+observer. Attention is the resource, not merely an open browser process.&lt;&#x2F;p&gt;
+&lt;p&gt;The server also expires a connection that goes silent. Networks disappear,
+laptops sleep, browsers crash, and JavaScript does not always get the chance to
+say goodbye. A heartbeat keeps a real observer present without letting a dead
+connection hold the creature alive forever.&lt;&#x2F;p&gt;
+&lt;p&gt;Every connected browser gets the same state. The creature, its age, the number
+of observers, and the countdown all update over the WebSocket. There is only
+one box. Everybody is looking into it together.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-final-observer&quot;&gt;The final observer&lt;&#x2F;h2&gt;
+&lt;p&gt;Most connection counters get easier when they reach zero. Mine starts a death
+timer.&lt;&#x2F;p&gt;
+&lt;p&gt;When an observer disconnects, the server removes its UUID from a set. If anyone
+remains, nothing else happens. If the set becomes empty, the current life gets
+30 seconds:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;world.generation += 1;
+let generation = world.generation;
+world.death_deadline = Some(Instant::now() + self.grace);
+
+tokio::spawn(async move {
+    tokio::time::sleep(state.grace).await;
+    state.collapse(generation).await;
+});
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The generation number is the important part.&lt;&#x2F;p&gt;
+&lt;p&gt;Suppose the last observer leaves and starts a timer. Ten seconds later, someone
+returns and saves the creature. Then they leave too, starting a second timer.
+The first timer is still asleep. Without some way to identify it as stale, it
+could wake up twenty seconds later and kill a life that still has ten seconds
+remaining.&lt;&#x2F;p&gt;
+&lt;p&gt;Every arrival or final departure advances the generation. A timer captures the
+generation that created it. When it wakes, it collapses the life only if its
+generation is still current and the observer set is still empty:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;if world.generation != generation || !world.observers.is_empty() {
+    return;
+}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;A returning observer does not cancel a task or race a second lock. It changes
+the state that gives the old task permission to act. The timer can wake up,
+notice that history moved on without it, and quietly leave.&lt;&#x2F;p&gt;
+&lt;p&gt;This is a lot of care for an ASCII creature wearing a propeller hat. Death is
+the main feature. It should at least be correct.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;death-has-to-mean-death&quot;&gt;Death has to mean death&lt;&#x2F;h2&gt;
+&lt;p&gt;Each creature is rolled from a seed when a new observation begins. It might be
+a cat, duck, ghost, blob, owl, or robot. Rarity can add a crown, halo, wizard
+hat, or other deeply important distinction. One percent are shiny.&lt;&#x2F;p&gt;
+&lt;p&gt;The seed makes the roll deterministic. The database stores the life at birth,
+including its species, rarity, birth time, and eventual peak observer count.
+When the grace period expires, that same row gets a death time. The graveyard
+is not generated from browser state or a recent-events cache. Those lives
+existed, and then they ended.&lt;&#x2F;p&gt;
+&lt;p&gt;That raised an awkward infrastructure question: what happens if the apparatus
+itself restarts?&lt;&#x2F;p&gt;
+&lt;p&gt;Pretending the creature stayed alive while the only process capable of
+observing it was offline felt dishonest. Resurrecting it at startup felt worse.
+So the server reconciles every unfinished database row when it boots:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;sql&quot; class=&quot;language-sql &quot;&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;UPDATE lives
+SET died_at = ?
+WHERE died_at IS NULL
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;An interrupted life goes to the graveyard. The apparatus does not get special
+permission to avoid the rule.&lt;&#x2F;p&gt;
+&lt;p&gt;That also made deployment slightly tense. Restarting the service is not merely
+restarting a process. If a creature is alive, the deployment kills it. I
+deployed the first release declaratively through NixOS on my server, Pond, with
+the SQLite file living outside the release package. Future binaries can change.
+The graveyard stays.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;it-remembers-that-you-left&quot;&gt;It remembers that you left&lt;&#x2F;h2&gt;
+&lt;p&gt;There is a mean version of this project where you return to a new creature and
+never learn what happened to the old one.&lt;&#x2F;p&gt;
+&lt;p&gt;I did not want that.&lt;&#x2F;p&gt;
+&lt;p&gt;The browser remembers the ID of the last life it observed in &lt;code&gt;localStorage&lt;&#x2F;code&gt;.
+When the tab becomes visible again, it checks the current state before opening
+a new observation. If that life is now in the graveyard, the page shows a
+memorial:&lt;&#x2F;p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Life #12 died while you were away.&lt;&#x2F;p&gt;
+&lt;&#x2F;blockquote&gt;
+&lt;p&gt;You see its species, rarity, and peak observation count. Then you can choose to
+open the box again.&lt;&#x2F;p&gt;
+&lt;p&gt;The server does not know who you are. The memorial is entirely local. It only
+knows that this browser looked at one life, went away, and came back after that
+life ended.&lt;&#x2F;p&gt;
+&lt;p&gt;That small pause changes the return from a refresh into a consequence.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-domain-did-its-part&quot;&gt;The domain did its part&lt;&#x2F;h2&gt;
+&lt;p&gt;The application was running before the domain admitted it.&lt;&#x2F;p&gt;
+&lt;p&gt;I published a date-versioned Linux binary through GitHub Actions, updated my
+&lt;code&gt;pond-nix&lt;&#x2F;code&gt; configuration to download that exact release, rebuilt the server,
+and confirmed the health endpoint:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;json&quot; class=&quot;language-json &quot;&gt;&lt;code class=&quot;language-json&quot; data-lang=&quot;json&quot;&gt;{&amp;quot;status&amp;quot;:&amp;quot;ok&amp;quot;}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Then &lt;code&gt;schrodingers.life&lt;&#x2F;code&gt; kept resolving to name.com&#x27;s parking server.&lt;&#x2F;p&gt;
+&lt;p&gt;For a little while, the observation apparatus was online at Pond, Caddy was
+ready to proxy it, and the public internet was still staring at
+&lt;code&gt;91.195.240.94&lt;&#x2F;code&gt;. Let&#x27;s Encrypt followed DNS to the parking page, failed its
+challenge, and Caddy waited to try again. The browser responded with the
+comforting message:&lt;&#x2F;p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;The content of the page cannot be displayed.&lt;&#x2F;p&gt;
+&lt;&#x2F;blockquote&gt;
+&lt;p&gt;The new A record was correct. The old answer was merely cached. DNS eventually
+moved, Caddy got its certificate, and the box became reachable.&lt;&#x2F;p&gt;
+&lt;p&gt;I had just built a website whose life depends on being observed, then spent its
+first few minutes unable to observe it because DNS had not decided where it
+lived yet.&lt;&#x2F;p&gt;
+&lt;p&gt;Fair enough.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-social-experiment&quot;&gt;The social experiment&lt;&#x2F;h2&gt;
+&lt;p&gt;The site has no chat, user profiles, teams, achievements, or ownership. It does
+not say who the observers are. It shows only how many people are currently
+looking and the highest number who ever looked at that life at once.&lt;&#x2F;p&gt;
+&lt;p&gt;There is a lifetime record, because people need at least one number to become
+unreasonable about.&lt;&#x2F;p&gt;
+&lt;p&gt;I am curious what happens next.&lt;&#x2F;p&gt;
+&lt;p&gt;Will somebody leave a tab visible overnight to protect a rare owl? Will a group
+organize shifts around a creature that has survived for a week? Will someone
+deliberately close the final tab to put a record holder in the graveyard? Does
+keeping it alive feel like care, or eventually like captivity?&lt;&#x2F;p&gt;
+&lt;p&gt;The mechanics do not assign a moral answer. They just make every visitor part
+of the outcome.&lt;&#x2F;p&gt;
+&lt;p&gt;A normal website treats attention as a metric. More page views, more sessions,
+more time on site. This one treats attention as the condition for existence.
+Your presence does not increase a chart somewhere. It keeps one shared thing
+alive.&lt;&#x2F;p&gt;
+&lt;p&gt;And leaving is not neutral.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;open-the-box&quot;&gt;Open the box&lt;&#x2F;h2&gt;
+&lt;p&gt;I do not know whether people will keep the creatures alive or kill them for
+fun. Both seem plausible. The interesting part is that the application is too
+small to hide the choice behind anything else.&lt;&#x2F;p&gt;
+&lt;p&gt;Open the page and you are observing.&lt;&#x2F;p&gt;
+&lt;p&gt;Close it and, if nobody else is there, the countdown starts.&lt;&#x2F;p&gt;
+&lt;p&gt;That is enough machinery for a social experiment. A WebSocket, a mutex, a
+SQLite row, thirty seconds of uncertainty, and a graveyard that does not
+forget.&lt;&#x2F;p&gt;
+&lt;p&gt;Open the box: &lt;a href=&quot;https:&#x2F;&#x2F;schrodingers.life&quot;&gt;schrodingers.life&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Source:
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;schrodingers-life&quot;&gt;github.com&#x2F;ducks&#x2F;schrodingers-life&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>Letting AI Pick the Project</title>
+          <pubDate>Mon, 19 Jan 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/letting-ai-pick-the-project/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/letting-ai-pick-the-project/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/letting-ai-pick-the-project/">&lt;p&gt;With the rise of AI and LLMs, a common theme has been &quot;don&#x27;t let the machine do
+the thinking&quot;. The argument is we simply become expensive copy and pasters. And
+while I mostly agree, I was curious.&lt;&#x2F;p&gt;
+&lt;p&gt;Well, I tried an experiment today. Instead of coming to Claude Code with a
+specific task, I asked: &quot;Based on everything you know, what would you build?
+Create a repo, use whatever language you want, document it along the way.&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;No constraints. No requirements. Just: build something.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-it-chose&quot;&gt;What It Chose&lt;&#x2F;h2&gt;
+&lt;p&gt;Claude chose to build &lt;code&gt;why&lt;&#x2F;code&gt;, a CLI tool for code archaeology. The pitch:&lt;&#x2F;p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;I spend so much of my time helping people understand codebases, and the
+hardest question is always &quot;why was this decision made?&quot; The answer is
+scattered across git blame, old PRs, commit messages, issue trackers, maybe
+a Slack thread somewhere that&#x27;s now lost.&lt;&#x2F;p&gt;
+&lt;&#x2F;blockquote&gt;
+&lt;p&gt;The tool points at a file or line range and synthesizes a narrative: who
+introduced this code, when, what commits modified it, what issues and PRs are
+referenced, what type of changes they were (bug fix, feature, security patch).&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;why app&amp;#x2F;models&amp;#x2F;user.rb --range 100-150
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;pre&gt;&lt;code&gt;The Story
+=========
+
+This code was first introduced by Jeff Atwood on 2020-05-22.
+The initial commit said: &amp;quot;Revert &amp;#x27;Merge branch master&amp;#x27;&amp;quot;
+
+Since then, it has been modified 5 time(s):
+
+  * FIX: do not send rejection emails to auto-deleted users (#12160)
+    by Arpit Jalan
+    Type: Bug fix
+
+  * SECURITY: Limit name field length of TOTP authenticators
+    by OsamaSayegh
+    Type: Security
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;h2 id=&quot;the-process&quot;&gt;The Process&lt;&#x2F;h2&gt;
+&lt;p&gt;What struck me was how Claude approached it. It started by reasoning about
+what problems it encounters repeatedly. Not what would be cool to build, but
+what it genuinely wished existed.&lt;&#x2F;p&gt;
+&lt;p&gt;Then it moved fast. Within minutes: Rust project scaffolded, git blame
+parsing working, commit categorization logic, GitHub API integration. It
+tested on its own source code, then on Discourse (a large real-world
+codebase I work on).&lt;&#x2F;p&gt;
+&lt;p&gt;When I suggested adding Discourse as a context source (we use it for work
+discussions), it designed a pluggable trait system:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;rust&quot; class=&quot;language-rust &quot;&gt;&lt;code class=&quot;language-rust&quot; data-lang=&quot;rust&quot;&gt;#[async_trait]
+pub trait ContextSource: Send + Sync {
+    fn name(&amp;amp;self) -&amp;gt; &amp;amp;str;
+    fn detect_references(&amp;amp;self, text: &amp;amp;str) -&amp;gt; Vec&amp;lt;Reference&amp;gt;;
+    async fn fetch_reference(&amp;amp;self, reference: &amp;amp;Reference) -&amp;gt; Result&amp;lt;Option&amp;lt;ContextItem&amp;gt;&amp;gt;;
+    async fn search(&amp;amp;self, query: &amp;amp;str) -&amp;gt; Result&amp;lt;Vec&amp;lt;ContextItem&amp;gt;&amp;gt;;
+    fn is_available(&amp;amp;self) -&amp;gt; bool;
+}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;GitHub and Discourse implementations, easy to add more. The architecture
+emerged naturally from the feature request.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-tangents&quot;&gt;The Tangents&lt;&#x2F;h2&gt;
+&lt;p&gt;We went down a few rabbit holes. I mentioned that real context often lives in
+Slack threads that never got linked to the code. Claude immediately saw the
+harder problem: semantic search across communication history, not just
+following explicit links.&lt;&#x2F;p&gt;
+&lt;p&gt;It outlined what that would require: embeddings, RAG pipelines, LLM synthesis.
+Then it asked the right question: &quot;Worth building? Or is this scope creep from
+a useful simple tool into a research project?&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;We also briefly explored turning it into an MCP server so Claude could call it
+during conversations. Another good idea, but another scope expansion.&lt;&#x2F;p&gt;
+&lt;p&gt;I kept pulling back to &quot;what&#x27;s actually useful now&quot; and Claude adjusted. No
+ego about its ideas. Just: &quot;Good call. Let me clean up and commit.&quot;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-i-learned&quot;&gt;What I Learned&lt;&#x2F;h2&gt;
+&lt;p&gt;A few observations from this experiment:&lt;&#x2F;p&gt;
+&lt;p&gt;First, the AI had genuine preferences. It didn&#x27;t pick something random or
+impressive-sounding. It picked a tool that would help it do its job better.
+There&#x27;s something interesting about that.&lt;&#x2F;p&gt;
+&lt;p&gt;Second, the iteration loop was fast. Feature idea to working code in minutes.
+Not because the code was simple, but because there was no translation layer.
+Claude understood what it wanted and knew how to build it.&lt;&#x2F;p&gt;
+&lt;p&gt;Third, scope management mattered. Left unchecked, we could have spent hours
+on semantic search and MCP servers. The human role was less about technical
+direction and more about &quot;is this the thing we&#x27;re building right now?&quot;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-tool&quot;&gt;The Tool&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;code&gt;why&lt;&#x2F;code&gt; is at &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;why&quot;&gt;github.com&#x2F;ducks&#x2F;why&lt;&#x2F;a&gt;. Rust, MIT
+licensed, about 900 lines. It actually works.&lt;&#x2F;p&gt;
+&lt;p&gt;Whether I&#x27;ll use it daily, I don&#x27;t know. But it exists because I asked an AI
+what it would build if it could build anything, and it had an answer.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

@@ -53,9 +53,10 @@ should be kept apart.
 The first is about the author: writing is a tool for thought. Forcing vague
 intent into sentences makes the incoherence surface, which is why the practice
 produces better plans. This claim is roughly true, and it survives AI, because
-it lives entirely in whoever holds the pen during composition. If a model
-holds the pen, the thinking does not happen. If you think and the model
-transcribes, it happens exactly as well as it ever did.
+the benefit comes from working through the ideas. If a model does the thinking
+for you, the benefit disappears. If you use it to articulate, challenge, and
+refine your own thinking, the benefit survives, even if the model generates
+every sentence.
 
 The second is about the reader: the document is evidence, a reason to spend
 your hour. This claim was always false, as the book reports prove, and AI
@@ -99,10 +100,12 @@ line from the policies being written right now, and it works because it moves
 the cost from producing text to defending it, which AI cannot take off your
 table.
 
-Make the thinking inspectable instead of inferred. A finished document proves
-nothing, but a history usually does. Drafts, edits, revisions, and decision
-logs show whether thought preceded writing. A six-page memo that emerged from
-one prompt and zero edits tells its own story in its metadata.
+Make the thinking inspectable instead of inferred. Drafts, edits, revisions,
+and decision logs can help a reader follow how an argument developed and where
+to question it. They are supporting evidence, not proof: an agent can generate
+a convincing history, and a person can think carefully before writing a single
+draft. The useful part is being able to explain what changed, why it changed,
+and what evidence would make you change your mind again.
 
 Match the ritual to the risk. One-way doors deserve the slow ceremony,
 humans reading humans with red pens. Two-way doors should ship, roll back,
@@ -119,12 +122,12 @@ I have been building toward this format without noticing. ARF is a small spec
 for capturing agent reasoning: what, why, how, and backup, four fields, with
 the rollback plan required before the action ships.
 
-Six lines, not six pages. And the backup field is where the proof of thought
-lives, because writing a rollback plan means you had to imagine failure
-before acting, which is the thinking that length was always pretending to
-detect. An artifact a sincere author can produce in ninety seconds and a
-faker cannot fill in honestly is worth more than a document that takes a week
-and says nothing.
+Six lines, not six pages. And the backup field is where the thinking becomes
+testable. A model can produce a plausible rollback plan in seconds. The useful
+questions are whether the plan works, whether you can execute it with the
+access and state you will actually have, and whether you can explain what it
+will and will not recover. A short plan you can validate and defend is worth
+more than a document that takes a week and says nothing.
 
 That is the same shift I wrote about in
 [I Don't Type Every Word You Read](/blog/2026/no-i-dont-type-every-word-you-read/),

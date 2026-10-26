@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - javascript</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/javascript/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Thu, 30 Jul 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>googlyeyes.dev: I Built a Website That Looks Back</title>
+          <pubDate>Thu, 30 Jul 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/building-googlyeyes-dev/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/building-googlyeyes-dev/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/building-googlyeyes-dev/">&lt;p&gt;I had an app idea that had been sitting in my head for a while:&lt;&#x2F;p&gt;
+&lt;p&gt;Upload an image. Put googly eyes on it. Download the result.&lt;&#x2F;p&gt;
+&lt;p&gt;That was the whole idea.&lt;&#x2F;p&gt;
+&lt;p&gt;Then, while talking through the first version, I realized a flat image was not
+enough. If the eyes were SVG, the pupils could move. If the pupils could move,
+they should follow the cursor. The thing you put eyes on should look back at
+you.&lt;&#x2F;p&gt;
+&lt;p&gt;So I built &lt;a href=&quot;https:&#x2F;&#x2F;googlyeyes.dev&quot;&gt;googlyeyes.dev&lt;&#x2F;a&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;It runs entirely in the browser. Drop in an image, add as many pairs of eyes as
+the situation calls for, move and resize them, then download either a still PNG
+or an interactive SVG that keeps watching whoever opens it.&lt;&#x2F;p&gt;
+&lt;p&gt;Nobody needed this. I wanted it anyway.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;&#x2F;images&#x2F;2026&#x2F;googlyeyes&#x2F;jimothy.webp&quot; alt=&quot;Jimothy the raccoon with a pair of googly eyes&quot; &#x2F;&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;em&gt;Jimothy, improved.&lt;&#x2F;em&gt;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-image-never-leaves-the-browser&quot;&gt;The image never leaves the browser&lt;&#x2F;h2&gt;
+&lt;p&gt;There is no backend.&lt;&#x2F;p&gt;
+&lt;p&gt;When you choose an image, the browser reads it with &lt;code&gt;FileReader&lt;&#x2F;code&gt; and turns it
+into a data URL. That URL becomes the source of an &lt;code&gt;&amp;lt;image&amp;gt;&lt;&#x2F;code&gt; element inside the
+editor&#x27;s SVG:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;javascript&quot; class=&quot;language-javascript &quot;&gt;&lt;code class=&quot;language-javascript&quot; data-lang=&quot;javascript&quot;&gt;const reader = new FileReader();
+
+reader.addEventListener(&amp;#x27;load&amp;#x27;, () =&amp;gt; {
+  const image = new Image();
+
+  image.addEventListener(&amp;#x27;load&amp;#x27;, () =&amp;gt; {
+    artwork.setAttribute(
+      &amp;#x27;viewBox&amp;#x27;,
+      `0 0 ${image.naturalWidth} ${image.naturalHeight}`
+    );
+
+    sourceImage.setAttribute(&amp;#x27;width&amp;#x27;, image.naturalWidth);
+    sourceImage.setAttribute(&amp;#x27;height&amp;#x27;, image.naturalHeight);
+    sourceImage.setAttribute(&amp;#x27;href&amp;#x27;, reader.result);
+  });
+
+  image.src = reader.result;
+});
+
+reader.readAsDataURL(file);
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The raster image is embedded in the SVG, and the eyes are vector elements
+drawn over it. Nothing gets uploaded, stored, resized on a server, or quietly
+fed into some image API. The browser already knows how to do all of this.&lt;&#x2F;p&gt;
+&lt;p&gt;That also makes the app unusually easy to host. The production build is static
+HTML, CSS, and JavaScript on GitHub Pages. There is no database to migrate, no
+process to keep alive, and no user data to lose.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;a-googly-eye-is-a-constrained-cursor&quot;&gt;A googly eye is a constrained cursor&lt;&#x2F;h2&gt;
+&lt;p&gt;Each pair is an SVG group containing two white circles and two black circles.
+The white circles stay put. The black ones want to move toward the cursor, but
+only as far as the inside of the eye allows.&lt;&#x2F;p&gt;
+&lt;p&gt;For each pupil, I take the vector from the center of its eye to the cursor and
+cap its length:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;javascript&quot; class=&quot;language-javascript &quot;&gt;&lt;code class=&quot;language-javascript&quot; data-lang=&quot;javascript&quot;&gt;const dx = cursor.x - eyeCenter.x;
+const dy = cursor.y - eyeCenter.y;
+const distance = Math.hypot(dx, dy) || 1;
+const scale = Math.min(maxTravel &amp;#x2F; distance, 1);
+
+pupil.targetX = dx * scale;
+pupil.targetY = dy * scale;
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;That gives me the target position. Moving directly to it looked too clean. The
+pupils snapped around like a UI element, not a cheap plastic eye with a loose
+black disc trapped inside it.&lt;&#x2F;p&gt;
+&lt;p&gt;So each animation frame only covers part of the remaining distance:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;javascript&quot; class=&quot;language-javascript &quot;&gt;&lt;code class=&quot;language-javascript&quot; data-lang=&quot;javascript&quot;&gt;pupil.x += (pupil.targetX - pupil.x) * 0.18;
+pupil.y += (pupil.targetY - pupil.y) * 0.18;
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;That &lt;code&gt;0.18&lt;&#x2F;code&gt; is most of the personality in the application. It gives the eyes a
+small amount of lag. Move the cursor quickly and the pupils hurry after it.
+Stop, and they settle into place.&lt;&#x2F;p&gt;
+&lt;p&gt;This is not physically accurate googly-eye simulation. I did not model gravity,
+friction, or the tiny manufacturing defects that make one pupil stick while the
+other rattles freely. There is still room to innovate.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-downloaded-svg-is-still-alive&quot;&gt;The downloaded SVG is still alive&lt;&#x2F;h2&gt;
+&lt;p&gt;PNG export is the easy path. Clone the SVG, draw it onto a canvas, ask the
+canvas for a PNG.&lt;&#x2F;p&gt;
+&lt;p&gt;The more interesting export is the SVG itself.&lt;&#x2F;p&gt;
+&lt;p&gt;When you click &lt;strong&gt;Download living SVG&lt;&#x2F;strong&gt;, the app clones the editor SVG, removes
+selection outlines and editor-only classes, writes the eye geometry into data
+attributes, and embeds a small script containing the same pupil-following
+logic.&lt;&#x2F;p&gt;
+&lt;p&gt;The result is one file. The original image is a data URL. The eyes are circles.
+The behavior is a script at the bottom. Open it directly in a browser and it
+keeps looking at the cursor without needing googlyeyes.dev again.&lt;&#x2F;p&gt;
+&lt;p&gt;There is a catch: not every place that displays an SVG allows its embedded
+scripts to run. That is a sensible security restriction. GitHub, image tags,
+and various content systems may render the image while disabling the
+interaction. That is why the PNG export exists, and why I call the SVG
+&quot;living&quot; instead of pretending all SVG viewers behave the same way.&lt;&#x2F;p&gt;
+&lt;p&gt;The file keeps the behavior wherever the viewer permits it. Everywhere else,
+it is still a perfectly respectable picture with googly eyes on it.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;building-the-editor-around-the-joke&quot;&gt;Building the editor around the joke&lt;&#x2F;h2&gt;
+&lt;p&gt;The rest of the app is deliberately small:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Upload or drag in an image&lt;&#x2F;li&gt;
+&lt;li&gt;Get one pair of eyes immediately&lt;&#x2F;li&gt;
+&lt;li&gt;Drag a pair anywhere on the image&lt;&#x2F;li&gt;
+&lt;li&gt;Adjust its size, spacing, and rotation&lt;&#x2F;li&gt;
+&lt;li&gt;Add more pairs&lt;&#x2F;li&gt;
+&lt;li&gt;Remove the pair you regret&lt;&#x2F;li&gt;
+&lt;li&gt;Export SVG or PNG&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;The first pair appears automatically because an eye-adding application should
+not make you find the eye-adding button before it does the one thing it exists
+to do.&lt;&#x2F;p&gt;
+&lt;p&gt;The controls sit beside the image on desktop and below it on mobile. The image
+scales to fit the editor, but all eye positions live in the SVG&#x27;s coordinate
+system, so resizing the browser does not move them off the face, toaster, tree,
+or municipal infrastructure they were carefully attached to.&lt;&#x2F;p&gt;
+&lt;p&gt;There is no face detection. I considered it for about ten seconds and decided
+clicking and dragging eyes onto something is most of the fun. Automatically
+finding the correct place would make the result faster and the application
+worse.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-domain-was-harder-than-the-app&quot;&gt;The domain was harder than the app&lt;&#x2F;h2&gt;
+&lt;p&gt;The first name was &lt;code&gt;googlyey.es&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;It looked good written down. The &lt;code&gt;.es&lt;&#x2F;code&gt; finished the word. I checked the domain,
+found it available, and then discovered that registering a Spanish domain came
+with a surprising amount of form-filling for a website about movable pupils.&lt;&#x2F;p&gt;
+&lt;p&gt;No.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;code&gt;googlyeyes.dev&lt;&#x2F;code&gt; was also available. I bought that instead.&lt;&#x2F;p&gt;
+&lt;p&gt;The site deploys through GitHub Actions to GitHub Pages. I used the
+&lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;namecom-cli-in-nushell&#x2F;&quot;&gt;name.com CLI I built earlier&lt;&#x2F;a&gt; to add
+GitHub&#x27;s four apex records and the &lt;code&gt;www&lt;&#x2F;code&gt; CNAME:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;nu&quot; class=&quot;language-nu &quot;&gt;&lt;code class=&quot;language-nu&quot; data-lang=&quot;nu&quot;&gt;namecom add googlyeyes.dev @ A 185.199.108.153
+namecom add googlyeyes.dev @ A 185.199.109.153
+namecom add googlyeyes.dev @ A 185.199.110.153
+namecom add googlyeyes.dev @ A 185.199.111.153
+namecom add googlyeyes.dev www CNAME ducks.github.io
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;For a few minutes, public DNS still returned name.com&#x27;s parking address.
+Then DNS moved to GitHub before GitHub had finished issuing the certificate,
+which produced the alarming but temporary
+&lt;code&gt;SSL_ERROR_UNRECOGNIZED_NAME_ALERT&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;By the time I finished checking all the records, GitHub had approved the
+certificate for both the apex and &lt;code&gt;www&lt;&#x2F;code&gt;, HTTPS was enforced, and the site was
+live.&lt;&#x2F;p&gt;
+&lt;p&gt;The actual application build was the uncomplicated part. As usual, naming and
+DNS found a way to make themselves the story.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-it-does-not-do&quot;&gt;What it does not do&lt;&#x2F;h2&gt;
+&lt;p&gt;The app has no accounts, saved projects, sharing feed, automatic face detection,
+or AI image analysis. It cannot generate a link to your creation because the
+creation never leaves your machine.&lt;&#x2F;p&gt;
+&lt;p&gt;I like that boundary.&lt;&#x2F;p&gt;
+&lt;p&gt;It is a tool with one session and one job. Open it, vandalize an image with
+eyes, keep the result, close the tab. The lack of persistence is not an
+unfinished database feature. It is the privacy model and most of the
+architecture.&lt;&#x2F;p&gt;
+&lt;p&gt;The code is plain JavaScript and SVG with Vite handling the build. No component
+framework. No canvas editor library. The production JavaScript is about 10 KB
+compressed before gzip, which is already more than enough software for this
+idea.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;it-looked-back&quot;&gt;It looked back&lt;&#x2F;h2&gt;
+&lt;p&gt;I recently wrote that
+&lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;software-doesnt-have-to-justify-itself&#x2F;&quot;&gt;software does not have to justify itself&lt;&#x2F;a&gt;.
+This is exactly the kind of project I meant.&lt;&#x2F;p&gt;
+&lt;p&gt;There is no market analysis for interactive googly-eye placement. I did not
+interview users to discover whether their current image-eyeing workflow was
+underserved. I had a dumb image in my head, realized the browser could make it
+move, and wanted to see it happen.&lt;&#x2F;p&gt;
+&lt;p&gt;Then it happened.&lt;&#x2F;p&gt;
+&lt;p&gt;The first time the pupils followed my cursor across an uploaded image, the app
+was done in the only sense that mattered. Everything after that was controls,
+export, a domain, and enough polish to let other people make the same stupid
+thing.&lt;&#x2F;p&gt;
+&lt;p&gt;Try it: &lt;a href=&quot;https:&#x2F;&#x2F;googlyeyes.dev&quot;&gt;googlyeyes.dev&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Source: &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;googlyeyes&quot;&gt;github.com&#x2F;ducks&#x2F;googlyeyes&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

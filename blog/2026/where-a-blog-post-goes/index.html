@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="A post reached TLDR, Hacker News, curated reading lists, search engines, and work chats. The interesting part of the analytics was the variety of ways people found it.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Where a Blog Post Goes">
+    <meta property="og:description" content="A post reached TLDR, Hacker News, curated reading lists, search engines, and work chats. The interesting part of the analytics was the variety of ways people found it.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;where-a-blog-post-goes&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Where a Blog Post Goes">
+    <meta name="twitter:description" content="A post reached TLDR, Hacker News, curated reading lists, search engines, and work chats. The interesting part of the analytics was the variety of ways people found it.">
+
+    <title>Where a Blog Post Goes - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css?h=4ae15179b7c33c92f362" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Where a Blog Post Goes</h1>
+      <div class="meta">
+        
+        <p>Oct 24, 2026</p>
+        
+        <p>5 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/blog">#blog</a></p>
+          
+          <p><a href="/tags/writing">#writing</a></p>
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+        </div>
+      
+
+      
+  
+
+
+      <p>On September 26, I published <a href="/blog/2026/goodbye-to-the-hard-parts-that-never-mattered/">Goodbye to the Hard Parts That Never
+Mattered</a>. It was a
+response to another post about what AI is changing in software engineering.</p>
+<p>By October 24, GoatCounter had recorded 4,818 visits to it. On September 28
+alone, it recorded 3,229.</p>
+<p>Those are big numbers for this blog. But the part that surprised me most was
+the list of places people came from.</p>
+<p>TLDR. Hacker News. Labnotes. Brutalist Report. LinkedIn. Google. Kagi. Slack.
+Microsoft Teams.</p>
+<p>A newsletter, a discussion site, curated reading lists, search engines, and
+work chats. All leading to the same Markdown file on my VPS.</p>
+<h2 id="the-large-sources-and-the-small-ones">The large sources and the small ones</h2>
+<p>I queried the SQLite database behind my self-hosted GoatCounter instance. These
+are some of the referral counts from publication through October 24:</p>
+<table><thead><tr><th>Source</th><th style="text-align: right">Visits</th></tr></thead><tbody>
+<tr><td>TLDR Newsletter</td><td style="text-align: right">2,277</td></tr>
+<tr><td>Hacker News</td><td style="text-align: right">978</td></tr>
+<tr><td>Labnotes</td><td style="text-align: right">67</td></tr>
+<tr><td>Brutalist Report</td><td style="text-align: right">52</td></tr>
+<tr><td>LinkedIn</td><td style="text-align: right">43</td></tr>
+<tr><td>Google</td><td style="text-align: right">31</td></tr>
+<tr><td>Microsoft Teams related referrer</td><td style="text-align: right">18</td></tr>
+<tr><td>Kagi</td><td style="text-align: right">15</td></tr>
+<tr><td>Slack</td><td style="text-align: right">12</td></tr>
+</tbody></table>
+<p>Another 1,155 visits had no recorded referrer. That bucket could include
+bookmarks, email, private messages, and browsers that strip the information.
+It does not tell me which.</p>
+<p>TLDR and Hacker News account for about two-thirds of the article's counted
+visits. They explain most of the volume.</p>
+<p>But twelve visits from Slack are interesting in a different way.</p>
+<p>A referrer cannot tell me what someone said when they shared the link. Maybe
+it supported an argument. Maybe someone thought it was bullshit. Maybe it
+landed in a channel full of links that nobody had time to read.</p>
+<p>I have no idea. I can see the click that reached my site. Everything around it
+is missing.</p>
+<p>The same is true of the Teams-related traffic. It suggests a route through a
+workplace tool, without giving me a window into the workplace. I find that
+little trace more interesting than its contribution to the total.</p>
+<p>I also found Nathan Pettit responding to the article on LinkedIn. He agreed
+with parts of it and pushed back on others. Someone else had saved it to
+Scholion with annotations. Those tell me something a referral count cannot:
+someone took the time to formulate a counterargument, and someone else took
+notes. In the traffic data, either interaction could look like another click,
+if it appeared at all.</p>
+<p>Then there are the tracked email clicks. For several days, I have been
+watching links with HubSpot tracking parameters arrive without being able to
+identify the sender. I can recognize the distribution technology. I still do
+not know which email carried the link or what it said.</p>
+<h2 id="a-different-kind-of-discovery">A different kind of discovery</h2>
+<p>In May, I wrote about <a href="/blog/2026/blog-stats-six-numbers/">six numbers from this blog's
+analytics</a>. The biggest single-day spike I
+found then was 33 visits to a post about Nix shells, SSH, and Claude Code.</p>
+<p>The pattern at the time was specific technical problems getting found through
+search. Someone hits an error, searches for it, and finds the thing I wrote
+when I hit the same error. A small post keeps being useful months later.</p>
+<p>I still like that pattern. A lot of this blog exists because I would rather
+write down the fix once than figure it out again six months from now.</p>
+<p>This post had a different shape. It was an essay about the work itself, and
+people reached it through newsletters, reading lists, and links shared with
+other people. Google accounted for just 31 visits in the referral data.</p>
+<p>That is an interesting addition to what I saw in May. The technical posts
+were being discovered through a problem someone already had. This one could
+turn up among the things someone else thought were worth reading.</p>
+<p>The countries were varied too. The United States supplied the largest share,
+followed by the United Kingdom, Germany, Canada, and Australia. Those are the
+top five, not the whole list.</p>
+<p>There are several kinds of distance in that data. Geographic distance is the
+one with country names. The distance between my blog and a work chat I will
+never see is harder to measure.</p>
+<h2 id="what-the-numbers-leave-out">What the numbers leave out</h2>
+<p>These are recorded visits, not 4,818 distinct people. They do not tell me how
+many people finished the post or agreed with it. October 24 was also still in
+progress when I ran the queries.</p>
+<p>The site recorded 45 helpful-click events associated with the article. That
+is another small piece of feedback, with plenty left unexplained.</p>
+<p>I could spend a lot of time trying to turn all of this into a strategy. Find
+the right subject. Get into the right newsletter. Reproduce the spike.</p>
+<p>What interests me more is how many routes showed up at all.</p>
+<p>I wrote a response to something I read. It became something other people
+could read, search for, collect, or pass along. Some of those routes left a
+name in a database. Plenty probably did not.</p>
+<p>A dozen Slack visits will not dominate a traffic chart. They were still
+someone following a link to something I wrote.</p>
+<p>That is a pretty good reason to keep publishing.</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;where-a-blog-post-goes&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-where-a-blog-post-goes"
+      data-goatcounter-title="Helpful click on blog-2026-where-a-blog-post-goes"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;blog-stats-six-numbers&#x2F;">Six numbers from my blog&#x27;s analytics</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 17, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">I dug into the GoatCounter database for my blog. Single-day spikes, fastest risers, fastest first month, two kinds of streaks, and where readers actually come from.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/blog">#blog</a></p>
+                      
+                      <p><a href="/tags/writing">#writing</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;was-this-helpful-button&#x2F;">A &#x27;Was this helpful?&#x27; button for a static blog</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 16, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Lightweight per-post feedback without a backend, database, or comments system. Tera macro, ~25 lines of JavaScript, and one data attribute that lets GoatCounter do the actual work.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/zola">#zola</a></p>
+                      
+                      <p><a href="/tags/blog">#blog</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;six-pages-not-proof-of-thought&#x2F;">Six Pages Was Never Proof of Anything</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 25, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">The mourning for Amazon&#x27;s writing culture confuses two claims. Writing as thinking is true and survives AI. Writing as evidence was always false. The successor to word count is not shorter documents, it is accountable ones.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/writing">#writing</a></p>
+                      
+                      <p><a href="/tags/craft">#craft</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;software-doesnt-have-to-justify-itself&#x2F;">Software Doesn&#x27;t Have to Justify Itself, or the Joy of Useless Programming</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 29, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">Software does not always have to justify itself as a product or a startup. Sometimes it is just a creative medium, and a silly Discourse plugin is the proof.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/writing">#writing</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                      <p><a href="/tags/craft">#craft</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;blog-stats-six-numbers&#x2F;">Six numbers from my blog&#x27;s analytics</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 17, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">I dug into the GoatCounter database for my blog. Single-day spikes, fastest risers, fastest first month, two kinds of streaks, and where readers actually come from.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/blog">#blog</a></p>
+                      
+                      <p><a href="/tags/writing">#writing</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>

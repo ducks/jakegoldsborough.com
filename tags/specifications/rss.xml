@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - specifications</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/specifications/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Mon, 06 Apr 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Jobchain: Verifiable Employment Credentials</title>
+          <pubDate>Mon, 06 Apr 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/jobchain-verifiable-employment-credentials/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/jobchain-verifiable-employment-credentials/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/jobchain-verifiable-employment-credentials/">&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;hachyderm.io&#x2F;@michalfita@mastodon.social&#x2F;116330706279023796&quot;&gt;Michał Fita responded to my whoami-spec post&lt;&#x2F;a&gt; asking about verifiable credentials. His point: we should be able to prove employment history with cryptographic signatures, not chiselled PDFs that ATSes shred back into text.&lt;&#x2F;p&gt;
+&lt;p&gt;He was right about the problem. But every previous attempt at this (Blockcerts, LinkedIn verified credentials, W3C VCs) died because it&#x27;s a three-sided marketplace. Employers have to issue credentials. Employees have to hold them. ATSes have to consume them. Nobody wants to go first.&lt;&#x2F;p&gt;
+&lt;p&gt;I built the tooling anyway.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-problem&quot;&gt;The Problem&lt;&#x2F;h2&gt;
+&lt;p&gt;The employment verification pipeline is absurd:&lt;&#x2F;p&gt;
+&lt;ol&gt;
+&lt;li&gt;You write a resume (self-attested, no proof)&lt;&#x2F;li&gt;
+&lt;li&gt;You export to PDF (formatting lottery)&lt;&#x2F;li&gt;
+&lt;li&gt;An ATS OCRs it back to text (lossy, error-prone)&lt;&#x2F;li&gt;
+&lt;li&gt;A background check company calls your old employer (slow, expensive)&lt;&#x2F;li&gt;
+&lt;li&gt;Someone confirms dates over the phone (binary pass&#x2F;fail)&lt;&#x2F;li&gt;
+&lt;&#x2F;ol&gt;
+&lt;p&gt;Every step degrades information. The structured data you started with becomes an unstructured phone call. There has to be a better way.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-fix&quot;&gt;The Fix&lt;&#x2F;h2&gt;
+&lt;p&gt;Public key cryptography. Same thing that makes HTTPS work.&lt;&#x2F;p&gt;
+&lt;p&gt;Your employer has a keypair. They sign a JSON document saying you worked there. Anyone can verify the signature by checking the public key hosted on the employer&#x27;s domain.&lt;&#x2F;p&gt;
+&lt;p&gt;No blockchain. No platform. No account to create. DNS is the trust anchor.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;how-it-works&quot;&gt;How It Works&lt;&#x2F;h2&gt;
+&lt;p&gt;Three commands:&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;1-employer-creates-an-identity&quot;&gt;1. Employer creates an identity&lt;&#x2F;h3&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;$ jobchain init --org &amp;quot;Discourse&amp;quot; --domain discourse.org
+
+Initialized jobchain identity for Discourse
+  DID: did:web:discourse.org
+  Next: host did.json at https:&amp;#x2F;&amp;#x2F;discourse.org&amp;#x2F;.well-known&amp;#x2F;did.json
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This generates an Ed25519 keypair and a &lt;a href=&quot;https:&#x2F;&#x2F;www.w3.org&#x2F;TR&#x2F;did-core&#x2F;&quot;&gt;DID document&lt;&#x2F;a&gt;. The public key lives at a well-known URL on the company&#x27;s domain. If you control &lt;code&gt;discourse.org&lt;&#x2F;code&gt;, you control the identity. No certificate authority, no third party.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;2-employer-issues-a-credential&quot;&gt;2. Employer issues a credential&lt;&#x2F;h3&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;$ echo &amp;#x27;{&amp;quot;title&amp;quot;:&amp;quot;Infrastructure Engineer&amp;quot;,&amp;quot;company&amp;quot;:&amp;quot;Discourse&amp;quot;,&amp;quot;start&amp;quot;:&amp;quot;2024-03&amp;quot;}&amp;#x27; \
+  | jobchain issue --domain discourse.org
+
+{
+  &amp;quot;@context&amp;quot;: [&amp;quot;https:&amp;#x2F;&amp;#x2F;www.w3.org&amp;#x2F;2018&amp;#x2F;credentials&amp;#x2F;v1&amp;quot;],
+  &amp;quot;type&amp;quot;: [&amp;quot;VerifiableCredential&amp;quot;, &amp;quot;EmploymentCredential&amp;quot;],
+  &amp;quot;issuer&amp;quot;: &amp;quot;did:web:discourse.org&amp;quot;,
+  &amp;quot;credentialSubject&amp;quot;: {
+    &amp;quot;type&amp;quot;: &amp;quot;EmploymentRecord&amp;quot;,
+    &amp;quot;title&amp;quot;: &amp;quot;Infrastructure Engineer&amp;quot;,
+    &amp;quot;company&amp;quot;: &amp;quot;Discourse&amp;quot;,
+    &amp;quot;start&amp;quot;: &amp;quot;2024-03&amp;quot;
+  },
+  &amp;quot;proof&amp;quot;: {
+    &amp;quot;type&amp;quot;: &amp;quot;Ed25519Signature2020&amp;quot;,
+    &amp;quot;proofValue&amp;quot;: &amp;quot;z4jH8n...&amp;quot;
+  }
+}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;That&#x27;s a &lt;a href=&quot;https:&#x2F;&#x2F;www.w3.org&#x2F;TR&#x2F;vc-data-model&#x2F;&quot;&gt;W3C Verifiable Credential&lt;&#x2F;a&gt;. Structured JSON, signed with Ed25519. Hand the &lt;code&gt;.vc.json&lt;&#x2F;code&gt; file to the employee.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;3-anyone-verifies&quot;&gt;3. Anyone verifies&lt;&#x2F;h3&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;$ jobchain verify --input jake-discourse.vc.json
+
+VALID -- credential signature verified
+  Issuer:  did:web:discourse.org
+  Subject: Infrastructure Engineer at Discourse
+  Issued:  2026-04-02
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The verify command fetches the public key from &lt;code&gt;discourse.org&#x2F;.well-known&#x2F;did.json&lt;&#x2F;code&gt; and checks the signature. No account needed. No API key. Just math.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-wallet-is-a-git-repo&quot;&gt;The Wallet Is a Git Repo&lt;&#x2F;h2&gt;
+&lt;p&gt;Your &quot;wallet&quot; is a folder of &lt;code&gt;.vc.json&lt;&#x2F;code&gt; files. Host it anywhere. GitHub Pages, Netlify, your own server.&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;$ jobchain wallet build --dir .&amp;#x2F;credentials --out .&amp;#x2F;site
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This generates an HTML site with your credentials and a machine-readable &lt;code&gt;index.json&lt;&#x2F;code&gt; manifest. Hiring managers see a clean page. ATS systems consume structured JSON. Same data, two views.&lt;&#x2F;p&gt;
+&lt;p&gt;The wallet is static files. Push to a repo, deploy to Pages. Done.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;why-not-blockchain&quot;&gt;Why Not Blockchain&lt;&#x2F;h2&gt;
+&lt;p&gt;This comes up immediately, so let me address it.&lt;&#x2F;p&gt;
+&lt;p&gt;Blockchain solves one problem jobchain doesn&#x27;t: persistence after the issuer disappears. If &lt;code&gt;discourse.org&lt;&#x2F;code&gt; goes dark, the public key is gone and nobody can verify old credentials.&lt;&#x2F;p&gt;
+&lt;p&gt;But blockchain adds massive complexity for that edge case. Consensus mechanisms, gas fees, infrastructure dependencies. And the social problem (getting employers to issue credentials) doesn&#x27;t change regardless of the storage layer.&lt;&#x2F;p&gt;
+&lt;p&gt;For now, DNS is the trust anchor. If persistence matters later, there are simpler solutions: key archival services, IPFS pinning, or embedding the public key in the credential itself.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;amendments&quot;&gt;Amendments&lt;&#x2F;h2&gt;
+&lt;p&gt;Credentials aren&#x27;t static. You get promoted. You change teams. Jobchain supports amendments: signed updates linked to the original credential via content hash.&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;$ jobchain amend --credential jake-discourse.vc.json \
+    --domain discourse.org \
+    --patch &amp;#x27;{&amp;quot;title&amp;quot;:&amp;quot;Senior Infrastructure Engineer&amp;quot;}&amp;#x27; \
+    --effective-date 2025-06
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Each amendment is independently verifiable. The chain forms a linked list: original credential, then amendments, each signed and hash-linked to its predecessor.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-this-is-not&quot;&gt;What This Is Not&lt;&#x2F;h2&gt;
+&lt;p&gt;It&#x27;s not a platform. There&#x27;s no service to sign up for, no data to hand over.&lt;&#x2F;p&gt;
+&lt;p&gt;It&#x27;s not self-attested. Only the employer&#x27;s private key can produce a valid signature.&lt;&#x2F;p&gt;
+&lt;p&gt;It&#x27;s not a resume replacement. &lt;a href=&quot;https:&#x2F;&#x2F;jobl.dev&quot;&gt;JOBL&lt;&#x2F;a&gt; handles the self-authored resume. Jobchain handles what others can confirm about you. They complement each other.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-architecture&quot;&gt;The Architecture&lt;&#x2F;h2&gt;
+&lt;p&gt;Jobchain is a Cargo workspace with three crates:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;jobchain-core&lt;&#x2F;strong&gt;: credential types, Ed25519 signing, DID documents, amendment chains&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;jobchain-verify&lt;&#x2F;strong&gt;: signature verification only, kept slim for future WASM compilation&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;jobchain-cli&lt;&#x2F;strong&gt;: the &lt;code&gt;jobchain&lt;&#x2F;code&gt; binary&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;131 tests. All passing.&lt;&#x2F;p&gt;
+&lt;p&gt;The verify crate is deliberately lightweight. No HTTP client, no file I&#x2F;O, no CLI dependencies. The plan is to compile it to WASM so the wallet can verify credentials in-browser without a server.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-i-actually-used-to-build-this&quot;&gt;What I Actually Used to Build This&lt;&#x2F;h2&gt;
+&lt;p&gt;I used &lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;finna-multi-model-spec-implement&#x2F;&quot;&gt;finna&lt;&#x2F;a&gt; to architect and implement it. Claude and Gemini debated the architecture, generated 16 implementation specs, then Claude implemented each spec as a feature branch. The whole thing -- keypair generation, DID documents, credential signing, verification, amendments, adapter traits, wallet generator, CLI, 131 tests -- was implemented in one session.&lt;&#x2F;p&gt;
+&lt;p&gt;I reviewed the output, fixed a few things, and it worked end to end. That&#x27;s a different kind of project kickstart than I&#x27;m used to.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-hard-part&quot;&gt;The Hard Part&lt;&#x2F;h2&gt;
+&lt;p&gt;The tooling exists. The hard part is adoption.&lt;&#x2F;p&gt;
+&lt;p&gt;Someone has to go first. An employer has to host a &lt;code&gt;did.json&lt;&#x2F;code&gt; and issue a credential. An employee has to publish their wallet. A hiring manager has to check it.&lt;&#x2F;p&gt;
+&lt;p&gt;I work at a smaller company. We could try it. The ask is small: host one JSON file, run one command when someone joins or leaves. Frame it as a signed reference letter that&#x27;s machine-verifiable.&lt;&#x2F;p&gt;
+&lt;p&gt;That&#x27;s the next step.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;current-status&quot;&gt;Current Status&lt;&#x2F;h2&gt;
+&lt;p&gt;Working CLI with all Phase 1 features:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;jobchain init&lt;&#x2F;code&gt; -- generate org identity&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;jobchain issue&lt;&#x2F;code&gt; -- sign employment credentials&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;jobchain verify&lt;&#x2F;code&gt; -- check signatures (offline or via DID resolution)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;jobchain amend&lt;&#x2F;code&gt; -- signed amendments to existing credentials&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;code&gt;jobchain wallet build&lt;&#x2F;code&gt; -- static site generator&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;What&#x27;s missing:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Actual adoption by an employer&lt;&#x2F;li&gt;
+&lt;li&gt;HR tool adapters (BambooHR, Gusto, etc.)&lt;&#x2F;li&gt;
+&lt;li&gt;WASM verification in the wallet&lt;&#x2F;li&gt;
+&lt;li&gt;A real-world credential issued by a real company&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;The infrastructure is there. Now it needs to be used.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;links&quot;&gt;Links&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;jobchain&quot;&gt;Jobchain on GitHub&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;ducks.github.io&#x2F;jobchain&#x2F;&quot;&gt;Jobchain Documentation&lt;&#x2F;a&gt; -- implementation guide and spec&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;jobl.dev&quot;&gt;JOBL&lt;&#x2F;a&gt; -- structured resume format (companion project)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;whoami-spec&quot;&gt;whoami-spec&lt;&#x2F;a&gt; -- declarative identity&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;finna&quot;&gt;finna&lt;&#x2F;a&gt; -- multi-model debate and implement&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+      </item>
+      <item>
+          <title>whoami: making identity a spec</title>
+          <pubDate>Tue, 31 Mar 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/whoami-spec-declarative-identity/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/whoami-spec-declarative-identity/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/whoami-spec-declarative-identity/">&lt;p&gt;There&#x27;s a weird gap in how we describe ourselves.&lt;&#x2F;p&gt;
+&lt;p&gt;We have resumes. We have GitHub profiles. We have bios. We have LinkedIn. We have random README files. We have scattered fragments of &quot;who we are&quot; across the internet.&lt;&#x2F;p&gt;
+&lt;p&gt;But none of it is composable. None of it is structured in a way that machines can actually use.&lt;&#x2F;p&gt;
+&lt;p&gt;And more importantly, none of it feels true. A resume is what you think will pass filters. A bio is what you think sounds impressive. None of them are just you, described plainly.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-problem&quot;&gt;The Problem&lt;&#x2F;h2&gt;
+&lt;p&gt;Every system asks you the same question: &quot;Who are you?&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;And every time, you answer it slightly differently.&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;A resume is optimized for hiring filters&lt;&#x2F;li&gt;
+&lt;li&gt;A bio is optimized for attention&lt;&#x2F;li&gt;
+&lt;li&gt;A README is optimized for developers&lt;&#x2F;li&gt;
+&lt;li&gt;A cover letter is optimized for a specific role&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;These are all projections. Views. Slices.&lt;&#x2F;p&gt;
+&lt;p&gt;But there&#x27;s no canonical source. There&#x27;s no spec.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-if-identity-was-declarative&quot;&gt;What if Identity Was Declarative?&lt;&#x2F;h2&gt;
+&lt;p&gt;I&#x27;ve been thinking about this pattern lately.&lt;&#x2F;p&gt;
+&lt;p&gt;Infrastructure became manageable when we made it declarative.&lt;&#x2F;p&gt;
+&lt;p&gt;Instead of: &quot;run these steps to set up a server&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;We moved to: &quot;this is what the server is&quot;&lt;&#x2F;p&gt;
+&lt;p&gt;That shift unlocked everything:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Reproducibility&lt;&#x2F;li&gt;
+&lt;li&gt;Composability&lt;&#x2F;li&gt;
+&lt;li&gt;Tooling&lt;&#x2F;li&gt;
+&lt;li&gt;Automation&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;So what happens if we apply that to identity?&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;introducing-whoami-spec&quot;&gt;Introducing whoami-spec&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;whoami-spec&quot;&gt;whoami-spec&lt;&#x2F;a&gt; is a simple idea: define yourself in a structured, declarative format.&lt;&#x2F;p&gt;
+&lt;p&gt;Not for a platform. Not for a resume. But as a source of truth.&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;toml&quot; class=&quot;language-toml &quot;&gt;&lt;code class=&quot;language-toml&quot; data-lang=&quot;toml&quot;&gt;version = &amp;quot;20260330&amp;quot;
+
+[person]
+name = &amp;quot;Jake Goldsborough&amp;quot;
+roles = [&amp;quot;backend engineer&amp;quot;, &amp;quot;infrastructure engineer&amp;quot;]
+
+[communication]
+style = &amp;quot;direct, no fluff, technical peer not cheerleader&amp;quot;
+emoji_in_code = false
+
+[technical.languages]
+primary = [&amp;quot;rust&amp;quot;, &amp;quot;typescript&amp;quot;, &amp;quot;bash&amp;quot;]
+
+[technical.tools]
+editor = &amp;quot;vim&amp;quot;
+shell = &amp;quot;zsh&amp;quot;
+
+[[projects.active]]
+name = &amp;quot;skillz&amp;quot;
+path = &amp;quot;~&amp;#x2F;dev&amp;#x2F;skillz&amp;quot;
+description = &amp;quot;Claude Code skill package manager&amp;quot;
+tech = [&amp;quot;rust&amp;quot;, &amp;quot;clap&amp;quot;]
+
+[preferences.code]
+tabs_or_spaces = &amp;quot;spaces&amp;quot;
+testing_philosophy = &amp;quot;integration-over-unit&amp;quot;
+
+[boundaries]
+no = [&amp;quot;docker for single-VPS (use systemd)&amp;quot;, &amp;quot;unnecessary frameworks&amp;quot;]
+yes = [&amp;quot;ship early, iterate&amp;quot;, &amp;quot;boring technology&amp;quot;, &amp;quot;explicit over implicit&amp;quot;]
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This isn&#x27;t meant to be complete. It&#x27;s meant to be composable.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;why-this-matters&quot;&gt;Why This Matters&lt;&#x2F;h2&gt;
+&lt;p&gt;Once identity is structured, you derive views from it instead of rewriting yourself.&lt;&#x2F;p&gt;
+&lt;p&gt;Your &lt;code&gt;boundaries.yes&lt;&#x2F;code&gt; becomes your personal README:&lt;&#x2F;p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;I ship early and iterate. I prefer boring technology. I value explicit over implicit.&lt;&#x2F;p&gt;
+&lt;&#x2F;blockquote&gt;
+&lt;p&gt;Your &lt;code&gt;communication.style&lt;&#x2F;code&gt; becomes context for AI tools:&lt;&#x2F;p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Jake prefers direct communication with no fluff. Treat him as a technical peer, not someone who needs encouragement.&lt;&#x2F;p&gt;
+&lt;&#x2F;blockquote&gt;
+&lt;p&gt;Your &lt;code&gt;technical.languages.primary&lt;&#x2F;code&gt; becomes a skills section:&lt;&#x2F;p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Primary languages: Rust, TypeScript, Bash&lt;&#x2F;p&gt;
+&lt;&#x2F;blockquote&gt;
+&lt;p&gt;Same source. Different projections. You maintain one canonical file and generate everything else from it.&lt;&#x2F;p&gt;
+&lt;p&gt;This is the same pattern as Nix for systems or Terraform for infrastructure. Define once. Project everywhere.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-it-looks-like&quot;&gt;What It Looks Like&lt;&#x2F;h2&gt;
+&lt;p&gt;The spec is optional sections around a version field:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;toml&quot; class=&quot;language-toml &quot;&gt;&lt;code class=&quot;language-toml&quot; data-lang=&quot;toml&quot;&gt;version = &amp;quot;20260330&amp;quot;
+
+[person]              # who you are
+[communication]       # how you work with others
+[technical]           # your stack
+[preferences]         # code style, architecture choices
+[projects]            # what you&amp;#x27;re building
+[boundaries]          # hard constraints and principles
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Everything is optional except &lt;code&gt;version&lt;&#x2F;code&gt;. Start minimal:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;toml&quot; class=&quot;language-toml &quot;&gt;&lt;code class=&quot;language-toml&quot; data-lang=&quot;toml&quot;&gt;version = &amp;quot;20260330&amp;quot;
+
+[person]
+name = &amp;quot;Your Name&amp;quot;
+roles = [&amp;quot;your role&amp;quot;]
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Expand as needed. Add sections when they&#x27;re useful.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-cli-tool&quot;&gt;The CLI Tool&lt;&#x2F;h2&gt;
+&lt;p&gt;The &lt;code&gt;whoami&lt;&#x2F;code&gt; CLI helps manage your profile:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;# Create a profile interactively
+whoami init
+
+# Show your profile in readable format
+whoami show
+
+# Validate a profile
+whoami ~&amp;#x2F;.config&amp;#x2F;agent&amp;#x2F;whoami.toml
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The profile lives at &lt;code&gt;~&#x2F;.config&#x2F;agent&#x2F;whoami.toml&lt;&#x2F;code&gt; by default. You can set &lt;code&gt;AGENT_WHOAMI&lt;&#x2F;code&gt; to point elsewhere.&lt;&#x2F;p&gt;
+&lt;p&gt;Tools that support the spec can read it automatically. No copy&#x2F;paste, no re-explaining context every time.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;identity-as-infrastructure&quot;&gt;Identity as Infrastructure&lt;&#x2F;h2&gt;
+&lt;p&gt;This is the part that clicked for me.&lt;&#x2F;p&gt;
+&lt;p&gt;We treat infrastructure as something worth modeling precisely. But identity? We leave it fuzzy.&lt;&#x2F;p&gt;
+&lt;p&gt;Yet identity is upstream of everything:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;What you build&lt;&#x2F;li&gt;
+&lt;li&gt;How you work&lt;&#x2F;li&gt;
+&lt;li&gt;Who you collaborate with&lt;&#x2F;li&gt;
+&lt;li&gt;What problems you care about&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;If anything deserves a spec, it&#x27;s that.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;not-another-profile&quot;&gt;Not Another Profile&lt;&#x2F;h2&gt;
+&lt;p&gt;This isn&#x27;t trying to compete with LinkedIn.&lt;&#x2F;p&gt;
+&lt;p&gt;It&#x27;s closer to:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;A &lt;code&gt;.gitconfig&lt;&#x2F;code&gt; for yourself&lt;&#x2F;li&gt;
+&lt;li&gt;A &lt;code&gt;flake.nix&lt;&#x2F;code&gt; for your identity&lt;&#x2F;li&gt;
+&lt;li&gt;A &lt;code&gt;Cargo.toml&lt;&#x2F;code&gt; for who you are&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Something local-first. Something you own. Something you can version.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;use-cases&quot;&gt;Use Cases&lt;&#x2F;h2&gt;
+&lt;p&gt;&lt;strong&gt;What works today:&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Store your preferences in one place. Version control your identity with git. Share your &lt;code&gt;whoami.toml&lt;&#x2F;code&gt; in dotfiles. Run &lt;code&gt;whoami show&lt;&#x2F;code&gt; to see your profile formatted.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;What&#x27;s being built:&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Claude Code integration to load your profile as context automatically. Resume and bio generators that read your &lt;code&gt;whoami.toml&lt;&#x2F;code&gt;. Team profile templates for specific domains.&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;strong&gt;What could exist:&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Match collaborators by technical overlap. Generate onboarding docs from team profiles. Create project READMEs that match your documented style. Feed your preferences to any AI tool that supports the spec.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;current-status&quot;&gt;Current Status&lt;&#x2F;h2&gt;
+&lt;p&gt;Right now, it&#x27;s a spec and a CLI tool:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Spec at v20260330 (date-based versioning)&lt;&#x2F;li&gt;
+&lt;li&gt;CLI for creating, validating, and displaying profiles&lt;&#x2F;li&gt;
+&lt;li&gt;Example profiles for reference&lt;&#x2F;li&gt;
+&lt;li&gt;Written in Rust, published to crates.io&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;What&#x27;s missing:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Tools that generate artifacts (resumes, bios, sites)&lt;&#x2F;li&gt;
+&lt;li&gt;Integration with Claude Code and other AI tools&lt;&#x2F;li&gt;
+&lt;li&gt;Matching&#x2F;discovery systems&lt;&#x2F;li&gt;
+&lt;li&gt;Profile templates for specific domains&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;The foundation is there. Now it&#x27;s about building on it.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;where-this-could-go&quot;&gt;Where This Could Go&lt;&#x2F;h2&gt;
+&lt;p&gt;You can already imagine:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Tools that generate artifacts from it&lt;&#x2F;li&gt;
+&lt;li&gt;Matching systems for collaborators&lt;&#x2F;li&gt;
+&lt;li&gt;Better onboarding into teams&lt;&#x2F;li&gt;
+&lt;li&gt;LLMs that actually understand context about you&lt;&#x2F;li&gt;
+&lt;li&gt;Portable identity across platforms&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;And more interestingly: you stop thinking of identity as something you write, and start thinking of it as something you model.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;closing&quot;&gt;Closing&lt;&#x2F;h2&gt;
+&lt;p&gt;This is a small idea. But it feels like one of those primitives that unlocks a lot.&lt;&#x2F;p&gt;
+&lt;p&gt;We&#x27;ve made infrastructure declarative. We&#x27;ve started doing it for workflows and reasoning.&lt;&#x2F;p&gt;
+&lt;p&gt;Identity feels like the next obvious step.&lt;&#x2F;p&gt;
+&lt;p&gt;I don&#x27;t think this is a product. It feels more like infrastructure.&lt;&#x2F;p&gt;
+&lt;p&gt;And infrastructure tends to win quietly.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;links&quot;&gt;Links&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;whoami-spec&quot;&gt;whoami-spec on GitHub&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;crates.io&#x2F;crates&#x2F;whoami-cli&quot;&gt;whoami-cli on crates.io&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;whoami-spec&#x2F;blob&#x2F;main&#x2F;SPEC.md&quot;&gt;Specification&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;whoami-spec&#x2F;tree&#x2F;main&#x2F;examples&quot;&gt;Examples&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+      </item>
+    </channel>
+</rss>

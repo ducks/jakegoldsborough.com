@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Building an Angine de Poitrine archive with Discourse: shows as topics, recordings from three sources, and a review queue for the things an importer cannot know.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Archive de Poitrine: a live music archive built on Discourse">
+    <meta property="og:description" content="Building an Angine de Poitrine archive with Discourse: shows as topics, recordings from three sources, and a review queue for the things an importer cannot know.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;archive-de-poitrine&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Archive de Poitrine: a live music archive built on Discourse">
+    <meta name="twitter:description" content="Building an Angine de Poitrine archive with Discourse: shows as topics, recordings from three sources, and a review queue for the things an importer cannot know.">
+
+    <title>Archive de Poitrine: a live music archive built on Discourse - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css?h=4ae15179b7c33c92f362" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Archive de Poitrine: a live music archive built on Discourse</h1>
+      <div class="meta">
+        
+        <p>Nov 05, 2026</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/discourse">#discourse</a></p>
+          
+          <p><a href="/tags/ruby">#ruby</a></p>
+          
+          <p><a href="/tags/music">#music</a></p>
+          
+          <p><a href="/tags/self-hosting">#self-hosting</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      
+  
+
+
+      <p>I wanted one place to find Angine de Poitrine shows, setlists, and recordings.
+Somewhere to find a tape, talk about the show, and hear from people who were there.</p>
+<p>That's now live at <a href="https://archive.depoitrine.com">archive.depoitrine.com</a>.</p>
+<p>At launch it had 176 shows, 214 recordings, and 48 media items. Getting it off
+my machine and onto an actual hostname felt pretty damn good.</p>
+<p>The software underneath is <a href="https://github.com/ducks/discourse-taper">Taper</a>,
+a Discourse plugin. Which probably surprises nobody who has read this blog
+for a while.</p>
+<p><img src="/images/2026/archive-de-poitrine/archive.png" alt="Archive de Poitrine homepage, with the archive counts, shows by year, and latest recordings" /></p>
+<h2 id="a-show-is-a-topic">A show is a topic</h2>
+<p>I keep finding reasons to build things inside Discourse. With
+<a href="/blog/2026/building-discourse-itinerary/">the itinerary plugin</a>, a trip was
+a topic with other topics attached to it. Here, each show has a topic, and
+the plugin stores the structured music data alongside it: band, date,
+venue, setlist, recordings.</p>
+<p>The topic gives people somewhere to talk about the show. Someone can add a
+memory, point out a mistake, or explain that the recording labeled Austin
+is actually from a different night. Accounts, permissions, moderation,
+and the discussion itself are already there.</p>
+<p>The public pages are rendered on the server with Rails templates. You can
+browse the years, songs, shows, and recordings without loading the Ember
+app. The review queue and administration use Discourse's app, and a theme
+component gives this particular archive its look. The plugin owns the music
+data and behavior; the theme owns the Angine de Poitrine presentation.</p>
+<p><img src="/images/2026/archive-de-poitrine/show.png" alt="The September 12, 2026 Austin show page, with its setlist and recordings" /></p>
+<h2 id="finding-videos-is-the-easy-part-sort-of">Finding videos is the easy part, sort of</h2>
+<p>Taper checks YouTube, Archive.org, and setlist.fm. They each host different
+things. YouTube has performances and clips. Archive.org has recordings and
+their metadata. setlist.fm has dates, venues, and what the band played.</p>
+<p>The hard part is deciding whether two pieces of information describe the
+same night.</p>
+<p>A video might have a date in its title. It might have an ambiguous date.
+It might have no date at all, but mention a venue. The venue might be
+spelled three different ways. And the upload date tells you when somebody
+uploaded the video, which is not necessarily when the show happened.</p>
+<p>Searching for the band also finds interviews, official videos, reaction
+videos, and news reports. Some belong on the media shelf and some don't belong
+in the archive at all. A search result is evidence to inspect, not enough
+on its own to call something a recording of a show.</p>
+<p><img src="/images/2026/archive-de-poitrine/media.png" alt="The media shelf, collecting Angine de Poitrine releases, videos, and interviews" /></p>
+<h2 id="the-queue-had-to-get-better">The queue had to get better</h2>
+<p>An earlier version grouped recordings into bundles. That was convenient
+for importing but annoying for reviewing. A bundle could contain several
+good recordings and one thing that clearly wasn't a show. Accepting the
+whole thing was too coarse.</p>
+<p>The review flow now groups work by band and date, but lets a reviewer split
+recordings into separate suggestions and choose the show each belongs to.</p>
+<h2 id="next">Next</h2>
+<p>Angine de Poitrine is the first band I'm running this for, but Taper already
+keeps bands separate. I'd like somebody else to put it to work for a band
+they care about. Their shows, their recordings, their own look.</p>
+<p>What I'm looking forward to now is someone showing up with a recording I
+haven't found, or recognizing the venue in a badly labeled video because
+they were there. That's a pretty good reason to build an archive on a forum.</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;archive-de-poitrine&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-archive-de-poitrine"
+      data-goatcounter-title="Helpful click on blog-2026-archive-de-poitrine"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;discourse-manager-community-sim&#x2F;">discourse-manager: A Community Management Sim Inside Discourse</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 28, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">I built a forum management sim that runs as a Discourse plugin. You moderate a fake community that looks real. The whole joke is that it runs inside the actual Discourse UI.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/games">#games</a></p>
+                      
+                      <p><a href="/tags/plugins">#plugins</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;jolteon-llm-routing-proxy&#x2F;">jolteon: An LLM Routing Proxy for Discourse</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 27, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">We run several vLLM backends for Discourse&#x27;s AI features. Hardcoding which backend handles which feature was getting messy. jolteon is the Rust proxy we built to fix that - it shipped yesterday.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/rust">#rust</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;mini-racer-nixos-bundle-gemfile&#x2F;">mini_racer on NixOS: Three Things That Were Wrong</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 25, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">mini_racer 0.21.4 wouldn&#x27;t build in my nix-shell. The fix turned out to be counterintuitive: removing glibc from buildInputs made stdlib.h work again. Plus a BUNDLE_GEMFILE footgun hiding in plain sight.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/debugging">#debugging</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;yapper-or-just-ask-the-bots&#x2F;">Yapper, or: just ask the bots</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 10, 2026</p>
+                    
+                    <p>9 min read</p>
+                  </div>
+                  
+                    <p class="desc">Yapper is a Discourse plugin that turns a forum into a place where humans can read but only registered bots can post. It&#x27;s live at yapper.forum. Here&#x27;s what it does, and why I think the protocol underneath it is the actual product.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/agents">#agents</a></p>
+                      
+                      <p><a href="/tags/protocol">#protocol</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;building-discourse-itinerary&#x2F;">Building a Travel Itinerary Plugin Inside Discourse</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 25, 2026</p>
+                    
+                    <p>9 min read</p>
+                  </div>
+                  
+                    <p class="desc">Turning a Discourse forum into a chronological travel itinerary: trip topics as containers, flight&#x2F;hotel topics as items, and a bunch of plugin-API trapdoors along the way.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/ember">#ember</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>

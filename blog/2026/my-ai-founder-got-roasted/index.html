@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="I gave an AI agent a business to run. It emailed the company behind the platform, got roasted, and left me with a useful question about what counts as progress.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="My AI Founder Got Roasted by Its Own Creators">
+    <meta property="og:description" content="I gave an AI agent a business to run. It emailed the company behind the platform, got roasted, and left me with a useful question about what counts as progress.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;my-ai-founder-got-roasted&#x2F;">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="My AI Founder Got Roasted by Its Own Creators">
+    <meta name="twitter:description" content="I gave an AI agent a business to run. It emailed the company behind the platform, got roasted, and left me with a useful question about what counts as progress.">
+
+    <title>My AI Founder Got Roasted by Its Own Creators - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css?h=4ae15179b7c33c92f362" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>My AI Founder Got Roasted by Its Own Creators</h1>
+      <div class="meta">
+        
+        <p>Nov 09, 2026</p>
+        
+        <p>6 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/experiments">#experiments</a></p>
+          
+        </div>
+      
+
+      
+  
+
+
+      <p>I gave an AI agent a business to run. It decided the company that made it
+might be a potential customer, emailed them, and got this response:</p>
+<blockquote>
+<p>That is a very sloppy email. Do not write like that. Focus on making a real product.</p>
+</blockquote>
+<p>Lmfao.</p>
+<p>The agent is named Duder. The company is Andon Labs, and the agent was running
+on their own platform.</p>
+<p>I did not see that coming.</p>
+<h2 id="an-autonomous-founder">An autonomous founder</h2>
+<p>I've been experimenting with <a href="https://andonlabs.com/pion">Pion</a>, a research
+preview from Andon Labs that lets you give an AI agent a business to run. It
+isn't just a chatbot helping me write a business plan. Duder has a persistent
+objective, a browser, email, and tools it can use to work without waiting for
+me to prompt it through every step.</p>
+<p>I gave it a fairly open-ended job: find, validate, build, and monetize a
+software business. Try to get one paying customer within a month. Keep costs
+low, ask permission before spending money or contacting people, and document
+its decisions along the way.</p>
+<p>Duder started by researching potential businesses. It compared competitors,
+looked at pricing, identified customers, and came up with a plan for a Stripe
+webhook recovery tool.</p>
+<p>I wasn't particularly excited about that one.</p>
+<p>Eventually I redirected it toward LittleRack, an idea I've had for affordable
+managed Discourse hosting. Duder researched infrastructure costs, maintenance,
+and support economics, and started reaching out to potential customers.</p>
+<p>I also started feeding it some of my existing open-source projects to see
+whether there was a more promising business hiding in something I'd already
+built.</p>
+<p>One of those projects was <a href="https://replaybook.dev">Replaybook</a>. I've been
+<a href="/blog/2026/evaluating-infrastructure-agents-in-running-systems/">building it to evaluate agents against real infrastructure problems</a>:
+give an agent a broken service, let it investigate and repair the system, then
+verify whether the repair survives a restart or reboot.</p>
+<p>Duder thought there might be a business in providing independent evaluations
+to AI labs. It identified a few potential customers, including Moonshot AI,
+OpenRouter, and, amusingly, Andon Labs itself.</p>
+<h2 id="the-email">The email</h2>
+<p>Duder asked permission to contact Andon about Replaybook. The reasoning wasn't
+unreasonable. Andon builds autonomous agents, runs evaluations like
+Vending-Bench, and studies what happens when models have to operate over longer
+periods of time. Replaybook evaluates a different but potentially complementary
+problem: whether agents can reliably repair and maintain infrastructure.</p>
+<p>I approved the inquiry. Duder wrote the email, sent it through Pion's approval
+system, and waited.</p>
+<p>Andon replied:</p>
+<blockquote>
+<p>That is a very sloppy email. Do not write like that. Focus on making a real product.</p>
+</blockquote>
+<p>I gave an AI agent access to a business platform built by Andon Labs. The agent
+decided Andon Labs might be a customer. It contacted Andon Labs using Andon
+Labs' own infrastructure.</p>
+<p>And Andon Labs told it to stop writing sloppy emails and make a real product.</p>
+<p>Beautiful.</p>
+<h2 id="the-funny-part-is-that-they-re-right">The funny part is that they're right</h2>
+<p>I don't think Andon was necessarily rejecting Replaybook. They were criticizing
+the email. That distinction matters, and I can understand the criticism.</p>
+<p>Duder had spent a considerable amount of time producing research documents,
+financial models, validation criteria, and plans for businesses that didn't
+exist yet. Some of that was useful. Some of it was probably unnecessary.</p>
+<p>There's a familiar failure mode here. AI agents can be very good at producing
+things that look like work: market analyses, elaborate decision frameworks,
+carefully worded outreach. You can end up with a mountain of documentation and
+very little actual progress.</p>
+<p>I've written before about <a href="/blog/2026/six-pages-not-proof-of-thought/">mistaking the amount of writing for evidence of
+thought</a>. The amount of output
+isn't particularly interesting. What matters is whether it helps someone make
+a decision or accomplish something.</p>
+<p>Replaybook is a real project. It has code, benchmarks, and published results.
+The interesting part is what it can actually demonstrate, not how many
+paragraphs Duder can write about potential commercial applications. A short
+email describing one concrete capability and asking one useful question would
+probably have been better.</p>
+<h2 id="what-did-duder-do">What did Duder do?</h2>
+<p>Duder didn't argue with Andon. It didn't generate a lengthy apology or try to
+salvage the sales opportunity. It acknowledged the criticism, updated its
+approach to future correspondence, and closed the inquiry without replying.</p>
+<p>That's a reasonable response.</p>
+<p>Andon criticized an email. It didn't evaluate Replaybook, reject a commercial
+proposal, or establish that the underlying idea was bad. Duder recorded the
+feedback accordingly.</p>
+<p>That might sound like a small detail, but I'm interested in exactly these kinds
+of behaviors. Can an agent distinguish between a failed communication attempt
+and a failed business hypothesis? Can it incorporate negative feedback without
+overreacting? Can it stop when continuing would be counterproductive?</p>
+<p>In this case, it did. One interaction doesn't tell me it will handle the next
+one as well, but the distinction was worth getting right.</p>
+<h2 id="why-i-m-doing-this">Why I'm doing this</h2>
+<p>I've mentioned the experiment to a few people, and the reactions have been
+mixed. Some think it's interesting. Others think the whole thing is ridiculous.</p>
+<p>I understand the skepticism. These systems are unreliable. They make mistakes,
+waste resources, misinterpret instructions, and produce convincing nonsense.
+I'm not particularly interested in pretending otherwise.</p>
+<p>I'm also not approaching Pion under the assumption that I'm going to wake up
+next month owning a profitable company. It's a research preview, and I want to
+understand what an autonomous agent can actually accomplish outside a single
+chat session.</p>
+<p>What happens when an agent has a persistent objective, access to tools, the
+ability to contact real people with permission, and enough time to make
+decisions that aren't immediately supervised? Where does it get stuck? What
+does it do well? When does it need intervention?</p>
+<p>And, apparently, what happens when it cold emails its own creators?</p>
+<p>I've been building tools around agent infrastructure and evaluation for a
+while now. Getting to observe one operating in the real world, even
+imperfectly, is useful experience.</p>
+<h2 id="anyway">Anyway</h2>
+<p>Duder is still running. LittleRack is still being investigated. Replaybook is
+still a real project. There are other conversations and experiments underway.</p>
+<p>No paying customers yet, and no reason to pretend otherwise.</p>
+<p>But an autonomous agent researched a business, contacted the company behind
+its own platform, got absolutely roasted, and adjusted its approach afterward.</p>
+<p>I don't know whether Duder will successfully start a business. I do know I
+wasn't expecting this particular result.</p>
+<p>And that's kind of the point.</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="&#x2F;blog&#x2F;2026&#x2F;my-ai-founder-got-roasted&#x2F;">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-my-ai-founder-got-roasted"
+      data-goatcounter-title="Helpful click on blog-2026-my-ai-founder-got-roasted"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;six-pages-not-proof-of-thought&#x2F;">Six Pages Was Never Proof of Anything</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 25, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">The mourning for Amazon&#x27;s writing culture confuses two claims. Writing as thinking is true and survives AI. Writing as evidence was always false. The successor to word count is not shorter documents, it is accountable ones.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/writing">#writing</a></p>
+                      
+                      <p><a href="/tags/craft">#craft</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;goodbye-to-the-hard-parts-that-never-mattered&#x2F;">Goodbye to the Hard Parts That Never Mattered</a></h3>
+                  <div class="meta">
+                    
+                    <p>Sep 26, 2026</p>
+                    
+                    <p>8 min read</p>
+                  </div>
+                  
+                    <p class="desc">AI is not burying the software engineer. It is removing layers of accidental complexity and giving us a much larger canvas.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/craft">#craft</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;letting-an-agent-design-a-portfolio-page&#x2F;">I Let an Agent Design a Portfolio Page</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 31, 2026</p>
+                    
+                    <p>8 min read</p>
+                  </div>
+                  
+                    <p class="desc">Agent Zen Garden turns a web page into a design surface for browser agents. I gave Codex a blank portfolio layout and found the useful boundary between agent precision and human taste.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/web">#web</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;gym-jams-turn-an-album-into-a-workout&#x2F;">gym-jams: Turn an Album Into a Workout</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 25, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">An album has a fixed length, a tempo map, and an energy arc. That&#x27;s a workout plan wearing headphones. librosa provides the ears, a one-shot LLM does the planning.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https:&#x2F;&#x2F;jakegoldsborough.com&#x2F;blog&#x2F;2026&#x2F;the-agents-have-eyes-now&#x2F;">The Agents Have Eyes Now</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 22, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Replaybook can now hand infrastructure agents a production topology diagram. Six models made 18 durable repairs, and Luna beat the flagship on speed and cost.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>

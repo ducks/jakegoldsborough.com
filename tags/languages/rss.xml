@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - languages</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/languages/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Sun, 02 Aug 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>lemma: A Compiler That Doesn&#x27;t Know Any Languages</title>
+          <pubDate>Sun, 02 Aug 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/lemma-a-language-course-compiler/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/lemma-a-language-course-compiler/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/lemma-a-language-course-compiler/">&lt;p&gt;I&#x27;m hoping to move to Czechia, so I&#x27;m learning Czech.&lt;&#x2F;p&gt;
+&lt;p&gt;The obvious way to do that is an app. Duolingo, Anki decks someone else made,
+a textbook. I didn&#x27;t want any of those. I wanted the course itself to be
+&lt;em&gt;mine&lt;&#x2F;em&gt; - source data I own, that generates lessons and flashcards I can
+regenerate, diff, and extend forever. A language course structured like a
+software project.&lt;&#x2F;p&gt;
+&lt;p&gt;So I started building one. A directory of YAML: a curriculum listing what each
+lesson teaches, a lexicon of vocabulary, a bank of grammar points. A generator
+that turns all of it into lesson markdown and Anki decks.&lt;&#x2F;p&gt;
+&lt;p&gt;Then, a few lessons in, I said the sentence that starts every good project and
+half the messy ones:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;em&gt;I&#x27;d also like to do this for Spanish. And Swedish.&lt;&#x2F;em&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;That is where it got interesting, because the moment there are three languages,
+the generator has a hard job: it has to know how to teach a language without
+knowing which language it&#x27;s teaching.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-thing-that-isn-t-czech&quot;&gt;The thing that isn&#x27;t Czech&lt;&#x2F;h2&gt;
+&lt;p&gt;When you write a Czech lesson generator, Czech leaks into it everywhere and you
+don&#x27;t notice.&lt;&#x2F;p&gt;
+&lt;p&gt;Czech stress always lands on the first syllable. Czech has seven grammatical
+cases. Czech has the famous ř, the raised buzzing r that eats foreigners alive.
+Czech splits &quot;you&quot; into formal &lt;em&gt;vy&lt;&#x2F;em&gt; and informal &lt;em&gt;ty&lt;&#x2F;em&gt;, and getting that wrong is
+the fastest way to sound rude. Every one of those facts wants to become an
+&lt;code&gt;if&lt;&#x2F;code&gt; somewhere in the code, or worse, an unspoken assumption baked into how the
+lessons come out.&lt;&#x2F;p&gt;
+&lt;p&gt;Spanish has none of those cases but a wall of verb conjugation and the
+&lt;em&gt;ser&lt;&#x2F;em&gt;&#x2F;&lt;em&gt;estar&lt;&#x2F;em&gt; trap. Swedish has pitch accent - two words spelled identically,
+meaning different things depending on a rise or fall - and &lt;em&gt;en&lt;&#x2F;em&gt;&#x2F;&lt;em&gt;ett&lt;&#x2F;em&gt; noun
+gender, and word order that flips the verb to second position.&lt;&#x2F;p&gt;
+&lt;p&gt;If I let each of those live in the generator, I don&#x27;t have one tool. I have
+three forks of a tool that will drift apart the first time I improve one of
+them.&lt;&#x2F;p&gt;
+&lt;p&gt;So the rule I gave the engine was: &lt;strong&gt;it knows nothing about any language.&lt;&#x2F;strong&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;Everything language-specific moves into a file the language owns. Each course
+gets a &lt;code&gt;language.yaml&lt;&#x2F;code&gt; profile that declares its own rules as data:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;yaml&quot; class=&quot;language-yaml &quot;&gt;&lt;code class=&quot;language-yaml&quot; data-lang=&quot;yaml&quot;&gt;name: &amp;quot;Czech&amp;quot;
+code: &amp;quot;cs&amp;quot;
+
+pronunciation:
+  stress_rule: &amp;quot;first-syllable&amp;quot;
+  hard_sounds:
+    - symbol: &amp;quot;ř&amp;quot;
+      note: &amp;quot;A raised, buzzed trilled r. Roll an r and add a zh buzz...&amp;quot;
+
+grammar_features:
+  cases: 7
+  noun_gender: [&amp;quot;m-anim&amp;quot;, &amp;quot;m-inan&amp;quot;, &amp;quot;f&amp;quot;, &amp;quot;n&amp;quot;]
+
+register:
+  has_tv_distinction: true
+  formal: &amp;quot;vy&amp;quot;
+  informal: &amp;quot;ty&amp;quot;
+  default_register: &amp;quot;formal&amp;quot;
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The Swedish profile will say &lt;code&gt;cases: 0&lt;&#x2F;code&gt;, list &lt;code&gt;en&lt;&#x2F;code&gt;&#x2F;&lt;code&gt;ett&lt;&#x2F;code&gt;, describe pitch accent
+in its &lt;code&gt;hard_sounds&lt;&#x2F;code&gt;, and set its own register defaults. Same engine. The
+engine reads the profile and does what it&#x27;s told. It has no opinion about Czech
+because it has never heard of Czech.&lt;&#x2F;p&gt;
+&lt;p&gt;That is the whole design. One compiler, many languages, and the languages are
+data.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;it-didn-t-start-as-a-compiler-i-was-proud-of&quot;&gt;It didn&#x27;t start as a compiler I was proud of&lt;&#x2F;h2&gt;
+&lt;p&gt;The first version of the generator was Python, and it worked. It read the YAML,
+it produced a lesson, it produced an Anki CSV. Fine.&lt;&#x2F;p&gt;
+&lt;p&gt;But I write my tools in Rust now - &lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;raft-a-graph-over-the-plain-text-log&#x2F;&quot;&gt;raft&lt;&#x2F;a&gt;,
+my agent harness, a pile of others - and a course compiler I&#x27;ll run for the
+next year and a half across three languages is exactly the kind of thing that
+should be a small, fast, typed binary I trust. So I rewrote it.&lt;&#x2F;p&gt;
+&lt;p&gt;The rewrite is the part I want to be honest about, because it&#x27;s the part that&#x27;s
+easy to do badly. I did not start the Rust version from scratch and hope it
+matched. I extracted it &lt;em&gt;from&lt;&#x2F;em&gt; the working Python, kept the exact same YAML
+inputs, and then made the Rust prove itself against the thing it replaced.&lt;&#x2F;p&gt;
+&lt;p&gt;I generated Czech lesson one with the old Python. I generated it with the new
+Rust. Then I diffed them.&lt;&#x2F;p&gt;
+&lt;p&gt;Every vocabulary card, every cloze, every pronunciation string: byte-identical.
+The only differences were the two I wanted - the engine now tags cards with the
+ISO code &lt;code&gt;cs&lt;&#x2F;code&gt; instead of the word &quot;czech,&quot; and it emits a pronunciation section
+built from the profile that the Python never had. Same output where it should
+be the same, better output where the new design earned it.&lt;&#x2F;p&gt;
+&lt;p&gt;Then I deleted the Python. A rewrite you can&#x27;t diff against the original is just
+a second thing you hope behaves like the first thing. A rewrite you can diff is
+a fact.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-generator-refuses-to-make-things-up&quot;&gt;The generator refuses to make things up&lt;&#x2F;h2&gt;
+&lt;p&gt;The best small decision in the engine is that it will not generate a lesson it
+can&#x27;t back up.&lt;&#x2F;p&gt;
+&lt;p&gt;A lesson in the curriculum lists the vocabulary and grammar it uses by id:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;yaml&quot; class=&quot;language-yaml &quot;&gt;&lt;code class=&quot;language-yaml&quot; data-lang=&quot;yaml&quot;&gt;- lesson: 2
+  title: &amp;quot;At the Immigration Office&amp;quot;
+  vocabulary_ids: [&amp;quot;pas&amp;quot;, &amp;quot;viza&amp;quot;, &amp;quot;povoleni-k-pobytu&amp;quot;, &amp;quot;adresa&amp;quot;, ...]
+  grammar: [&amp;quot;accusative-singular-intro&amp;quot;, &amp;quot;verb-mit-present&amp;quot;, ...]
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Those ids have to resolve to real entries in the lexicon and grammar files. If
+lesson two names a word I haven&#x27;t written yet, the engine doesn&#x27;t guess, doesn&#x27;t
+stub, doesn&#x27;t quietly skip it. It stops and tells me exactly what&#x27;s missing:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;lesson 2: 30 vocab id(s) missing from lexicon.yaml: pas, viza,
+povoleni-k-pobytu, adresa, bydlim, bydlis, mam, mas…
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;That error is not a failure. It&#x27;s the to-do list. &quot;Authoring lesson two&quot; isn&#x27;t
+writing prose - the engine writes the prose. It&#x27;s filling in that list of
+words, with their real gender, plural, pronunciation, and notes, until the
+error goes away. &lt;code&gt;lemma status&lt;&#x2F;code&gt; walks the whole curriculum and shows me which
+lessons are ready and which are still just a promise:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;Czech (cs) — 8 lessons designed
+  lesson 1: ready
+  lesson 2: NEEDS DATA — 30 vocab id(s) missing...
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;I like tools that make the unfinished parts loud. The curriculum can dream about
+lesson eight for months, but the compiler will keep calling it a promise until
+the data exists.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-name-was-harder-than-the-compiler&quot;&gt;The name was harder than the compiler&lt;&#x2F;h2&gt;
+&lt;p&gt;Of course it was. It always is.&lt;&#x2F;p&gt;
+&lt;p&gt;I wanted a name that meant &quot;learn any language&quot; without being a pile of
+syllables. I went through the whole miserable list. &lt;code&gt;lingua&lt;&#x2F;code&gt; - generic, taken a
+hundred times over. &lt;code&gt;omniglot&lt;&#x2F;code&gt; - perfect meaning, except omniglot.com has owned
+that word since before some of my coworkers were born, so I&#x27;d be invisible
+forever. Just &lt;code&gt;omni&lt;&#x2F;code&gt; - too vague, could be a hotel. &lt;code&gt;parrot&lt;&#x2F;code&gt; - the mimicry is
+right, the repetition is right, but it reads like a toy.&lt;&#x2F;p&gt;
+&lt;p&gt;I got as far as &lt;code&gt;Psittacus&lt;&#x2F;code&gt;, the scientific genus of parrots, which is a
+genuinely great name until you try to type &lt;code&gt;cd ~&#x2F;dev&#x2F;psittacus&lt;&#x2F;code&gt; for the fourth
+time with the silent P and give up.&lt;&#x2F;p&gt;
+&lt;p&gt;The one I landed on was hiding in the domain the whole time.&lt;&#x2F;p&gt;
+&lt;p&gt;A &lt;strong&gt;lemma&lt;&#x2F;strong&gt; is the canonical dictionary form of a word - the headword every
+inflection lists under. &lt;em&gt;pracovat&lt;&#x2F;em&gt; is the lemma; &lt;em&gt;pracuji&lt;&#x2F;em&gt;, &lt;em&gt;pracuješ&lt;&#x2F;em&gt;,
+&lt;em&gt;pracujeme&lt;&#x2F;em&gt; are its forms. My lexicon file is, quite literally, a list of
+lemmas. And in math and logic, a lemma is a small proven result you use as a
+stepping stone to a bigger theorem, which is exactly what each lesson is in a
+course that spirals toward fluency.&lt;&#x2F;p&gt;
+&lt;p&gt;Two meanings, both dead-on, one word, easy to type. I checked that the crates.io
+name was free, which is the only namespace I actually cared about, and stopped
+looking.&lt;&#x2F;p&gt;
+&lt;p&gt;Naming a language tool after the atomic unit of a lexicon felt less like picking
+a name and more like noticing one.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-i-actually-have-now&quot;&gt;What I actually have now&lt;&#x2F;h2&gt;
+&lt;p&gt;Two repositories.&lt;&#x2F;p&gt;
+&lt;p&gt;One is &lt;code&gt;lemma&lt;&#x2F;code&gt;: the engine. It reads a language directory and emits lessons and
+Anki decks, and it contains no Czech, no Spanish, no Swedish. Bump the engine
+once and every language gets the improvement; each course pins the engine
+version it trusts.&lt;&#x2F;p&gt;
+&lt;p&gt;The other is &lt;code&gt;language-studies&lt;&#x2F;code&gt;: my courses, one directory per language, pure
+data. Right now it holds Czech - a real curriculum aimed at the parts of Czech I
+actually need, which is not ordering beer for tourists but talking to the
+immigration office, renting a flat, reading the signs, and surviving a standup
+in a second language. Spanish and Swedish are two empty directories and a
+profile away.&lt;&#x2F;p&gt;
+&lt;p&gt;I have exactly one lesson fully written. That is not much of a course yet, and
+I&#x27;m not going to pretend the hard part is done - the hard part is sitting down
+and writing real, correct vocabulary for a hundred more lessons, and no compiler
+does that for me.&lt;&#x2F;p&gt;
+&lt;p&gt;But the machine is built, and it&#x27;s built right. When I write the words, the
+lessons and the flashcards fall out the end, the same way every time, in a
+format I own. And when I finally start Swedish, I don&#x27;t build a Swedish course
+generator. I write a profile, and the compiler that doesn&#x27;t know any languages
+learns one more.&lt;&#x2F;p&gt;
+&lt;p&gt;Source: &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;lemma&quot;&gt;github.com&#x2F;ducks&#x2F;lemma&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

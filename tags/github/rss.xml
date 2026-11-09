@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - github</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/github/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Thu, 20 Aug 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>I Got Tired of gh Failing, So I Built Tongs</title>
+          <pubDate>Thu, 20 Aug 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/tongs-github-cli-built-for-agents/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/tongs-github-cli-built-for-agents/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/tongs-github-cli-built-for-agents/">&lt;p&gt;I was trying to review a pull request. &lt;code&gt;gh&lt;&#x2F;code&gt; failed.&lt;&#x2F;p&gt;
+&lt;p&gt;Not because the pull request was gone. Not because my token had expired. Not
+because GitHub was down. A GraphQL query somewhere inside &lt;code&gt;gh&lt;&#x2F;code&gt; had failed, and
+the ordinary pull request operation I wanted went down with it.&lt;&#x2F;p&gt;
+&lt;p&gt;This was not the first time.&lt;&#x2F;p&gt;
+&lt;p&gt;I had already started working around these failures with direct API calls. That
+works, but now every agent has to rediscover the endpoint, authentication,
+pagination, response shape, and whatever bit of GraphQL GitHub still requires
+for review threads. I did not want a growing pile of one-off &lt;code&gt;curl&lt;&#x2F;code&gt; and &lt;code&gt;jq&lt;&#x2F;code&gt;
+commands pretending to be a tool.&lt;&#x2F;p&gt;
+&lt;p&gt;So I wrote another GitHub CLI.&lt;&#x2F;p&gt;
+&lt;p&gt;It is called &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;tongs&quot;&gt;Tongs&lt;&#x2F;a&gt;, which retroactively stands
+for &lt;strong&gt;Typed Operations for Networked Git Services&lt;&#x2F;strong&gt;.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;rest-first-not-rest-only&quot;&gt;REST first, not REST only&lt;&#x2F;h2&gt;
+&lt;p&gt;The first design decision was simple: use REST for normal pull request work.&lt;&#x2F;p&gt;
+&lt;p&gt;Creating a pull request does not need GraphQL. Neither does inspecting one,
+editing its body, checking CI, submitting an approval, or merging it. Tongs uses
+the smaller REST operation for each of those instead of asking GitHub one large
+question and hoping every field remains available.&lt;&#x2F;p&gt;
+&lt;p&gt;GitHub does reserve some review-thread operations for GraphQL. Replying to and
+resolving a thread still use it, but those queries live inside that narrow part
+of the GitHub adapter. If GitHub changes a review-thread field, &lt;code&gt;tongs inspect&lt;&#x2F;code&gt;
+does not care.&lt;&#x2F;p&gt;
+&lt;p&gt;The point is not that GraphQL is bad. The point is that unrelated surfaces
+should fail independently.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-agent-native-means&quot;&gt;What agent-native means&lt;&#x2F;h2&gt;
+&lt;p&gt;Tongs calls itself agent-native. That does not mean it contains a model or asks
+an LLM what command to run. It means the command behaves like something an
+agent can safely build on.&lt;&#x2F;p&gt;
+&lt;p&gt;Every successful command returns the same outer JSON shape:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;json&quot; class=&quot;language-json &quot;&gt;&lt;code class=&quot;language-json&quot; data-lang=&quot;json&quot;&gt;{&amp;quot;schema_version&amp;quot;:&amp;quot;1&amp;quot;,&amp;quot;ok&amp;quot;:true,&amp;quot;data&amp;quot;:{}}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Failures have a stable error object and a useful exit code:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;json&quot; class=&quot;language-json &quot;&gt;&lt;code class=&quot;language-json&quot; data-lang=&quot;json&quot;&gt;{&amp;quot;schema_version&amp;quot;:&amp;quot;1&amp;quot;,&amp;quot;ok&amp;quot;:false,&amp;quot;error&amp;quot;:{&amp;quot;code&amp;quot;:&amp;quot;not_found&amp;quot;,&amp;quot;message&amp;quot;:&amp;quot;Not Found&amp;quot;,&amp;quot;status_code&amp;quot;:404}}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;There are no tables to scrape, decorative status lines to strip, or prompts
+waiting invisibly for input. Authentication checks environment variables, the
+git credential helper, and an existing &lt;code&gt;gh&lt;&#x2F;code&gt; login as a migration fallback. If
+none of those work, Tongs fails. It does not suddenly ask an unattended agent
+for a username.&lt;&#x2F;p&gt;
+&lt;p&gt;That last behavior required its own fix. My first credential-helper call could
+still fall through to Git&#x27;s interactive prompt. The CLI designed not to prompt
+prompted on its first real authentication failure. Setting Git&#x27;s terminal
+prompt flag to false fixed it.&lt;&#x2F;p&gt;
+&lt;p&gt;The useful distinction is not human CLI versus AI CLI. Humans also benefit from
+commands that return predictable data and fail without theater. Agents just
+make the sloppy parts impossible to ignore.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;pull-request-work-so-far&quot;&gt;Pull request work so far&lt;&#x2F;h2&gt;
+&lt;p&gt;Tongs detects the repository from the current git remote and, when possible,
+finds the open pull request for the current branch. You can also be explicit:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;tongs --repo discourse-org&amp;#x2F;mothership inspect 6620
+tongs --repo discourse-org&amp;#x2F;mothership reviews 6620
+tongs --repo discourse-org&amp;#x2F;mothership checks 6620
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Review threads are first-class operations rather than a blob hidden somewhere
+inside the pull request response. From inside the repository checkout:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;tongs reply --thread PRRT_node_id --body-file reply.md 6620
+tongs resolve --thread PRRT_node_id 6620
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;It can create and approve pull requests too:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;tongs create --title &amp;quot;Add useful feature&amp;quot; --body-file description.md
+tongs approve --body &amp;quot;Looks good&amp;quot; 6620
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Mutations support &lt;code&gt;--dry-run&lt;&#x2F;code&gt;. Approval and merge requests include the pull
+request&#x27;s current head SHA, so an agent cannot inspect one revision and quietly
+approve a different one after somebody pushes. Merge requires both an explicit
+method and &lt;code&gt;--yes&lt;&#x2F;code&gt;:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;tongs --dry-run merge --method squash 6620
+tongs merge --method squash --yes 6620
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;These are small constraints. That is the point. A safe tool should make the
+careful path the short path.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;github-is-the-first-provider&quot;&gt;GitHub is the first provider&lt;&#x2F;h2&gt;
+&lt;p&gt;I did not want to bake GitHub&#x27;s nouns and response shapes through the whole
+program, then discover later that adding GitLab meant rewriting it.&lt;&#x2F;p&gt;
+&lt;p&gt;The command layer talks to a provider interface. Repository detection,
+pull-request models, review threads, checks, and output schemas are shared.
+GitHub-specific REST and GraphQL live in the GitHub adapter. GitLab, Gitea, and
+Codeberg remotes can already be identified and parsed.&lt;&#x2F;p&gt;
+&lt;p&gt;Their API adapters do not exist yet.&lt;&#x2F;p&gt;
+&lt;p&gt;That boundary is deliberate. Tongs returns &lt;code&gt;provider_not_implemented&lt;&#x2F;code&gt; instead
+of sending a GitLab repository to GitHub and producing a much more creative
+error. The architecture is ready for more forges; the product is currently a
+GitHub client. Those are different claims.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;installing-it&quot;&gt;Installing it&lt;&#x2F;h2&gt;
+&lt;p&gt;Tongs is written in Go and published at
+&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;tongs&quot;&gt;github.com&#x2F;ducks&#x2F;tongs&lt;&#x2F;a&gt;. Install it with:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;go install github.com&amp;#x2F;ducks&amp;#x2F;tongs&amp;#x2F;cmd&amp;#x2F;tongs@latest
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;There is also a Nix flake for development and packaging. CI runs the full test
+suite with the race detector, &lt;code&gt;go vet&lt;&#x2F;code&gt;, and a clean build.&lt;&#x2F;p&gt;
+&lt;p&gt;It is early. GitHub is the only implemented provider, the command set is still
+smaller than &lt;code&gt;gh&lt;&#x2F;code&gt;, and I am sure the first other person to use it will find an
+operation I assumed nobody needed. That is useful information. I would rather
+grow it from actual agent workflows than clone every command in a mature CLI
+before knowing which ones matter.&lt;&#x2F;p&gt;
+&lt;p&gt;For now, Tongs does the part I built it for: inspect a pull request, understand
+its review state, make a deliberate change, and return something a program can
+trust.&lt;&#x2F;p&gt;
+&lt;p&gt;No unrelated GraphQL field gets a vote.&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>Deploying a Zola static site to a custom domain with Github Actions</title>
+          <pubDate>Sat, 24 May 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/deploying-static-site-zola-github-actions/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/deploying-static-site-zola-github-actions/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/deploying-static-site-zola-github-actions/">&lt;p&gt;As I&#x27;ve been searching for a new gig, I&#x27;ve gotten the urge to write a bit more
+about some of the stuff I&#x27;m up to to help make myself stand out. I really like
+using the fewest tools as needed so I knew a static site generator was what I
+wanted. I also like to use Rust based tools when possible.&lt;&#x2F;p&gt;
+&lt;p&gt;Searching for Rust static site generators lead me to
+&lt;a href=&quot;https:&#x2F;&#x2F;www.getzola.org&#x2F;&quot;&gt;Zola&lt;&#x2F;a&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;Some of the top advertised features are no dependencies, blazingly fast,
+and easy to use. Those sound great to me.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;set-up-zola-site&quot;&gt;Set up Zola site&lt;&#x2F;h3&gt;
+&lt;p&gt;While this isn&#x27;t a few blown Zola tutorial, I did want to include a few things.&lt;&#x2F;p&gt;
+&lt;p&gt;After installing Zola, you can simply run &lt;code&gt;zola init myblog&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;You&#x27;ll be asked a few questions and a base site will be setup for you.&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;├── config.toml
+├── content
+├── sass
+├── static
+├── templates
+└── themes
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Without going too deep, your CommonMark pages will go in &lt;code&gt;content&lt;&#x2F;code&gt;, Tera&#x2F;HTML
+templates in &lt;code&gt;templates&lt;&#x2F;code&gt;, and any css&#x2F;js&#x2F;images or other static content will go
+in &lt;code&gt;static&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;SASS is enabled by default but can be disabled. I am not currently using SASS
+personally.&lt;&#x2F;p&gt;
+&lt;p&gt;Running &lt;code&gt;zola build&lt;&#x2F;code&gt; will build the site and output it a directory called &lt;code&gt;public&lt;&#x2F;code&gt;.&lt;&#x2F;p&gt;
+&lt;p&gt;Here is a link to a complete overview:&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;a href=&quot;https:&#x2F;&#x2F;www.getzola.org&#x2F;documentation&#x2F;getting-started&#x2F;overview&#x2F;&quot;&gt;https:&#x2F;&#x2F;www.getzola.org&#x2F;documentation&#x2F;getting-started&#x2F;overview&#x2F;&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;push-to-github-create-github-actions-workflow&quot;&gt;Push to Github &amp;amp; Create Github Actions workflow&lt;&#x2F;h3&gt;
+&lt;p&gt;After getting your content written, site styled, and ready for deployment, it&#x27;s time to
+push to Github. Create a repo and push it to a &lt;code&gt;main&lt;&#x2F;code&gt; branch (exclude the &lt;code&gt;public&lt;&#x2F;code&gt;
+directory).&lt;&#x2F;p&gt;
+&lt;p&gt;Next, we will setup the actual workflow to take our input files, setup zola,
+build the site, and commit it to the correct branch.&lt;&#x2F;p&gt;
+&lt;p&gt;Create a file at &lt;code&gt;.github&#x2F;workflows&#x2F;deploy.yml&lt;&#x2F;code&gt; and insert this:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;name: Deploy Zola to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out source
+      uses: actions&amp;#x2F;checkout@v4
+
+    - name: Install Zola
+      run: |
+        curl -L https:&amp;#x2F;&amp;#x2F;github.com&amp;#x2F;getzola&amp;#x2F;zola&amp;#x2F;releases&amp;#x2F;download&amp;#x2F;v0.20.0&amp;#x2F;zola-v0.20.0-x86_64-unknown-linux-gnu.tar.gz -o zola.tar.gz
+        tar -xzf zola.tar.gz
+        sudo mv zola &amp;#x2F;usr&amp;#x2F;local&amp;#x2F;bin&amp;#x2F;
+
+    - name: Build site
+      run: zola build
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris&amp;#x2F;actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: .&amp;#x2F;public
+        publish_branch: gh-pages
+        force_orphan: true
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This setups up a workflow that:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;watches for pushes to main branch&lt;&#x2F;li&gt;
+&lt;li&gt;checks out the zola source and installs it&lt;&#x2F;li&gt;
+&lt;li&gt;builds your site using zola build&lt;&#x2F;li&gt;
+&lt;li&gt;uses github pages plugin to push &lt;code&gt;public&lt;&#x2F;code&gt; output dir to a &lt;code&gt;gh-pages&lt;&#x2F;code&gt; branch&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;You will also need to go to your repos settings and look for the actions section
+to enable write permissions.&lt;&#x2F;p&gt;
+&lt;p&gt;Push this up and watch the build by going to your repo and clicking the &quot;Actions&quot;
+tab. You will see a workflow that you can click into and see build and deploy
+jobs.&lt;&#x2F;p&gt;
+&lt;p&gt;If everything goes well, you can now  visit your site by filling in your values:&lt;&#x2F;p&gt;
+&lt;p&gt;https:&#x2F;&#x2F;${username}.github.io&#x2F;${repo}&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;add-custom-domain-optional&quot;&gt;Add Custom Domain (optional)&lt;&#x2F;h3&gt;
+&lt;p&gt;After you have the initial workflow working, you will need to configure some
+Github settings for a custom domain.&lt;&#x2F;p&gt;
+&lt;p&gt;First, run &lt;code&gt;echo &quot;yourdomain.com&quot; &amp;gt; static&#x2F;CNAME&lt;&#x2F;code&gt; and commit this file.
+Next, go to your Github repo&#x27;s &quot;Pages&quot; setting and add the domain name.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;configure-dns-optional&quot;&gt;Configure DNS (optional)&lt;&#x2F;h3&gt;
+&lt;p&gt;If using a custom domain, you will also need to setup DNS. Go to your domain
+settings and add 4 A records for Github pages:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;A	@	185.199.108.153
+A	@	185.199.109.153
+A	@	185.199.110.153
+A	@	185.199.111.153
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Setup any subdirectories you might want.&lt;&#x2F;p&gt;
+&lt;p&gt;You may need to give this step some extra time to update before you can
+see your new site at your custom URL. Other times it&#x27;s nearly instant so your
+results may vary.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;profit&quot;&gt;Profit&lt;&#x2F;h3&gt;
+&lt;p&gt;That&#x27;s basically it for a basic setup. You should now have a static site
+setup at a custom domain that gets automatically built by just pushing a branch.&lt;&#x2F;p&gt;
+&lt;p&gt;While simple, this is a complete setup that let&#x27;s you create and deploy content
+to your own URL with ease.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

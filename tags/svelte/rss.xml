@@ -1,0 +1,388 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - svelte</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/svelte/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Sat, 18 Apr 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>isitreal.estate: Crowd-Sourced Reviews for Real Estate Listings</title>
+          <pubDate>Sat, 18 Apr 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/launching-isitreal-estate/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/launching-isitreal-estate/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/launching-isitreal-estate/">&lt;p&gt;Most real estate listings lie. Not always in big ways, but enough that
+anyone who has hunted for an apartment or a house knows the feeling -
+you drive 40 minutes, the front yard is a dump, the photos were from
+2018, the &quot;washer&#x2F;dryer included&quot; means hookups in a damp basement,
+and the agent shrugs.&lt;&#x2F;p&gt;
+&lt;p&gt;There is no shared layer of truth for listings. Every renter and buyer
+does the same recon work from scratch.&lt;&#x2F;p&gt;
+&lt;p&gt;So I built &lt;a href=&quot;https:&#x2F;&#x2F;isitreal.estate&quot;&gt;isitreal.estate&lt;&#x2F;a&gt; - crowd-sourced
+reviews tied to physical addresses, not listings. Listings come and go.
+Addresses stay.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-idea&quot;&gt;The Idea&lt;&#x2F;h2&gt;
+&lt;p&gt;Think Waze, but for house hunting.&lt;&#x2F;p&gt;
+&lt;p&gt;You search an address. You see what other people found when they
+visited. Photos they took. Whether the listing photos matched reality.
+A rating. A date.&lt;&#x2F;p&gt;
+&lt;p&gt;If the address has never been reviewed, you can be the first. After
+you visit, leave a review with photos. Over time, bad actors
+accumulate a visible history tied to the properties they list.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;data-model&quot;&gt;Data Model&lt;&#x2F;h2&gt;
+&lt;p&gt;The anchor entity is the address, not the listing. A listing is
+ephemeral - taken down, renamed, relisted with new photos. An
+address has GPS coordinates and does not move.&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;addresses
+  id, street, city, state, zip, country, lat, lng
+
+reviews
+  id, address_id, user_id,
+  listing_accurate (yes&amp;#x2F;partially&amp;#x2F;no),
+  rating (1-5), body, visited_at
+
+review_photos
+  id, review_id, filename, path
+
+votes
+  id, review_id, user_id, vote (accurate&amp;#x2F;not_accurate)
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Reviews carry photos. Votes let readers weigh reviews by what the
+community agreed was useful or not. A user&#x27;s credibility score is
+derived from how often their reviews align with votes over time.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-stack&quot;&gt;The Stack&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Framework&lt;&#x2F;strong&gt;: SvelteKit 5 (runes)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Database&lt;&#x2F;strong&gt;: PostgreSQL&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Auth&lt;&#x2F;strong&gt;: Session-based, scrypt hashing&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Maps&lt;&#x2F;strong&gt;: Leaflet + OpenStreetMap tiles&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Geocoding&lt;&#x2F;strong&gt;: Nominatim (OSM, free)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Photos&lt;&#x2F;strong&gt;: Disk storage, behind a configurable &lt;code&gt;UPLOAD_DIR&lt;&#x2F;code&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Deployment&lt;&#x2F;strong&gt;: NixOS on my VPS, Caddy reverse proxy, systemd&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Nothing exotic. The most interesting choice was OSM + Nominatim
+instead of Google Maps - no API key, no billing, no surprise bills if
+someone shares the site somewhere.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;deployment&quot;&gt;Deployment&lt;&#x2F;h2&gt;
+&lt;p&gt;The deploy is declarative and lives in my &lt;code&gt;pond-nix&lt;&#x2F;code&gt; repo. A new
+curbside release builds a tarball on GitHub Actions; a NixOS service
+fetches it on rebuild; systemd runs &lt;code&gt;node build&lt;&#x2F;code&gt;; Caddy handles TLS.&lt;&#x2F;p&gt;
+&lt;p&gt;The first deploy broke for a boring but interesting reason. The
+systemd unit tried to bind-mount a writable uploads directory into
+the Nix store path, which is read-only. systemd refused:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;Failed to create destination mount point node
+&amp;#x27;&amp;#x2F;nix&amp;#x2F;store&amp;#x2F;...&amp;#x2F;source&amp;#x2F;uploads&amp;#x27;:
+Read-only file system
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Rather than patching the Nix module to copy the app out of the store,
+I made the upload directory configurable in the app itself:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;ts&quot; class=&quot;language-ts &quot;&gt;&lt;code class=&quot;language-ts&quot; data-lang=&quot;ts&quot;&gt;export const UPLOAD_DIR = process.env.UPLOAD_DIR || &amp;#x27;uploads&amp;#x27;;
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;Both the write path (&lt;code&gt;src&#x2F;lib&#x2F;photos.ts&lt;&#x2F;code&gt;) and the read path
+(&lt;code&gt;src&#x2F;routes&#x2F;uploads&#x2F;[...path]&#x2F;+server.ts&lt;&#x2F;code&gt;) import the same constant,
+so they never drift. In dev it defaults to &lt;code&gt;.&#x2F;uploads&lt;&#x2F;code&gt;. In production
+the systemd unit sets &lt;code&gt;UPLOAD_DIR=&#x2F;var&#x2F;lib&#x2F;curbside&#x2F;uploads&lt;&#x2F;code&gt; and the
+BindPaths goes away entirely.&lt;&#x2F;p&gt;
+&lt;p&gt;Cleaner than fighting the Nix store. And it unblocks moving uploads
+off the VPS to R2 later with the same interface.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-works&quot;&gt;What Works&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Signup, login, session auth&lt;&#x2F;li&gt;
+&lt;li&gt;Address search with geocoding&lt;&#x2F;li&gt;
+&lt;li&gt;Address detail page with reviews, photos, stats&lt;&#x2F;li&gt;
+&lt;li&gt;Review submission with photo uploads&lt;&#x2F;li&gt;
+&lt;li&gt;Accurate &#x2F; not-accurate voting&lt;&#x2F;li&gt;
+&lt;li&gt;User profile pages&lt;&#x2F;li&gt;
+&lt;li&gt;Admin role for moderation&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;what-doesn-t-yet&quot;&gt;What Doesn&#x27;t (Yet)&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Map view on the homepage is basic&lt;&#x2F;li&gt;
+&lt;li&gt;No autocomplete on address search yet&lt;&#x2F;li&gt;
+&lt;li&gt;Photo storage lives on the VPS; needs to move to object storage&lt;&#x2F;li&gt;
+&lt;li&gt;No rate limiting on review creation&lt;&#x2F;li&gt;
+&lt;li&gt;Credibility scoring is naive&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;reflections&quot;&gt;Reflections&lt;&#x2F;h2&gt;
+&lt;p&gt;The technical work was the easy part. SvelteKit + Postgres + systemd
+is well-trodden ground. The real question is whether enough people
+will leave reviews to reach the tipping point where the site is
+actually useful when you search an address.&lt;&#x2F;p&gt;
+&lt;p&gt;That is the honest problem with any crowd-sourced trust network. It is
+worthless until it crosses some critical mass, and valuable after. The
+middle is long and quiet.&lt;&#x2F;p&gt;
+&lt;p&gt;So I am seeding with real reviews of real addresses I know, and
+opening it up to see what happens. If you have ever been burned by a
+fake listing, leave a review.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;links&quot;&gt;Links&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;isitreal.estate&quot;&gt;isitreal.estate&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;isitreal.estate&quot;&gt;curbside (app source)&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;pond-nix&quot;&gt;pond-nix (deploy config)&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+      </item>
+      <item>
+          <title>When Your Coffee Roaster Builds the First Version</title>
+          <pubDate>Mon, 16 Mar 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/when-your-coffee-roaster-builds-the-first-version/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/when-your-coffee-roaster-builds-the-first-version/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/when-your-coffee-roaster-builds-the-first-version/">&lt;p&gt;A coffee roaster needed production planning software. Instead of writing a spec and hiring someone to build it, they opened Claude and built it themselves.&lt;&#x2F;p&gt;
+&lt;p&gt;Single-page app with 2000 lines of React.  It featured batch calculations, leftover tracking, CSV import, production snapshots and it worked.&lt;&#x2F;p&gt;
+&lt;p&gt;Then they asked me to help make it production-ready: multi-tenant SaaS, proper deployment, migrations, backups, the infrastructure layer.&lt;&#x2F;p&gt;
+&lt;p&gt;The result is &lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;beanledger&quot;&gt;BeanLedger&lt;&#x2F;a&gt;, and the collaboration pattern is worth examining.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-they-built&quot;&gt;What They Built&lt;&#x2F;h2&gt;
+&lt;p&gt;The coffee roaster understood their domain completely. They knew:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;How roast loss percentages affect batch calculations&lt;&#x2F;li&gt;
+&lt;li&gt;When to track leftovers vs when to start fresh&lt;&#x2F;li&gt;
+&lt;li&gt;What information matters on a pick list&lt;&#x2F;li&gt;
+&lt;li&gt;How production snapshots should restore state&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;They used Claude to translate that knowledge into working code. The business logic was sound. The UI matched their workflow. The calculations were correct.&lt;&#x2F;p&gt;
+&lt;p&gt;What was missing was everything around the edges:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Multi-tenancy (it was single-user)&lt;&#x2F;li&gt;
+&lt;li&gt;Authentication and session management&lt;&#x2F;li&gt;
+&lt;li&gt;Database migrations&lt;&#x2F;li&gt;
+&lt;li&gt;Deployment automation&lt;&#x2F;li&gt;
+&lt;li&gt;Production monitoring&lt;&#x2F;li&gt;
+&lt;li&gt;Backup&#x2F;restore&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;This is the division of labor that emerged: they own features, I own infrastructure.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-architecture&quot;&gt;The Architecture&lt;&#x2F;h2&gt;
+&lt;p&gt;BeanLedger is a SvelteKit app with PostgreSQL, designed for multi-tenant SaaS:&lt;&#x2F;p&gt;
+&lt;pre&gt;&lt;code&gt;├── src&amp;#x2F;
+│   ├── routes&amp;#x2F;
+│   │   ├── api&amp;#x2F;           # REST endpoints with tenant isolation
+│   │   ├── login&amp;#x2F;         # Auth flow
+│   │   └── +page.svelte   # Main app
+│   ├── lib&amp;#x2F;
+│   │   ├── components&amp;#x2F;    # Svelte 5 components
+│   │   ├── types.ts       # TypeScript interfaces
+│   │   └── calc.ts        # Batch calculation logic
+│   └── hooks.server.ts    # Tenant middleware
+├── migrations&amp;#x2F;            # SQL migrations
+└── schema.sql            # Database schema
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;h3 id=&quot;tenant-isolation&quot;&gt;Tenant Isolation&lt;&#x2F;h3&gt;
+&lt;p&gt;Every API request requires authentication. The session middleware injects tenant context:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;typescript&quot; class=&quot;language-typescript &quot;&gt;&lt;code class=&quot;language-typescript&quot; data-lang=&quot;typescript&quot;&gt;&amp;#x2F;&amp;#x2F; hooks.server.ts
+export const handle = async ({ event, resolve }) =&amp;gt; {
+  const sessionId = event.cookies.get(&amp;#x27;session_id&amp;#x27;);
+  if (!sessionId) return resolve(event);
+
+  const session = await db.get(&amp;#x27;SELECT * FROM sessions WHERE id = ?&amp;#x27;, sessionId);
+  if (!session) return resolve(event);
+
+  const user = await db.get(&amp;#x27;SELECT * FROM users WHERE id = ?&amp;#x27;, session.user_id);
+  event.locals.user = user;
+  event.locals.tenant_id = user.tenant_id;
+
+  return resolve(event);
+};
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;All database queries filter by &lt;code&gt;tenant_id&lt;&#x2F;code&gt;. The roast groups, products, and orders are scoped to the authenticated tenant.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;production-snapshots&quot;&gt;Production Snapshots&lt;&#x2F;h3&gt;
+&lt;p&gt;One of the best features the roaster designed: production date tracking with snapshots.&lt;&#x2F;p&gt;
+&lt;p&gt;When you switch dates, the app saves the current state (orders + leftovers) and tries to restore a snapshot for the new date. If no snapshot exists, it loads fresh data.&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;typescript&quot; class=&quot;language-typescript &quot;&gt;&lt;code class=&quot;language-typescript&quot; data-lang=&quot;typescript&quot;&gt;async function handleProductionDateChange(newDate: string) {
+  const oldDate = previousDate;
+  if (oldDate === newDate) return;
+
+  &amp;#x2F;&amp;#x2F; Save current state before switching
+  if (orders.length &amp;gt; 0 &amp;amp;&amp;amp; oldDate) {
+    await saveSnapshot(oldDate);
+  }
+
+  previousDate = newDate;
+
+  &amp;#x2F;&amp;#x2F; Try to load snapshot for new date
+  const snapshot = await loadSnapshot(newDate);
+  if (snapshot) {
+    await restoreFromSnapshot(snapshot);
+  } else {
+    await loadData();
+  }
+}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This lets roasters plan multiple production days in advance without losing their work when switching between dates.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;batch-calculations&quot;&gt;Batch Calculations&lt;&#x2F;h3&gt;
+&lt;p&gt;The core calculation logic stayed largely intact from the original React version. It&#x27;s domain knowledge, not infrastructure:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;typescript&quot; class=&quot;language-typescript &quot;&gt;&lt;code class=&quot;language-typescript&quot; data-lang=&quot;typescript&quot;&gt;export function calcGroup(
+  group: RoastGroup,
+  orders: Order[],
+  products: Product[],
+  leftover: number,
+  batchOverrides: Record&amp;lt;string, number&amp;gt; = {}
+): GroupCalc {
+  const batchWeight = batchOverrides[group.batch_type] ?? 20;
+  const roastLossPct = group.roast_loss_pct ?? 0;
+  const roastFactor = Math.max(0.001, 1 - roastLossPct &amp;#x2F; 100);
+
+  &amp;#x2F;&amp;#x2F; Sum all ordered products for this group
+  const items = products
+    .filter(p =&amp;gt; p.group_id === group.id)
+    .map(p =&amp;gt; {
+      const totalQty = orders
+        .filter(o =&amp;gt; o.product_id === p.id)
+        .reduce((s, o) =&amp;gt; s + o.qty, 0);
+      return { ...p, totalQty, totalLbs: totalQty * p.lbs };
+    })
+    .filter(p =&amp;gt; p.totalQty &amp;gt; 0);
+
+  const totalLbs = items.reduce((s, i) =&amp;gt; s + i.totalLbs, 0);
+  const neededRoasted = Math.max(0, totalLbs - leftover);
+  const neededGreen = roastLossPct &amp;gt; 0 ? neededRoasted &amp;#x2F; roastFactor : neededRoasted;
+  const batches = neededGreen &amp;#x2F; batchWeight;
+
+  return {
+    totalLbs,
+    needed: neededGreen,
+    neededRoasted,
+    batches,
+    batchesUp: Math.ceil(batches),
+    batchWeight,
+    roastFactor,
+    roastLossPct,
+    items
+  };
+}
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;This code came from someone who understands roast loss percentages and batch planning. I didn&#x27;t need to learn the domain. I just needed to make it multi-tenant and deployable.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-i-added&quot;&gt;What I Added&lt;&#x2F;h2&gt;
+&lt;h3 id=&quot;authentication&quot;&gt;Authentication&lt;&#x2F;h3&gt;
+&lt;p&gt;Built a simple session-based auth system with bcrypt-hashed passwords:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;typescript&quot; class=&quot;language-typescript &quot;&gt;&lt;code class=&quot;language-typescript&quot; data-lang=&quot;typescript&quot;&gt;&amp;#x2F;&amp;#x2F; api&amp;#x2F;auth&amp;#x2F;login&amp;#x2F;+server.ts
+const user = await db.get(&amp;#x27;SELECT * FROM users WHERE username = ?&amp;#x27;, username);
+if (!user || !(await bcrypt.compare(password, user.password))) {
+  return json({ error: &amp;#x27;Invalid credentials&amp;#x27; }, { status: 401 });
+}
+
+const sessionId = crypto.randomUUID();
+await db.run(
+  &amp;#x27;INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)&amp;#x27;,
+  sessionId,
+  user.id,
+  new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+);
+
+cookies.set(&amp;#x27;session_id&amp;#x27;, sessionId, { path: &amp;#x27;&amp;#x2F;&amp;#x27;, httpOnly: true, maxAge: 30 * 24 * 60 * 60 });
+return json({ success: true });
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;No OAuth, no JWT. Just session cookies and server-side validation. Simple works.&lt;&#x2F;p&gt;
+&lt;h3 id=&quot;database-migrations&quot;&gt;Database Migrations&lt;&#x2F;h3&gt;
+&lt;p&gt;Migrations live in &lt;code&gt;migrations&#x2F;&lt;&#x2F;code&gt; and run automatically on startup if needed. The deploy script checks for new migrations and restarts the service:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;sql&quot; class=&quot;language-sql &quot;&gt;&lt;code class=&quot;language-sql&quot; data-lang=&quot;sql&quot;&gt;-- migrations&amp;#x2F;001_initial_schema.sql
+CREATE TABLE IF NOT EXISTS tenants (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE,
+  email TEXT NOT NULL,
+  password TEXT NOT NULL,
+  tenant_id TEXT NOT NULL REFERENCES tenants(id),
+  created_at TEXT NOT NULL
+);
+
+-- ... more tables
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;The deploy script handles versioning and restarts:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;bash&quot; class=&quot;language-bash &quot;&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;#!&amp;#x2F;bin&amp;#x2F;bash
+CURRENT_VERSION=$(cat &amp;#x2F;opt&amp;#x2F;beanledger&amp;#x2F;VERSION 2&amp;gt;&amp;#x2F;dev&amp;#x2F;null || echo &amp;quot;none&amp;quot;)
+LATEST_VERSION=$(curl -s https:&amp;#x2F;&amp;#x2F;api.github.com&amp;#x2F;repos&amp;#x2F;ducks&amp;#x2F;beanledger&amp;#x2F;releases&amp;#x2F;latest | jq -r .tag_name)
+
+if [ &amp;quot;$CURRENT_VERSION&amp;quot; = &amp;quot;$LATEST_VERSION&amp;quot; ]; then
+  echo &amp;quot;Already running latest version&amp;quot;
+  exit 0
+fi
+
+# Download, extract, restart
+curl -L &amp;quot;https:&amp;#x2F;&amp;#x2F;github.com&amp;#x2F;ducks&amp;#x2F;beanledger&amp;#x2F;releases&amp;#x2F;download&amp;#x2F;$LATEST_VERSION&amp;#x2F;beanledger.tar.gz&amp;quot; | tar xz
+systemctl restart beanledger
+echo &amp;quot;$LATEST_VERSION&amp;quot; &amp;gt; &amp;#x2F;opt&amp;#x2F;beanledger&amp;#x2F;VERSION
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;h3 id=&quot;deployment&quot;&gt;Deployment&lt;&#x2F;h3&gt;
+&lt;p&gt;The production stack is straightforward:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;SvelteKit&lt;&#x2F;strong&gt; in Node adapter mode (not static)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;PostgreSQL&lt;&#x2F;strong&gt; for data&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Systemd&lt;&#x2F;strong&gt; for process management&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Caddy&lt;&#x2F;strong&gt; for TLS and reverse proxy&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;No Docker, no Kubernetes. Systemd service file:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;ini&quot; class=&quot;language-ini &quot;&gt;&lt;code class=&quot;language-ini&quot; data-lang=&quot;ini&quot;&gt;[Unit]
+Description=BeanLedger Production Planner
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=beanledger
+WorkingDirectory=&amp;#x2F;opt&amp;#x2F;beanledger
+Environment=NODE_ENV=production
+Environment=DATABASE_URL=&amp;#x2F;var&amp;#x2F;lib&amp;#x2F;beanledger&amp;#x2F;db.sqlite
+ExecStart=&amp;#x2F;usr&amp;#x2F;bin&amp;#x2F;node build&amp;#x2F;index.js
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;h2 id=&quot;what-this-division-reveals&quot;&gt;What This Division Reveals&lt;&#x2F;h2&gt;
+&lt;p&gt;The coffee roaster can now ship features. They understand the domain, they can articulate requirements to Claude, and they get working code.&lt;&#x2F;p&gt;
+&lt;p&gt;What they don&#x27;t need to think about:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;How tenant isolation works&lt;&#x2F;li&gt;
+&lt;li&gt;Where sessions are stored&lt;&#x2F;li&gt;
+&lt;li&gt;How migrations run&lt;&#x2F;li&gt;
+&lt;li&gt;How deploys happen&lt;&#x2F;li&gt;
+&lt;li&gt;How backups work&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;That&#x27;s my layer.&lt;&#x2F;p&gt;
+&lt;p&gt;This is different from traditional client work. Usually I&#x27;m translating requirements into code. Here, the client is writing code and I&#x27;m building the platform it runs on.&lt;&#x2F;p&gt;
+&lt;p&gt;AI didn&#x27;t eliminate the need for engineering. It shifted the boundary.&lt;&#x2F;p&gt;
+&lt;p&gt;The roaster went from &quot;I need software&quot; to &quot;I built the features, can you make it production-ready?&quot; That&#x27;s a meaningful change.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-works&quot;&gt;What Works&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;CSV import&lt;&#x2F;strong&gt; with inline group creation (no context switching to Catalog)&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Production snapshots&lt;&#x2F;strong&gt; that save&#x2F;restore daily plans automatically&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Dynamic batch types&lt;&#x2F;strong&gt; - users define their own batch sizes, not hardcoded&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Multi-tenant&lt;&#x2F;strong&gt; - multiple roasters can use the same deployment&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Pick lists&lt;&#x2F;strong&gt; with package size summaries and roast group breakdowns&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;what-doesn-t&quot;&gt;What Doesn&#x27;t&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;No API&lt;&#x2F;strong&gt; - It&#x27;s a web app, no programmatic access&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Limited reports&lt;&#x2F;strong&gt; - Just basic CSV export, no analytics&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;No mobile app&lt;&#x2F;strong&gt; - Responsive web only&lt;&#x2F;li&gt;
+&lt;li&gt;&lt;strong&gt;Single database&lt;&#x2F;strong&gt; - No read replicas or sharding (doesn&#x27;t need it yet)&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;h2 id=&quot;reflections&quot;&gt;Reflections&lt;&#x2F;h2&gt;
+&lt;p&gt;The best part of this project was watching someone with domain expertise build software directly. They didn&#x27;t need to translate &quot;how batch calculations work&quot; into a spec for me to implement. They knew it, and they told Claude.&lt;&#x2F;p&gt;
+&lt;p&gt;The boundary between developer and non-developer is blurring. Not because everyone needs to learn to code, but because AI is good enough at the translation layer that domain knowledge can drive implementation.&lt;&#x2F;p&gt;
+&lt;p&gt;What still requires engineering judgment:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;Multi-tenancy architecture&lt;&#x2F;li&gt;
+&lt;li&gt;Security and authentication&lt;&#x2F;li&gt;
+&lt;li&gt;Deployment and reliability&lt;&#x2F;li&gt;
+&lt;li&gt;Database design and migrations&lt;&#x2F;li&gt;
+&lt;li&gt;Production monitoring&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;Those aren&#x27;t going away. But the surface area of &quot;things only developers can build&quot; is shrinking.&lt;&#x2F;p&gt;
+&lt;p&gt;BeanLedger works. It&#x27;s in production. The person who built most of the features isn&#x27;t a software engineer.&lt;&#x2F;p&gt;
+&lt;p&gt;That&#x27;s new.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;links&quot;&gt;Links&lt;&#x2F;h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https:&#x2F;&#x2F;github.com&#x2F;ducks&#x2F;beanledger&quot;&gt;BeanLedger on GitHub&lt;&#x2F;a&gt;&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+</description>
+      </item>
+    </channel>
+</rss>

@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - experiments</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/experiments/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Mon, 09 Nov 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>My AI Founder Got Roasted by Its Own Creators</title>
+          <pubDate>Mon, 09 Nov 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/my-ai-founder-got-roasted/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/my-ai-founder-got-roasted/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/my-ai-founder-got-roasted/">&lt;p&gt;I gave an AI agent a business to run. It decided the company that made it
+might be a potential customer, emailed them, and got this response:&lt;&#x2F;p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;That is a very sloppy email. Do not write like that. Focus on making a real product.&lt;&#x2F;p&gt;
+&lt;&#x2F;blockquote&gt;
+&lt;p&gt;Lmfao.&lt;&#x2F;p&gt;
+&lt;p&gt;The agent is named Duder. The company is Andon Labs, and the agent was running
+on their own platform.&lt;&#x2F;p&gt;
+&lt;p&gt;I did not see that coming.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;an-autonomous-founder&quot;&gt;An autonomous founder&lt;&#x2F;h2&gt;
+&lt;p&gt;I&#x27;ve been experimenting with &lt;a href=&quot;https:&#x2F;&#x2F;andonlabs.com&#x2F;pion&quot;&gt;Pion&lt;&#x2F;a&gt;, a research
+preview from Andon Labs that lets you give an AI agent a business to run. It
+isn&#x27;t just a chatbot helping me write a business plan. Duder has a persistent
+objective, a browser, email, and tools it can use to work without waiting for
+me to prompt it through every step.&lt;&#x2F;p&gt;
+&lt;p&gt;I gave it a fairly open-ended job: find, validate, build, and monetize a
+software business. Try to get one paying customer within a month. Keep costs
+low, ask permission before spending money or contacting people, and document
+its decisions along the way.&lt;&#x2F;p&gt;
+&lt;p&gt;Duder started by researching potential businesses. It compared competitors,
+looked at pricing, identified customers, and came up with a plan for a Stripe
+webhook recovery tool.&lt;&#x2F;p&gt;
+&lt;p&gt;I wasn&#x27;t particularly excited about that one.&lt;&#x2F;p&gt;
+&lt;p&gt;Eventually I redirected it toward LittleRack, an idea I&#x27;ve had for affordable
+managed Discourse hosting. Duder researched infrastructure costs, maintenance,
+and support economics, and started reaching out to potential customers.&lt;&#x2F;p&gt;
+&lt;p&gt;I also started feeding it some of my existing open-source projects to see
+whether there was a more promising business hiding in something I&#x27;d already
+built.&lt;&#x2F;p&gt;
+&lt;p&gt;One of those projects was &lt;a href=&quot;https:&#x2F;&#x2F;replaybook.dev&quot;&gt;Replaybook&lt;&#x2F;a&gt;. I&#x27;ve been
+&lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;evaluating-infrastructure-agents-in-running-systems&#x2F;&quot;&gt;building it to evaluate agents against real infrastructure problems&lt;&#x2F;a&gt;:
+give an agent a broken service, let it investigate and repair the system, then
+verify whether the repair survives a restart or reboot.&lt;&#x2F;p&gt;
+&lt;p&gt;Duder thought there might be a business in providing independent evaluations
+to AI labs. It identified a few potential customers, including Moonshot AI,
+OpenRouter, and, amusingly, Andon Labs itself.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-email&quot;&gt;The email&lt;&#x2F;h2&gt;
+&lt;p&gt;Duder asked permission to contact Andon about Replaybook. The reasoning wasn&#x27;t
+unreasonable. Andon builds autonomous agents, runs evaluations like
+Vending-Bench, and studies what happens when models have to operate over longer
+periods of time. Replaybook evaluates a different but potentially complementary
+problem: whether agents can reliably repair and maintain infrastructure.&lt;&#x2F;p&gt;
+&lt;p&gt;I approved the inquiry. Duder wrote the email, sent it through Pion&#x27;s approval
+system, and waited.&lt;&#x2F;p&gt;
+&lt;p&gt;Andon replied:&lt;&#x2F;p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;That is a very sloppy email. Do not write like that. Focus on making a real product.&lt;&#x2F;p&gt;
+&lt;&#x2F;blockquote&gt;
+&lt;p&gt;I gave an AI agent access to a business platform built by Andon Labs. The agent
+decided Andon Labs might be a customer. It contacted Andon Labs using Andon
+Labs&#x27; own infrastructure.&lt;&#x2F;p&gt;
+&lt;p&gt;And Andon Labs told it to stop writing sloppy emails and make a real product.&lt;&#x2F;p&gt;
+&lt;p&gt;Beautiful.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;the-funny-part-is-that-they-re-right&quot;&gt;The funny part is that they&#x27;re right&lt;&#x2F;h2&gt;
+&lt;p&gt;I don&#x27;t think Andon was necessarily rejecting Replaybook. They were criticizing
+the email. That distinction matters, and I can understand the criticism.&lt;&#x2F;p&gt;
+&lt;p&gt;Duder had spent a considerable amount of time producing research documents,
+financial models, validation criteria, and plans for businesses that didn&#x27;t
+exist yet. Some of that was useful. Some of it was probably unnecessary.&lt;&#x2F;p&gt;
+&lt;p&gt;There&#x27;s a familiar failure mode here. AI agents can be very good at producing
+things that look like work: market analyses, elaborate decision frameworks,
+carefully worded outreach. You can end up with a mountain of documentation and
+very little actual progress.&lt;&#x2F;p&gt;
+&lt;p&gt;I&#x27;ve written before about &lt;a href=&quot;&#x2F;blog&#x2F;2026&#x2F;six-pages-not-proof-of-thought&#x2F;&quot;&gt;mistaking the amount of writing for evidence of
+thought&lt;&#x2F;a&gt;. The amount of output
+isn&#x27;t particularly interesting. What matters is whether it helps someone make
+a decision or accomplish something.&lt;&#x2F;p&gt;
+&lt;p&gt;Replaybook is a real project. It has code, benchmarks, and published results.
+The interesting part is what it can actually demonstrate, not how many
+paragraphs Duder can write about potential commercial applications. A short
+email describing one concrete capability and asking one useful question would
+probably have been better.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;what-did-duder-do&quot;&gt;What did Duder do?&lt;&#x2F;h2&gt;
+&lt;p&gt;Duder didn&#x27;t argue with Andon. It didn&#x27;t generate a lengthy apology or try to
+salvage the sales opportunity. It acknowledged the criticism, updated its
+approach to future correspondence, and closed the inquiry without replying.&lt;&#x2F;p&gt;
+&lt;p&gt;That&#x27;s a reasonable response.&lt;&#x2F;p&gt;
+&lt;p&gt;Andon criticized an email. It didn&#x27;t evaluate Replaybook, reject a commercial
+proposal, or establish that the underlying idea was bad. Duder recorded the
+feedback accordingly.&lt;&#x2F;p&gt;
+&lt;p&gt;That might sound like a small detail, but I&#x27;m interested in exactly these kinds
+of behaviors. Can an agent distinguish between a failed communication attempt
+and a failed business hypothesis? Can it incorporate negative feedback without
+overreacting? Can it stop when continuing would be counterproductive?&lt;&#x2F;p&gt;
+&lt;p&gt;In this case, it did. One interaction doesn&#x27;t tell me it will handle the next
+one as well, but the distinction was worth getting right.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;why-i-m-doing-this&quot;&gt;Why I&#x27;m doing this&lt;&#x2F;h2&gt;
+&lt;p&gt;I&#x27;ve mentioned the experiment to a few people, and the reactions have been
+mixed. Some think it&#x27;s interesting. Others think the whole thing is ridiculous.&lt;&#x2F;p&gt;
+&lt;p&gt;I understand the skepticism. These systems are unreliable. They make mistakes,
+waste resources, misinterpret instructions, and produce convincing nonsense.
+I&#x27;m not particularly interested in pretending otherwise.&lt;&#x2F;p&gt;
+&lt;p&gt;I&#x27;m also not approaching Pion under the assumption that I&#x27;m going to wake up
+next month owning a profitable company. It&#x27;s a research preview, and I want to
+understand what an autonomous agent can actually accomplish outside a single
+chat session.&lt;&#x2F;p&gt;
+&lt;p&gt;What happens when an agent has a persistent objective, access to tools, the
+ability to contact real people with permission, and enough time to make
+decisions that aren&#x27;t immediately supervised? Where does it get stuck? What
+does it do well? When does it need intervention?&lt;&#x2F;p&gt;
+&lt;p&gt;And, apparently, what happens when it cold emails its own creators?&lt;&#x2F;p&gt;
+&lt;p&gt;I&#x27;ve been building tools around agent infrastructure and evaluation for a
+while now. Getting to observe one operating in the real world, even
+imperfectly, is useful experience.&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;anyway&quot;&gt;Anyway&lt;&#x2F;h2&gt;
+&lt;p&gt;Duder is still running. LittleRack is still being investigated. Replaybook is
+still a real project. There are other conversations and experiments underway.&lt;&#x2F;p&gt;
+&lt;p&gt;No paying customers yet, and no reason to pretend otherwise.&lt;&#x2F;p&gt;
+&lt;p&gt;But an autonomous agent researched a business, contacted the company behind
+its own platform, got absolutely roasted, and adjusted its approach afterward.&lt;&#x2F;p&gt;
+&lt;p&gt;I don&#x27;t know whether Duder will successfully start a business. I do know I
+wasn&#x27;t expecting this particular result.&lt;&#x2F;p&gt;
+&lt;p&gt;And that&#x27;s kind of the point.&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

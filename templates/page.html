@@ -1,12 +1,5 @@
 {% extends 'base.html' %}
-{% import "macros/helpful.html" as helpful %}
-{% import "macros/series.html" as series %}
 
-{% block hero %}
-  {% if page.components | first != "blog" %}
-    <h1>{{ page.title }}</h1>
-  {% endif %}
-{% endblock %}
 
 {% block content %}
   {% if page.components | first == "blog" %}
@@ -27,11 +20,11 @@
         </div>
       {% endif %}
 
-      {{ series::navigation(page=page) }}
+      {{ <navigation page={page} /> }}
 
       {{ page.content | safe }}
 
-      {{ helpful::widget(page=page) }}
+      {{ <widget page={page} /> }}
 
       {% if page.taxonomies and page.taxonomies.tags %}
         {% set_global related = [] %}
@@ -42,7 +35,7 @@
             {% if tag.slug == tag_name | slugify %}
               {% for tagged_page in tag.pages %}
                 {% if tagged_page.permalink != page.permalink %}
-                  {% set_global related = related | concat(with=tagged_page) %}
+                  {% set_global related = [...related, tagged_page] %}
                 {% endif %}
               {% endfor %}
             {% endif %}
@@ -53,7 +46,7 @@
           <section class="related-posts">
             <h2>Related Posts</h2>
             <ul class="blog-posts">
-              {% for post in related | slice(end=5) %}
+              {% for post in related[:5] %}
                 <li class="post-item">
                   <h3><a href="{{ post.permalink }}">{{ post.title }}</a></h3>
                   <div class="meta">

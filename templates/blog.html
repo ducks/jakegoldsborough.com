@@ -1,9 +1,5 @@
 {% extends "base.html" %}
-{% import "macros.html" as macros %}
 
-{% block hero %}
-  <h1>{{ section.title }}</h1>
-{% endblock %}
 
 {% block content %}
   {% set all_posts = [] %}
@@ -13,7 +9,7 @@
     {% set subsection = get_section(path=subsection_path) %}
     {% for page in subsection.pages %}
       {% if not page.draft %}
-        {% set_global all_posts = all_posts | concat(with=page) %}
+        {% set_global all_posts = [...all_posts, page] %}
       {% endif %}
     {% endfor %}
   {% endfor %}

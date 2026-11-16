@@ -1,7 +1,7 @@
 # jakegoldsborough.com
 
-The site is built with Zola. For local development, use a nixpkgs channel that
-provides Zola 0.19.x or 0.20.x, then run:
+The site is built with Zola. The development shell pins a Nixpkgs revision
+providing Zola 0.23.6, independent of your installed channel. Run:
 
 ```sh
 nix-shell
@@ -9,11 +9,15 @@ zola --version
 zola serve
 # Or build the site:
 zola build
+python3 scripts/check-site.py
 ```
 
-The Nix shell checks the Zola version because a system-wide `zola` may be newer
-than the version this site supports. The GitHub Pages workflow uses Zola 0.20.0. The shell also accepts 0.19.x, which
-is available in the current local nixpkgs channel; use 0.20.0 to match GitHub
-Pages exactly. Zola 0.23 upgrades Tera and removes the shortcode system
-used by this site, so upgrading to it requires a template and content migration;
-updating the version number alone is not enough.
+The first shell invocation may need to fetch the pinned Nixpkgs source and
+packages. It requires a working Nix installation and, for a daemon-based
+installation, access to the Nix daemon socket.
+
+The shell checks the Zola version; GitHub Pages uses the same release. Zola
+0.23 uses Tera 2 components for the résumé, projects, and post widgets. Blog
+content skips Tera processing so literal template examples in posts remain
+intact. If a future post needs a component, adjust `skip_content_templating`
+and escape its literal template examples.

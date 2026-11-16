@@ -14,12 +14,16 @@ jobs:
 
     - name: Install Zola
       run: |
-        curl -L https://github.com/getzola/zola/releases/download/v0.20.0/zola-v0.20.0-x86_64-unknown-linux-gnu.tar.gz -o zola.tar.gz
+        curl -fL https://github.com/getzola/zola/releases/download/v0.23.6/zola-v0.23.6-x86_64-unknown-linux-gnu.tar.gz -o zola.tar.gz
+        echo "8f5132b3522412d04e395e0b25f6d68613ad272a873e54a2b3ebf664873024a4  zola.tar.gz" | sha256sum -c -
         tar -xzf zola.tar.gz
         sudo mv zola /usr/local/bin/
 
     - name: Build site
       run: zola build
+
+    - name: Check generated pages
+      run: python3 scripts/check-site.py
 
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3

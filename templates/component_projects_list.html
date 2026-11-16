@@ -1,3 +1,4 @@
+{% component projects_list() %}
 {% set projects_data = load_data(path="data/projects.toml") %}
 
 {% for category in projects_data.categories %}
@@ -29,3 +30,5 @@
 {% endfor %}
 
 <p>All repositories are available on <a href="https://github.com/ducks">GitHub</a>.</p>
+
+{% endcomponent projects_list %}

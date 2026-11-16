@@ -1,4 +1,4 @@
-{% macro navigation(page) %}
+{% component navigation(page) %}
   {% if page.extra and page.extra.series %}
     {% set_global series_pages = [] %}
     {% set blog = get_section(path="blog/_index.md") %}
@@ -7,7 +7,7 @@
       {% set subsection = get_section(path=subsection_path) %}
       {% for candidate in subsection.pages %}
         {% if candidate.extra and candidate.extra.series == page.extra.series %}
-          {% set_global series_pages = series_pages | concat(with=candidate) %}
+          {% set_global series_pages = [...series_pages, candidate] %}
         {% endif %}
       {% endfor %}
     {% endfor %}
@@ -45,4 +45,4 @@
       </aside>
     {% endif %}
   {% endif %}
-{% endmacro navigation %}
+{% endcomponent navigation %}

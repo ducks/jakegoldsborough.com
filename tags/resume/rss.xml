@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - resume</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/resume/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Sun, 14 Dec 2025 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>JOBL and SRG: Building Resume Tools I Actually Want to Use</title>
+          <pubDate>Sun, 14 Dec 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/jobl-srg-resume-tools/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/jobl-srg-resume-tools/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/jobl-srg-resume-tools/">&lt;p&gt;After getting laid off from my last job, I told myself I would keep my resume
+updated and my options open. Then we had layoffs at Discourse. Nothing like
+watching coworkers lose their jobs to remind you that stability is an illusion
+and preparation matters.&lt;/p&gt;
+&lt;p&gt;I have been in a spec and tool building mood lately anyway. Something about the
+uncertainty makes me want to build things I can control. JOBL and SRG fit that
+mood perfectly.&lt;/p&gt;
+&lt;h2 id=&quot;the-problem&quot;&gt;The Problem&lt;/h2&gt;
+&lt;p&gt;I needed to update my resume. The last version was a LibreOffice doc. It was a
+pain in the ass. The formatting was fragile. One change and the whole thing
+shifted. Exporting to PDF was a gamble. And I could not version control it
+properly because it was a binary blob.&lt;/p&gt;
+&lt;p&gt;What I wanted: plain text I can edit in vim, version control in git, and generate
+HTML and PDF programmatically.&lt;/p&gt;
+&lt;p&gt;So I built it.&lt;/p&gt;
+&lt;h2 id=&quot;jobl-a-toml-resume-format&quot;&gt;JOBL: A TOML Resume Format&lt;/h2&gt;
+&lt;p&gt;JOBL is a strict TOML-based resume format. The file extension is &lt;code&gt;.jobl&lt;/code&gt; and
+the structure is simple:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;toml&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;person&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;name&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Jake Goldsborough&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;headline&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Infrastructure Engineer&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;email&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;jake@example.com&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;location&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Portland, OR&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;summary&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Backend systems and deployment automation.&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;skills&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;Languages&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = [&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Ruby&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Rust&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;JavaScript&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;Infrastructure&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = [&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Docker&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Kubernetes&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;NixOS&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[[&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;experience&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;title&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Software Engineer&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;company&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Discourse&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;start&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;2025-06&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;end&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;current&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;summary&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Infrastructure team, backend systems, deployment tooling.&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;highlights&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = [&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;  &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Built postgres-manager HTTP service replacing MessageBus pub/sub&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;  &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Reduced duplicate operations and improved operational visibility&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[[&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;projects&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;name&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Transit Tracker&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;url&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;https://github.com/ducks/discourse-transit-tracker&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;summary&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Live departure board plugin for Discourse showing real-time transit arrivals&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[[&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;education&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;degree&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;BS Computer Science&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;institution&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;State University&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;start&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;2016&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;end&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;2020&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;TOML is human readable. You can edit it in any text editor. Comments are
+supported. Syntax errors fail fast at parse time. Version control works
+perfectly because it is plain text.&lt;/p&gt;
+&lt;h2 id=&quot;why-toml-instead-of-json-or-yaml&quot;&gt;Why TOML Instead of JSON or YAML&lt;/h2&gt;
+&lt;p&gt;JSON is for machines. Writing nested structures by hand is miserable. No
+comments. Trailing commas break everything. It is data interchange format, not
+a human authoring format.&lt;/p&gt;
+&lt;p&gt;YAML has too many footguns. Indentation matters. Multiple ways to express the
+same thing. The Norway problem (NO gets parsed as boolean false). Anchors and
+references add complexity I do not need.&lt;/p&gt;
+&lt;p&gt;TOML is boring in the best way. One obvious way to express each type. Strict
+validation. Native Rust support via serde. No surprises.&lt;/p&gt;
+&lt;h2 id=&quot;the-parser-strict-validation&quot;&gt;The Parser: Strict Validation&lt;/h2&gt;
+&lt;p&gt;JOBL uses a two phase validation approach:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Parse TOML into generic Value to catch unknown keys&lt;/li&gt;
+&lt;li&gt;Deserialize into typed structs for field validation&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;This catches typos immediately. If you write &lt;code&gt;titel&lt;/code&gt; instead of &lt;code&gt;title&lt;/code&gt;, you
+get an error with the exact path: &lt;code&gt;experience[0].titel: unknown field&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;The parser collects multiple errors instead of failing fast. When you have five
+typos, you see all five at once instead of fixing them one at a time.&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;rust&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;pub fn&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; parse_file&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;path&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;: &amp;amp;&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;Path&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; -&amp;gt;&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; ValidationResult&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;JoblDocument&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;pub fn&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; parse_str&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;input&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;: &amp;amp;&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;str&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; -&amp;gt;&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; ValidationResult&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;JoblDocument&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Simple API. File or string in, validated document or errors out.&lt;/p&gt;
+&lt;h2 id=&quot;no-version-field&quot;&gt;No Version Field&lt;/h2&gt;
+&lt;p&gt;I originally included a &lt;code&gt;jobl_version&lt;/code&gt; field in documents. Then I removed it.&lt;/p&gt;
+&lt;p&gt;Docker recently dropped version fields from their configs. The library version
+determines what spec you support. Simpler for users. They do not maintain a
+version field. The parser handles compatibility.&lt;/p&gt;
+&lt;p&gt;You can always add versioning later if you need it. Start simple.&lt;/p&gt;
+&lt;h2 id=&quot;srg-static-resume-generator&quot;&gt;SRG: Static Resume Generator&lt;/h2&gt;
+&lt;p&gt;JOBL handles data. SRG handles rendering.&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;srg&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; --input&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; resume.jobl&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; --out&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; dist&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; --template&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; minimal&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Reads your JOBL file, generates &lt;code&gt;dist/index.html&lt;/code&gt; and &lt;code&gt;dist/resume.pdf&lt;/code&gt;. Single
+binary. No dependencies except Chrome for PDF generation.&lt;/p&gt;
+&lt;p&gt;The HTML is self contained with embedded CSS. Email it. Put it on a static
+host. It just works.&lt;/p&gt;
+&lt;h2 id=&quot;pdf-generation-headless-chrome&quot;&gt;PDF Generation: Headless Chrome&lt;/h2&gt;
+&lt;p&gt;I was skeptical about using headless Chrome for PDF generation. It seemed
+heavy and finicky. I&#39;ve tried an HTML -&amp;gt; PDF method before with less than ideal
+results. But it works incredibly well.&lt;/p&gt;
+&lt;p&gt;The HTML you write is the PDF you get. Print media queries work exactly as
+expected. Local fonts load synchronously. No layout rewriting needed.&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;rust&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;let&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; pdf_data&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; tab&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;print_to_pdf&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;Some&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;PrintToPdfOptions&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;  landscape&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Some&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;false&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;),&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;  display_header_footer&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Some&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;false&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;),&lt;/span&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;  // No browser artifacts&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;  print_background&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Some&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;true&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;),&lt;/span&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;        // Keep CSS backgrounds&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;  scale&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Some&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;1&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;0&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;),&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;  paper_width&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Some&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;8&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;5&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;),&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;  paper_height&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Some&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;11&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;0&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;),&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;  // ... margins, etc&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}))&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Alternative was native Rust PDF libraries like printpdf. That means manually
+positioning every element. Reimplementing layout logic. Maintaining two
+rendering paths (HTML and PDF).&lt;/p&gt;
+&lt;p&gt;Headless Chrome means one rendering path. CSS does the work. The PDF matches
+the HTML perfectly.&lt;/p&gt;
+&lt;h2 id=&quot;layout-system-structure-without-html&quot;&gt;Layout System: Structure Without HTML&lt;/h2&gt;
+&lt;p&gt;Users should not need to write HTML to customize their resume. But they should
+be able to control structure and formatting.&lt;/p&gt;
+&lt;p&gt;The layout system is a simple DSL:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;person&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  name&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  headline&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  email&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;experience&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  title&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  company&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  start &amp;quot; - &amp;quot; end&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  highlights&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;education&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  degree&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  institution&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  start &amp;quot; - &amp;quot; end&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Section names at indent level 0. Field names at level 2. Order matters.&lt;/p&gt;
+&lt;p&gt;Quoted strings are literals. Unquoted words are field names. Mix them:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;person&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  name &amp;quot;at&amp;quot; email&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  &amp;quot;Location:&amp;quot; location&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;experience&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  start &amp;quot; - &amp;quot; end&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Renders as:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Jake Goldsborough at jake@example.com&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Location: Portland, OR&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;2025-06 - current&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The layout file controls what shows and in what order. The template (minimal,
+professional, etc) controls CSS styling. Separation of concerns.&lt;/p&gt;
+&lt;h2 id=&quot;why-build-this&quot;&gt;Why Build This&lt;/h2&gt;
+&lt;p&gt;Practical answer: I needed to update my resume and existing tools did not fit
+how I work.&lt;/p&gt;
+&lt;p&gt;Real answer: building tools gives me a sense of control when everything else
+feels uncertain. Layoffs happen. Companies change. Markets shift. But code I
+write is mine. Specs I design are mine. Tools I build solve problems exactly
+how I want them solved.&lt;/p&gt;
+&lt;p&gt;This is not about resume formats. This is about responding to uncertainty by
+building something you own completely.&lt;/p&gt;
+&lt;h2 id=&quot;current-status&quot;&gt;Current Status&lt;/h2&gt;
+&lt;p&gt;Both projects are functional and tested:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;JOBL: 7 unit tests, strict validation, clean error messages&lt;/li&gt;
+&lt;li&gt;SRG: layout system with quoted strings, PDF generation working, 15 total
+tests&lt;/li&gt;
+&lt;li&gt;Combined: about 1800 lines of Rust, all passing tests&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Documentation sites are up at &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://jobl.dev&quot;&gt;https://jobl.dev&lt;/a&gt; (plain HTML,
+no build step, Gruvbox theme with dark/light toggle).&lt;/p&gt;
+&lt;p&gt;Source is on GitHub if you want to look:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/jobl&quot;&gt;github.com/ducks/jobl&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/srg&quot;&gt;github.com/ducks/srg&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</description>
+      </item>
+    </channel>
+</rss>

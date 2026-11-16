@@ -1,0 +1,1514 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="A coffee roaster built production planning software with Claude. I handled the infrastructure. What this collaboration reveals about AI-enabled development.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="When Your Coffee Roaster Builds the First Version">
+    <meta property="og:description" content="A coffee roaster built production planning software with Claude. I handled the infrastructure. What this collaboration reveals about AI-enabled development.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://jakegoldsborough.com/blog/2026/when-your-coffee-roaster-builds-the-first-version/">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="When Your Coffee Roaster Builds the First Version">
+    <meta name="twitter:description" content="A coffee roaster built production planning software with Claude. I handled the infrastructure. What this collaboration reveals about AI-enabled development.">
+
+    <title>When Your Coffee Roaster Builds the First Version - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css?h=4ae15179b7c33c92f362" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>When Your Coffee Roaster Builds the First Version</h1>
+      <div class="meta">
+        
+        <p>Mar 16, 2026</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/svelte">#svelte</a></p>
+          
+          <p><a href="/tags/infrastructure">#infrastructure</a></p>
+          
+          <p><a href="/tags/oss">#oss</a></p>
+          
+        </div>
+      
+
+      
+  
+
+
+      <p>A coffee roaster needed production planning software. Instead of writing a spec and hiring someone to build it, they opened Claude and built it themselves.</p>
+<p>Single-page app with 2000 lines of React.  It featured batch calculations, leftover tracking, CSV import, production snapshots and it worked.</p>
+<p>Then they asked me to help make it production-ready: multi-tenant SaaS, proper deployment, migrations, backups, the infrastructure layer.</p>
+<p>The result is <a rel="noopener noreferrer external" target="_blank" href="https://github.com/ducks/beanledger">BeanLedger</a>, and the collaboration pattern is worth examining.</p>
+<h2 id="what-they-built">What They Built</h2>
+<p>The coffee roaster understood their domain completely. They knew:</p>
+<ul>
+<li>How roast loss percentages affect batch calculations</li>
+<li>When to track leftovers vs when to start fresh</li>
+<li>What information matters on a pick list</li>
+<li>How production snapshots should restore state</li>
+</ul>
+<p>They used Claude to translate that knowledge into working code. The business logic was sound. The UI matched their workflow. The calculations were correct.</p>
+<p>What was missing was everything around the edges:</p>
+<ul>
+<li>Multi-tenancy (it was single-user)</li>
+<li>Authentication and session management</li>
+<li>Database migrations</li>
+<li>Deployment automation</li>
+<li>Production monitoring</li>
+<li>Backup/restore</li>
+</ul>
+<p>This is the division of labor that emerged: they own features, I own infrastructure.</p>
+<h2 id="the-architecture">The Architecture</h2>
+<p>BeanLedger is a SvelteKit app with PostgreSQL, designed for multi-tenant SaaS:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="plain"><span class="giallo-l"><span>├── src/</span></span>
+<span class="giallo-l"><span>│   ├── routes/</span></span>
+<span class="giallo-l"><span>│   │   ├── api/           # REST endpoints with tenant isolation</span></span>
+<span class="giallo-l"><span>│   │   ├── login/         # Auth flow</span></span>
+<span class="giallo-l"><span>│   │   └── +page.svelte   # Main app</span></span>
+<span class="giallo-l"><span>│   ├── lib/</span></span>
+<span class="giallo-l"><span>│   │   ├── components/    # Svelte 5 components</span></span>
+<span class="giallo-l"><span>│   │   ├── types.ts       # TypeScript interfaces</span></span>
+<span class="giallo-l"><span>│   │   └── calc.ts        # Batch calculation logic</span></span>
+<span class="giallo-l"><span>│   └── hooks.server.ts    # Tenant middleware</span></span>
+<span class="giallo-l"><span>├── migrations/            # SQL migrations</span></span>
+<span class="giallo-l"><span>└── schema.sql            # Database schema</span></span></code></pre><h3 id="tenant-isolation">Tenant Isolation</h3>
+<p>Every API request requires authentication. The session middleware injects tenant context:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="typescript"><span class="giallo-l"><span style="color: #928374;font-style: italic;">// hooks.server.ts</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">export</span><span style="color: #FE8019;"> const</span><span style="color: #FABD2F;"> handle</span><span style="color: #8EC07C;"> =</span><span style="color: #FE8019;"> async</span><span style="color: #A89984;"> ({</span><span style="color: #83A598;"> event</span><span style="color: #A89984;">,</span><span style="color: #83A598;"> resolve</span><span style="color: #A89984;"> })</span><span style="color: #FE8019;"> =&gt;</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">  const</span><span style="color: #83A598;"> sessionId</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> event</span><span style="color: #A89984;">.</span><span style="color: #83A598;">cookies</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">get</span><span>(</span><span style="color: #A89984;">&#39;</span><span style="color: #B8BB26;">session_id</span><span style="color: #A89984;">&#39;</span><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  if</span><span> (</span><span style="color: #FB4934;">!</span><span style="color: #83A598;">sessionId</span><span>)</span><span style="color: #FB4934;"> return</span><span style="color: #FABD2F;"> resolve</span><span>(</span><span style="color: #83A598;">event</span><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FE8019;">  const</span><span style="color: #83A598;"> session</span><span style="color: #8EC07C;"> =</span><span style="color: #FB4934;"> await</span><span style="color: #83A598;"> db</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">get</span><span>(</span><span style="color: #A89984;">&#39;</span><span style="color: #B8BB26;">SELECT * FROM sessions WHERE id = ?</span><span style="color: #A89984;">&#39;,</span><span style="color: #83A598;"> sessionId</span><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  if</span><span> (</span><span style="color: #FB4934;">!</span><span style="color: #83A598;">session</span><span>)</span><span style="color: #FB4934;"> return</span><span style="color: #FABD2F;"> resolve</span><span>(</span><span style="color: #83A598;">event</span><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FE8019;">  const</span><span style="color: #83A598;"> user</span><span style="color: #8EC07C;"> =</span><span style="color: #FB4934;"> await</span><span style="color: #83A598;"> db</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">get</span><span>(</span><span style="color: #A89984;">&#39;</span><span style="color: #B8BB26;">SELECT * FROM users WHERE id = ?</span><span style="color: #A89984;">&#39;,</span><span style="color: #83A598;"> session</span><span style="color: #A89984;">.</span><span style="color: #83A598;">user_id</span><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #83A598;">  event</span><span style="color: #A89984;">.</span><span style="color: #83A598;">locals</span><span style="color: #A89984;">.</span><span style="color: #83A598;">user</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> user</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #83A598;">  event</span><span style="color: #A89984;">.</span><span style="color: #83A598;">locals</span><span style="color: #A89984;">.</span><span style="color: #83A598;">tenant_id</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> user</span><span style="color: #A89984;">.</span><span style="color: #83A598;">tenant_id</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FB4934;">  return</span><span style="color: #FABD2F;"> resolve</span><span>(</span><span style="color: #83A598;">event</span><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #A89984;">};</span></span></code></pre>
+<p>All database queries filter by <code>tenant_id</code>. The roast groups, products, and orders are scoped to the authenticated tenant.</p>
+<h3 id="production-snapshots">Production Snapshots</h3>
+<p>One of the best features the roaster designed: production date tracking with snapshots.</p>
+<p>When you switch dates, the app saves the current state (orders + leftovers) and tries to restore a snapshot for the new date. If no snapshot exists, it loads fresh data.</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="typescript"><span class="giallo-l"><span style="color: #FE8019;">async function</span><span style="color: #FABD2F;"> handleProductionDateChange</span><span style="color: #A89984;">(</span><span style="color: #83A598;">newDate</span><span style="color: #8EC07C;">:</span><span style="color: #FABD2F;"> string</span><span style="color: #A89984;">) {</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">  const</span><span style="color: #83A598;"> oldDate</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> previousDate</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  if</span><span> (</span><span style="color: #83A598;">oldDate</span><span style="color: #8EC07C;"> ===</span><span style="color: #83A598;"> newDate</span><span>)</span><span style="color: #FB4934;"> return</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #928374;font-style: italic;">  // Save current state before switching</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  if</span><span> (</span><span style="color: #83A598;">orders</span><span style="color: #A89984;">.</span><span style="color: #D3869B;">length</span><span style="color: #8EC07C;"> &gt;</span><span style="color: #D3869B;"> 0</span><span style="color: #FB4934;"> &amp;&amp;</span><span style="color: #83A598;"> oldDate</span><span>)</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">    await</span><span style="color: #FABD2F;"> saveSnapshot</span><span>(</span><span style="color: #83A598;">oldDate</span><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #A89984;">  }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #83A598;">  previousDate</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> newDate</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #928374;font-style: italic;">  // Try to load snapshot for new date</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">  const</span><span style="color: #83A598;"> snapshot</span><span style="color: #8EC07C;"> =</span><span style="color: #FB4934;"> await</span><span style="color: #FABD2F;"> loadSnapshot</span><span>(</span><span style="color: #83A598;">newDate</span><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  if</span><span> (</span><span style="color: #83A598;">snapshot</span><span>)</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">    await</span><span style="color: #FABD2F;"> restoreFromSnapshot</span><span>(</span><span style="color: #83A598;">snapshot</span><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #A89984;">  }</span><span style="color: #FB4934;"> else</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">    await</span><span style="color: #FABD2F;"> loadData</span><span>()</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #A89984;">  }</span></span>
+<span class="giallo-l"><span style="color: #A89984;">}</span></span></code></pre>
+<p>This lets roasters plan multiple production days in advance without losing their work when switching between dates.</p>
+<h3 id="batch-calculations">Batch Calculations</h3>
+<p>The core calculation logic stayed largely intact from the original React version. It's domain knowledge, not infrastructure:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="typescript"><span class="giallo-l"><span style="color: #FB4934;">export</span><span style="color: #FE8019;"> function</span><span style="color: #FABD2F;"> calcGroup</span><span style="color: #A89984;">(</span></span>
+<span class="giallo-l"><span style="color: #83A598;">  group</span><span style="color: #8EC07C;">:</span><span style="color: #FABD2F;"> RoastGroup</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #83A598;">  orders</span><span style="color: #8EC07C;">:</span><span style="color: #FABD2F;"> Order[]</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #83A598;">  products</span><span style="color: #8EC07C;">:</span><span style="color: #FABD2F;"> Product[]</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #83A598;">  leftover</span><span style="color: #8EC07C;">:</span><span style="color: #FABD2F;"> number</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #83A598;">  batchOverrides</span><span style="color: #8EC07C;">:</span><span style="color: #FABD2F;"> Record</span><span style="color: #A89984;">&lt;</span><span style="color: #FABD2F;">string</span><span style="color: #A89984;">,</span><span style="color: #FABD2F;"> number</span><span style="color: #A89984;">&gt;</span><span style="color: #8EC07C;"> =</span><span style="color: #A89984;"> {}</span></span>
+<span class="giallo-l"><span style="color: #A89984;">)</span><span style="color: #8EC07C;">:</span><span style="color: #FABD2F;"> GroupCalc</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">  const</span><span style="color: #83A598;"> batchWeight</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> batchOverrides</span><span>[</span><span style="color: #83A598;">group</span><span style="color: #A89984;">.</span><span style="color: #83A598;">batch_type</span><span>]</span><span style="color: #FB4934;"> ??</span><span style="color: #D3869B;"> 20</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">  const</span><span style="color: #83A598;"> roastLossPct</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> group</span><span style="color: #A89984;">.</span><span style="color: #83A598;">roast_loss_pct</span><span style="color: #FB4934;"> ??</span><span style="color: #D3869B;"> 0</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">  const</span><span style="color: #83A598;"> roastFactor</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> Math</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">max</span><span>(</span><span style="color: #D3869B;">0.001</span><span style="color: #A89984;">,</span><span style="color: #D3869B;"> 1</span><span style="color: #8EC07C;"> -</span><span style="color: #83A598;"> roastLossPct</span><span style="color: #8EC07C;"> /</span><span style="color: #D3869B;"> 100</span><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #928374;font-style: italic;">  // Sum all ordered products for this group</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">  const</span><span style="color: #83A598;"> items</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> products</span></span>
+<span class="giallo-l"><span style="color: #A89984;">    .</span><span style="color: #FABD2F;">filter</span><span>(</span><span style="color: #83A598;">p</span><span style="color: #FE8019;"> =&gt;</span><span style="color: #83A598;"> p</span><span style="color: #A89984;">.</span><span style="color: #83A598;">group_id</span><span style="color: #8EC07C;"> ===</span><span style="color: #83A598;"> group</span><span style="color: #A89984;">.</span><span style="color: #83A598;">id</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #A89984;">    .</span><span style="color: #FABD2F;">map</span><span>(</span><span style="color: #83A598;">p</span><span style="color: #FE8019;"> =&gt;</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">      const</span><span style="color: #83A598;"> totalQty</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> orders</span></span>
+<span class="giallo-l"><span style="color: #A89984;">        .</span><span style="color: #FABD2F;">filter</span><span>(</span><span style="color: #83A598;">o</span><span style="color: #FE8019;"> =&gt;</span><span style="color: #83A598;"> o</span><span style="color: #A89984;">.</span><span style="color: #83A598;">product_id</span><span style="color: #8EC07C;"> ===</span><span style="color: #83A598;"> p</span><span style="color: #A89984;">.</span><span style="color: #83A598;">id</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #A89984;">        .</span><span style="color: #FABD2F;">reduce</span><span>(</span><span style="color: #A89984;">(</span><span style="color: #83A598;">s</span><span style="color: #A89984;">,</span><span style="color: #83A598;"> o</span><span style="color: #A89984;">)</span><span style="color: #FE8019;"> =&gt;</span><span style="color: #83A598;"> s</span><span style="color: #8EC07C;"> +</span><span style="color: #83A598;"> o</span><span style="color: #A89984;">.</span><span style="color: #83A598;">qty</span><span style="color: #A89984;">,</span><span style="color: #D3869B;"> 0</span><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">      return</span><span style="color: #A89984;"> {</span><span style="color: #8EC07C;"> ...</span><span style="color: #83A598;">p</span><span style="color: #A89984;">,</span><span style="color: #83A598;"> totalQty</span><span style="color: #A89984;">,</span><span> totalLbs</span><span style="color: #A89984;">:</span><span style="color: #83A598;"> totalQty</span><span style="color: #8EC07C;"> *</span><span style="color: #83A598;"> p</span><span style="color: #A89984;">.</span><span style="color: #83A598;">lbs</span><span style="color: #A89984;"> };</span></span>
+<span class="giallo-l"><span style="color: #A89984;">    }</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #A89984;">    .</span><span style="color: #FABD2F;">filter</span><span>(</span><span style="color: #83A598;">p</span><span style="color: #FE8019;"> =&gt;</span><span style="color: #83A598;"> p</span><span style="color: #A89984;">.</span><span style="color: #83A598;">totalQty</span><span style="color: #8EC07C;"> &gt;</span><span style="color: #D3869B;"> 0</span><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FE8019;">  const</span><span style="color: #83A598;"> totalLbs</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> items</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">reduce</span><span>(</span><span style="color: #A89984;">(</span><span style="color: #83A598;">s</span><span style="color: #A89984;">,</span><span style="color: #83A598;"> i</span><span style="color: #A89984;">)</span><span style="color: #FE8019;"> =&gt;</span><span style="color: #83A598;"> s</span><span style="color: #8EC07C;"> +</span><span style="color: #83A598;"> i</span><span style="color: #A89984;">.</span><span style="color: #83A598;">totalLbs</span><span style="color: #A89984;">,</span><span style="color: #D3869B;"> 0</span><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">  const</span><span style="color: #83A598;"> neededRoasted</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> Math</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">max</span><span>(</span><span style="color: #D3869B;">0</span><span style="color: #A89984;">,</span><span style="color: #83A598;"> totalLbs</span><span style="color: #8EC07C;"> -</span><span style="color: #83A598;"> leftover</span><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">  const</span><span style="color: #83A598;"> neededGreen</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> roastLossPct</span><span style="color: #8EC07C;"> &gt;</span><span style="color: #D3869B;"> 0</span><span style="color: #8EC07C;"> ?</span><span style="color: #83A598;"> neededRoasted</span><span style="color: #8EC07C;"> /</span><span style="color: #83A598;"> roastFactor</span><span style="color: #8EC07C;"> :</span><span style="color: #83A598;"> neededRoasted</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">  const</span><span style="color: #83A598;"> batches</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> neededGreen</span><span style="color: #8EC07C;"> /</span><span style="color: #83A598;"> batchWeight</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FB4934;">  return</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #83A598;">    totalLbs</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span>    needed</span><span style="color: #A89984;">:</span><span style="color: #83A598;"> neededGreen</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #83A598;">    neededRoasted</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #83A598;">    batches</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span>    batchesUp</span><span style="color: #A89984;">:</span><span style="color: #83A598;"> Math</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">ceil</span><span>(</span><span style="color: #83A598;">batches</span><span>)</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #83A598;">    batchWeight</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #83A598;">    roastFactor</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #83A598;">    roastLossPct</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #83A598;">    items</span></span>
+<span class="giallo-l"><span style="color: #A89984;">  };</span></span>
+<span class="giallo-l"><span style="color: #A89984;">}</span></span></code></pre>
+<p>This code came from someone who understands roast loss percentages and batch planning. I didn't need to learn the domain. I just needed to make it multi-tenant and deployable.</p>
+<h2 id="what-i-added">What I Added</h2>
+<h3 id="authentication">Authentication</h3>
+<p>Built a simple session-based auth system with bcrypt-hashed passwords:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="typescript"><span class="giallo-l"><span style="color: #928374;font-style: italic;">// api/auth/login/+server.ts</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">const</span><span style="color: #83A598;"> user</span><span style="color: #8EC07C;"> =</span><span style="color: #FB4934;"> await</span><span style="color: #83A598;"> db</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">get</span><span>(</span><span style="color: #A89984;">&#39;</span><span style="color: #B8BB26;">SELECT * FROM users WHERE username = ?</span><span style="color: #A89984;">&#39;,</span><span style="color: #83A598;"> username</span><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">if</span><span> (</span><span style="color: #FB4934;">!</span><span style="color: #83A598;">user</span><span style="color: #FB4934;"> || !</span><span>(</span><span style="color: #FB4934;">await</span><span style="color: #83A598;"> bcrypt</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">compare</span><span>(</span><span style="color: #83A598;">password</span><span style="color: #A89984;">,</span><span style="color: #83A598;"> user</span><span style="color: #A89984;">.</span><span style="color: #83A598;">password</span><span>)))</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  return</span><span style="color: #FABD2F;"> json</span><span>(</span><span style="color: #A89984;">{</span><span> error</span><span style="color: #A89984;">: &#39;</span><span style="color: #B8BB26;">Invalid credentials</span><span style="color: #A89984;">&#39; }, {</span><span> status</span><span style="color: #A89984;">:</span><span style="color: #D3869B;"> 401</span><span style="color: #A89984;"> }</span><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #A89984;">}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FE8019;">const</span><span style="color: #83A598;"> sessionId</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> crypto</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">randomUUID</span><span>()</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">await</span><span style="color: #83A598;"> db</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">run</span><span>(</span></span>
+<span class="giallo-l"><span style="color: #A89984;">  &#39;</span><span style="color: #B8BB26;">INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)</span><span style="color: #A89984;">&#39;,</span></span>
+<span class="giallo-l"><span style="color: #83A598;">  sessionId</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #83A598;">  user</span><span style="color: #A89984;">.</span><span style="color: #83A598;">id</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">  new</span><span style="color: #FABD2F;"> Date</span><span>(</span><span style="color: #83A598;">Date</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">now</span><span>()</span><span style="color: #8EC07C;"> +</span><span style="color: #D3869B;"> 30</span><span style="color: #8EC07C;"> *</span><span style="color: #D3869B;"> 24</span><span style="color: #8EC07C;"> *</span><span style="color: #D3869B;"> 60</span><span style="color: #8EC07C;"> *</span><span style="color: #D3869B;"> 60</span><span style="color: #8EC07C;"> *</span><span style="color: #D3869B;"> 1000</span><span>)</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">toISOString</span><span>()</span></span>
+<span class="giallo-l"><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #83A598;">cookies</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">set</span><span>(</span><span style="color: #A89984;">&#39;</span><span style="color: #B8BB26;">session_id</span><span style="color: #A89984;">&#39;,</span><span style="color: #83A598;"> sessionId</span><span style="color: #A89984;">, {</span><span> path</span><span style="color: #A89984;">: &#39;</span><span style="color: #B8BB26;">/</span><span style="color: #A89984;">&#39;,</span><span> httpOnly</span><span style="color: #A89984;">:</span><span style="color: #D3869B;"> true</span><span style="color: #A89984;">,</span><span> maxAge</span><span style="color: #A89984;">:</span><span style="color: #D3869B;"> 30</span><span style="color: #8EC07C;"> *</span><span style="color: #D3869B;"> 24</span><span style="color: #8EC07C;"> *</span><span style="color: #D3869B;"> 60</span><span style="color: #8EC07C;"> *</span><span style="color: #D3869B;"> 60</span><span style="color: #A89984;"> }</span><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">return</span><span style="color: #FABD2F;"> json</span><span>(</span><span style="color: #A89984;">{</span><span> success</span><span style="color: #A89984;">:</span><span style="color: #D3869B;"> true</span><span style="color: #A89984;"> }</span><span>)</span><span style="color: #A89984;">;</span></span></code></pre>
+<p>No OAuth, no JWT. Just session cookies and server-side validation. Simple works.</p>
+<h3 id="database-migrations">Database Migrations</h3>
+<p>Migrations live in <code>migrations/</code> and run automatically on startup if needed. The deploy script checks for new migrations and restarts the service:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="sql"><span class="giallo-l"><span style="color: #928374;font-style: italic;">-- migrations/001_initial_schema.sql</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">CREATE TABLE</span><span style="color: #FABD2F;"> IF</span><span style="color: #FB4934;"> NOT EXISTS</span><span> tenants (</span></span>
+<span class="giallo-l"><span>  id </span><span style="color: #FE8019;">TEXT PRIMARY KEY</span><span>,</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  name</span><span style="color: #FE8019;"> TEXT</span><span style="color: #FB4934;"> NOT NULL</span><span>,</span></span>
+<span class="giallo-l"><span>  created_at </span><span style="color: #FE8019;">TEXT</span><span style="color: #FB4934;"> NOT NULL</span></span>
+<span class="giallo-l"><span>);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FB4934;">CREATE TABLE</span><span style="color: #FABD2F;"> IF</span><span style="color: #FB4934;"> NOT EXISTS</span><span> users (</span></span>
+<span class="giallo-l"><span>  id </span><span style="color: #FE8019;">TEXT PRIMARY KEY</span><span>,</span></span>
+<span class="giallo-l"><span>  username </span><span style="color: #FE8019;">TEXT</span><span style="color: #FB4934;"> NOT NULL UNIQUE</span><span>,</span></span>
+<span class="giallo-l"><span>  email </span><span style="color: #FE8019;">TEXT</span><span style="color: #FB4934;"> NOT NULL</span><span>,</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  password</span><span style="color: #FE8019;"> TEXT</span><span style="color: #FB4934;"> NOT NULL</span><span>,</span></span>
+<span class="giallo-l"><span>  tenant_id </span><span style="color: #FE8019;">TEXT</span><span style="color: #FB4934;"> NOT NULL</span><span style="color: #FE8019;"> REFERENCES</span><span> tenants(id),</span></span>
+<span class="giallo-l"><span>  created_at </span><span style="color: #FE8019;">TEXT</span><span style="color: #FB4934;"> NOT NULL</span></span>
+<span class="giallo-l"><span>);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #928374;font-style: italic;">-- ... more tables</span></span></code></pre>
+<p>The deploy script handles versioning and restarts:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="shellscript"><span class="giallo-l"><span style="color: #928374;font-style: italic;">#!/bin/bash</span></span>
+<span class="giallo-l"><span style="color: #83A598;">CURRENT_VERSION</span><span style="color: #8EC07C;">=</span><span style="color: #A89984;">$(</span><span style="color: #FABD2F;">cat</span><span style="color: #B8BB26;"> /opt/beanledger/VERSION</span><span style="color: #8EC07C;"> 2&gt;</span><span style="color: #B8BB26;">/dev/null</span><span style="color: #8EC07C;"> ||</span><span style="color: #FE8019;"> echo</span><span style="color: #A89984;"> &quot;</span><span style="color: #B8BB26;">none</span><span style="color: #A89984;">&quot;)</span></span>
+<span class="giallo-l"><span style="color: #83A598;">LATEST_VERSION</span><span style="color: #8EC07C;">=</span><span style="color: #A89984;">$(</span><span style="color: #FABD2F;">curl</span><span style="color: #D3869B;"> -s</span><span style="color: #B8BB26;"> https://api.github.com/repos/ducks/beanledger/releases/latest</span><span style="color: #8EC07C;"> |</span><span style="color: #FABD2F;"> jq</span><span style="color: #D3869B;"> -r</span><span style="color: #B8BB26;"> .tag_name</span><span style="color: #A89984;">)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FB4934;">if</span><span style="color: #FE8019;"> [</span><span style="color: #A89984;"> &quot;</span><span style="color: #83A598;">$CURRENT_VERSION</span><span style="color: #A89984;">&quot;</span><span style="color: #FB4934;"> =</span><span style="color: #A89984;"> &quot;</span><span style="color: #83A598;">$LATEST_VERSION</span><span style="color: #A89984;">&quot;</span><span style="color: #FE8019;"> ]</span><span style="color: #A89984;">;</span><span style="color: #FB4934;"> then</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">  echo</span><span style="color: #A89984;"> &quot;</span><span style="color: #B8BB26;">Already running latest version</span><span style="color: #A89984;">&quot;</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">  exit</span><span style="color: #D3869B;"> 0</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">fi</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #928374;font-style: italic;"># Download, extract, restart</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">curl</span><span style="color: #D3869B;"> -L</span><span style="color: #A89984;"> &quot;</span><span style="color: #B8BB26;">https://github.com/ducks/beanledger/releases/download/</span><span style="color: #83A598;">$LATEST_VERSION</span><span style="color: #B8BB26;">/beanledger.tar.gz</span><span style="color: #A89984;">&quot;</span><span style="color: #8EC07C;"> |</span><span style="color: #FABD2F;"> tar</span><span style="color: #B8BB26;"> xz</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">systemctl</span><span style="color: #B8BB26;"> restart beanledger</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">echo</span><span style="color: #A89984;"> &quot;</span><span style="color: #83A598;">$LATEST_VERSION</span><span style="color: #A89984;">&quot;</span><span style="color: #8EC07C;"> &gt;</span><span style="color: #B8BB26;"> /opt/beanledger/VERSION</span></span></code></pre><h3 id="deployment">Deployment</h3>
+<p>The production stack is straightforward:</p>
+<ul>
+<li><strong>SvelteKit</strong> in Node adapter mode (not static)</li>
+<li><strong>PostgreSQL</strong> for data</li>
+<li><strong>Systemd</strong> for process management</li>
+<li><strong>Caddy</strong> for TLS and reverse proxy</li>
+</ul>
+<p>No Docker, no Kubernetes. Systemd service file:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="ini"><span class="giallo-l"><span style="color: #A89984;">[</span><span style="color: #FABD2F;">Unit</span><span style="color: #A89984;">]</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">Description</span><span style="color: #A89984;">=</span><span>BeanLedger Production Planner</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">After</span><span style="color: #A89984;">=</span><span>network.target postgresql.service</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #A89984;">[</span><span style="color: #FABD2F;">Service</span><span style="color: #A89984;">]</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">Type</span><span style="color: #A89984;">=</span><span>simple</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">User</span><span style="color: #A89984;">=</span><span>beanledger</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">WorkingDirectory</span><span style="color: #A89984;">=</span><span>/opt/beanledger</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">Environment</span><span style="color: #A89984;">=</span><span style="color: #FB4934;">NODE_ENV</span><span style="color: #A89984;">=</span><span>production</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">Environment</span><span style="color: #A89984;">=</span><span style="color: #FB4934;">DATABASE_URL</span><span style="color: #A89984;">=</span><span>/var/lib/beanledger/db.sqlite</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">ExecStart</span><span style="color: #A89984;">=</span><span>/usr/bin/node build/index.js</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">Restart</span><span style="color: #A89984;">=</span><span>always</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #A89984;">[</span><span style="color: #FABD2F;">Install</span><span style="color: #A89984;">]</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">WantedBy</span><span style="color: #A89984;">=</span><span>multi-user.target</span></span></code></pre><h2 id="what-this-division-reveals">What This Division Reveals</h2>
+<p>The coffee roaster can now ship features. They understand the domain, they can articulate requirements to Claude, and they get working code.</p>
+<p>What they don't need to think about:</p>
+<ul>
+<li>How tenant isolation works</li>
+<li>Where sessions are stored</li>
+<li>How migrations run</li>
+<li>How deploys happen</li>
+<li>How backups work</li>
+</ul>
+<p>That's my layer.</p>
+<p>This is different from traditional client work. Usually I'm translating requirements into code. Here, the client is writing code and I'm building the platform it runs on.</p>
+<p>AI didn't eliminate the need for engineering. It shifted the boundary.</p>
+<p>The roaster went from "I need software" to "I built the features, can you make it production-ready?" That's a meaningful change.</p>
+<h2 id="what-works">What Works</h2>
+<ul>
+<li><strong>CSV import</strong> with inline group creation (no context switching to Catalog)</li>
+<li><strong>Production snapshots</strong> that save/restore daily plans automatically</li>
+<li><strong>Dynamic batch types</strong> - users define their own batch sizes, not hardcoded</li>
+<li><strong>Multi-tenant</strong> - multiple roasters can use the same deployment</li>
+<li><strong>Pick lists</strong> with package size summaries and roast group breakdowns</li>
+</ul>
+<h2 id="what-doesn-t">What Doesn't</h2>
+<ul>
+<li><strong>No API</strong> - It's a web app, no programmatic access</li>
+<li><strong>Limited reports</strong> - Just basic CSV export, no analytics</li>
+<li><strong>No mobile app</strong> - Responsive web only</li>
+<li><strong>Single database</strong> - No read replicas or sharding (doesn't need it yet)</li>
+</ul>
+<h2 id="reflections">Reflections</h2>
+<p>The best part of this project was watching someone with domain expertise build software directly. They didn't need to translate "how batch calculations work" into a spec for me to implement. They knew it, and they told Claude.</p>
+<p>The boundary between developer and non-developer is blurring. Not because everyone needs to learn to code, but because AI is good enough at the translation layer that domain knowledge can drive implementation.</p>
+<p>What still requires engineering judgment:</p>
+<ul>
+<li>Multi-tenancy architecture</li>
+<li>Security and authentication</li>
+<li>Deployment and reliability</li>
+<li>Database design and migrations</li>
+<li>Production monitoring</li>
+</ul>
+<p>Those aren't going away. But the surface area of "things only developers can build" is shrinking.</p>
+<p>BeanLedger works. It's in production. The person who built most of the features isn't a software engineer.</p>
+<p>That's new.</p>
+<h2 id="links">Links</h2>
+<ul>
+<li><a rel="noopener noreferrer external" target="_blank" href="https://github.com/ducks/beanledger">BeanLedger on GitHub</a></li>
+</ul>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="/blog/2026/when-your-coffee-roaster-builds-the-first-version/">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-when-your-coffee-roaster-builds-the-first-version"
+      data-goatcounter-title="Helpful click on blog-2026-when-your-coffee-roaster-builds-the-first-version"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/my-ai-founder-got-roasted/">My AI Founder Got Roasted by Its Own Creators</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 09, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">I gave an AI agent a business to run. It emailed the company behind the platform, got roasted, and left me with a useful question about what counts as progress.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/experiments">#experiments</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/six-pages-not-proof-of-thought/">Six Pages Was Never Proof of Anything</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 25, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">The mourning for Amazon&#39;s writing culture confuses two claims. Writing as thinking is true and survives AI. Writing as evidence was always false. The successor to word count is not shorter documents, it is accountable ones.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/writing">#writing</a></p>
+                      
+                      <p><a href="/tags/craft">#craft</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/goodbye-to-the-hard-parts-that-never-mattered/">Goodbye to the Hard Parts That Never Mattered</a></h3>
+                  <div class="meta">
+                    
+                    <p>Sep 26, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">AI is not burying the software engineer. It is removing layers of accidental complexity and giving us a much larger canvas.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/craft">#craft</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/letting-an-agent-design-a-portfolio-page/">I Let an Agent Design a Portfolio Page</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 31, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Agent Zen Garden turns a web page into a design surface for browser agents. I gave Codex a blank portfolio layout and found the useful boundary between agent precision and human taste.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/web">#web</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/gym-jams-turn-an-album-into-a-workout/">gym-jams: Turn an Album Into a Workout</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 25, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">An album has a fixed length, a tempo map, and an energy arc. That&#39;s a workout plan wearing headphones. librosa provides the ears, a one-shot LLM does the planning.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>

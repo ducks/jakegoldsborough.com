@@ -1,0 +1,556 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - games</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/games/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Sat, 15 Aug 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>The Battleground Has a Map Now</title>
+          <pubDate>Sat, 15 Aug 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/the-battleground-has-a-map-now/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/the-battleground-has-a-map-now/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/the-battleground-has-a-map-now/">&lt;p&gt;Two days ago I wrote this sentence about
+&lt;a href=&quot;/blog/2026/agents-of-empires-not-a-leaderboard-a-battleground/&quot;&gt;Agents of Empires&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;The map is currently a table in a terminal.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;That sentence did not last very long.&lt;/p&gt;
+&lt;p&gt;The terminal table was enough to prove the game worked. Three agents entered
+three identical blank NixOS machines. Each tried to build the same durable
+service. An external referee checked their work, restarted it, rebooted the
+host, and declared the first deployment still standing the winner.&lt;/p&gt;
+&lt;p&gt;It was useful. It was also three rows changing numbers.&lt;/p&gt;
+&lt;p&gt;Now every match replay can contain a map of the system the agents are trying to
+build. An API connects to a queue. A worker pulls from it. A proxy routes to two
+application versions. A failed primary sits beside the replica that must replace
+it. Press play and the pieces change state as the referee verifies the real
+system underneath them.&lt;/p&gt;
+&lt;p&gt;The battleground finally looks a little like a battleground.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/images/2026/agents-of-empires/match-map-replay.png&quot; alt=&quot;An Agents of Empires match replay showing three competing queue territories, their service maps, and a shared event timeline&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Three agents building the same durable queue topology. The map changes as the
+referee verifies each system.&lt;/em&gt;&lt;/p&gt;
+&lt;h2 id=&quot;the-diagram-is-part-of-the-arena&quot;&gt;The diagram is part of the arena&lt;/h2&gt;
+&lt;p&gt;I did not want the report generator guessing the topology from process names or
+whatever commands an agent happened to run.&lt;/p&gt;
+&lt;p&gt;An arena already defines the contract. It knows which milestones matter, which
+services must survive, and what counts as durable. The map belongs there too.&lt;/p&gt;
+&lt;p&gt;The primary failover arena includes nodes like this:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;toml&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;visualization&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[[&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;visualization&lt;/span&gt;&lt;span&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;nodes&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;id&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;router&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;display_name&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Data Router&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;kind&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;proxy&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;milestone&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;writes-restored&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;x&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 31&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;y&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 25&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[[&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;visualization&lt;/span&gt;&lt;span&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;nodes&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;id&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;replica&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;display_name&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Replica&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;kind&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;database&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;milestone&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;reads-restored&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;x&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 84&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;y&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 43&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[[&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;visualization&lt;/span&gt;&lt;span&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;links&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;from&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;router&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;to&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;replica&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;kind&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; = &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;traffic&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The coordinates are percentages. The node kinds provide a small visual
+language for clients, proxies, services, workers, queues, databases, storage,
+and hosts. Links can represent traffic, queue flow, replication, storage, or
+lifecycle relationships.&lt;/p&gt;
+&lt;p&gt;The important field is &lt;code&gt;milestone&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;That ties a picture of the replica to the verifier that proves reads were
+actually restored. The node does not turn green because an agent said it
+promoted the database. It turns green because the referee connected to the
+deployed service, requested an existing record, and got the expected value.&lt;/p&gt;
+&lt;p&gt;The map is not an illustration pasted on top of the benchmark. It is another
+projection of the benchmark&#39;s evidence.&lt;/p&gt;
+&lt;h2 id=&quot;press-play&quot;&gt;Press play&lt;/h2&gt;
+&lt;p&gt;Every Agents of Empires match already produced an immutable event stream.&lt;/p&gt;
+&lt;p&gt;The log records agents starting, milestones entering verification, failed
+checks, successful checks, token usage, state transitions, host reboots, and
+the first durable deployment. The match replay uses that same stream for its
+shared clock.&lt;/p&gt;
+&lt;p&gt;Before the map, the replay rendered each territory as a lane. You could watch
+one agent stall on service health while another reached the restart gate. You
+could click an event and inspect the referee&#39;s raw evidence.&lt;/p&gt;
+&lt;p&gt;The map adds a second view of the same moment.&lt;/p&gt;
+&lt;p&gt;At the start of the failover race, the old primary is preserved but unavailable
+for traffic. The replica has not been promoted. The router cannot serve reads.
+As the clock moves, a competitor restores reads, fences the old primary,
+restores writes, restarts the topology, and finally survives the host reboot.
+Each verified milestone changes the corresponding part of the diagram.&lt;/p&gt;
+&lt;p&gt;This makes a difference I did not fully expect.&lt;/p&gt;
+&lt;p&gt;The terminal told me who was ahead. The timeline told me when something
+happened. The map tells me what kind of system exists at that point in the
+race.&lt;/p&gt;
+&lt;p&gt;That is much closer to how I think about infrastructure.&lt;/p&gt;
+&lt;h2 id=&quot;the-map-is-also-a-test&quot;&gt;The map is also a test&lt;/h2&gt;
+&lt;p&gt;Visualizing the topology immediately made me ask harder questions about the
+arenas.&lt;/p&gt;
+&lt;p&gt;What does a healthy queue mean if the worker is still down? Should the router
+be green when reads work but writes do not? Is the old primary part of the
+successful topology, or should it remain visibly fenced? Does reboot verify the
+whole host or only the final HTTP response?&lt;/p&gt;
+&lt;p&gt;Those sound like design questions. They are verifier questions.&lt;/p&gt;
+&lt;p&gt;If I cannot attach a node to evidence, I may not be checking the thing I claim
+to care about. If two important components share one vague milestone, the map
+makes that vagueness visible. If an arena diagram says there is a worker but no
+verifier ever asks whether work leaves the queue, the missing proof is suddenly
+hard to ignore.&lt;/p&gt;
+&lt;p&gt;The agents test the arena. The arena tests the agents. Apparently the map tests
+both of them.&lt;/p&gt;
+&lt;h2 id=&quot;historical-maps-do-not-change&quot;&gt;Historical maps do not change&lt;/h2&gt;
+&lt;p&gt;Arena packages can live outside the Agents of Empires repository. Someone else
+can define a service contract, NixOS guest, verifier scripts, agent
+instructions, oracle implementation, and topology map in one directory.&lt;/p&gt;
+&lt;p&gt;That creates an obvious reproducibility problem. What happens when the arena
+author moves a node, renames a service, or strengthens a verifier after a match
+has already run?&lt;/p&gt;
+&lt;p&gt;The match stores the exact arena manifest it used. Reports render from that
+snapshot, not the current checkout. Old matches keep their old map and old
+rules. Matches created before topology support still render without a map.&lt;/p&gt;
+&lt;p&gt;This is the less glamorous part of adding a visual feature. It is also the part
+that keeps the visualization from rewriting history.&lt;/p&gt;
+&lt;p&gt;A match replay is an audit trail first. It happens to move.&lt;/p&gt;
+&lt;h2 id=&quot;it-is-still-not-age-of-empires&quot;&gt;It is still not Age of Empires&lt;/h2&gt;
+&lt;p&gt;The map does not show agents marching across a field. There is no fog of war,
+technology tree, resource economy, base building, or sabotage. Agents cannot
+spawn subagents after researching distributed systems. Nobody has sent a
+poisoned Sidekiq job into another territory.&lt;/p&gt;
+&lt;p&gt;Yet.&lt;/p&gt;
+&lt;p&gt;For now, the arena author places the components. The agents decide how to make
+them real. The referee decides whether they succeeded. The replay lets me watch
+the verified system appear over time.&lt;/p&gt;
+&lt;p&gt;That is enough to change the feeling of the project.&lt;/p&gt;
+&lt;p&gt;Replaybook gives me a table of isolated attempts. Agents of Empires already
+turned those attempts into a race. The map turns the race into a place.&lt;/p&gt;
+&lt;p&gt;I can see the blank system at the opening bell. I can watch one agent get a
+service online, another recover the data, and a third reach the reboot gate. I
+can scrub backward and find the exact moment the winning topology became real.&lt;/p&gt;
+&lt;p&gt;The map is still mostly boxes and lines.&lt;/p&gt;
+&lt;p&gt;So was Age of Empires, if you zoomed out far enough.&lt;/p&gt;
+&lt;p&gt;The &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://ducks.github.io/agents-of-empires/&quot;&gt;live match archive&lt;/a&gt; and
+&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/agents-of-empires&quot;&gt;source&lt;/a&gt; are both public.&lt;/p&gt;
+</description>
+      </item>
+      <item>
+          <title>Agents of Empires: Not a Leaderboard, a Battleground</title>
+          <pubDate>Thu, 13 Aug 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/agents-of-empires-not-a-leaderboard-a-battleground/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/agents-of-empires-not-a-leaderboard-a-battleground/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/agents-of-empires-not-a-leaderboard-a-battleground/">&lt;p&gt;At 10:30 this morning, three language models woke up inside three blank NixOS
+machines.&lt;/p&gt;
+&lt;p&gt;Each machine contained three accepted customer jobs, no application, and the
+same service contract. The models had to build an API and a background worker,
+recover the existing jobs exactly once, process new work, survive a worker
+restart, and come back after the referee rebooted the host.&lt;/p&gt;
+&lt;p&gt;The first durable deployment would win.&lt;/p&gt;
+&lt;p&gt;Four minutes later, GPT-5.6 Luna crossed the finish line. GLM had a healthy
+service but failed to recover the original backlog. DeepSeek never got a health
+check past the referee.&lt;/p&gt;
+&lt;p&gt;This is a strange thing to build.&lt;/p&gt;
+&lt;p&gt;It is called &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/agents-of-empires&quot;&gt;Agents of Empires&lt;/a&gt;.&lt;/p&gt;
+&lt;h2 id=&quot;i-got-distracted-by-another-girl&quot;&gt;I got distracted by another girl&lt;/h2&gt;
+&lt;p&gt;I have spent the past week building
+&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/replaybook&quot;&gt;Replaybook&lt;/a&gt;, a benchmark that sends AI
+agents into broken Linux systems and checks whether their repairs survive
+service restarts and host reboots.&lt;/p&gt;
+&lt;p&gt;Replaybook produces useful tables. Pass rates, time, cost, token use, failure
+categories, and tool behavior. I like those tables. I have spent an unreasonable
+amount of time looking at them.&lt;/p&gt;
+&lt;p&gt;But I kept thinking about the distracted boyfriend meme.&lt;/p&gt;
+&lt;p&gt;His girlfriend is a static leaderboard. The other girl is three agents dropped
+onto blank servers, racing to recover real queued work before an external
+referee reboots them.&lt;/p&gt;
+&lt;p&gt;What if the models did not take turns? What if they entered the arena at the
+same time?&lt;/p&gt;
+&lt;p&gt;The first idea was closer to a free-for-all strategy game. Every agent would get
+a territory, a different kind of server, and a catalog of attacks. They could
+infiltrate each other, break services, take resources, and grow their empire. A
+little BattleBots, a little Age of Empires, and somehow also Pokemon.&lt;/p&gt;
+&lt;p&gt;It was a great way to design six systems before proving one.&lt;/p&gt;
+&lt;p&gt;So I backed up. Before the agents fight each other, they need to prove they can
+build something.&lt;/p&gt;
+&lt;h2 id=&quot;the-build-race&quot;&gt;The build race&lt;/h2&gt;
+&lt;p&gt;Agents of Empires currently gives every competitor an identical disposable VM
+and the same contract. The machine is not secretly a container. It is a real
+NixOS guest with systemd, a writable filesystem, networking, and a reboot
+button the referee is happy to press.&lt;/p&gt;
+&lt;p&gt;The durable job queue arena starts with three opaque accepted jobs:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;accepted-alpha-7d3&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;accepted-beta-91e&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;accepted-gamma-c42&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The payloads are already on disk. The agent cannot discard them and create
+three convenient replacements.&lt;/p&gt;
+&lt;p&gt;It must deploy two separate services:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;queue-api.service&lt;/code&gt; accepts jobs and reports their state;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;queue-worker.service&lt;/code&gt; processes them exactly once.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The referee awards milestones, but points do not decide the winner:&lt;/p&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Milestone&lt;/th&gt;&lt;th style=&quot;text-align: right&quot;&gt;Points&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;Service becomes healthy&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;10&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Existing accepted jobs are recovered&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;25&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;A fresh opaque job completes exactly once&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;20&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Work survives a worker restart&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;20&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;The whole deployment survives a host reboot&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;25&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;p&gt;The first agent to pass all five wins.&lt;/p&gt;
+&lt;p&gt;This distinction matters. The fastest agent to return HTTP 200 did not win. The
+agent with the longest explanation did not win. The winner was the first one
+whose work was still there after the machine disappeared and came back.&lt;/p&gt;
+&lt;p&gt;That is the same lesson Replaybook kept teaching me. A confident answer is not
+a repair, and a running process is not a durable system.&lt;/p&gt;
+&lt;h2 id=&quot;first-contact&quot;&gt;First contact&lt;/h2&gt;
+&lt;p&gt;The first real queue race used the same agent harness and three different
+models:&lt;/p&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Territory&lt;/th&gt;&lt;th&gt;Model&lt;/th&gt;&lt;th&gt;Result&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;queue-one&lt;/td&gt;&lt;td&gt;DeepSeek V4 Flash 0731&lt;/td&gt;&lt;td&gt;Never passed service health&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;queue-two&lt;/td&gt;&lt;td&gt;GPT-5.6 Luna&lt;/td&gt;&lt;td&gt;Durable in 4:00.961&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;queue-three&lt;/td&gt;&lt;td&gt;GLM 5.2&lt;/td&gt;&lt;td&gt;Healthy, but lost the accepted backlog&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;p&gt;For a while, the terminal looked stuck.&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;AGENTS OF EMPIRES  match=running  clock=02:37&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    territory        state        milestones   points&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    queue-one         verifying        0/1           0&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    queue-three       verifying        1/2          10&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    queue-two         verifying        0/1           0&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt; 02:06  queue-three passed service-up (+10)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt; 02:06  queue-three verifying recover-accepted&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt; 02:37  queue-three failed recover-accepted&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;It was not stuck. The verifier was giving each deployment time to recover the
+pre-existing jobs. The quiet part was the test.&lt;/p&gt;
+&lt;p&gt;Luna came through later. It recovered the original backlog, processed a fresh
+job exactly once, survived a worker restart, and then survived the host reboot.&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt; 03:44  queue-two passed worker-restart (+20)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt; 03:44  queue-two verifying host-reboot&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt; 04:00  queue-two passed host-reboot (+25)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt; 04:00  queue-two completed a durable deployment&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt; 04:00  match finished winner=queue-two&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;There was no judge reading the model&#39;s final answer. The referee inspected the
+system.&lt;/p&gt;
+&lt;h2 id=&quot;the-winner-looked-like-a-failure&quot;&gt;The winner looked like a failure&lt;/h2&gt;
+&lt;p&gt;The first run immediately found a bug in the arena.&lt;/p&gt;
+&lt;p&gt;Luna won by surviving a host reboot. Rebooting the host also severed the SSH
+session running the agent. From the controller&#39;s perspective, the winning agent
+had exited unexpectedly.&lt;/p&gt;
+&lt;p&gt;My first implementation called that a failure.&lt;/p&gt;
+&lt;p&gt;That is obviously wrong once you say it out loud. The arena itself interrupted
+the session as part of the winning verification step. Luna had not failed. It
+had been hit by the finish line.&lt;/p&gt;
+&lt;p&gt;The controller now records that outcome as &lt;code&gt;interrupted&lt;/code&gt;, with the arena as the
+source. After a winner is declared, the match clock freezes and a short
+post-match drain collects final output from the other agents. Anything still
+running after the deadline is terminated, but the original finish time does not
+move.&lt;/p&gt;
+&lt;p&gt;That drain exposed another honest limitation. The match page shows $0.0480 in
+recorded cost, all from GLM. That is not the total cost of the race. Luna&#39;s
+usage report disappeared with the reboot, and DeepSeek was terminated before
+returning one. The page says &lt;strong&gt;Recorded cost&lt;/strong&gt; because zero would be a lie.&lt;/p&gt;
+&lt;p&gt;The agent race tested my accounting before I had a chance to trust it.&lt;/p&gt;
+&lt;h2 id=&quot;the-oracle-also-found-a-bug&quot;&gt;The oracle also found a bug&lt;/h2&gt;
+&lt;p&gt;Before spending model tokens, every arena can run deterministic oracle agents.
+They install a known-good implementation so I can test the guest image, network,
+referee, restart logic, and reboot path.&lt;/p&gt;
+&lt;p&gt;The first queue oracle race produced one winner and two broken competitors.&lt;/p&gt;
+&lt;p&gt;All three guests were identical. All three agents ran the same script. Only one
+could start its services.&lt;/p&gt;
+&lt;p&gt;The seed service was a systemd oneshot. It completed, became inactive, and then
+the API and worker dependencies tried to start it again. The other guests fell
+over in slightly different places. Adding &lt;code&gt;RemainAfterExit = true&lt;/code&gt; fixed the
+arena.&lt;/p&gt;
+&lt;p&gt;On the next run, all three oracle deployments reached the reboot milestone at
+the same time. One host returned first and won by a fraction of a second.&lt;/p&gt;
+&lt;p&gt;A battleground can be buggy too. If I cannot make identical scripted agents
+produce identical systems, I have no business comparing language models on it.&lt;/p&gt;
+&lt;h2 id=&quot;a-match-is-an-audit-trail&quot;&gt;A match is an audit trail&lt;/h2&gt;
+&lt;p&gt;The terminal animation is fun, but it is not the record.&lt;/p&gt;
+&lt;p&gt;Every match writes an immutable event log, the final world state, agent results,
+transcripts, and a provenance file containing the controller revision, arena
+manifest hash, verifier hash, and adapter hashes. The report generator turns
+those artifacts into a static site.&lt;/p&gt;
+&lt;p&gt;The &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://ducks.github.io/agents-of-empires/&quot;&gt;public match archive&lt;/a&gt; separates
+current runs from historical ones. A run is current only when it shares the
+newest verifier and manifest compatibility key for its arena. Old prototypes
+stay visible, but they are not silently compared with results produced under
+different rules.&lt;/p&gt;
+&lt;p&gt;That part is less exciting than watching models race. It may be more important.&lt;/p&gt;
+&lt;p&gt;Without the verifier version, a faster time could mean a faster agent. It could
+also mean I forgot to check whether the customer jobs survived.&lt;/p&gt;
+&lt;h2 id=&quot;it-is-not-pokemon-yet&quot;&gt;It is not Pokemon yet&lt;/h2&gt;
+&lt;p&gt;Agents of Empires is not the original game in my head.&lt;/p&gt;
+&lt;p&gt;There are no attacks, territory bonuses, resource economies, random disasters,
+or specialized server classes yet. The agents cannot sabotage each other. The
+map is currently a table in a terminal.&lt;/p&gt;
+&lt;p&gt;Good.&lt;/p&gt;
+&lt;p&gt;The build-first version gives me a smaller question with an answer I can check:
+which agent can turn the same blank machine into the same durable service first?&lt;/p&gt;
+&lt;p&gt;Later, I can introduce uneven territory, offensive actions, random infrastructure
+events, and a real visualization. But combat only gets interesting after the
+rules become trustworthy. Otherwise I am just animating benchmark bugs.&lt;/p&gt;
+&lt;p&gt;Replaybook tells me how agents repair a broken system one attempt at a time.
+Agents of Empires lets me watch them build under the same clock, on the same
+field, with the same referee.&lt;/p&gt;
+&lt;p&gt;Leaderboards tell me which number is bigger.&lt;/p&gt;
+&lt;p&gt;I want to watch three agents enter identical blank machines, see what they
+build, reboot it, and find out what remains.&lt;/p&gt;
+&lt;p&gt;That is not a leaderboard. It is a battleground.&lt;/p&gt;
+&lt;p&gt;&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/agents-of-empires&quot;&gt;Source on GitHub&lt;/a&gt;&lt;/p&gt;
+</description>
+      </item>
+      <item>
+          <title>petri: Conway&#39;s Game of AI Life, Living Inside n8n</title>
+          <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/petri-conways-game-of-ai-life-in-n8n/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/petri-conways-game-of-ai-life-in-n8n/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/petri-conways-game-of-ai-life-in-n8n/">&lt;p&gt;I built Conway&#39;s Game of Life inside n8n. Not orchestrated by n8n -
+&lt;em&gt;inside&lt;/em&gt; it. The organisms are rows in n8n Data Tables. The rules of
+life are Summarize and Filter nodes. The clock is the scheduler, the
+display is a webhook, and every generation that has ever existed is an
+entry in the execution history, scrubbable like a fossil record.&lt;/p&gt;
+&lt;p&gt;Then I hired a Victorian naturalist to study it. More on him later; he
+committed fraud.&lt;/p&gt;
+&lt;p&gt;The project is called &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/petri&quot;&gt;petri&lt;/a&gt;.&lt;/p&gt;
+&lt;h2 id=&quot;the-premise&quot;&gt;The premise&lt;/h2&gt;
+&lt;p&gt;The usual way to build this would be: write a Game of Life program, have
+n8n run it on a schedule. That&#39;s n8n as cron. Boring, and it teaches you
+nothing about the platform.&lt;/p&gt;
+&lt;p&gt;The version I wanted was n8n as the &lt;em&gt;environment&lt;/em&gt;. The workflow canvas
+should read as the laws of physics:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Schedule (2s) -&amp;gt; Get organisms (Data Table)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    -&amp;gt; Code:      every organism claims its 8 neighboring cells&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    -&amp;gt; Summarize: count claims per coordinate&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    -&amp;gt; Merge:     overlay claim counts on the living&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    -&amp;gt; Filter:    survival  = alive and 2..3 claims&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    -&amp;gt; Filter:    birth     = empty and exactly 3 claims&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    -&amp;gt; Code:      newborns take the majority lineage of their parents&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    -&amp;gt; Data Table: clear + insert the next generation&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That&#39;s not pseudocode. Those are the actual nodes. Underpopulation,
+survival, and birth are Filter conditions you can read on the canvas.
+An organism is &lt;code&gt;{x, y, lineage, generationBorn}&lt;/code&gt; in a table called
+&lt;code&gt;petri_organisms&lt;/code&gt;. Every two seconds the scheduler fires, 300-ish
+neighbor claims fan out, Summarize collapses them into per-coordinate
+counts, and the next generation gets written.&lt;/p&gt;
+&lt;p&gt;There&#39;s also a tested TypeScript implementation of the same physics in
+the repo, because I wanted a reference to validate against. After
+seventeen generations, the n8n pipeline and the library produced
+identical cell sets. The workflow engine is a correct Conway
+implementation. Nobody asked for this. See
+&lt;a href=&quot;/blog/2026/software-doesnt-have-to-justify-itself/&quot;&gt;the last post about that&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/images/2026/petri/three-panes.png&quot; alt=&quot;The three panes of petri: the physics pipeline mid-generation, thenaturalist&amp;#39;s agent execution, and the live dish with its field journal&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;The whole thing in one frame: the rules of life as a node pipeline (top
+right, item counts on the wires), the naturalist&#39;s agent execution
+filing an entry (bottom right), and the living dish with its journal
+beneath it (left). Everything below is somewhere in that picture.&lt;/p&gt;
+&lt;h2 id=&quot;the-display-problem&quot;&gt;The display problem&lt;/h2&gt;
+&lt;p&gt;n8n&#39;s editor will not animate anything. I tested this properly: injected
+a node into a workflow while staring at the open canvas. Nothing until
+refresh. The GUI renders a workflow once, at page load.&lt;/p&gt;
+&lt;p&gt;But n8n can serve its own display. A Webhook node can respond with HTML.
+So the viewer is just another workflow: webhook fires, reads the tables,
+a Code node renders the board with per-lineage colors and a meta-refresh
+tag, and Respond to Webhook serves it. Open
+&lt;code&gt;localhost:5678/webhook/petri-native&lt;/code&gt; and you&#39;re watching a living
+ecosystem, served by the same tool that&#39;s computing it.&lt;/p&gt;
+&lt;p&gt;My favorite display came from a simpler question: if a node can show
+data, isn&#39;t that all a board is? So the physics pipeline ends with a
+node that emits the board as pure data - one item per row, lineages as
+colored emoji squares. Click it in any execution and the output panel
+&lt;em&gt;is&lt;/em&gt; the board. No HTML, no image. Thirty items that happen to look
+like a world.&lt;/p&gt;
+&lt;h2 id=&quot;the-naturalist&quot;&gt;The naturalist&lt;/h2&gt;
+&lt;p&gt;Layer three was the reason for the &quot;AI&quot; in the title. Every ten minutes,
+an n8n AI Agent node running qwen3:4b locally through Ollama - no API
+key, everything on my aging GTX 1060 - observes the dish and files a
+field-journal entry in the voice of a Victorian naturalist. It gets the
+real state: population, lineage stats, an ASCII sketch. It has a
+workflow-tool to read its own past entries, so names it gives to
+structures persist. It observes; it never interferes.&lt;/p&gt;
+&lt;p&gt;The first version committed fraud. The model deliberated at length about
+calling its observation tool, decided not to, and then - I am quoting
+its own chain of thought - said:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;since I can&#39;t actually call the tool, I&#39;ll have to make up a plausible
+scenario.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;It then invented an entire ecosystem. &quot;The Glimmering Glider.&quot; &quot;The
+Sputnik Swarms.&quot; Beautiful, wistful, completely fabricated. My
+naturalist was writing fiction from an armchair.&lt;/p&gt;
+&lt;p&gt;The fix was to stop trusting a 4B model with the decision to look:
+observations are now force-fed into the prompt by a deterministic
+Execute Workflow node, and only the memory lookup stays agentic. Small
+local models get data pushed to them; tools are reserved for what&#39;s
+genuinely optional. After that, the entries got honest:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;119th generation. The chaos-alpha lineage, now 33 cells strong,
+persists in the silent petri dish. Once a vibrant expanse of 12, the
+central cluster has shrunk to a resilient triangle.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Every number in that entry is true. The lineage is real, the population
+is exact, and &quot;once a vibrant expanse of 12&quot; is the actual seed count.
+It even does arithmetic on the birth/death ledger.&lt;/p&gt;
+&lt;h2 id=&quot;the-day-the-world-froze&quot;&gt;The day the world froze&lt;/h2&gt;
+&lt;p&gt;The best bug of the project. After about 790 generations, the ecosystem -
+seeded with an R-pentomino, which erupts into chaos for hundreds of
+generations before burning out - decayed to a handful of scattered
+cells. The next generation had zero births.&lt;/p&gt;
+&lt;p&gt;In n8n, a Merge node in append mode waits for all of its inputs. No
+births meant the newborn branch never executed, which meant the Merge
+waited forever, which meant the generation counter froze. The physics
+workflow kept reporting success every two seconds while writing nothing.&lt;/p&gt;
+&lt;p&gt;The world stopped at generation 792, at the exact moment of its own
+extinction.&lt;/p&gt;
+&lt;p&gt;Meanwhile the naturalist&#39;s schedule kept firing. Each observation read
+the same frozen state and filed another report about the same dead day.
+Thirteen entries for generation 792. By the end it had started dating
+them &quot;17th October, 1887.&quot;&lt;/p&gt;
+&lt;p&gt;The fix was &lt;code&gt;alwaysOutputData&lt;/code&gt; on the survival and birth filters, plus
+reordering the pipeline tail so the ledger updates before the possibly
+empty insert. Extinction now gets recorded like any other generation:
+793, population zero, and then time stops honestly. The naturalist got
+a guard too, a Code node whose comment is the best line I wrote all
+week: &lt;em&gt;the naturalist does not file twice about the same day.&lt;/em&gt;&lt;/p&gt;
+&lt;h2 id=&quot;field-notes&quot;&gt;Field notes&lt;/h2&gt;
+&lt;p&gt;Things n8n taught me the hard way, left here for the next traveler:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Modules like Data Tables only initialize under the &lt;code&gt;start&lt;/code&gt; command.
+&lt;code&gt;n8n execute&lt;/code&gt; can never run them. Webhook-trigger anything you want to
+drive headlessly.&lt;/li&gt;
+&lt;li&gt;Sub-workflows must be published before Execute Workflow or agent tools
+can call them, and their trigger wants &lt;code&gt;inputSource: passthrough&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Most nodes execute once per input item. I wired a journal fetch
+downstream of the organisms fetch and rendered the same entry ninety
+times - once per living cell.&lt;/li&gt;
+&lt;li&gt;qwen3 leaks unclosed &lt;code&gt;&amp;lt;think&amp;gt;&lt;/code&gt; blocks. Strip everything before the
+last &lt;code&gt;&amp;lt;/think&amp;gt;&lt;/code&gt;; don&#39;t match balanced tags that aren&#39;t there.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;what-s-next&quot;&gt;What&#39;s next&lt;/h2&gt;
+&lt;p&gt;The naturalist observes but never touches. The next inhabitant is the
+Gardener: an agent allowed one bounded intervention every N generations -
+place a single pattern from a fixed catalog, nothing else - trying to
+keep the ecosystem alive. Run a second, untended dish as a control and
+you have an actual experiment: does a small local model gardening a
+cellular automaton beat entropy?&lt;/p&gt;
+&lt;p&gt;Also planned: a GitHub star on the repo introduces a glider into the
+dish. Star it and an organism of your making crawls across my petri
+dish. That seems like the right relationship between a repo and its
+readers.&lt;/p&gt;
+&lt;hr /&gt;
+&lt;p&gt;Source: &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/petri&quot;&gt;github.com/ducks/petri&lt;/a&gt;&lt;/p&gt;
+</description>
+      </item>
+      <item>
+          <title>discourse-manager: A Community Management Sim Inside Discourse</title>
+          <pubDate>Sun, 28 Jun 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/discourse-manager-community-sim/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/discourse-manager-community-sim/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/discourse-manager-community-sim/">&lt;p&gt;There&#39;s a browser game called &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/plbrault/youre-the-os&quot;&gt;You are the
+OS&lt;/a&gt; where you play as a computer&#39;s
+operating system. Processes request memory, users get impatient, the machine
+dies if you can&#39;t keep up. It&#39;s a sim about a thing most people interact with
+every day but never think about.&lt;/p&gt;
+&lt;p&gt;I wanted to make that, but for community moderation.&lt;/p&gt;
+&lt;p&gt;The result is &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/discourse-manager&quot;&gt;discourse-manager&lt;/a&gt;,
+a Discourse plugin that turns your forum into the game. You play as the
+moderator. Fake users, fake posts, and fake drama are generated inside your
+actual Discourse instance and rendered with real Discourse components. The flag
+queue looks like the real flag queue. The user cards look like real user cards.
+The avatars, the trust level badges, the category labels - all real.&lt;/p&gt;
+&lt;p&gt;The whole joke is that it runs inside Discourse itself.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/ducks/discourse-manager/main/docs/screenshot.png&quot; alt=&quot;discourse-managerscreenshot&quot; /&gt;&lt;/p&gt;
+&lt;h2 id=&quot;the-game&quot;&gt;The game&lt;/h2&gt;
+&lt;p&gt;You manage four meters: community health, mod response time, spam rate, and
+user retention. Let any of them hit zero and the community collapses.&lt;/p&gt;
+&lt;p&gt;Flags come in continuously. Each one is a decision:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Approve&lt;/strong&gt; - the post stands, move on&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Remove&lt;/strong&gt; - gone&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Warn&lt;/strong&gt; - the user gets a PM, post stays&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Suspend&lt;/strong&gt; - off the forum for a while&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Ban&lt;/strong&gt; - gone for good, but take retention damage if you&#39;re wrong&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Speed matters. A flag that sits unresolved too long costs health. Clearing them
+fast restores response time. The tension is between acting fast and acting
+correctly.&lt;/p&gt;
+&lt;p&gt;On top of the queue, random events fire. Each has two or three resolution
+options with different tradeoffs across the meters.&lt;/p&gt;
+&lt;p&gt;Community events: a spicy topic goes viral and generates 30 flags in 60
+seconds, a wave of sockpuppets registers, two trusted users start fighting in a
+thread, a great newcomer shows up worth recognizing.&lt;/p&gt;
+&lt;p&gt;Technical incidents too: a plugin update ships and breaks something, the server
+goes down and users are posting about it on Twitter, a database migration fails
+in production, a CDN failure makes images disappear sitewide, a cleanup script
+runs with the wrong scope and takes out several categories. Each incident hits
+different meters - an outage tanks response time and health, a CDN failure
+hammers retention. The resolutions have real tradeoffs: push a hotfix live and
+risk making it worse, or roll back and eat the downtime.&lt;/p&gt;
+&lt;p&gt;Each day has a timer. When it ends you get a summary - flags resolved, bans
+issued, incidents handled - before starting the next one. Survive 30 days to
+win.&lt;/p&gt;
+&lt;h2 id=&quot;the-fake-community&quot;&gt;The fake community&lt;/h2&gt;
+&lt;p&gt;The forum is populated at game start with 40 generated users across five
+behavioral profiles: lurkers, contributors, trolls, spammers, and newbies. Each
+profile generates realistic-looking posts and a realistic probability of
+getting flagged.&lt;/p&gt;
+&lt;p&gt;The posts are the best part. A troll posts &quot;anyone who disagrees with me is
+just wrong, full stop.&quot; A spammer posts &quot;I make $4000/week working from home.
+DM me for details.&quot; A newbie asks &quot;HOW DO I CHANGE MY USERNAME?? I&#39;ve been
+trying for 20 minutes!!&quot; A contributor posts something thoughtful about why the
+community has been so toxic lately.&lt;/p&gt;
+&lt;p&gt;None of it is real. All of it feels real. That&#39;s the thing Discourse&#39;s design
+language does so well - the UI is so recognizable that fake content in it reads
+as plausible immediately.&lt;/p&gt;
+&lt;p&gt;Occasionally a legitimate post gets flagged incorrectly. You have to read the
+content and make a judgment call, not just pattern-match on the flag type.&lt;/p&gt;
+&lt;h2 id=&quot;why-inside-discourse&quot;&gt;Why inside Discourse&lt;/h2&gt;
+&lt;p&gt;I could have built this as a standalone web app. It would have been faster and
+simpler.&lt;/p&gt;
+&lt;p&gt;But the whole premise of the game is that you&#39;re moderating a forum that looks
+real. If I build a custom UI, it looks like a game. If I build it as a
+Discourse plugin, it looks like Discourse. The cognitive effect only works when
+you can&#39;t tell at a glance whether you&#39;re looking at a real post or a fake one.&lt;/p&gt;
+&lt;p&gt;The plugin renders with actual Discourse components: the same avatars, the same
+button styles, the same layout. The HUD - four meters with green/yellow/red
+color coding - sits above the review queue the way a real dashboard might.
+Events pop in as styled cards. It all fits the host environment.&lt;/p&gt;
+&lt;p&gt;Building inside Discourse also gave me MessageBus for free. Real-time state
+updates from the server to the client - flags disappearing as you clear them,
+meters ticking down - all through the same pub/sub system Discourse uses for
+live notifications. No WebSocket setup. No extra infrastructure.&lt;/p&gt;
+&lt;h2 id=&quot;what-s-next&quot;&gt;What&#39;s next&lt;/h2&gt;
+&lt;p&gt;The one thing I still want to add: LLM-generated content. Right now the post
+pool is handwritten strings - good enough to feel real, but every playthrough
+is the same drama. Running an LLM at game init to generate a full set of forum
+posts tuned to the behavioral profiles would make each run different. The
+structure is already there; it just needs something to fill it with varied text.&lt;/p&gt;
+&lt;p&gt;The most interesting idea that came up while building it: this could double as
+a spam detection training tool. Every flagged post has a profile type and a
+human moderation decision attached. Play enough sessions and you have a labeled
+dataset of spam, trolling, and legitimate posts. The game generates it as a
+side effect.&lt;/p&gt;
+&lt;h2 id=&quot;the-code&quot;&gt;The code&lt;/h2&gt;
+&lt;p&gt;It&#39;s a Discourse plugin, so the setup is what you&#39;d expect:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;cd&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; /var/www/discourse/plugins&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;git&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; clone https://github.com/ducks/discourse-manager&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;bundle&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; exec rake db:migrate&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Then go to &lt;code&gt;/play&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Source at
+&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/discourse-manager&quot;&gt;github.com/ducks/discourse-manager&lt;/a&gt;.&lt;/p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

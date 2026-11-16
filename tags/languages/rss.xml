@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - languages</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/languages/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Sun, 02 Aug 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>lemma: A Compiler That Doesn&#39;t Know Any Languages</title>
+          <pubDate>Sun, 02 Aug 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/lemma-a-language-course-compiler/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/lemma-a-language-course-compiler/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/lemma-a-language-course-compiler/">&lt;p&gt;I&#39;m hoping to move to Czechia, so I&#39;m learning Czech.&lt;/p&gt;
+&lt;p&gt;The obvious way to do that is an app. Duolingo, Anki decks someone else made,
+a textbook. I didn&#39;t want any of those. I wanted the course itself to be
+&lt;em&gt;mine&lt;/em&gt; - source data I own, that generates lessons and flashcards I can
+regenerate, diff, and extend forever. A language course structured like a
+software project.&lt;/p&gt;
+&lt;p&gt;So I started building one. A directory of YAML: a curriculum listing what each
+lesson teaches, a lexicon of vocabulary, a bank of grammar points. A generator
+that turns all of it into lesson markdown and Anki decks.&lt;/p&gt;
+&lt;p&gt;Then, a few lessons in, I said the sentence that starts every good project and
+half the messy ones:&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;I&#39;d also like to do this for Spanish. And Swedish.&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;That is where it got interesting, because the moment there are three languages,
+the generator has a hard job: it has to know how to teach a language without
+knowing which language it&#39;s teaching.&lt;/p&gt;
+&lt;h2 id=&quot;the-thing-that-isn-t-czech&quot;&gt;The thing that isn&#39;t Czech&lt;/h2&gt;
+&lt;p&gt;When you write a Czech lesson generator, Czech leaks into it everywhere and you
+don&#39;t notice.&lt;/p&gt;
+&lt;p&gt;Czech stress always lands on the first syllable. Czech has seven grammatical
+cases. Czech has the famous ř, the raised buzzing r that eats foreigners alive.
+Czech splits &quot;you&quot; into formal &lt;em&gt;vy&lt;/em&gt; and informal &lt;em&gt;ty&lt;/em&gt;, and getting that wrong is
+the fastest way to sound rude. Every one of those facts wants to become an
+&lt;code&gt;if&lt;/code&gt; somewhere in the code, or worse, an unspoken assumption baked into how the
+lessons come out.&lt;/p&gt;
+&lt;p&gt;Spanish has none of those cases but a wall of verb conjugation and the
+&lt;em&gt;ser&lt;/em&gt;/&lt;em&gt;estar&lt;/em&gt; trap. Swedish has pitch accent - two words spelled identically,
+meaning different things depending on a rise or fall - and &lt;em&gt;en&lt;/em&gt;/&lt;em&gt;ett&lt;/em&gt; noun
+gender, and word order that flips the verb to second position.&lt;/p&gt;
+&lt;p&gt;If I let each of those live in the generator, I don&#39;t have one tool. I have
+three forks of a tool that will drift apart the first time I improve one of
+them.&lt;/p&gt;
+&lt;p&gt;So the rule I gave the engine was: &lt;strong&gt;it knows nothing about any language.&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;Everything language-specific moves into a file the language owns. Each course
+gets a &lt;code&gt;language.yaml&lt;/code&gt; profile that declares its own rules as data:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;yaml&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;name&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Czech&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;code&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;cs&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;pronunciation&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  stress_rule&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;first-syllable&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  hard_sounds&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    -&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; symbol&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;ř&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;      note&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;A raised, buzzed trilled r. Roll an r and add a zh buzz...&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;grammar_features&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  cases&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 7&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  noun_gender&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: [&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;m-anim&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;m-inan&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;f&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;n&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;register&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  has_tv_distinction&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; true&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  formal&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;vy&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  informal&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;ty&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  default_register&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;formal&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The Swedish profile will say &lt;code&gt;cases: 0&lt;/code&gt;, list &lt;code&gt;en&lt;/code&gt;/&lt;code&gt;ett&lt;/code&gt;, describe pitch accent
+in its &lt;code&gt;hard_sounds&lt;/code&gt;, and set its own register defaults. Same engine. The
+engine reads the profile and does what it&#39;s told. It has no opinion about Czech
+because it has never heard of Czech.&lt;/p&gt;
+&lt;p&gt;That is the whole design. One compiler, many languages, and the languages are
+data.&lt;/p&gt;
+&lt;h2 id=&quot;it-didn-t-start-as-a-compiler-i-was-proud-of&quot;&gt;It didn&#39;t start as a compiler I was proud of&lt;/h2&gt;
+&lt;p&gt;The first version of the generator was Python, and it worked. It read the YAML,
+it produced a lesson, it produced an Anki CSV. Fine.&lt;/p&gt;
+&lt;p&gt;But I write my tools in Rust now - &lt;a href=&quot;/blog/2026/raft-a-graph-over-the-plain-text-log/&quot;&gt;raft&lt;/a&gt;,
+my agent harness, a pile of others - and a course compiler I&#39;ll run for the
+next year and a half across three languages is exactly the kind of thing that
+should be a small, fast, typed binary I trust. So I rewrote it.&lt;/p&gt;
+&lt;p&gt;The rewrite is the part I want to be honest about, because it&#39;s the part that&#39;s
+easy to do badly. I did not start the Rust version from scratch and hope it
+matched. I extracted it &lt;em&gt;from&lt;/em&gt; the working Python, kept the exact same YAML
+inputs, and then made the Rust prove itself against the thing it replaced.&lt;/p&gt;
+&lt;p&gt;I generated Czech lesson one with the old Python. I generated it with the new
+Rust. Then I diffed them.&lt;/p&gt;
+&lt;p&gt;Every vocabulary card, every cloze, every pronunciation string: byte-identical.
+The only differences were the two I wanted - the engine now tags cards with the
+ISO code &lt;code&gt;cs&lt;/code&gt; instead of the word &quot;czech,&quot; and it emits a pronunciation section
+built from the profile that the Python never had. Same output where it should
+be the same, better output where the new design earned it.&lt;/p&gt;
+&lt;p&gt;Then I deleted the Python. A rewrite you can&#39;t diff against the original is just
+a second thing you hope behaves like the first thing. A rewrite you can diff is
+a fact.&lt;/p&gt;
+&lt;h2 id=&quot;the-generator-refuses-to-make-things-up&quot;&gt;The generator refuses to make things up&lt;/h2&gt;
+&lt;p&gt;The best small decision in the engine is that it will not generate a lesson it
+can&#39;t back up.&lt;/p&gt;
+&lt;p&gt;A lesson in the curriculum lists the vocabulary and grammar it uses by id:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;yaml&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;-&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; lesson&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 2&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  title&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;At the Immigration Office&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  vocabulary_ids&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: [&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;pas&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;viza&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;povoleni-k-pobytu&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;adresa&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; ...&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  grammar&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: [&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;accusative-singular-intro&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;verb-mit-present&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; ...&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Those ids have to resolve to real entries in the lexicon and grammar files. If
+lesson two names a word I haven&#39;t written yet, the engine doesn&#39;t guess, doesn&#39;t
+stub, doesn&#39;t quietly skip it. It stops and tells me exactly what&#39;s missing:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;lesson 2: 30 vocab id(s) missing from lexicon.yaml: pas, viza,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;povoleni-k-pobytu, adresa, bydlim, bydlis, mam, mas…&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That error is not a failure. It&#39;s the to-do list. &quot;Authoring lesson two&quot; isn&#39;t
+writing prose - the engine writes the prose. It&#39;s filling in that list of
+words, with their real gender, plural, pronunciation, and notes, until the
+error goes away. &lt;code&gt;lemma status&lt;/code&gt; walks the whole curriculum and shows me which
+lessons are ready and which are still just a promise:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Czech (cs) — 8 lessons designed&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  lesson 1: ready&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  lesson 2: NEEDS DATA — 30 vocab id(s) missing...&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;I like tools that make the unfinished parts loud. The curriculum can dream about
+lesson eight for months, but the compiler will keep calling it a promise until
+the data exists.&lt;/p&gt;
+&lt;h2 id=&quot;the-name-was-harder-than-the-compiler&quot;&gt;The name was harder than the compiler&lt;/h2&gt;
+&lt;p&gt;Of course it was. It always is.&lt;/p&gt;
+&lt;p&gt;I wanted a name that meant &quot;learn any language&quot; without being a pile of
+syllables. I went through the whole miserable list. &lt;code&gt;lingua&lt;/code&gt; - generic, taken a
+hundred times over. &lt;code&gt;omniglot&lt;/code&gt; - perfect meaning, except omniglot.com has owned
+that word since before some of my coworkers were born, so I&#39;d be invisible
+forever. Just &lt;code&gt;omni&lt;/code&gt; - too vague, could be a hotel. &lt;code&gt;parrot&lt;/code&gt; - the mimicry is
+right, the repetition is right, but it reads like a toy.&lt;/p&gt;
+&lt;p&gt;I got as far as &lt;code&gt;Psittacus&lt;/code&gt;, the scientific genus of parrots, which is a
+genuinely great name until you try to type &lt;code&gt;cd ~/dev/psittacus&lt;/code&gt; for the fourth
+time with the silent P and give up.&lt;/p&gt;
+&lt;p&gt;The one I landed on was hiding in the domain the whole time.&lt;/p&gt;
+&lt;p&gt;A &lt;strong&gt;lemma&lt;/strong&gt; is the canonical dictionary form of a word - the headword every
+inflection lists under. &lt;em&gt;pracovat&lt;/em&gt; is the lemma; &lt;em&gt;pracuji&lt;/em&gt;, &lt;em&gt;pracuješ&lt;/em&gt;,
+&lt;em&gt;pracujeme&lt;/em&gt; are its forms. My lexicon file is, quite literally, a list of
+lemmas. And in math and logic, a lemma is a small proven result you use as a
+stepping stone to a bigger theorem, which is exactly what each lesson is in a
+course that spirals toward fluency.&lt;/p&gt;
+&lt;p&gt;Two meanings, both dead-on, one word, easy to type. I checked that the crates.io
+name was free, which is the only namespace I actually cared about, and stopped
+looking.&lt;/p&gt;
+&lt;p&gt;Naming a language tool after the atomic unit of a lexicon felt less like picking
+a name and more like noticing one.&lt;/p&gt;
+&lt;h2 id=&quot;what-i-actually-have-now&quot;&gt;What I actually have now&lt;/h2&gt;
+&lt;p&gt;Two repositories.&lt;/p&gt;
+&lt;p&gt;One is &lt;code&gt;lemma&lt;/code&gt;: the engine. It reads a language directory and emits lessons and
+Anki decks, and it contains no Czech, no Spanish, no Swedish. Bump the engine
+once and every language gets the improvement; each course pins the engine
+version it trusts.&lt;/p&gt;
+&lt;p&gt;The other is &lt;code&gt;language-studies&lt;/code&gt;: my courses, one directory per language, pure
+data. Right now it holds Czech - a real curriculum aimed at the parts of Czech I
+actually need, which is not ordering beer for tourists but talking to the
+immigration office, renting a flat, reading the signs, and surviving a standup
+in a second language. Spanish and Swedish are two empty directories and a
+profile away.&lt;/p&gt;
+&lt;p&gt;I have exactly one lesson fully written. That is not much of a course yet, and
+I&#39;m not going to pretend the hard part is done - the hard part is sitting down
+and writing real, correct vocabulary for a hundred more lessons, and no compiler
+does that for me.&lt;/p&gt;
+&lt;p&gt;But the machine is built, and it&#39;s built right. When I write the words, the
+lessons and the flashcards fall out the end, the same way every time, in a
+format I own. And when I finally start Swedish, I don&#39;t build a Swedish course
+generator. I write a profile, and the compiler that doesn&#39;t know any languages
+learns one more.&lt;/p&gt;
+&lt;p&gt;Source: &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/lemma&quot;&gt;github.com/ducks/lemma&lt;/a&gt;&lt;/p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

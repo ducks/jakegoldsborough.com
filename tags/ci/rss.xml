@@ -1,0 +1,483 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - ci</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/ci/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Mon, 25 May 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Building a Screenshot Pipeline for Discourse Plugins</title>
+          <pubDate>Mon, 25 May 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/building-discourse-plugin-screenshots/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/building-discourse-plugin-screenshots/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/building-discourse-plugin-screenshots/">&lt;p&gt;I built &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/discourse-plugin-screenshots&quot;&gt;discourse-plugin-screenshots on
+GitHub&lt;/a&gt;, a small tool
+that captures Discourse plugin UIs against a real Discourse instance in CI
+and publishes the resulting PNGs to GitHub Pages.&lt;/p&gt;
+&lt;p&gt;It&#39;s modeled on &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/pmusaraj/discourse-theme-screenshots&quot;&gt;Penar Musaraj&#39;s
+discourse-theme-screenshots&lt;/a&gt;,
+which screenshots themes against a battery of routes. Same idea, different
+target: instead of &quot;does this theme break the latest topic view,&quot; it asks
+&quot;does my plugin&#39;s UI still render correctly in current Discourse.&quot;&lt;/p&gt;
+&lt;p&gt;Live example for &lt;code&gt;discourse-itinerary&lt;/code&gt;, the plugin I dogfooded it on:
+&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://ducks.github.io/discourse-itinerary/&quot;&gt;https://ducks.github.io/discourse-itinerary/&lt;/a&gt;.&lt;/p&gt;
+&lt;h2 id=&quot;why&quot;&gt;Why?&lt;/h2&gt;
+&lt;p&gt;I&#39;d been hand-screenshotting &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/discourse-itinerary&quot;&gt;discourse-itinerary&lt;/a&gt;
+for &lt;a href=&quot;/blog/2026/building-discourse-itinerary/&quot;&gt;its blog post&lt;/a&gt; and realized
+the same problem applies to every plugin I might write or maintain:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Plugins break in unexpected ways when Discourse core changes. A CSS class
+gets renamed and your plugin&#39;s panel suddenly looks weird.&lt;/li&gt;
+&lt;li&gt;A new theme like Horizon ships and your plugin&#39;s overrides don&#39;t quite
+match anymore.&lt;/li&gt;
+&lt;li&gt;A plugin API method deprecates and silently degrades.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;You usually find out from a user filing a screenshot. That&#39;s a slow loop.&lt;/p&gt;
+&lt;p&gt;What if every plugin had a nightly or per-push screenshot run that posted
+its current state to a public page? Visual regressions become visible.
+&quot;Here&#39;s what my plugin looks like today&quot; becomes a free byproduct of
+shipping.&lt;/p&gt;
+&lt;p&gt;Penar&#39;s tool already does this for themes. Plugins were the X-shaped hole
+next to it.&lt;/p&gt;
+&lt;h2 id=&quot;the-architecture&quot;&gt;The architecture&lt;/h2&gt;
+&lt;p&gt;The tool ships a &lt;strong&gt;reusable GitHub Actions workflow&lt;/strong&gt;. Plugins opt in by
+adding ~12 lines of YAML to their own &lt;code&gt;.github/workflows/&lt;/code&gt;:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;yaml&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;name&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; Screenshots&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;on&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  push&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    branches&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: [&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;main&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  workflow_dispatch&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;permissions&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  contents&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; read&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  pages&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; write&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  id-token&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; write&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;jobs&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  screenshots&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    uses&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; ducks/discourse-plugin-screenshots/.github/workflows/plugin-screenshots.yml@main&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That&#39;s it. Each plugin maintainer owns their schedule, their gallery, their
+CI minutes. The tool repo doesn&#39;t enumerate plugins, doesn&#39;t centrally
+batch them, doesn&#39;t pay for anyone else&#39;s runs. Same pattern Discourse
+already uses for its own
+&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/discourse/.github/blob/main/.github/workflows/discourse-plugin.yml&quot;&gt;&lt;code&gt;discourse-plugin.yml&lt;/code&gt;&lt;/a&gt;
+reusable workflow.&lt;/p&gt;
+&lt;h2 id=&quot;how-a-plugin-describes-what-to-capture&quot;&gt;How a plugin describes what to capture&lt;/h2&gt;
+&lt;p&gt;A plugin opts in by shipping &lt;code&gt;config/screenshots.yml&lt;/code&gt; at the repo root:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;yaml&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;seed&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; spec/screenshot_seed.rb&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;urls&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;  -&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; path&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; /itinerary&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    name&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; trip-list&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    description&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; Trip list home page&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;  -&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; path&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; /itinerary/2&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    name&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; timeline&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    description&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; Per-trip timeline with day grouping&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The optional &lt;code&gt;seed&lt;/code&gt; is a Ruby file run inside the test env before captures
+fire. Without it, &lt;code&gt;/itinerary&lt;/code&gt; would render an empty state (&quot;No trips
+yet&quot;), which makes for sad screenshots. The seed creates a few realistic
+trips with legs so the pages have something to render.&lt;/p&gt;
+&lt;p&gt;The seed file is plain Ruby that runs inside Discourse&#39;s Rails test
+environment. It can use &lt;code&gt;PostCreator&lt;/code&gt;, &lt;code&gt;SiteSetting&lt;/code&gt;, plugin-specific
+classes, whatever. Plugin-specific concerns stay in the plugin.&lt;/p&gt;
+&lt;h2 id=&quot;the-workflow&quot;&gt;The workflow&lt;/h2&gt;
+&lt;p&gt;The reusable workflow is the heart of it. Slightly simplified:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Spin up &lt;code&gt;discourse/discourse_test:release&lt;/code&gt; (Discourse&#39;s official test
+container, comes with system libs Playwright needs).&lt;/li&gt;
+&lt;li&gt;Check out the calling plugin, this tool, and &lt;code&gt;discourse/discourse&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Symlink the plugin into &lt;code&gt;discourse/plugins/&amp;lt;id&amp;gt;&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Boot Postgres + Redis, migrate the test DB.&lt;/li&gt;
+&lt;li&gt;Install Playwright Chromium.&lt;/li&gt;
+&lt;li&gt;Run a Capybara system spec that reads the plugin&#39;s manifest, runs the
+seed file, visits each URL, and saves a PNG.&lt;/li&gt;
+&lt;li&gt;Upload &lt;code&gt;public/&lt;/code&gt; to the calling repo&#39;s GitHub Pages.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Total runtime: ~5-10 minutes after the initial container pull.&lt;/p&gt;
+&lt;h2 id=&quot;first-green-run&quot;&gt;First green run&lt;/h2&gt;
+&lt;p&gt;I wired the workflow into the itinerary plugin&#39;s CI, pushed, and the
+first run came back green. Screenshots up at
+&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://ducks.github.io/discourse-itinerary/&quot;&gt;ducks.github.io/discourse-itinerary&lt;/a&gt;,
+captured automatically on every push to main.&lt;/p&gt;
+&lt;p&gt;That&#39;s the whole loop. Plugin author writes
+&lt;code&gt;config/screenshots.yml&lt;/code&gt;, drops a reusable-workflow file in
+&lt;code&gt;.github/workflows/&lt;/code&gt;, enables Pages, pushes. Five minutes later there&#39;s
+a public gallery of what their plugin looks like in current Discourse.&lt;/p&gt;
+&lt;h2 id=&quot;the-rabbit-holes&quot;&gt;The rabbit holes&lt;/h2&gt;
+&lt;p&gt;Building it taught me three things about the Discourse-on-NixOS stack
+that I wouldn&#39;t have learned otherwise.&lt;/p&gt;
+&lt;h3 id=&quot;playwright-s-chromium-doesn-t-run-on-nixos&quot;&gt;Playwright&#39;s Chromium doesn&#39;t run on NixOS&lt;/h3&gt;
+&lt;p&gt;Discourse uses Playwright for system specs. The first time I tried the
+tool locally, the Capybara driver tried to launch Chromium and got:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;error while loading shared libraries: libglib-2.0.so.0: cannot open&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;shared object file: No such file or directory&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Playwright&#39;s &lt;code&gt;pnpm playwright install&lt;/code&gt; downloads a generic Linux Chromium
+build to &lt;code&gt;~/.cache/ms-playwright&lt;/code&gt;. That binary expects to find shared libs
+at standard &lt;code&gt;/usr/lib&lt;/code&gt; paths. NixOS, famously, doesn&#39;t have a
+&lt;code&gt;/usr/lib&lt;/code&gt;. Everything is in &lt;code&gt;/nix/store/&amp;lt;hash&amp;gt;-glib-2.x.y/lib&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Two paths to fix this:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;LD_LIBRARY_PATH&lt;/code&gt; gymnastics. Add every needed lib to a nix-shell.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;nixpkgs.playwright-driver.browsers&lt;/code&gt;, a package that pre-patches the
+Chromium binary with NixOS-compatible RPATHs.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;I went with option 2:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;nix&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;{&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; pkgs&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; ?&lt;/span&gt;&lt;span&gt; import&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; &amp;lt;nixpkgs&amp;gt;&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {} }:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;pkgs&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;mkShell&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;  buildInputs&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; [&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; pkgs&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;playwright-driver&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;browsers&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; ];&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;  shellHook&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;#39;&amp;#39;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;    export PLAYWRIGHT_BROWSERS_PATH=&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;${&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;pkgs&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;playwright-driver&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;browsers&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;    export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;  &amp;#39;&amp;#39;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;This got me past the lib errors and into a new one: my nixpkgs channel
+ships &lt;code&gt;chromium-1169&lt;/code&gt; but Discourse&#39;s Playwright gem pins
+&lt;code&gt;chromium-1217&lt;/code&gt;. The right fix is a flake pin or &lt;code&gt;nixpkgs-unstable&lt;/code&gt;
+override, which I haven&#39;t shaved yet.&lt;/p&gt;
+&lt;p&gt;So locally on NixOS the tool runs up to &quot;launching Chromium&quot; before
+hitting the version mismatch. In CI it sails through, because
+&lt;code&gt;discourse/discourse_test:release&lt;/code&gt; is a regular Linux image with the
+matching system libs and Playwright downloads the right version. &lt;strong&gt;The
+same code runs in both places. CI is currently the only one that
+succeeds end-to-end on my machine.&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;That ended up being a useful property. The CI is the authoritative loop:
+real container, real Discourse, real Playwright, public gallery at the
+end. Local is a developer convenience that I can keep chipping at without
+blocking the rest of the tool from being useful.&lt;/p&gt;
+&lt;h3 id=&quot;rspec-accepts-absolute-spec-paths-from-outside-the-project&quot;&gt;Rspec accepts absolute spec paths from outside the project&lt;/h3&gt;
+&lt;p&gt;I was worried that running Discourse&#39;s &lt;code&gt;bin/rspec&lt;/code&gt; against a spec file
+that lives outside the Discourse repo wouldn&#39;t work. &lt;code&gt;rails_helper.rb&lt;/code&gt;
+wouldn&#39;t be picked up automatically, Capybara&#39;s drivers wouldn&#39;t be
+registered, etc.&lt;/p&gt;
+&lt;p&gt;Turns out: it works fine. RSpec loads &lt;code&gt;rails_helper&lt;/code&gt; via the spec file&#39;s
+own &lt;code&gt;require&lt;/code&gt;, and Discourse&#39;s &lt;code&gt;bin/rspec&lt;/code&gt; boots Rails normally
+regardless of the spec&#39;s path. The spec just needs &lt;code&gt;require &quot;rails_helper&quot;&lt;/code&gt; at the top.&lt;/p&gt;
+&lt;p&gt;This let me keep the spec in this tool&#39;s repo rather than vendoring it
+into every plugin or asking Discourse to ship it.&lt;/p&gt;
+&lt;h3 id=&quot;reusable-workflows-scale-better-than-central-orchestration&quot;&gt;Reusable workflows scale better than central orchestration&lt;/h3&gt;
+&lt;p&gt;The first version of this had a central &lt;code&gt;config/plugins.yml&lt;/code&gt; listing
+every plugin, and a single CI run that captured all of them. Penar&#39;s
+theme tool works that way for good reasons: themes are a relatively small
+set and they&#39;re meant to be compared side-by-side.&lt;/p&gt;
+&lt;p&gt;For plugins it doesn&#39;t work. If you add 20 plugins, the central run
+becomes a 4-hour job that fails halfway and has to retry the whole batch.
+You also push all the CI cost onto whoever maintains the tool repo.&lt;/p&gt;
+&lt;p&gt;Reusable workflows flip both. Each plugin&#39;s CI runs only when that plugin
+changes. The tool repo&#39;s job is to provide the reusable workflow, not to
+enumerate consumers.&lt;/p&gt;
+&lt;h2 id=&quot;what-s-missing&quot;&gt;What&#39;s missing&lt;/h2&gt;
+&lt;p&gt;This is a v0. Real things it doesn&#39;t do yet:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Multiple themes.&lt;/strong&gt; Right now it captures against the default theme.
+Capturing against Horizon, a dark theme, and the default is the obvious
+next step. Penar&#39;s tool already does this; mostly a matter of porting
+the theme-loading code.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Multiple viewports.&lt;/strong&gt; Just 1440x900 today. Mobile (375x667) would be
+the big one to add.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Visual diffing.&lt;/strong&gt; &quot;Here&#39;s what changed since last run&quot; via image
+diff. Tools like reg-suit or Percy do this; expensive at scale.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Auto-discovery of routes.&lt;/strong&gt; Right now you list URLs in
+&lt;code&gt;config/screenshots.yml&lt;/code&gt;. Could introspect the plugin&#39;s
+&lt;code&gt;route-map.js&lt;/code&gt; for routes, but dynamic segments (&lt;code&gt;:trip_id&lt;/code&gt;) need
+hints either way.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;NixOS local parity.&lt;/strong&gt; The chromium-1217 pin dance is genuinely the
+last thing blocking local runs.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;try-it&quot;&gt;Try it&lt;/h2&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;# In your plugin repo, create config/screenshots.yml with your URLs.&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;# Then drop this in .github/workflows/screenshots.yml:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;name:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; Screenshots&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;on:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;  push:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;    branches:&lt;/span&gt;&lt;span&gt; [main]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;  workflow_dispatch:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;permissions:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;  contents:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; read&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;  pages:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; write&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;  id-token:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; write&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;jobs&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;  screenshots:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;    uses:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; ducks/discourse-plugin-screenshots/.github/workflows/plugin-screenshots.yml@main&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Enable GitHub Pages on the plugin repo (Settings -&amp;gt; Pages -&amp;gt; Source:
+GitHub Actions), push to main, and after a few minutes your screenshots
+will be at &lt;code&gt;https://&amp;lt;you&amp;gt;.github.io/&amp;lt;plugin&amp;gt;/&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;The tool is open source:
+&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/discourse-plugin-screenshots&quot;&gt;ducks/discourse-plugin-screenshots&lt;/a&gt;.
+Pull requests for theme + viewport + diff support welcome.&lt;/p&gt;
+</description>
+      </item>
+      <item>
+          <title>Shelltrax Part 2: Footer, Tests, and CI</title>
+          <pubDate>Wed, 29 Oct 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/shelltrax-part-2-footer-tests-ci/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/shelltrax-part-2-footer-tests-ci/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/shelltrax-part-2-footer-tests-ci/">&lt;p&gt;In Part 1, I built the core of shelltrax—a TUI music player in Rust. It had
+library navigation, file browsing,
+audio playback, and a footer with song info and status. One big problem though,
+the footer would stop updating after the first song and I really wanted to fix
+that.&lt;/p&gt;
+&lt;p&gt;This post covers three improvements: implementing a proper footer with
+playback progress, adding unit tests for the tricky bits, and setting up CI
+to keep code quality high.&lt;/p&gt;
+&lt;h2 id=&quot;running-with-a-limp&quot;&gt;Running With A Limp&lt;/h2&gt;
+&lt;p&gt;The footer existed from early on (progress bar, time display, track info), but
+it had a critical bug: when autoplay advanced to the next track, the progress
+bar wouldn&#39;t reset. It would either keep counting from where the previous song left
+off, showing wrong times and eventually overflowing past 100% or it would just
+reset back to 0 and not progress. Whatever it did, it didn&#39;t work.&lt;/p&gt;
+&lt;p&gt;The bug was in &lt;code&gt;play_next_track()&lt;/code&gt;. It would set &lt;code&gt;playback_start&lt;/code&gt; and
+&lt;code&gt;current_track&lt;/code&gt;, but it wouldn&#39;t reset &lt;code&gt;paused_duration&lt;/code&gt; or &lt;code&gt;paused_at&lt;/code&gt;. If
+you paused the first song for 30 seconds, that 30 seconds would carry over to
+every subsequent song, throwing off the footer display completely.&lt;/p&gt;
+&lt;h2 id=&quot;consolidation-begin-playback&quot;&gt;Consolidation: begin_playback()&lt;/h2&gt;
+&lt;p&gt;The solution was extracting the timer reset logic into a dedicated method:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;rust&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;pub fn&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; begin_playback&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;mut&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; self&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; track&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;: &amp;amp;&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;LibraryTrack&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;) {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    self&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;current_track &lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Some&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;track&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;clone&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;());&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    self&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;playback_start &lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Some&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;Instant&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;now&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;());&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    self&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;paused_duration &lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Duration&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #D3869B;font-weight: bold;&quot;&gt;ZERO&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    self&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;paused_at &lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; None&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    self&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;playback_duration &lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; track&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;duration&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;unwrap_or&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;0&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;);&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Now &lt;code&gt;play_next_track()&lt;/code&gt; calls &lt;code&gt;begin_playback()&lt;/code&gt; instead of manually setting
+fields. This ensures all timing state resets properly when advancing to the
+next song, whether manually or via autoplay.&lt;/p&gt;
+&lt;h2 id=&quot;implementation-tracking-time-correctly&quot;&gt;Implementation: Tracking Time Correctly&lt;/h2&gt;
+&lt;p&gt;The app needs to track multiple timing values:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;rust&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;pub&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt; struct&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; App&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;    pub&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; playback_start&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Option&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;Instant&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;    pub&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; playback_duration&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; u64&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;    pub&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; paused_at&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Option&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;Instant&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;    pub&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; paused_duration&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Duration&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;    // ... other fields&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;When a song starts, we record &lt;code&gt;playback_start&lt;/code&gt;. When the user pauses, we
+record &lt;code&gt;paused_at&lt;/code&gt;. When they unpause, we add the pause duration to
+&lt;code&gt;paused_duration&lt;/code&gt; and clear &lt;code&gt;paused_at&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;The footer calculation looks like this:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;rust&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;let&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; elapsed&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; if&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt; let&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Some&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;paused_at&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; app&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;paused_at &lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;{&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    paused_at&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;duration_since&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;start&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; else&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    now&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;duration_since&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;start&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;};&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;let&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; adjusted&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; elapsed&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;saturating_sub&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;app&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;paused_duration&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;);&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;If currently paused, elapsed time is frozen at the pause moment. Otherwise,
+it&#39;s the time since playback started. Then we subtract all the accumulated
+pause time to get the actual playback position.&lt;/p&gt;
+&lt;p&gt;The &lt;code&gt;saturating_sub&lt;/code&gt; is important. Without it, if &lt;code&gt;paused_duration&lt;/code&gt; somehow
+exceeded &lt;code&gt;elapsed&lt;/code&gt; (race condition, clock skew, whatever), you&#39;d get an
+underflow panic. &lt;code&gt;saturating_sub&lt;/code&gt; clamps to zero instead.&lt;/p&gt;
+&lt;h2 id=&quot;layout-three-lines-of-footer&quot;&gt;Layout: Three Lines of Footer&lt;/h2&gt;
+&lt;p&gt;The footer uses a vertical layout with three lines:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;rust&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;let&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; layout&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Layout&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;default&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;()&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    .&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;direction&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;Direction&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;Vertical&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    .&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;constraints&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;([&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;        Constraint&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;Length&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;1&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;),&lt;/span&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;  // Progress bar&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;        Constraint&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;Length&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;1&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;),&lt;/span&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;  // Time display&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;        Constraint&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;Length&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;1&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;),&lt;/span&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;  // Track info&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    ])&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    .&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;split&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;inner&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;);&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Line 1 is a &lt;code&gt;Gauge&lt;/code&gt; widget showing the ratio of elapsed to total time. Line 2
+shows &lt;code&gt;MM:SS / MM:SS&lt;/code&gt;. Line 3 shows &lt;code&gt;Artist - Title - Album&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;The progress bar ratio:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;rust&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;let&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; ratio&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; if&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; total&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;as_secs_f64&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;() &amp;gt;&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 0&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;0&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    adjusted&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;as_secs_f64&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;()&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; /&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; total&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;as_secs_f64&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;()&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; else&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;    0&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;0&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;};&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Clamp it to &lt;code&gt;1.0&lt;/code&gt; max so the gauge doesn&#39;t overflow if the elapsed time
+somehow exceeds the track duration (can happen with malformed metadata).&lt;/p&gt;
+&lt;h2 id=&quot;testing-what-actually-needs-tests&quot;&gt;Testing: What Actually Needs Tests?&lt;/h2&gt;
+&lt;p&gt;I&#39;m not a fan of testing UI rendering code. It&#39;s tedious, fragile, and
+doesn&#39;t catch the bugs that matter. What I do test is the state management
+logic that the UI depends on.&lt;/p&gt;
+&lt;p&gt;For shelltrax, the critical logic is:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Playback state transitions (playing, paused, stopped)&lt;/li&gt;
+&lt;li&gt;Time tracking during pause/unpause cycles&lt;/li&gt;
+&lt;li&gt;Library state management (artist/album hierarchy)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I added two test modules: one in &lt;code&gt;app.rs&lt;/code&gt; for playback logic, one in
+&lt;code&gt;library.rs&lt;/code&gt; for library state.&lt;/p&gt;
+&lt;h3 id=&quot;testing-playback-state&quot;&gt;Testing Playback State&lt;/h3&gt;
+&lt;p&gt;Four tests in &lt;code&gt;app.rs&lt;/code&gt;:&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;test_begin_playback_resets_timers:&lt;/strong&gt;&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;rust&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;#[&lt;/span&gt;&lt;span&gt;test&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;fn&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; test_begin_playback_resets_timers&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;() {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;    let mut&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; app&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; App&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;new&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;();&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    app&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;playback_start &lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Some&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;Instant&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;now&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;());&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    app&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;paused_duration &lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Duration&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;from_secs&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;10&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;);&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    app&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;paused_at &lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Some&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;Instant&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;now&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;());&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;    let&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; track&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; create_test_track&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;test&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 180&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;);&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    app&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;begin_playback&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;track&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;);&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;    assert!&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;app&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;playback_start&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;is_some&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;());&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;    assert_eq!&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;app&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;paused_duration&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Duration&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #D3869B;font-weight: bold;&quot;&gt;ZERO&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;);&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;    assert!&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;app&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;paused_at&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;is_none&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;());&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;When starting a new track, all the timing state should reset. If it didn&#39;t,
+the footer would show stale pause data from the previous song.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;test_toggle_pause_accumulates_paused_duration:&lt;/strong&gt;&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;rust&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;#[&lt;/span&gt;&lt;span&gt;test&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;fn&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; test_toggle_pause_accumulates_paused_duration&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;() {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;    let mut&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; app&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; App&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;new&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;();&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;    let&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; start&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Instant&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;now&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;();&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    app&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;paused_at &lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Some&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;start&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;);&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    app&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;paused_duration &lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Duration&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;from_secs&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;5&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;);&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    app&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;toggle_pause&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;();&lt;/span&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;  // Unpause&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;    std&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;thread&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;sleep&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;Duration&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;from_millis&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;100&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;));&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    app&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;toggle_pause&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;();&lt;/span&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;  // Pause again&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;    assert!&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;app&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;paused_at&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;is_none&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;());&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;    assert!&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;app&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;paused_duration&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; &amp;gt;&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Duration&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;from_secs&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;5&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;));&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;This test verifies that pausing multiple times accumulates the total paused
+duration. The &lt;code&gt;sleep&lt;/code&gt; is gross but necessary to test time-based logic without
+mocking the clock (which would require dependency injection, which is
+overkill for a hobby project).&lt;/p&gt;
+&lt;h3 id=&quot;testing-library-state&quot;&gt;Testing Library State&lt;/h3&gt;
+&lt;p&gt;Six tests in &lt;code&gt;library.rs&lt;/code&gt; covering the artist/album/track hierarchy:&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;test_add_tracks_creates_structure:&lt;/strong&gt;&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;rust&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;#[&lt;/span&gt;&lt;span&gt;test&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;fn&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; test_add_tracks_creates_structure&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;() {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;    let mut&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; lib&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; LibraryState&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;new&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;();&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;    let&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; tracks&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; vec!&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;        create_test_track&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Artist A&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Album 1&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Track 1&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 1&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;),&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;        create_test_track&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Artist A&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Album 1&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Track 2&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 2&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;),&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;        create_test_track&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Artist B&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Album 2&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Track 3&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 1&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;),&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    ];&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    lib&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;add_tracks&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;tracks&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;);&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;    assert_eq!&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;lib&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;artists&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;len&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(),&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 2&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;);&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;    assert_eq!&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;lib&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;artists&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;0&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;name&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Artist A&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;);&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;    assert_eq!&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;lib&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;artists&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;0&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;albums&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;len&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(),&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 1&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;);&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;    assert_eq!&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;lib&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;artists&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;0&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;albums&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;0&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;tracks&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;len&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(),&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 2&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;);&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;This validates the library builds the correct tree structure when adding
+tracks. If the grouping logic broke, you&#39;d end up with duplicate artists or
+albums in the wrong places.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;test_visible_tracks_for_album:&lt;/strong&gt;&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;rust&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;#[&lt;/span&gt;&lt;span&gt;test&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;fn&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; test_visible_tracks_for_album&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;() {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;    let mut&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; lib&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; LibraryState&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;new&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;();&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    lib&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;add_tracks&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;vec!&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;        create_test_track&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Artist&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Album 1&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Track 1&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 1&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;),&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;        create_test_track&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Artist&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Album 1&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Track 2&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 2&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;),&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;        create_test_track&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Artist&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Album 2&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Track 3&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 1&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;),&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    ]);&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    lib&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;selection &lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Some&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;LibrarySelection&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;Album&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;        artist_index&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 0&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;        album_index&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 0&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    });&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;    let&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; tracks&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; lib&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;visible_tracks&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;();&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;    assert_eq!&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;tracks&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;len&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(),&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 2&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;);&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;    assert_eq!&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;tracks&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;0&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;title&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Track 1&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;);&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;    assert_eq!&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;tracks&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;1&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;.&lt;/span&gt;&lt;span&gt;title&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Track 2&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;);&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The &lt;code&gt;visible_tracks&lt;/code&gt; method returns different results depending on whether
+an artist or an album is selected. This test ensures album selection filters
+correctly.&lt;/p&gt;
+&lt;h2 id=&quot;ci-keeping-code-quality-high&quot;&gt;CI: Keeping Code Quality High&lt;/h2&gt;
+&lt;p&gt;GitHub Actions makes CI trivial for Rust projects. The workflow file:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;yaml&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;name&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; test&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;on&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  push&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    branches&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: [&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;main&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  pull_request&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    branches&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: [&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;main&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;jobs&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  test&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    runs-on&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; ubuntu-latest&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    steps&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    -&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; uses&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; actions/checkout@v4&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    -&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; name&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; install rust&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;      uses&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; dtolnay/rust-toolchain@stable&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;      with&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;        components&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; clippy&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    -&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; name&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; cache dependencies&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;      uses&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; actions/cache@v4&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;      with&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;        path&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; |&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;          ~/.cargo/bin/&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;          ~/.cargo/registry/index/&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;          ~/.cargo/registry/cache/&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;          ~/.cargo/git/db/&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;          target/&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;        key&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; ${{ runner.os }}-cargo-${{ hashFiles(&amp;#39;**/Cargo.lock&amp;#39;) }}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    -&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; name&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; install system dependencies&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;      run&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; |&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;        sudo apt-get update&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;        sudo apt-get install -y libasound2-dev&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    -&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; name&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; run tests&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;      run&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; cargo test --verbose&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    -&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; name&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; run clippy&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;      run&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; cargo clippy -- -D warnings&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The important bits:&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Dependency caching:&lt;/strong&gt; Without caching, every CI run would download and
+compile all dependencies from scratch. With caching, subsequent runs reuse
+compiled dependencies, dropping build time from several minutes to under 30
+seconds.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;System dependencies:&lt;/strong&gt; The audio libraries (cpal, rodio) need ALSA headers
+to compile. &lt;code&gt;libasound2-dev&lt;/code&gt; provides those on Ubuntu.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Clippy with &lt;code&gt;-D warnings&lt;/code&gt;:&lt;/strong&gt; This flag treats all warnings as errors. It&#39;s
+strict, but it keeps code quality high. If clippy suggests a fix, you either
+apply it or add an explicit &lt;code&gt;#[allow(...)]&lt;/code&gt; annotation explaining why you&#39;re
+ignoring it.&lt;/p&gt;
+&lt;h2 id=&quot;results&quot;&gt;Results&lt;/h2&gt;
+&lt;p&gt;The footer works. Tests pass. CI keeps the codebase clean. Shelltrax now
+feels like a real music player instead of a tech demo.&lt;/p&gt;
+&lt;p&gt;Running &lt;code&gt;cargo test&lt;/code&gt; shows 10 passing tests:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;running 10 tests&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;test app::tests::test_begin_playback_resets_timers ... ok&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;test app::tests::test_toggle_pause_accumulates_paused_duration ... ok&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;test app::tests::test_toggle_pause_cycles_state ... ok&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;test app::tests::test_toggle_pause_sets_paused_at ... ok&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;test library::tests::test_add_tracks_creates_structure ... ok&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;test library::tests::test_toggle_expanded ... ok&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;test library::tests::test_track_by_path_finds_track ... ok&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;test library::tests::test_track_by_path_returns_none_for_missing ... ok&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;test library::tests::test_visible_tracks_for_album ... ok&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;test library::tests::test_visible_tracks_for_artist ... ok&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;And &lt;code&gt;cargo clippy&lt;/code&gt; stays green with zero warnings.&lt;/p&gt;
+&lt;h2 id=&quot;what-s-next&quot;&gt;What&#39;s Next?&lt;/h2&gt;
+&lt;p&gt;The core functionality is solid, but there are still features I want:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;config system&lt;/li&gt;
+&lt;li&gt;seeking&lt;/li&gt;
+&lt;li&gt;better metadata handling&lt;/li&gt;
+&lt;li&gt;vi keybindings&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;But for now, shelltrax does what I needed it to do: play music in the
+terminal with a proper UI that shows what&#39;s happening.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Code&lt;/strong&gt;: &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/shelltrax&quot;&gt;github.com/ducks/shelltrax&lt;/a&gt;&lt;/p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

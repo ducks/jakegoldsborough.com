@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - git</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/git/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Mon, 23 Jun 2025 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Building a Fully Decentralized Voting System Using Just Git and Pull Requests</title>
+          <pubDate>Mon, 23 Jun 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/building-a-voting-system-with-git/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/building-a-voting-system-with-git/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/building-a-voting-system-with-git/">&lt;h3 id=&quot;the-premise&quot;&gt;The Premise&lt;/h3&gt;
+&lt;p&gt;What if we could build a fully transparent, auditable, and tamper-evident
+voting system -- without any servers, centralized backend, or traditional
+databases?&lt;/p&gt;
+&lt;p&gt;The result is &lt;strong&gt;GitVote&lt;/strong&gt; - a simple but powerful decentralized voting system
+that uses nothing but Git, pull requests, and a little bit of Rust.&lt;/p&gt;
+&lt;h3 id=&quot;why-git&quot;&gt;Why Git?&lt;/h3&gt;
+&lt;p&gt;Git already gives us:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;A fully distributed ledger&lt;/li&gt;
+&lt;li&gt;Immutable commit history&lt;/li&gt;
+&lt;li&gt;Branching and merging workflows&lt;/li&gt;
+&lt;li&gt;Forking for isolated participant actions&lt;/li&gt;
+&lt;li&gt;Cryptographic integrity through hashes and signatures&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;With all that, we&#39;re part of the way to a blockchain.&lt;/p&gt;
+&lt;p&gt;I wondered if I could build a voting system where Git itself is the storage
+layer, the consensus layer, and the audit trail.&lt;/p&gt;
+&lt;h3 id=&quot;the-design&quot;&gt;The Design&lt;/h3&gt;
+&lt;p&gt;At a high level, GitVote works like this:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Proposals&lt;/strong&gt; are created as dedicated Git branches&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Votes&lt;/strong&gt; are submitted as files inside pull requests.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Voter ID&lt;/strong&gt; is tied to each voter&#39;s Git configuration (name and email)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Duplicate Voting&lt;/strong&gt; is automatically prevented via CI checks&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Immutable blocks&lt;/strong&gt; are built from merged votes using deterministic hashing&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Tally results&lt;/strong&gt; can be generated entirely offline from the final ledger&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;There&#39;s no central database, API server, or backend. Everything happens inside
+of Git.&lt;/p&gt;
+&lt;h3 id=&quot;the-voting-flow&quot;&gt;The Voting Flow&lt;/h3&gt;
+&lt;h4 id=&quot;proposal-creation&quot;&gt;Proposal Creation&lt;/h4&gt;
+&lt;p&gt;Each new proposal is created as a new Git branch, for example:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;proposal/001-color-vote&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;A simple &lt;code&gt;schema.json&lt;/code&gt; file defines the allowed choices for that proposal:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  &amp;quot;allowed&amp;quot;: [&amp;quot;blue&amp;quot;, &amp;quot;purple&amp;quot;, &amp;quot;green&amp;quot;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;h4 id=&quot;voter-submission&quot;&gt;Voter Submission&lt;/h4&gt;
+&lt;p&gt;Voters follow this flow:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Fork the governance repo&lt;/li&gt;
+&lt;li&gt;Clone their fork locally&lt;/li&gt;
+&lt;li&gt;Checkout the correct proposal branch&lt;/li&gt;
+&lt;li&gt;Run GitVote CLI tool to cast their vote:
+&lt;code&gt;gitvote cast --choice purple&lt;/code&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;This will:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Write a new vote file into &lt;code&gt;votes/&lt;/code&gt; (one file per voter)&lt;/li&gt;
+&lt;li&gt;Commits the vote using their Git identity&lt;/li&gt;
+&lt;li&gt;Signs the commit (GPG coming soon)&lt;/li&gt;
+&lt;li&gt;Prepares the branch for submission&lt;/li&gt;
+&lt;/ul&gt;
+&lt;ol start=&quot;5&quot;&gt;
+&lt;li&gt;Push their branch back to their fork&lt;/li&gt;
+&lt;li&gt;Open a pull request into the upstream proposal branch&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h4 id=&quot;vote-validation&quot;&gt;Vote Validation&lt;/h4&gt;
+&lt;p&gt;Every pull request triggers CI which runs:
+&lt;code&gt;gitvote validate&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;This will validate:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The vote file format&lt;/li&gt;
+&lt;li&gt;Compliance with the allowed schema&lt;/li&gt;
+&lt;li&gt;No duplicate voters (one voter, one vote)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Invalid votes fail the CI and will not be merged&lt;/p&gt;
+&lt;h4 id=&quot;merging-chain-building&quot;&gt;Merging &amp;amp; Chain Building&lt;/h4&gt;
+&lt;p&gt;Once a valid PR is merged, CI will automatically run:
+&lt;code&gt;gitvote build-chain&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;This scans all merged vote files and creates an immutable hash-linked chain
+of blocks stored as plain JSON:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;blocks/&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  block-0000.json&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  block-0001.json&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  ...&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Each block includes:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The vote choice&lt;/li&gt;
+&lt;li&gt;The voter identity&lt;/li&gt;
+&lt;li&gt;The original timestamp of the vote&lt;/li&gt;
+&lt;li&gt;The Cryptographic hash linking it to the previous block&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id=&quot;tallying-votes&quot;&gt;Tallying Votes&lt;/h4&gt;
+&lt;p&gt;At any time, anyone can run:
+&lt;code&gt;gitvote tally&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;This reads the &lt;code&gt;blocks/&lt;/code&gt; directory and generates a full tally of the current vote
+state:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Vote Tally:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  purple votes: 3&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  red votes: 2&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Total unique voters: 5&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;No external system is needed to calculate the results — everything lives
+entirely inside Git.&lt;/p&gt;
+&lt;h3 id=&quot;the-tech-stack&quot;&gt;The Tech Stack&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Rust for the core CLI, &lt;code&gt;gitvote&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Github Actions for CI validation and chain building&lt;/li&gt;
+&lt;li&gt;Git itself as the distributed backend&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;security&quot;&gt;Security&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Voter ID is tied to each user&#39;s Git config (&lt;code&gt;user.name&lt;/code&gt; and &lt;code&gt;user.email&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;CI fully enforces schema validation and prevents voter duplication&lt;/li&gt;
+&lt;li&gt;All votes are auditable forever via immutable commit history&lt;/li&gt;
+&lt;li&gt;The chain is fully deterministic and reproducible offline&lt;/li&gt;
+&lt;li&gt;The ledger can be archived back into &lt;code&gt;main&lt;/code&gt; for permanent recordkeeping&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;the-benefits&quot;&gt;The Benefits&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Simplicity:&lt;/strong&gt; No central server or complex infrastructure&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Transparency:&lt;/strong&gt; Every vote and rule is visible to all voters&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Auditability:&lt;/strong&gt; Anyone can verify the ledger at any time&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Offline verifiability:&lt;/strong&gt; The full vote chain is just a Git repo&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;future-plans&quot;&gt;Future Plans&lt;/h3&gt;
+&lt;p&gt;There are a number of interesting enhancements that could be made here I think:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;GPG signature enforcement&lt;/li&gt;
+&lt;li&gt;Anonymous but verifiable voting via zero-knowledge proofs&lt;/li&gt;
+&lt;li&gt;Weighted or ranked ballots&lt;/li&gt;
+&lt;li&gt;Multi-proposal governance workflow&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;For now, GitVote is a minimal, functioning, fully decentralized voting system.&lt;/p&gt;
+&lt;h3 id=&quot;the-code-demo&quot;&gt;The Code/Demo&lt;/h3&gt;
+&lt;p&gt;You can find the CLI here:
+&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/gitvote&quot;&gt;GitVote CLI&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;You can find a test governance repo here:
+&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/gitvote-test&quot;&gt;gitvote-test&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;By going to &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/gitvote-test/actions&quot;&gt;actions&lt;/a&gt;, you can
+see the various CI workflows that run during the voting process.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;First, I submit a valid vote for &lt;strong&gt;purple&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;Then, I attempt to vote again for &lt;strong&gt;green&lt;/strong&gt;, which correctly fails
+due to duplicate voter prevention&lt;/li&gt;
+&lt;li&gt;Finally, I simulate a new voter by spoofing a different Git identity (via
+&lt;code&gt;git config&lt;/code&gt;), submit a vote for &lt;strong&gt;blue&lt;/strong&gt;, and the vote passes validation&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;closing-thoughts&quot;&gt;Closing Thoughts&lt;/h3&gt;
+&lt;p&gt;What originally started as an idea for &quot;Gitcoin&quot; and wanting to learn more
+about blockchains turned into a fully functional, fully auditable governance
+platform -- all built entirely on top of Git (and Rust).&lt;/p&gt;
+&lt;p&gt;It was pretty satisfying to turn pull requests, branch
+protections, and hash-linked commits into a simple, verifiable voting process.&lt;/p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

@@ -1,0 +1,2058 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="claux gets session management, compaction, model switching, and an interactive permission system. Three phases in one sitting.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Rewriting Claude Code in Rust, Part 2: Sessions, Commands, and Permissions">
+    <meta property="og:description" content="claux gets session management, compaction, model switching, and an interactive permission system. Three phases in one sitting.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://jakegoldsborough.com/blog/2026/rewriting-claude-code-in-rust-part-2/">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Rewriting Claude Code in Rust, Part 2: Sessions, Commands, and Permissions">
+    <meta name="twitter:description" content="claux gets session management, compaction, model switching, and an interactive permission system. Three phases in one sitting.">
+
+    <title>Rewriting Claude Code in Rust, Part 2: Sessions, Commands, and Permissions - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css?h=4ae15179b7c33c92f362" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Rewriting Claude Code in Rust, Part 2: Sessions, Commands, and Permissions</h1>
+      <div class="meta">
+        
+        <p>Apr 02, 2026</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/ai">#ai</a></p>
+          
+          <p><a href="/tags/rust">#rust</a></p>
+          
+          <p><a href="/tags/tools">#tools</a></p>
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+        </div>
+      
+
+      
+  
+    
+    
+
+    
+      
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+      
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+
+    
+      
+      <aside class="post-series" aria-label="Rewriting Claude Code in Rust series">
+        <div class="post-series-header">
+          <span class="post-series-label">Series</span>
+          <div class="post-series-heading">
+            <strong>Rewriting Claude Code in Rust</strong>
+            <span class="post-series-count">4 posts</span>
+          </div>
+        </div>
+        <ol>
+          
+            <li>
+              <span class="post-series-number">01</span>
+              <div class="post-series-entry">
+                
+                  <a href="https://jakegoldsborough.com/blog/2026/rewriting-claude-code-in-rust-with-claude/">Rewriting Claude Code in Rust, With Claude</a>
+                
+                
+                  <span class="post-series-description">Claude Code&#39;s TypeScript source leaked via a source map. I read the architecture and rewrote the core in Rust. Using Claude. Here&#39;s Part 1.</span>
+                
+              </div>
+              
+            </li>
+          
+            <li class="current" aria-current="page">
+              <span class="post-series-number">02</span>
+              <div class="post-series-entry">
+                
+                  <span class="post-series-current-title">Rewriting Claude Code in Rust, Part 2: Sessions, Commands, and Permissions</span>
+                
+                
+                  <span class="post-series-description">claux gets session management, compaction, model switching, and an interactive permission system. Three phases in one sitting.</span>
+                
+              </div>
+              
+                <span class="post-series-current-label">current</span>
+              
+            </li>
+          
+            <li>
+              <span class="post-series-number">03</span>
+              <div class="post-series-entry">
+                
+                  <a href="https://jakegoldsborough.com/blog/2026/rewriting-claude-code-in-rust-part-3/">Rewriting Claude Code in Rust, Part 3: TUI, Agents, and Multi-Provider</a>
+                
+                
+                  <span class="post-series-description">claux gets a ratatui TUI, sub-agents, and support for any OpenAI-compatible endpoint. One session, start to finish.</span>
+                
+              </div>
+              
+            </li>
+          
+            <li>
+              <span class="post-series-number">04</span>
+              <div class="post-series-entry">
+                
+                  <a href="https://jakegoldsborough.com/blog/2026/rewriting-claude-code-in-rust-part-4/">Rewriting Claude Code in Rust, Part 4: From Clone to Harness</a>
+                
+                
+                  <span class="post-series-description">Four months of dogfooding turned claux from a 4,000-line Claude Code rewrite into a sandboxed, multi-provider agent harness with 350 tests and isolated evaluations.</span>
+                
+              </div>
+              
+            </li>
+          
+        </ol>
+      </aside>
+    
+  
+
+
+      <p><a href="/blog/2026/rewriting-claude-code-in-rust-with-claude/">Part 1</a> got a working
+binary. Streaming chat, six tools, cost tracking, JSONL persistence. 1,200
+lines of Rust that could talk to Claude and execute Read, Write, Edit, Glob,
+Grep, and Bash.</p>
+<p>But it was missing the parts that make Claude Code actually usable day-to-day:
+session resume, context compaction, model switching, and the permission system
+that asks before writing to your filesystem.</p>
+<p>This post covers three phases built in one session.</p>
+<h2 id="phase-2-commands-that-need-the-engine">Phase 2: Commands That Need the Engine</h2>
+<p>Phase 1's slash commands were simple: <code>/help</code> returns a string, <code>/cost</code> reads
+a counter, <code>/exit</code> breaks the loop. They didn't need to touch the conversation
+state.</p>
+<p>The new commands do. <code>/compact</code> rewrites the message history. <code>/resume</code> loads
+a different session into the engine. <code>/model</code> swaps the API model mid-conversation.</p>
+<p>The solution was splitting commands into sync and async:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="rust"><span class="giallo-l"><span style="color: #FB4934;">pub</span><span style="color: #FE8019;"> enum</span><span style="color: #FABD2F;"> CommandResult</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">    Text</span><span style="color: #A89984;">(</span><span style="color: #FABD2F;">String</span><span style="color: #A89984;">),</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">    Exit</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">    Async</span><span style="color: #A89984;">(</span><span style="color: #FABD2F;">AsyncCommand</span><span style="color: #A89984;">),</span></span>
+<span class="giallo-l"><span style="color: #A89984;">}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FB4934;">pub</span><span style="color: #FE8019;"> enum</span><span style="color: #FABD2F;"> AsyncCommand</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">    Compact</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">    Resume</span><span style="color: #A89984;">(</span><span style="color: #FABD2F;">Option</span><span style="color: #A89984;">&lt;</span><span style="color: #FABD2F;">String</span><span style="color: #A89984;">&gt;),</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">    Model</span><span style="color: #A89984;">(</span><span style="color: #FABD2F;">Option</span><span style="color: #A89984;">&lt;</span><span style="color: #FABD2F;">String</span><span style="color: #A89984;">&gt;),</span></span>
+<span class="giallo-l"><span style="color: #A89984;">}</span></span></code></pre>
+<p>Sync commands return text immediately. Async commands get <code>&amp;mut Engine</code> and can
+do whatever they need.</p>
+<h3 id="compaction">Compaction</h3>
+<p>Claude Code's compaction is elaborate. Multiple strategies: reactive compact,
+context collapse, history snip, autocompact. A pipeline that runs sequentially
+with fallbacks.</p>
+<p>For claux I did the simple version: send the full conversation to Claude
+with "summarize this," then replace the history with the summary.</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="rust"><span class="giallo-l"><span style="color: #FB4934;">pub async fn</span><span style="color: #FABD2F;"> compact</span><span style="color: #A89984;">(</span><span style="color: #8EC07C;">&amp;</span><span style="color: #FE8019;">mut</span><span style="color: #83A598;"> self</span><span style="color: #A89984;">)</span><span style="color: #8EC07C;"> -&gt;</span><span style="color: #FABD2F;"> Result</span><span style="color: #A89984;">&lt;</span><span style="color: #FABD2F;">String</span><span style="color: #A89984;">&gt; {</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">    let mut</span><span style="color: #83A598;"> summary_messages</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> self</span><span style="color: #8EC07C;">.</span><span>messages</span><span style="color: #8EC07C;">.</span><span style="color: #FABD2F;">clone</span><span style="color: #A89984;">();</span></span>
+<span class="giallo-l"><span style="color: #83A598;">    summary_messages</span><span style="color: #8EC07C;">.</span><span style="color: #FABD2F;">push</span><span style="color: #A89984;">(</span><span style="color: #FABD2F;">Message</span><span style="color: #8EC07C;">::</span><span style="color: #FABD2F;">user</span><span style="color: #A89984;">(</span></span>
+<span class="giallo-l"><span style="color: #A89984;">        &quot;</span><span style="color: #B8BB26;">Summarize the conversation so far...</span><span style="color: #A89984;">&quot;</span></span>
+<span class="giallo-l"><span style="color: #A89984;">    ));</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #928374;font-style: italic;">    // Stream the summary from Claude</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">    let mut</span><span style="color: #83A598;"> rx</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> self</span><span style="color: #8EC07C;">.</span><span>client</span></span>
+<span class="giallo-l"><span style="color: #8EC07C;">        .</span><span style="color: #FABD2F;">stream</span><span style="color: #A89984;">(</span><span style="color: #8EC07C;">&amp;</span><span style="color: #83A598;">summary_messages</span><span style="color: #A89984;">,</span><span style="color: #8EC07C;"> &amp;</span><span style="color: #83A598;">self</span><span style="color: #8EC07C;">.</span><span>system_prompt</span><span style="color: #A89984;">,</span><span style="color: #8EC07C;"> &amp;</span><span style="color: #A89984;">[],</span><span style="color: #83A598;"> self</span><span style="color: #8EC07C;">.</span><span>max_tokens</span><span style="color: #A89984;">)</span></span>
+<span class="giallo-l"><span style="color: #8EC07C;">        .</span><span style="color: #FB4934;">await</span><span style="color: #8EC07C;">?</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FE8019;">    let mut</span><span style="color: #83A598;"> summary</span><span style="color: #8EC07C;"> =</span><span style="color: #FABD2F;"> String</span><span style="color: #8EC07C;">::</span><span style="color: #FABD2F;">new</span><span style="color: #A89984;">();</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">    while</span><span style="color: #FE8019;"> let</span><span style="color: #FABD2F;"> Some</span><span style="color: #A89984;">(</span><span style="color: #83A598;">event</span><span style="color: #A89984;">)</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> rx</span><span style="color: #8EC07C;">.</span><span style="color: #FABD2F;">recv</span><span style="color: #A89984;">()</span><span style="color: #8EC07C;">.</span><span style="color: #FB4934;">await</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">        match</span><span style="color: #83A598;"> event</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">            ApiEvent</span><span style="color: #8EC07C;">::</span><span style="color: #FABD2F;">Text</span><span style="color: #A89984;">(</span><span style="color: #83A598;">t</span><span style="color: #A89984;">)</span><span style="color: #8EC07C;"> =&gt;</span><span style="color: #83A598;"> summary</span><span style="color: #8EC07C;">.</span><span style="color: #FABD2F;">push_str</span><span style="color: #A89984;">(</span><span style="color: #8EC07C;">&amp;</span><span style="color: #83A598;">t</span><span style="color: #A89984;">),</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">            ApiEvent</span><span style="color: #8EC07C;">::</span><span style="color: #FABD2F;">Done</span><span style="color: #8EC07C;"> =&gt;</span><span style="color: #FB4934;"> break</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #928374;font-style: italic;">            // ...</span></span>
+<span class="giallo-l"><span style="color: #A89984;">        }</span></span>
+<span class="giallo-l"><span style="color: #A89984;">    }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FE8019;">    let</span><span style="color: #83A598;"> old_count</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> self</span><span style="color: #8EC07C;">.</span><span>messages</span><span style="color: #8EC07C;">.</span><span style="color: #FABD2F;">len</span><span style="color: #A89984;">();</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #928374;font-style: italic;">    // Replace conversation with summary</span></span>
+<span class="giallo-l"><span style="color: #83A598;">    self</span><span style="color: #8EC07C;">.</span><span>messages </span><span style="color: #8EC07C;">=</span><span style="color: #FABD2F;"> vec!</span><span style="color: #A89984;">[</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">        Message</span><span style="color: #8EC07C;">::</span><span style="color: #FABD2F;">user</span><span style="color: #A89984;">(&quot;</span><span style="color: #B8BB26;">Here is a summary of our conversation so far:</span><span style="color: #A89984;">&quot;),</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">        Message</span><span style="color: #8EC07C;">::</span><span style="color: #FABD2F;">assistant_text</span><span style="color: #A89984;">(</span><span style="color: #8EC07C;">&amp;</span><span style="color: #83A598;">summary</span><span style="color: #A89984;">),</span></span>
+<span class="giallo-l"><span style="color: #A89984;">    ];</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FABD2F;">    Ok</span><span style="color: #A89984;">(</span><span style="color: #FABD2F;">format!</span><span style="color: #A89984;">(&quot;</span><span style="color: #B8BB26;">Compacted </span><span style="color: #A89984;">{}</span><span style="color: #B8BB26;"> messages into summary.</span><span style="color: #A89984;">&quot;,</span><span style="color: #83A598;"> old_count</span><span style="color: #A89984;">))</span></span>
+<span class="giallo-l"><span style="color: #A89984;">}</span></span></code></pre>
+<p>It costs one API call but frees the entire context window. Good enough for now.
+The fancy multi-strategy pipeline from the TypeScript source is a future
+optimization.</p>
+<h3 id="session-resume">Session Resume</h3>
+<p>Sessions are JSONL files in <code>~/.local/share/claux/sessions/</code>. Each line is
+either metadata or a message. <code>/resume</code> lists them:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="plain"><span class="giallo-l"><span>Recent sessions:</span></span>
+<span class="giallo-l"><span>  20260401-143022  claude-sonnet-4-20250514  12 msgs  /home/ducks/dev/claux</span></span>
+<span class="giallo-l"><span>  20260401-141855  claude-sonnet-4-20250514   4 msgs  /home/ducks/dev/llm-tui</span></span></code></pre>
+<p><code>/resume 2026</code> prefix-matches and loads the session back into the engine.
+<code>--resume</code> on the CLI does the same at startup.</p>
+<h3 id="model-switching">Model Switching</h3>
+<p><code>/model claude-opus-4-20250514</code> swaps the model mid-conversation. The engine
+updates the API client and resets the cost tracker. Your existing conversation
+continues with the new model.</p>
+<p>This is one line in Claude Code's TypeScript:
+<code>setMainLoopModelOverride(model)</code>. In Rust it's a method on the engine that
+propagates to the client. Same thing, more explicit.</p>
+<h2 id="phase-3-the-permission-system">Phase 3: The Permission System</h2>
+<p>This is the one that matters. Phase 1 auto-approved every tool call. That's
+fine for testing but you don't want an LLM running <code>rm -rf</code> without asking.</p>
+<p>Claude Code has five permission modes and a complex rule matching system with
+denial tracking, pattern-based matchers, and a classifier for auto mode. The
+TypeScript is hundreds of lines across multiple files.</p>
+<p>The Rust version has four modes and does the important thing: actually prompts
+the user.</p>
+<h3 id="the-flow">The Flow</h3>
+<p>When the engine wants to execute a write tool, the permission checker returns
+<code>Ask(summary)</code>. The engine sends a <code>PermissionRequest</code> event through the
+stream channel with a oneshot response channel:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="rust"><span class="giallo-l"><span style="color: #FABD2F;">PermissionResult</span><span style="color: #8EC07C;">::</span><span style="color: #FABD2F;">Ask</span><span style="color: #A89984;">(</span><span style="color: #83A598;">summary</span><span style="color: #A89984;">)</span><span style="color: #8EC07C;"> =&gt;</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">    let</span><span style="color: #A89984;"> (</span><span style="color: #83A598;">resp_tx</span><span style="color: #A89984;">,</span><span style="color: #83A598;"> resp_rx</span><span style="color: #A89984;">)</span><span style="color: #8EC07C;"> =</span><span style="color: #FABD2F;"> oneshot</span><span style="color: #8EC07C;">::</span><span style="color: #FABD2F;">channel</span><span style="color: #A89984;">();</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">    let</span><span style="color: #83A598;"> _</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> tx</span><span style="color: #8EC07C;">.</span><span style="color: #FABD2F;">send</span><span style="color: #A89984;">(</span><span style="color: #FABD2F;">StreamEvent</span><span style="color: #8EC07C;">::</span><span style="color: #FABD2F;">PermissionRequest</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #83A598;">        tool_name</span><span style="color: #8EC07C;">:</span><span style="color: #83A598;"> name</span><span style="color: #8EC07C;">.</span><span style="color: #FABD2F;">clone</span><span style="color: #A89984;">(),</span></span>
+<span class="giallo-l"><span style="color: #83A598;">        summary</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #83A598;">        respond</span><span style="color: #8EC07C;">:</span><span style="color: #83A598;"> resp_tx</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #A89984;">    })</span><span style="color: #8EC07C;">.</span><span style="color: #FB4934;">await</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FB4934;">    match</span><span style="color: #83A598;"> resp_rx</span><span style="color: #8EC07C;">.</span><span style="color: #FB4934;">await</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">        Ok</span><span style="color: #A89984;">(</span><span style="color: #FABD2F;">PermissionResponse</span><span style="color: #8EC07C;">::</span><span style="color: #FABD2F;">Allow</span><span style="color: #A89984;">)</span><span style="color: #8EC07C;"> =&gt;</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #83A598;">            self</span><span style="color: #8EC07C;">.</span><span>tools</span><span style="color: #8EC07C;">.</span><span style="color: #FABD2F;">execute</span><span style="color: #A89984;">(</span><span style="color: #83A598;">name</span><span style="color: #A89984;">,</span><span style="color: #83A598;"> input</span><span style="color: #8EC07C;">.</span><span style="color: #FABD2F;">clone</span><span style="color: #A89984;">())</span><span style="color: #8EC07C;">.</span><span style="color: #FB4934;">await</span><span style="color: #8EC07C;">?</span></span>
+<span class="giallo-l"><span style="color: #A89984;">        }</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">        Ok</span><span style="color: #A89984;">(</span><span style="color: #FABD2F;">PermissionResponse</span><span style="color: #8EC07C;">::</span><span style="color: #FABD2F;">AlwaysAllow</span><span style="color: #A89984;">)</span><span style="color: #8EC07C;"> =&gt;</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #83A598;">            self</span><span style="color: #8EC07C;">.</span><span>permissions</span><span style="color: #8EC07C;">.</span><span style="color: #FABD2F;">always_allow</span><span style="color: #A89984;">(</span><span style="color: #83A598;">name</span><span style="color: #A89984;">);</span></span>
+<span class="giallo-l"><span style="color: #83A598;">            self</span><span style="color: #8EC07C;">.</span><span>tools</span><span style="color: #8EC07C;">.</span><span style="color: #FABD2F;">execute</span><span style="color: #A89984;">(</span><span style="color: #83A598;">name</span><span style="color: #A89984;">,</span><span style="color: #83A598;"> input</span><span style="color: #8EC07C;">.</span><span style="color: #FABD2F;">clone</span><span style="color: #A89984;">())</span><span style="color: #8EC07C;">.</span><span style="color: #FB4934;">await</span><span style="color: #8EC07C;">?</span></span>
+<span class="giallo-l"><span style="color: #A89984;">        }</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">        Ok</span><span style="color: #A89984;">(</span><span style="color: #FABD2F;">PermissionResponse</span><span style="color: #8EC07C;">::</span><span style="color: #FABD2F;">Deny</span><span style="color: #A89984;">)</span><span style="color: #FB4934;"> |</span><span style="color: #FABD2F;"> Err</span><span style="color: #A89984;">(</span><span style="color: #83A598;">_</span><span style="color: #A89984;">)</span><span style="color: #8EC07C;"> =&gt;</span><span style="color: #FABD2F;"> ToolOutput</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #83A598;">            content</span><span style="color: #8EC07C;">:</span><span style="color: #A89984;"> &quot;</span><span style="color: #B8BB26;">Permission denied by user.</span><span style="color: #A89984;">&quot;</span><span style="color: #8EC07C;">.</span><span style="color: #FABD2F;">to_string</span><span style="color: #A89984;">(),</span></span>
+<span class="giallo-l"><span style="color: #83A598;">            is_error</span><span style="color: #8EC07C;">:</span><span style="color: #D3869B;"> true</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #A89984;">        },</span></span>
+<span class="giallo-l"><span style="color: #A89984;">    }</span></span>
+<span class="giallo-l"><span style="color: #A89984;">}</span></span></code></pre>
+<p>The REPL catches the event and shows:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="plain"><span class="giallo-l"><span>  ⚡ bash: cargo test  (y)es / (n)o / (a)lways</span></span></code></pre>
+<p>Three options:</p>
+<ul>
+<li><strong>y</strong> — allow this once</li>
+<li><strong>n</strong> — deny, tool returns an error to Claude</li>
+<li><strong>a</strong> — always allow this tool for the rest of the session</li>
+</ul>
+<p>"Always allow" is stored in a <code>HashSet&lt;String&gt;</code> on the permission checker.
+Session-scoped, not persisted. If you restart, you're back to prompting.</p>
+<h3 id="the-modes">The Modes</h3>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="rust"><span class="giallo-l"><span style="color: #FB4934;">pub</span><span style="color: #FE8019;"> enum</span><span style="color: #FABD2F;"> PermissionMode</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">    Default</span><span style="color: #A89984;">,</span><span style="color: #928374;font-style: italic;">      // reads auto-allow, writes prompt</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">    AcceptEdits</span><span style="color: #A89984;">,</span><span style="color: #928374;font-style: italic;">  // file edits auto-allow, bash prompts</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">    Bypass</span><span style="color: #A89984;">,</span><span style="color: #928374;font-style: italic;">       // everything allowed</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">    Plan</span><span style="color: #A89984;">,</span><span style="color: #928374;font-style: italic;">         // writes denied entirely</span></span>
+<span class="giallo-l"><span style="color: #A89984;">}</span></span></code></pre>
+<p>Default is what you want for normal use. AcceptEdits is for when you trust the
+model with files but not shell commands. Plan is read-only exploration. Bypass
+is for when you're feeling reckless.</p>
+<h3 id="what-s-missing">What's Missing</h3>
+<p>Claude Code has pattern-based rules: "allow Bash when the command matches
+<code>git *</code>." The Rust version doesn't have this yet. It's tool-level granularity,
+not input-level.</p>
+<p>The auto mode classifier is also missing. Claude Code can automatically
+classify tool uses as safe/unsafe based on the input. That's a nice-to-have
+but the manual prompt covers the same ground.</p>
+<h2 id="where-we-are">Where We Are</h2>
+<p>Three phases, one session. The diff:</p>
+<table><thead><tr><th>Phase</th><th>Files Changed</th><th>Lines Added</th></tr></thead><tbody>
+<tr><td>1 (initial)</td><td>16 new</td><td>+1,200</td></tr>
+<tr><td>2 (commands)</td><td>5 modified</td><td>+235</td></tr>
+<tr><td>3 (permissions)</td><td>3 modified</td><td>+94</td></tr>
+</tbody></table>
+<p>Total: ~1,530 lines of Rust. The binary can:</p>
+<ul>
+<li>Stream chat with Claude</li>
+<li>Execute 6 tools (Read, Write, Edit, Glob, Grep, Bash)</li>
+<li><strong>Prompt before write operations</strong> (y/n/always)</li>
+<li><strong>Compact conversation</strong> to free context</li>
+<li><strong>Resume past sessions</strong></li>
+<li><strong>Switch models</strong> mid-conversation</li>
+<li>Track token usage and cost</li>
+<li>Persist sessions as JSONL</li>
+<li>One-shot mode (<code>-p "prompt"</code>)</li>
+</ul>
+<p>For comparison, the TypeScript source we're porting from is 512,000 lines
+across 1,900 files. We're at 1,530 lines across 18 files and have the core
+loop working.</p>
+<h2 id="what-s-next">What's Next</h2>
+<p>Phase 4 is the ratatui TUI — replacing the inline REPL with a proper
+alternate-screen terminal UI. That's where it starts looking like Claude Code
+instead of just behaving like it.</p>
+<p>Phase 5 is the Agent tool — spawning sub-conversations with scoped tool access.
+That's the feature that makes Claude Code feel like it has workers.</p>
+<p>But honestly, the inline REPL with permissions is already usable. The
+permission prompt was the last thing blocking daily use.</p>
+<hr />
+<p>Source: <a rel="noopener noreferrer external" target="_blank" href="https://github.com/ducks/claux">github.com/ducks/claux</a></p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="/blog/2026/rewriting-claude-code-in-rust-part-2/">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-rewriting-claude-code-in-rust-part-2"
+      data-goatcounter-title="Helpful click on blog-2026-rewriting-claude-code-in-rust-part-2"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/my-ai-founder-got-roasted/">My AI Founder Got Roasted by Its Own Creators</a></h3>
+                  <div class="meta">
+                    
+                    <p>Nov 09, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">I gave an AI agent a business to run. It emailed the company behind the platform, got roasted, and left me with a useful question about what counts as progress.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/experiments">#experiments</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/six-pages-not-proof-of-thought/">Six Pages Was Never Proof of Anything</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 25, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">The mourning for Amazon&#39;s writing culture confuses two claims. Writing as thinking is true and survives AI. Writing as evidence was always false. The successor to word count is not shorter documents, it is accountable ones.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/writing">#writing</a></p>
+                      
+                      <p><a href="/tags/craft">#craft</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/goodbye-to-the-hard-parts-that-never-mattered/">Goodbye to the Hard Parts That Never Mattered</a></h3>
+                  <div class="meta">
+                    
+                    <p>Sep 26, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">AI is not burying the software engineer. It is removing layers of accidental complexity and giving us a much larger canvas.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/craft">#craft</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/letting-an-agent-design-a-portfolio-page/">I Let an Agent Design a Portfolio Page</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 31, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">Agent Zen Garden turns a web page into a design surface for browser agents. I gave Codex a blank portfolio layout and found the useful boundary between agent precision and human taste.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/web">#web</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/gym-jams-turn-an-album-into-a-workout/">gym-jams: Turn an Album Into a Workout</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 25, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">An album has a fixed length, a tempo map, and an energy arc. That&#39;s a workout plan wearing headphones. librosa provides the ears, a one-shot LLM does the planning.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/oss">#oss</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>

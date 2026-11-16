@@ -1,0 +1,386 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - aws</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/aws/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Tue, 14 Oct 2025 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>AWS SDK Ruby Part 3: When &quot;Working as Intended&quot; Means &quot;Broken by Design&quot;</title>
+          <pubDate>Tue, 14 Oct 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/contributing-to-aws-sdk-ruby-pt3/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/contributing-to-aws-sdk-ruby-pt3/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/contributing-to-aws-sdk-ruby-pt3/">&lt;h3 id=&quot;the-saga-continues&quot;&gt;The Saga Continues&lt;/h3&gt;
+&lt;p&gt;If you&#39;ve been following along, you know I&#39;ve been on a journey fixing AWS SDK
+Ruby credential handling. First
+I added the missing &lt;code&gt;credential_source = Environment&lt;/code&gt; implementation, then I
+discovered it didn&#39;t actually work due to credential chain precedence issues.&lt;/p&gt;
+&lt;p&gt;After extensive testing and code analysis, I submitted &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/aws/aws-sdk-ruby/pull/3303&quot;&gt;PR
+#3303&lt;/a&gt; with a fix. The
+maintainer initially responded positively:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&quot;Hey, thanks for opening an issue. I believe you are correct and this is
+something we need to fix.&quot;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Great! But then...&lt;/p&gt;
+&lt;h3 id=&quot;the-reversal&quot;&gt;The Reversal&lt;/h3&gt;
+&lt;p&gt;After I provided detailed testing comparing AWS CLI behavior, demonstrated the
+fix working in production, and showed exactly which code was unreachable due to
+the chain precedence, the maintainer walked it back:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&quot;From what I understand, I think the default chain will try to resolve
+credentials as quickly as possible, so if environment variables are set it will
+use them directly instead of using them as a credential source. We try not to
+change the behavior of the default chain since returning credentials in a
+different order can break many customers.&quot;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;And then closed both the issue and PR.&lt;/p&gt;
+&lt;h3 id=&quot;why-this-is-wrong&quot;&gt;Why This Is Wrong&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;1. The Feature Is Completely Broken&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;When you configure:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;ini&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;default&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;role_arn&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; =&lt;/span&gt;&lt;span&gt; arn:aws:iam::123456789012:role/MyRole&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;credential_source&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; =&lt;/span&gt;&lt;span&gt; Environment&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;What happens?&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;env_credentials&lt;/code&gt; (position 7) finds &lt;code&gt;AWS_ACCESS_KEY_ID&lt;/code&gt; and
+&lt;code&gt;AWS_SECRET_ACCESS_KEY&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Chain returns those credentials and stops&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;assume_role_credentials&lt;/code&gt; (position 10) never executes&lt;/li&gt;
+&lt;li&gt;The &lt;code&gt;role_arn&lt;/code&gt; and &lt;code&gt;credential_source&lt;/code&gt; configuration is &lt;strong&gt;completely
+ignored&lt;/strong&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;The maintainer confirmed this: &quot;All of the &lt;code&gt;static_profile_&lt;/code&gt; methods handle
+credentials resolution when a client is configured explicitly with a profile.&quot;&lt;/p&gt;
+&lt;p&gt;So the feature works... but only if you don&#39;t use the credential chain, which
+defeats the entire purpose of having a credential chain.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;2. The Code Contradicts Their Argument&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;Look at
+&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/aws/aws-sdk-ruby/blob/version-3/gems/aws-sdk-core/lib/aws-sdk-core/shared_config.rb#L392-L400&quot;&gt;&lt;code&gt;shared_config.rb:392-400&lt;/code&gt;&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;def&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; credentials_from_source&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;credential_source&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; config&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  case&lt;/span&gt;&lt;span&gt; credential_source&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  when&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Ec2InstanceMetadata&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;    # ...&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  when&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;EcsContainer&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;    # ...&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  when&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Environment&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    creds&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span&gt; Credentials&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;new&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;      ENV&lt;/span&gt;&lt;span&gt;[&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;AWS_ACCESS_KEY_ID&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span&gt;]&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;      ENV&lt;/span&gt;&lt;span&gt;[&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;AWS_SECRET_ACCESS_KEY&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span&gt;]&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;      ENV&lt;/span&gt;&lt;span&gt;[&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;AWS_SESSION_TOKEN&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span&gt;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    )&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    creds&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;metrics&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; [&amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;CREDENTIALS_ENV_VARS&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    creds&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  end&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;end&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;This code exists specifically to use environment variables as source credentials
+for role assumption. But the credential chain prevents it from ever executing
+when using the default profile.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;3. The Workaround Proves It&#39;s Broken&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;The maintainer suggested: &quot;if specifying the profile resolves your issue I
+would recommend doing that.&quot;&lt;/p&gt;
+&lt;p&gt;But that&#39;s not a solution, it&#39;s an admission the feature is broken. The
+credential chain exists so you DON&#39;T have to explicitly pass &lt;code&gt;profile:&lt;/code&gt;
+parameters everywhere. Setting &lt;code&gt;AWS_PROFILE=default&lt;/code&gt; or using the default
+profile should work. That&#39;s the entire design philosophy.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;4. Who Would This &quot;Break&quot;?&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;The maintainer worried about &quot;breaking many customers.&quot; But let&#39;s think about
+this:&lt;/p&gt;
+&lt;p&gt;My fix only affects users who have &lt;strong&gt;both&lt;/strong&gt; of these conditions:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;A profile with &lt;code&gt;role_arn&lt;/code&gt; AND &lt;code&gt;credential_source = Environment&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Environment variables &lt;code&gt;AWS_ACCESS_KEY_ID&lt;/code&gt; and &lt;code&gt;AWS_SECRET_ACCESS_KEY&lt;/code&gt; set&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;If someone configures both, they&#39;re explicitly declaring: &quot;use these
+environment variables AS SOURCE CREDENTIALS to assume this role.&quot;&lt;/p&gt;
+&lt;p&gt;Who would configure this and expect it to be ignored? That&#39;s not a customer
+being protected, that&#39;s a broken feature being excused.&lt;/p&gt;
+&lt;h3 id=&quot;what-i-did-instead&quot;&gt;What I Did Instead&lt;/h3&gt;
+&lt;p&gt;Since the AWS team won&#39;t fix the credential chain, I worked around it by
+explicitly passing the &lt;code&gt;profile:&lt;/code&gt; parameter to AWS SDK clients. This bypasses
+the broken credential chain entirely.&lt;/p&gt;
+&lt;p&gt;The approach is simple:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;def&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; aws_client_options&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;  opts&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; region&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span&gt; config&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;region&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;  # Explicitly pass profile if configured&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  if&lt;/span&gt;&lt;span&gt; config&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;profile&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;present?&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    opts&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;profile&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span&gt; config&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;profile&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  elsif&lt;/span&gt;&lt;span&gt; config&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;access_key_id&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;present?&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; &amp;amp;&amp;amp;&lt;/span&gt;&lt;span&gt; config&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;secret_key&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;present?&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    opts&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;access_key_id&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span&gt; config&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;access_key_id&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    opts&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;secret_access_key&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span&gt; config&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;secret_key&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  end&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;  # Otherwise omit credentials, let SDK auto-discover&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  opts&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;end&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;With AWS config:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;ini&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;profile app-uploads&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;role_arn&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; =&lt;/span&gt;&lt;span&gt; arn:aws:iam::123456789012:role/AppUploads&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;credential_source&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; =&lt;/span&gt;&lt;span&gt; Environment&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;This works because explicitly passing &lt;code&gt;profile:&lt;/code&gt; to the SDK bypasses the broken
+credential chain and goes directly to the profile-based role assumption code.
+It&#39;s not fixing the SDK bug, but it enables working role assumption with
+temporary credentials instead of long-lived static keys.&lt;/p&gt;
+&lt;h3 id=&quot;what-i-learned-the-hard-way&quot;&gt;What I Learned (The Hard Way)&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;Open source maintainers aren&#39;t always right.&lt;/strong&gt; Even when they&#39;re from AWS,
+even when they&#39;re maintaining critical infrastructure, they can make bad
+decisions.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Document your wins even when they don&#39;t get merged.&lt;/strong&gt; This fix works in
+production. Other developers will hit this same issue. Having a public record
+of the problem and solution helps everyone.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;The bug report itself has value.&lt;/strong&gt; Even though they closed it, the issue and
+PR document exactly what&#39;s broken and why. Future developers will find it and
+understand they&#39;re not crazy. The feature really is broken.&lt;/p&gt;
+&lt;h3 id=&quot;the-bigger-picture&quot;&gt;The Bigger Picture&lt;/h3&gt;
+&lt;p&gt;This experience reminded me technical correctness doesn&#39;t always win.&lt;/p&gt;
+&lt;p&gt;I had:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Clear reproduction steps&lt;/li&gt;
+&lt;li&gt;Root cause analysis with line numbers&lt;/li&gt;
+&lt;li&gt;A working fix with tests&lt;/li&gt;
+&lt;li&gt;Production validation&lt;/li&gt;
+&lt;li&gt;Comparison with AWS CLI behavior&lt;/li&gt;
+&lt;li&gt;Maintainer acknowledgment that it was broken&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;And they still closed it.&lt;/p&gt;
+&lt;p&gt;Sometimes the politics of &quot;don&#39;t change anything&quot; beat &quot;fix the broken
+feature.&quot; That&#39;s frustrating, but it&#39;s reality.&lt;/p&gt;
+&lt;h3 id=&quot;for-other-contributors&quot;&gt;For Other Contributors&lt;/h3&gt;
+&lt;p&gt;If you hit this issue:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Yes, &lt;code&gt;credential_source = Environment&lt;/code&gt; is broken with the default credential
+chain&lt;/li&gt;
+&lt;li&gt;No, it&#39;s not you, it&#39;s the SDK&lt;/li&gt;
+&lt;li&gt;The workaround is explicitly passing &lt;code&gt;profile:&lt;/code&gt; to clients (or using
+&lt;code&gt;source_profile&lt;/code&gt; with plaintext keys)&lt;/li&gt;
+&lt;li&gt;Explicitly passing the profile parameter bypasses the broken chain and
+enables proper role assumption&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;For AWS maintainers reading this:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;You have unreachable code in &lt;code&gt;credentials_from_source&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Your credential chain prevents documented features from working&lt;/li&gt;
+&lt;li&gt;&quot;Breaking changes&quot; is a poor excuse for not fixing broken features&lt;/li&gt;
+&lt;li&gt;The feature is already broken for everyone using default profiles&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;the-end-for-now&quot;&gt;The End (For Now)&lt;/h3&gt;
+&lt;p&gt;This is where the story ends. I found a workaround, documented it for others,
+and moved on.&lt;/p&gt;
+&lt;p&gt;Sometimes that&#39;s all you can do. Sometimes &quot;no&quot; from maintainers means finding
+another path. Sometimes proving you&#39;re technically correct doesn&#39;t matter if
+the project isn&#39;t willing to fix their bugs.&lt;/p&gt;
+&lt;p&gt;But hey, at least the deployment works now. And maybe this blog series will
+help the next developer who hits this same wall and wonders why a documented
+feature doesn&#39;t actually work.&lt;/p&gt;
+&lt;p&gt;The adventure is over. The bug remains. The workaround persists.&lt;/p&gt;
+&lt;p&gt;Such is open source.&lt;/p&gt;
+</description>
+      </item>
+      <item>
+          <title>Going off the Rails on the AWS Credential Chain</title>
+          <pubDate>Sat, 04 Oct 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/contributing-to-aws-sdk-ruby-pt2/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/contributing-to-aws-sdk-ruby-pt2/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/contributing-to-aws-sdk-ruby-pt2/">&lt;h3 id=&quot;the-plot-twist&quot;&gt;The Plot Twist&lt;/h3&gt;
+&lt;p&gt;Remember that AWS SDK contribution I wrote about? The one where I fixed
+missing &lt;code&gt;credential_source = Environment&lt;/code&gt;
+support? Well, turns out that was only half the story.&lt;/p&gt;
+&lt;p&gt;After my PR got merged and we updated our Discourse deployment to &lt;code&gt;aws-sdk-core 3.233.0&lt;/code&gt;, I was excited to finally see role assumption working. The missing
+credential source was fixed, our config looked perfect, and all the unit tests
+were passing.&lt;/p&gt;
+&lt;p&gt;But when I deployed it to our test cluster, I still got an error. It was a new
+error, but an error nonetheless. Instead of &lt;code&gt;UnsupportedCredentialType&lt;/code&gt;, I was
+now getting a permission denied error when trying to use AWS S3 operations.&lt;/p&gt;
+&lt;h3 id=&quot;the-real-problem&quot;&gt;The Real Problem&lt;/h3&gt;
+&lt;p&gt;Here&#39;s what was happening. I&#39;d check the identity in our Rails console:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;discourse&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span&gt;prod&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span&gt; sts &lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span&gt; Aws&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;::&lt;/span&gt;&lt;span&gt;STS&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;::&lt;/span&gt;&lt;span&gt;Client&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;new&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;discourse&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span&gt;prod&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span&gt; puts sts&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;get_caller_identity&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;arn&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;arn&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;aws&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span&gt;iam&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;::&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;123456789012&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;user&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;/&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;MyUser&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That should have been showing an assumed role ARN like:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;arn:aws:iam::123456789012:assumed-role/MyRole/session-name&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The SDK was still using environment variables directly instead of using them as
+source credentials to assume the configured role.&lt;/p&gt;
+&lt;h3 id=&quot;the-investigation-round-2&quot;&gt;The Investigation (Round 2)&lt;/h3&gt;
+&lt;p&gt;Back to the AWS SDK source code, this time looking at
+&lt;code&gt;credential_provider_chain.rb&lt;/code&gt;. And there it was - a classic ordering problem:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;def&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; providers&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;# ... other providers ...&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;env_credentials&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;, {}],&lt;/span&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt; # Position 7 ← Wins!&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;# ... other providers ...&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;assume_role_credentials&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;, {}],&lt;/span&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt; # Position 10 ← Never reached&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;end&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The credential chain finds &lt;code&gt;AWS_ACCESS_KEY_ID&lt;/code&gt; and &lt;code&gt;AWS_SECRET_ACCESS_KEY&lt;/code&gt; in
+position 7, returns those credentials immediately, and never reaches the role
+assumption logic at position 10.&lt;/p&gt;
+&lt;p&gt;But here&#39;s the thing - this isn&#39;t as simple as just moving
+&lt;code&gt;assume_role_credentials&lt;/code&gt; higher in the chain. That might break existing
+behavior for thousands of applications that rely on direct environment variable
+usage.&lt;/p&gt;
+&lt;h3 id=&quot;the-real-architecture-problem&quot;&gt;The Real Architecture Problem&lt;/h3&gt;
+&lt;p&gt;What should happen with this config:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;ini&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;default&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;role_arn&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; =&lt;/span&gt;&lt;span&gt; arn:aws:iam::123456789012:role/MyRole&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;credential_source&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; =&lt;/span&gt;&lt;span&gt; Environment&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;role_session_name&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; =&lt;/span&gt;&lt;span&gt; test-session&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;region&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; =&lt;/span&gt;&lt;span&gt; us-west-2&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;strong&gt;Expected flow:&lt;/strong&gt;&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;SDK sees &lt;code&gt;role_arn&lt;/code&gt; + &lt;code&gt;credential_source = Environment&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;SDK uses &lt;code&gt;AWS_ACCESS_KEY_ID&lt;/code&gt;/&lt;code&gt;AWS_SECRET_ACCESS_KEY&lt;/code&gt; as &lt;strong&gt;source credentials&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;SDK calls &lt;code&gt;AssumeRole&lt;/code&gt; with those source credentials&lt;/li&gt;
+&lt;li&gt;SDK returns &lt;strong&gt;assumed role credentials&lt;/strong&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;&lt;strong&gt;Actual flow:&lt;/strong&gt;&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;SDK finds &lt;code&gt;AWS_ACCESS_KEY_ID&lt;/code&gt;/&lt;code&gt;AWS_SECRET_ACCESS_KEY&lt;/code&gt; in environment&lt;/li&gt;
+&lt;li&gt;SDK returns those credentials directly (chain stops)&lt;/li&gt;
+&lt;li&gt;Role assumption config is never processed&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h3 id=&quot;the-contribution&quot;&gt;The Contribution&lt;/h3&gt;
+&lt;p&gt;I filed &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/aws/aws-sdk-ruby/issues/3301&quot;&gt;Bug #3301&lt;/a&gt; with:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Clear reproduction steps&lt;/li&gt;
+&lt;li&gt;Root cause analysis pointing to the specific code location&lt;/li&gt;
+&lt;li&gt;Expected vs. actual behavior with ARN examples&lt;/li&gt;
+&lt;li&gt;A workaround using &lt;code&gt;source_profile&lt;/code&gt; (though it requires plaintext keys)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;the-response&quot;&gt;The Response&lt;/h3&gt;
+&lt;p&gt;The AWS team&#39;s response was exactly what you hope for:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&quot;Hey, thanks for opening an issue. I believe you are correct and this is
+something we need to fix. I need to confirm some details regarding
+AssumeRoleCredentials profile chaining with the team first and I&#39;ll keep you
+updated.&quot;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;That&#39;s maintainer validation that this is a real architectural issue, not user
+error.&lt;/p&gt;
+&lt;h3 id=&quot;what-i-learned-again&quot;&gt;What I Learned (Again)&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;Complex systems have complex bugs:&lt;/strong&gt; My first fix solved the missing feature,
+but revealed a deeper architectural problem with credential chain precedence.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Sometimes the obvious fix isn&#39;t right:&lt;/strong&gt; Moving &lt;code&gt;assume_role_credentials&lt;/code&gt;
+higher might seem simple, but it requires careful consideration of context and
+backward compatibility.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Good bug reports matter:&lt;/strong&gt; Clear reproduction steps, root cause analysis, and
+concrete examples help maintainers understand and prioritize issues.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Persistence pays off:&lt;/strong&gt; I could have stopped after the first fix and lived
+with workarounds. But pushing deeper led to identifying a more fundamental
+issue.&lt;/p&gt;
+&lt;h3 id=&quot;the-bigger-picture&quot;&gt;The Bigger Picture&lt;/h3&gt;
+&lt;p&gt;This experience reinforced something important about systems work: fixing one
+layer often reveals problems in the next layer down.&lt;/p&gt;
+&lt;p&gt;The first bug was a missing feature - straightforward to implement. The second
+bug is an architectural design issue that requires careful consideration of how
+credential resolution should work when role assumption is involved.&lt;/p&gt;
+&lt;p&gt;Both bugs are real, both needed fixing, and both will help developers who hit
+the same issues. But they required completely different approaches - one needed
+code, the other needed a thoughtful design discussion with the maintainers.&lt;/p&gt;
+&lt;h3 id=&quot;status-update&quot;&gt;Status Update&lt;/h3&gt;
+&lt;p&gt;As of this writing, the AWS team is discussing the fix for the credential chain
+precedence issue. Our Discourse implementation is ready to go - we&#39;re just
+waiting on the upstream architectural fix.&lt;/p&gt;
+&lt;p&gt;Sometimes the best contribution you can make is clearly identifying and
+documenting a problem, even when the solution isn&#39;t obvious. That&#39;s exactly
+what happened here.&lt;/p&gt;
+</description>
+      </item>
+      <item>
+          <title>Contributing to the AWS Ruby SDK: When Documentation and Implementation Don&#39;t Match</title>
+          <pubDate>Sat, 23 Aug 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/contributing-to-aws-sdk-ruby/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/contributing-to-aws-sdk-ruby/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/contributing-to-aws-sdk-ruby/">&lt;h3 id=&quot;the-problem&quot;&gt;The Problem&lt;/h3&gt;
+&lt;p&gt;I was working on some IAM role configuration at work when our Discourse
+deployment started failing with AWS credential errors. The error was
+frustrating because according to the AWS documentation, everything should have
+been working perfectly.&lt;/p&gt;
+&lt;p&gt;The deployment was trying to use &lt;code&gt;credential_source = Environment&lt;/code&gt; in the AWS
+config, which is a standard approach documented in the AWS CLI guide. But for
+some reason, the Ruby SDK wasn&#39;t picking up the credentials.&lt;/p&gt;
+&lt;h3 id=&quot;the-investigation&quot;&gt;The Investigation&lt;/h3&gt;
+&lt;p&gt;Like any good debugging session, I started by tracing through the credential
+chain. The AWS Ruby SDK has a pretty clear credential resolution process, so I
+dug into the source code to see what was happening.&lt;/p&gt;
+&lt;p&gt;That&#39;s when I found something interesting: the AWS CLI documentation clearly
+shows &lt;code&gt;Environment&lt;/code&gt; as a supported credential source, but when I looked at the
+Ruby SDK implementation, that option was completely missing.&lt;/p&gt;
+&lt;p&gt;Here are the &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-role.html&quot;&gt;docs&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Here&#39;s what I found in the &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/aws/aws-sdk-ruby/blob/version-3/gems/aws-sdk-core/lib/aws-sdk-core/shared_config.rb#L362&quot;&gt;SDK&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;case credential_source&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  when &amp;#39;Ec2InstanceMetadata&amp;#39;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    # ... implementation exists&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  when &amp;#39;EcsContainer&amp;#39;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    # ... implementation exists&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  when &amp;#39;Environment&amp;#39;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    # ... nothing here! end&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The CLI supports it, the documentation says it should work, but the Ruby SDK
+just... doesn&#39;t implement it.&lt;/p&gt;
+&lt;h3 id=&quot;the-solution&quot;&gt;The Solution&lt;/h3&gt;
+&lt;p&gt;This felt like a classic case where implementation lagged behind documentation.
+Since I needed this working for our deployment, I decided to contribute the
+missing functionality back to the project.&lt;/p&gt;
+&lt;p&gt;The fix was actually pretty straightforward once I understood the pattern:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;when &amp;#39;Environment&amp;#39;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  Aws::Credentials.new(&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    ENV[&amp;#39;AWS_ACCESS_KEY_ID&amp;#39;],&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    ENV[&amp;#39;AWS_SECRET_ACCESS_KEY&amp;#39;],&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    ENV[&amp;#39;AWS_SESSION_TOKEN&amp;#39;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  )&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;I added comprehensive tests to make sure it worked correctly and that I wasn&#39;t
+breaking any of the existing 20,000+ tests in the project.&lt;/p&gt;
+&lt;h3 id=&quot;the-contribution&quot;&gt;The Contribution&lt;/h3&gt;
+&lt;p&gt;&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/aws/aws-sdk-ruby/pull/3283&quot;&gt;https://github.com/aws/aws-sdk-ruby/pull/3283&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Here&#39;s the thing - I don&#39;t really know Ruby that well. But the codebase was
+well-organized and the patterns were clear enough that I could understand what
+needed to happen.&lt;/p&gt;
+&lt;p&gt;I submitted the PR with:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The missing implementation&lt;/li&gt;
+&lt;li&gt;Proper test coverage&lt;/li&gt;
+&lt;li&gt;Clear documentation of what was being added&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;the-response&quot;&gt;The Response&lt;/h3&gt;
+&lt;p&gt;The response from the AWS team was exactly what you hope for in open source:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&quot;Hey, thanks for opening a PR. I agree that we should support this and I may
+make some changes to this PR as well.&quot;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;That&#39;s maintainer gold right there - acknowledgment that the gap was real and
+willingness to collaborate on getting it merged.&lt;/p&gt;
+&lt;h3 id=&quot;what-i-learned&quot;&gt;What I Learned&lt;/h3&gt;
+&lt;p&gt;This whole experience reinforced a few things for me:&lt;/p&gt;
+&lt;p&gt;Documentation gaps happen: Even in well-maintained projects like the AWS SDKs,
+there can be mismatches between what&#39;s documented and what&#39;s implemented.&lt;/p&gt;
+&lt;p&gt;Don&#39;t let unfamiliar languages stop you: I was able to contribute meaningfully
+to a Ruby project despite not being a Ruby developer. Good code organization
+and clear patterns make this possible.&lt;/p&gt;
+&lt;p&gt;Small changes can have big impact: This was maybe 10 lines of actual code, but
+it unblocked our deployment and will help other developers who hit the same
+issue.&lt;/p&gt;
+&lt;h3 id=&quot;the-bigger-picture&quot;&gt;The Bigger Picture&lt;/h3&gt;
+&lt;p&gt;This kind of contribution is exactly why I love working as a generalist.
+Instead of saying &quot;that&#39;s not my language&quot; or &quot;someone else should fix the AWS
+SDK,&quot; I could trace the problem to its source and ship a fix.&lt;/p&gt;
+&lt;p&gt;The best part? Our Discourse deployment should work now, and hopefully other
+developers won&#39;t hit this same roadblock in the future.&lt;/p&gt;
+&lt;h3 id=&quot;update&quot;&gt;Update&lt;/h3&gt;
+&lt;p&gt;Since writing this, the change has been expanded with additional tests and
+&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/aws/aws-sdk-ruby/pull/3283&quot;&gt;approved by the maintainers&lt;/a&gt;.
+It&#39;s really rewarding to see a small contribution grow into something that&#39;s
+now part of the SDK itself. This is a great reminder that even small fixes
+matter -- they can make life easier for the next developer who comes along.&lt;/p&gt;
+&lt;h3 id=&quot;the-saga-continues&quot;&gt;The Saga Continues&lt;/h3&gt;
+&lt;p&gt;This turned out to be just the beginning. After getting the feature merged, I
+discovered it didn&#39;t actually work due to credential chain precedence issues.&lt;/p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

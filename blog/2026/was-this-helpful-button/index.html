@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Lightweight per-post feedback without a backend, database, or comments system. Tera macro, ~25 lines of JavaScript, and one data attribute that lets GoatCounter do the actual work.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="A &#39;Was this helpful?&#39; button for a static blog">
+    <meta property="og:description" content="Lightweight per-post feedback without a backend, database, or comments system. Tera macro, ~25 lines of JavaScript, and one data attribute that lets GoatCounter do the actual work.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://jakegoldsborough.com/blog/2026/was-this-helpful-button/">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="A &#39;Was this helpful?&#39; button for a static blog">
+    <meta name="twitter:description" content="Lightweight per-post feedback without a backend, database, or comments system. Tera macro, ~25 lines of JavaScript, and one data attribute that lets GoatCounter do the actual work.">
+
+    <title>A &#39;Was this helpful?&#39; button for a static blog - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css?h=4ae15179b7c33c92f362" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>A &#39;Was this helpful?&#39; button for a static blog</h1>
+      <div class="meta">
+        
+        <p>May 16, 2026</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/zola">#zola</a></p>
+          
+          <p><a href="/tags/blog">#blog</a></p>
+          
+          <p><a href="/tags/dev">#dev</a></p>
+          
+        </div>
+      
+
+      
+  
+
+
+      <p>I write a lot here. I don't have comments. I don't want comments. But I do want some signal about which posts are actually landing - not "did someone load the page" (GoatCounter already tells me that) but "did this post help someone."</p>
+<p>So I added a small button at the bottom of every post:</p>
+<blockquote>
+<p>Was this helpful?
+[ Yep, this helped ]</p>
+</blockquote>
+<p>Click it once and it swaps to a thank-you line. Click is recorded as a GoatCounter event. No login, no comment box, no thumbs down. Per-browser dedupe via localStorage so the same person can't pad the number by refreshing.</p>
+<p>This post is how it works.</p>
+<h2 id="constraints">Constraints</h2>
+<ul>
+<li>The site is a static Zola build. I don't want a backend, a database, or auth.</li>
+<li>I already use <a rel="noopener noreferrer external" target="_blank" href="https://www.goatcounter.com/">GoatCounter</a> for analytics. I don't want a second analytics dependency.</li>
+<li>It has to keep working with JavaScript off, in the sense of not being broken. The widget can be inert when JS is disabled, but the page shouldn't render a button that lies about doing something.</li>
+<li>No thumbs down. Negative feedback without a way to discuss it is just background noise.</li>
+<li>Mobile-friendly. A pill-shaped button with a 44px tap target on small screens.</li>
+</ul>
+<h2 id="the-shape">The shape</h2>
+<p>Three new files plus three small edits to existing templates.</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="plain"><span class="giallo-l"><span>templates/macros/helpful.html      (new — Tera macro)</span></span>
+<span class="giallo-l"><span>static/css/helpful.css             (new — scoped styles)</span></span>
+<span class="giallo-l"><span>static/js/helpful.js               (new — ~25 lines)</span></span>
+<span class="giallo-l"><span>templates/page.html                (import + render the macro)</span></span>
+<span class="giallo-l"><span>templates/base.html                (load the JS)</span></span>
+<span class="giallo-l"><span>static/css/style.css               (@import the CSS)</span></span></code></pre>
+<p>The whole feature is under 70 lines total.</p>
+<h2 id="goatcounter-does-the-click">GoatCounter does the click</h2>
+<p>The first thing I learned reading <a rel="noopener noreferrer external" target="_blank" href="https://www.goatcounter.com/help/events">the GoatCounter events docs</a>: you don't have to write a click handler. Any element with a <code>data-goatcounter-click</code> attribute gets bound automatically. The attribute's value is the event name; <code>data-goatcounter-title</code> sets a human-readable title.</p>
+<p>So the Tera macro just stamps the button:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="jinja"><span class="giallo-l"><span>{%</span><span style="color: #FB4934;"> macro</span><span style="color: #83A598;"> widget</span><span style="color: #A89984;">(</span><span style="color: #83A598;">page</span><span style="color: #A89984;">)</span><span> %}</span></span>
+<span class="giallo-l"><span>  {%</span><span style="color: #FB4934;"> set</span><span style="color: #83A598;"> slug</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> page</span><span style="color: #A89984;">.</span><span style="color: #83A598;">path</span></span>
+<span class="giallo-l"><span style="color: #A89984;">       |</span><span style="color: #83A598;"> replace</span><span style="color: #A89984;">(</span><span style="color: #83A598;">from</span><span style="color: #8EC07C;">=</span><span style="color: #A89984;">&quot;</span><span style="color: #B8BB26;">/</span><span style="color: #A89984;">&quot;,</span><span style="color: #83A598;"> to</span><span style="color: #8EC07C;">=</span><span style="color: #A89984;">&quot;</span><span style="color: #B8BB26;">-</span><span style="color: #A89984;">&quot;)</span></span>
+<span class="giallo-l"><span style="color: #A89984;">       |</span><span style="color: #83A598;"> trim_start_matches</span><span style="color: #A89984;">(</span><span style="color: #83A598;">pat</span><span style="color: #8EC07C;">=</span><span style="color: #A89984;">&quot;</span><span style="color: #B8BB26;">-</span><span style="color: #A89984;">&quot;)</span></span>
+<span class="giallo-l"><span style="color: #A89984;">       |</span><span style="color: #83A598;"> trim_end_matches</span><span style="color: #A89984;">(</span><span style="color: #83A598;">pat</span><span style="color: #8EC07C;">=</span><span style="color: #A89984;">&quot;</span><span style="color: #B8BB26;">-</span><span style="color: #A89984;">&quot;)</span><span> %}</span></span>
+<span class="giallo-l"><span>  {%</span><span style="color: #FB4934;"> set</span><span style="color: #83A598;"> event_name</span><span style="color: #8EC07C;"> =</span><span style="color: #A89984;"> &quot;</span><span style="color: #B8BB26;">helpful-</span><span style="color: #A89984;">&quot;</span><span> ~ </span><span style="color: #83A598;">slug</span><span> %}</span></span>
+<span class="giallo-l"><span>  &lt;aside class=&quot;helpful&quot; data-helpful-path=&quot;</span><span style="color: #83A598;">{{ page</span><span style="color: #A89984;">.</span><span style="color: #83A598;">path }}</span><span>&quot;&gt;</span></span>
+<span class="giallo-l"><span>    &lt;p class=&quot;helpful-prompt&quot;&gt;Was this helpful?&lt;/p&gt;</span></span>
+<span class="giallo-l"><span>    &lt;button</span></span>
+<span class="giallo-l"><span>      type=&quot;button&quot;</span></span>
+<span class="giallo-l"><span>      class=&quot;helpful-button&quot;</span></span>
+<span class="giallo-l"><span>      data-helpful-action=&quot;vote&quot;</span></span>
+<span class="giallo-l"><span>      data-goatcounter-click=&quot;</span><span style="color: #83A598;">{{ event_name }}</span><span>&quot;</span></span>
+<span class="giallo-l"><span>      data-goatcounter-title=&quot;Helpful click on </span><span style="color: #83A598;">{{ slug }}</span><span>&quot;</span></span>
+<span class="giallo-l"><span>    &gt;Yep, this helped&lt;/button&gt;</span></span>
+<span class="giallo-l"><span>    &lt;p class=&quot;helpful-thanks&quot; hidden&gt;✓ Glad it helped&lt;/p&gt;</span></span>
+<span class="giallo-l"><span>  &lt;/aside&gt;</span></span>
+<span class="giallo-l"><span>{%</span><span style="color: #FB4934;"> endmacro</span><span style="color: #83A598;"> widget</span><span> %}</span></span></code></pre>
+<p>The slug is the post path with slashes replaced by dashes and the leading/trailing dashes trimmed. So <code>/blog/2026/was-this-helpful-button/</code> becomes <code>helpful-blog-2026-was-this-helpful-button</code>. Each post is its own row in GoatCounter's event list.</p>
+<p>One gotcha: GoatCounter rejects event paths that start with <code>/</code> (the path doubles as the event name, and they reserve <code>/</code> as a real-path marker). If you forget to strip the leading slash, your events silently don't get recorded.</p>
+<h2 id="javascript-handles-the-dedupe">JavaScript handles the dedupe</h2>
+<p>GoatCounter records the click. localStorage remembers it. The script only does the visual swap:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="javascript"><span class="giallo-l"><span>(</span><span style="color: #FE8019;">function</span><span style="color: #A89984;"> () {</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">  var</span><span style="color: #83A598;"> widget</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> document</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">querySelector</span><span>(</span><span style="color: #A89984;">&#39;</span><span style="color: #B8BB26;">.helpful[data-helpful-path]</span><span style="color: #A89984;">&#39;</span><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  if</span><span> (</span><span style="color: #FB4934;">!</span><span style="color: #83A598;">widget</span><span>)</span><span style="color: #FB4934;"> return</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FE8019;">  var</span><span style="color: #83A598;"> path</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> widget</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">getAttribute</span><span>(</span><span style="color: #A89984;">&#39;</span><span style="color: #B8BB26;">data-helpful-path</span><span style="color: #A89984;">&#39;</span><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">  var</span><span style="color: #83A598;"> storageKey</span><span style="color: #8EC07C;"> =</span><span style="color: #A89984;"> &#39;</span><span style="color: #B8BB26;">helpful:</span><span style="color: #A89984;">&#39;</span><span style="color: #8EC07C;"> +</span><span style="color: #83A598;"> path</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">  var</span><span style="color: #83A598;"> button</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> widget</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">querySelector</span><span>(</span><span style="color: #A89984;">&#39;</span><span style="color: #B8BB26;">[data-helpful-action=&quot;vote&quot;]</span><span style="color: #A89984;">&#39;</span><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #FE8019;">  var</span><span style="color: #83A598;"> thanks</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> widget</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">querySelector</span><span>(</span><span style="color: #A89984;">&#39;</span><span style="color: #B8BB26;">.helpful-thanks</span><span style="color: #A89984;">&#39;</span><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FE8019;">  function</span><span style="color: #FABD2F;"> showThanks</span><span style="color: #A89984;">() {</span></span>
+<span class="giallo-l"><span style="color: #83A598;">    button</span><span style="color: #A89984;">.</span><span style="color: #83A598;">hidden</span><span style="color: #8EC07C;"> =</span><span style="color: #D3869B;"> true</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #83A598;">    thanks</span><span style="color: #A89984;">.</span><span style="color: #83A598;">hidden</span><span style="color: #8EC07C;"> =</span><span style="color: #D3869B;"> false</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #A89984;">  }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FB4934;">  try</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">    if</span><span> (</span><span style="color: #83A598;">localStorage</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">getItem</span><span>(</span><span style="color: #83A598;">storageKey</span><span>))</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">      showThanks</span><span>()</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">      return</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #A89984;">    }</span></span>
+<span class="giallo-l"><span style="color: #A89984;">  }</span><span style="color: #FB4934;"> catch</span><span> (</span><span style="color: #83A598;">e</span><span>)</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #928374;font-style: italic;">    // Private browsing / storage disabled: continue without persistence.</span></span>
+<span class="giallo-l"><span style="color: #A89984;">  }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #83A598;">  button</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">addEventListener</span><span>(</span><span style="color: #A89984;">&#39;</span><span style="color: #B8BB26;">click</span><span style="color: #A89984;">&#39;,</span><span style="color: #FE8019;"> function</span><span style="color: #A89984;"> () {</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">    try</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #83A598;">      localStorage</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">setItem</span><span>(</span><span style="color: #83A598;">storageKey</span><span style="color: #A89984;">,</span><span style="color: #83A598;"> Date</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">now</span><span>()</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">toString</span><span>())</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #A89984;">    }</span><span style="color: #FB4934;"> catch</span><span> (</span><span style="color: #83A598;">e</span><span>)</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #928374;font-style: italic;">      // ignore</span></span>
+<span class="giallo-l"><span style="color: #A89984;">    }</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">    showThanks</span><span>()</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #A89984;">  }</span><span>)</span><span style="color: #A89984;">;</span></span>
+<span class="giallo-l"><span style="color: #A89984;">}</span><span>)()</span><span style="color: #A89984;">;</span></span></code></pre>
+<p>Twenty-five lines. No framework, no dependencies, no async, no fetch. The <code>try/catch</code> blocks around localStorage are for Safari private mode and embedded webviews, where <code>localStorage</code> throws on access rather than just being absent.</p>
+<h2 id="edge-cases-i-thought-about">Edge cases I thought about</h2>
+<p><strong>Tracker blockers.</strong> If your readers run uBlock Origin or similar, count.js gets blocked and the click goes nowhere. The UI still swaps state, so they don't see a broken button - the dashboard just under-counts. Acceptable for a directional metric.</p>
+<p><strong>localStorage disabled.</strong> Try/catch keeps the UI working; users in this mode can vote again across reloads. Tolerable for a directional metric.</p>
+<p><strong>Same person, multiple browsers.</strong> Each browser counts once. There's no way to deduplicate without auth, and I don't want auth.</p>
+<p><strong>JS disabled.</strong> The button renders but does nothing. I'd rather show a friendly prompt that can't be acted on than hide the section entirely. If you find that offensive, a one-liner in <code>&lt;noscript&gt;</code> hides it.</p>
+<h2 id="what-i-learned-about-goatcounter">What I learned about GoatCounter</h2>
+<p>Three things that aren't obvious from the docs:</p>
+<ol>
+<li>
+<p><strong>Events show up in the same Pages view as pageviews.</strong> I expected a separate "Events" tab. There isn't one. The events are inlined into the regular pages list, marked with their event title.</p>
+</li>
+<li>
+<p><strong>The GIF response is always 200.</strong> GoatCounter returns a 1x1 GIF for every count request, regardless of whether the hit was actually recorded. You can't tell from HTTP status alone whether your event registered. The signal is whether it shows up in the dashboard.</p>
+</li>
+<li>
+<p><strong><code>data-goatcounter-click</code> is dramatically simpler than calling <code>window.goatcounter.count()</code> manually.</strong> First version of this widget did the manual call. Second version reads the data attribute. Same behavior, less code, less to break.</p>
+</li>
+</ol>
+<h2 id="what-i-m-not-doing">What I'm not doing</h2>
+<ul>
+<li>
+<p><strong>No "X people found this helpful" counter.</strong> GoatCounter's API doesn't expose per-page event counts to the client, so showing the number would require a backend. I don't care enough.</p>
+</li>
+<li>
+<p><strong>No reading-time gate.</strong> I considered only showing the button after 30 seconds or 60% scroll, to filter skim-clicks. I'll add it if the noise becomes annoying. For now, every click is signal.</p>
+</li>
+<li>
+<p><strong>No newsletter pitch on click.</strong> "Glad it helped - want more?" would convert better. But I don't have a newsletter, so it'd be a lie.</p>
+</li>
+</ul>
+<h2 id="try-it">Try it</h2>
+<p>There's one at the bottom of this post. If this was useful, click it.</p>
+<p>I'll know whether the post landed because the dashboard will tell me. Not in pageviews. In <code>helpful-blog-2026-was-this-helpful-button</code>.</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="/blog/2026/was-this-helpful-button/">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2026-was-this-helpful-button"
+      data-goatcounter-title="Helpful click on blog-2026-was-this-helpful-button"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+              
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/where-a-blog-post-goes/">Where a Blog Post Goes</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 24, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">A post reached TLDR, Hacker News, curated reading lists, search engines, and work chats. The interesting part of the analytics was the variety of ways people found it.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/blog">#blog</a></p>
+                      
+                      <p><a href="/tags/writing">#writing</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/blog-stats-six-numbers/">Six numbers from my blog&#39;s analytics</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 17, 2026</p>
+                    
+                    <p>6 min read</p>
+                  </div>
+                  
+                    <p class="desc">I dug into the GoatCounter database for my blog. Single-day spikes, fastest risers, fastest first month, two kinds of streaks, and where readers actually come from.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/blog">#blog</a></p>
+                      
+                      <p><a href="/tags/writing">#writing</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/where-a-blog-post-goes/">Where a Blog Post Goes</a></h3>
+                  <div class="meta">
+                    
+                    <p>Oct 24, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">A post reached TLDR, Hacker News, curated reading lists, search engines, and work chats. The interesting part of the analytics was the variety of ways people found it.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/blog">#blog</a></p>
+                      
+                      <p><a href="/tags/writing">#writing</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/goodbye-to-the-hard-parts-that-never-mattered/">Goodbye to the Hard Parts That Never Mattered</a></h3>
+                  <div class="meta">
+                    
+                    <p>Sep 26, 2026</p>
+                    
+                    <p>7 min read</p>
+                  </div>
+                  
+                    <p class="desc">AI is not burying the software engineer. It is removing layers of accidental complexity and giving us a much larger canvas.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/craft">#craft</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/the-agents-have-eyes-now/">The Agents Have Eyes Now</a></h3>
+                  <div class="meta">
+                    
+                    <p>Aug 22, 2026</p>
+                    
+                    <p>5 min read</p>
+                  </div>
+                  
+                    <p class="desc">Replaybook can now hand infrastructure agents a production topology diagram. Six models made 18 durable repairs, and Luna beat the flagship on speed and cost.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>

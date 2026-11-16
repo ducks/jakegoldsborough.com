@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Converting postgres-manager from fire-and-forget MessageBus to synchronous HTTP APIs to eliminate message replay issues and gain operational visibility.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="Replacing MessageBus Pub/Sub with REST APIs: Fixing Production Outages">
+    <meta property="og:description" content="Converting postgres-manager from fire-and-forget MessageBus to synchronous HTTP APIs to eliminate message replay issues and gain operational visibility.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://jakegoldsborough.com/blog/2025/replacing-messagebus-with-http-apis/">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Replacing MessageBus Pub/Sub with REST APIs: Fixing Production Outages">
+    <meta name="twitter:description" content="Converting postgres-manager from fire-and-forget MessageBus to synchronous HTTP APIs to eliminate message replay issues and gain operational visibility.">
+
+    <title>Replacing MessageBus Pub/Sub with REST APIs: Fixing Production Outages - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css?h=4ae15179b7c33c92f362" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>Replacing MessageBus Pub/Sub with REST APIs: Fixing Production Outages</h1>
+      <div class="meta">
+        
+        <p>Oct 27, 2025</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+
+      
+  
+
+
+      <p>We're converting one of our infrastructure services from MessageBus pub/sub to
+a synchronous REST API. This isn't a protocol change or upgrade - both
+architectures use HTTP. This is about replacing fire-and-forget asynchronous
+messaging with request/response patterns that provide immediate feedback.</p>
+<p>The control plane manages hundreds of Discourse forums across multiple data
+centers. It needs to orchestrate PostgreSQL user and database creation across
+these distributed clusters.</p>
+<h2 id="the-problem">The Problem</h2>
+<p>Our <code>postgres-manager</code> service handles PostgreSQL user and database lifecycle
+for Discourse hosted sites. It was built using <code>ServiceSkeleton</code>, a Ruby
+framework for message-driven services, subscribing to MessageBus channels for
+commands.</p>
+<p>MessageBus uses HTTP long-polling for pub/sub messaging. Publishers send
+messages to channels, subscribers open long-lived HTTP connections and wait for
+messages to arrive. It works well for many use cases, but we've hit two
+critical problems:</p>
+<ol>
+<li>
+<p>No feedback mechanism. When the control plane published a message like
+"create database for site X", it had no way to know if the operation succeeded
+or failed. The message was sent and forgotten.</p>
+</li>
+<li>
+<p>Message replay on restarts. MessageBus keeps a backlog of messages. When
+postgres-manager restarts, it replays unacknowledged messages, causing duplicate
+operations. We've had multiple production outages from databases being recreated
+or users being decommissioned twice.</p>
+</li>
+</ol>
+<p>The message replay issue is the immediate trigger, but the lack of feedback is
+the underlying architectural problem. We need synchronous request/response
+patterns with immediate success/failure feedback.</p>
+<h2 id="the-solution-rest-api-with-request-response">The Solution: REST API with Request/Response</h2>
+<p>We're converting postgres-manager to a Sinatra HTTP service that responds
+synchronously to requests. Instead of subscribing to MessageBus channels, it
+will expose REST endpoints:</p>
+<ul>
+<li><code>POST /databases</code> - Create database and user</li>
+<li><code>DELETE /databases/:username</code> - Decommission database</li>
+<li><code>POST /users</code> - Create user (triggers sync)</li>
+<li><code>DELETE /users/:username</code> - Decommission user</li>
+<li><code>POST /sync</code> - Sync all databases/users from control plane</li>
+</ul>
+<p>Each endpoint will return an immediate response with proper HTTP status codes:
+200 for success, 401 for auth failures, 400 for bad parameters, 500 for server
+errors.</p>
+<h2 id="implementation">Implementation</h2>
+<h3 id="before-serviceskeleton-with-messagebus">Before: ServiceSkeleton with MessageBus</h3>
+<p>The old implementation used ServiceSkeleton to subscribe to MessageBus:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="ruby"><span class="giallo-l"><span style="color: #83A598;">message_bus</span><span style="color: #8EC07C;"> =</span><span> MessageBus</span><span style="color: #A89984;">::</span><span>HTTPClient</span><span style="color: #A89984;">.</span><span style="color: #FB4934;">new</span><span style="color: #A89984;">(</span></span>
+<span class="giallo-l"><span>  config</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">control_plane_base_url</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #D3869B;">  headers</span><span style="color: #A89984;">: { &quot;</span><span style="color: #B8BB26;">Discourse-Access-Token</span><span style="color: #A89984;">&quot; =&gt;</span><span> config</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">control_plane_token</span><span style="color: #A89984;"> }</span></span>
+<span class="giallo-l"><span style="color: #A89984;">)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>message_bus</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">subscribe</span><span style="color: #A89984;">(</span><span>config</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">message_bus_channel</span><span style="color: #A89984;">)</span><span style="color: #FB4934;"> do</span><span style="color: #A89984;"> |</span><span style="color: #83A598;">message</span><span style="color: #A89984;">|</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  case</span><span> message</span><span style="color: #A89984;">[&quot;</span><span style="color: #B8BB26;">type</span><span style="color: #A89984;">&quot;]</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  when</span><span style="color: #A89984;"> &quot;</span><span style="color: #B8BB26;">create_user</span><span style="color: #A89984;">&quot;, &quot;</span><span style="color: #B8BB26;">create_db</span><span style="color: #A89984;">&quot;, &quot;</span><span style="color: #B8BB26;">sync</span><span style="color: #A89984;">&quot;</span></span>
+<span class="giallo-l"><span>    sync</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  when</span><span style="color: #A89984;"> &quot;</span><span style="color: #B8BB26;">decommission_db</span><span style="color: #A89984;">&quot;</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">    decommission_db</span><span style="color: #A89984;">(</span><span>message</span><span style="color: #A89984;">[&quot;</span><span style="color: #B8BB26;">dbname</span><span style="color: #A89984;">&quot;])</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  when</span><span style="color: #A89984;"> &quot;</span><span style="color: #B8BB26;">decommission_user</span><span style="color: #A89984;">&quot;</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">    decommission_user</span><span style="color: #A89984;">(</span><span>message</span><span style="color: #A89984;">[&quot;</span><span style="color: #B8BB26;">username</span><span style="color: #A89984;">&quot;])</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  end</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">end</span></span></code></pre>
+<p>The control plane would publish messages:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="ruby"><span class="giallo-l"><span>PostgresManagerPublisher</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">create_db</span><span style="color: #A89984;">(</span><span>owner</span><span style="color: #A89984;">,</span><span> cluster_name</span><span style="color: #A89984;">)</span></span>
+<span class="giallo-l"><span style="color: #928374;font-style: italic;"># Fire and forget - no response</span></span></code></pre><h3 id="after-sinatra-http-service">After: Sinatra HTTP Service</h3>
+<p>The new implementation uses Sinatra with proper HTTP patterns:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="ruby"><span class="giallo-l"><span>before </span><span style="color: #FB4934;">do</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  return if</span><span style="color: #A89984;"> [&quot;</span><span style="color: #B8BB26;">/health</span><span style="color: #A89984;">&quot;, &quot;</span><span style="color: #B8BB26;">/metrics</span><span style="color: #A89984;">&quot;].</span><span style="color: #FABD2F;">include?</span><span style="color: #A89984;">(</span><span>request</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">path_info</span><span style="color: #A89984;">)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #83A598;">  auth_header</span><span style="color: #8EC07C;"> =</span><span> request</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">env</span><span style="color: #A89984;">[&quot;</span><span style="color: #B8BB26;">HTTP_AUTHORIZATION</span><span style="color: #A89984;">&quot;]</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  if !</span><span>auth_header </span><span style="color: #FB4934;">|| !</span><span>auth_header</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">start_with?</span><span style="color: #A89984;">(&quot;</span><span style="color: #B8BB26;">Bearer </span><span style="color: #A89984;">&quot;)</span></span>
+<span class="giallo-l"><span>    halt </span><span style="color: #D3869B;">401</span><span style="color: #A89984;">,</span><span style="color: #FABD2F;"> json</span><span style="color: #A89984;">(</span><span style="color: #D3869B;">error</span><span style="color: #A89984;">: &quot;</span><span style="color: #B8BB26;">Unauthorized</span><span style="color: #A89984;">&quot;,</span><span style="color: #D3869B;"> code</span><span style="color: #A89984;">: &quot;</span><span style="color: #B8BB26;">AUTH_REQUIRED</span><span style="color: #A89984;">&quot;)</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #83A598;">  token</span><span style="color: #8EC07C;"> =</span><span> auth_header</span><span style="color: #A89984;">.</span><span>sub</span><span style="color: #A89984;">(&quot;</span><span style="color: #B8BB26;">Bearer </span><span style="color: #A89984;">&quot;, &quot;&quot;)</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  if</span><span> token </span><span style="color: #8EC07C;">!=</span><span> config</span><span style="color: #A89984;">[:</span><span style="color: #D3869B;">api_key</span><span style="color: #A89984;">]</span></span>
+<span class="giallo-l"><span>    halt </span><span style="color: #D3869B;">401</span><span style="color: #A89984;">,</span><span style="color: #FABD2F;"> json</span><span style="color: #A89984;">(</span><span style="color: #D3869B;">error</span><span style="color: #A89984;">: &quot;</span><span style="color: #B8BB26;">Unauthorized</span><span style="color: #A89984;">&quot;,</span><span style="color: #D3869B;"> code</span><span style="color: #A89984;">: &quot;</span><span style="color: #B8BB26;">INVALID_TOKEN</span><span style="color: #A89984;">&quot;)</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  end</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>post </span><span style="color: #A89984;">&quot;</span><span style="color: #B8BB26;">/databases</span><span style="color: #A89984;">&quot;</span><span style="color: #FB4934;"> do</span></span>
+<span class="giallo-l"><span style="color: #83A598;">  body</span><span style="color: #8EC07C;"> =</span><span> parse_json_body</span></span>
+<span class="giallo-l"><span style="color: #83A598;">  cluster</span><span style="color: #8EC07C;"> =</span><span> body</span><span style="color: #A89984;">[&quot;</span><span style="color: #B8BB26;">cluster</span><span style="color: #A89984;">&quot;]</span></span>
+<span class="giallo-l"><span style="color: #83A598;">  username</span><span style="color: #8EC07C;"> =</span><span> body</span><span style="color: #A89984;">[&quot;</span><span style="color: #B8BB26;">username</span><span style="color: #A89984;">&quot;]</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FB4934;">  if</span><span> cluster </span><span style="color: #8EC07C;">!=</span><span> config</span><span style="color: #A89984;">[:</span><span style="color: #D3869B;">container_name</span><span style="color: #A89984;">]</span></span>
+<span class="giallo-l"><span>    halt </span><span style="color: #D3869B;">400</span><span style="color: #A89984;">,</span><span style="color: #FABD2F;"> json</span><span style="color: #A89984;">(</span></span>
+<span class="giallo-l"><span style="color: #D3869B;">      error</span><span style="color: #A89984;">: &quot;</span><span style="color: #B8BB26;">Cluster mismatch</span><span style="color: #A89984;">&quot;,</span></span>
+<span class="giallo-l"><span style="color: #D3869B;">      code</span><span style="color: #A89984;">: &quot;</span><span style="color: #B8BB26;">CLUSTER_MISMATCH</span><span style="color: #A89984;">&quot;,</span></span>
+<span class="giallo-l"><span style="color: #D3869B;">      expected</span><span style="color: #A89984;">:</span><span> config</span><span style="color: #A89984;">[:</span><span style="color: #D3869B;">container_name</span><span style="color: #A89984;">],</span></span>
+<span class="giallo-l"><span style="color: #D3869B;">      received</span><span style="color: #A89984;">:</span><span> cluster</span></span>
+<span class="giallo-l"><span style="color: #A89984;">    )</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>  sync</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FABD2F;">  json</span><span style="color: #A89984;">(</span></span>
+<span class="giallo-l"><span style="color: #D3869B;">    status</span><span style="color: #A89984;">: &quot;</span><span style="color: #B8BB26;">success</span><span style="color: #A89984;">&quot;,</span></span>
+<span class="giallo-l"><span style="color: #D3869B;">    message</span><span style="color: #A89984;">: &quot;</span><span style="color: #B8BB26;">Database sync completed</span><span style="color: #A89984;">&quot;,</span></span>
+<span class="giallo-l"><span style="color: #D3869B;">    cluster</span><span style="color: #A89984;">:</span><span> cluster</span></span>
+<span class="giallo-l"><span style="color: #A89984;">  )</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>delete </span><span style="color: #A89984;">&quot;</span><span style="color: #B8BB26;">/databases/:username</span><span style="color: #A89984;">&quot;</span><span style="color: #FB4934;"> do</span></span>
+<span class="giallo-l"><span style="color: #83A598;">  username</span><span style="color: #8EC07C;"> =</span><span> params</span><span style="color: #A89984;">[&quot;</span><span style="color: #B8BB26;">username</span><span style="color: #A89984;">&quot;]</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">  decommission_db</span><span style="color: #A89984;">(</span><span>username</span><span style="color: #A89984;">)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FABD2F;">  json</span><span style="color: #A89984;">(</span></span>
+<span class="giallo-l"><span style="color: #D3869B;">    status</span><span style="color: #A89984;">: &quot;</span><span style="color: #B8BB26;">success</span><span style="color: #A89984;">&quot;,</span></span>
+<span class="giallo-l"><span style="color: #D3869B;">    message</span><span style="color: #A89984;">: &quot;</span><span style="color: #B8BB26;">Database decommissioned</span><span style="color: #A89984;">&quot;,</span></span>
+<span class="giallo-l"><span style="color: #D3869B;">    username</span><span style="color: #A89984;">:</span><span> username</span></span>
+<span class="giallo-l"><span style="color: #A89984;">  )</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">end</span></span></code></pre>
+<p>The control plane will make HTTP requests and get immediate responses:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="ruby"><span class="giallo-l"><span>PostgresManagerHttpClient</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">create_db</span><span style="color: #A89984;">(</span><span>owner</span><span style="color: #A89984;">,</span><span> cluster_name</span><span style="color: #A89984;">)</span></span>
+<span class="giallo-l"><span style="color: #928374;font-style: italic;"># Returns { &quot;status&quot; =&gt; &quot;success&quot;, &quot;message&quot; =&gt; &quot;...&quot; }</span></span>
+<span class="giallo-l"><span style="color: #928374;font-style: italic;"># Or raises PostgresManagerError on failure</span></span></code></pre><h2 id="http-client-with-proper-error-handling">HTTP Client with Proper Error Handling</h2>
+<p>The new HTTP client provides clear error handling:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="ruby"><span class="giallo-l"><span style="color: #FB4934;">class</span><span style="color: #FABD2F;"> PostgresManagerHttpClient</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  class</span><span style="color: #FABD2F;"> PostgresManagerError</span><span style="color: #A89984;"> &lt;</span><span> StandardError</span><span style="color: #A89984;">;</span><span style="color: #FB4934;"> end</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  class</span><span style="color: #FABD2F;"> PostgresManagerTimeout</span><span style="color: #A89984;"> &lt;</span><span> PostgresManagerError</span><span style="color: #A89984;">;</span><span style="color: #FB4934;"> end</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  class</span><span style="color: #FABD2F;"> PostgresManagerAuthError</span><span style="color: #A89984;"> &lt;</span><span> PostgresManagerError</span><span style="color: #A89984;">;</span><span style="color: #FB4934;"> end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FB4934;">  def</span><span style="color: #FABD2F;"> self.create_db</span><span style="color: #A89984;">(</span><span style="color: #83A598;">owner</span><span style="color: #A89984;">,</span><span style="color: #83A598;"> cluster_name</span><span style="color: #A89984;">)</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">    call_postgres_manager</span><span style="color: #A89984;">(</span></span>
+<span class="giallo-l"><span style="color: #D3869B;">      cluster_name</span><span style="color: #A89984;">:</span><span> cluster_name</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #D3869B;">      method</span><span style="color: #A89984;">: :</span><span style="color: #D3869B;">post</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #D3869B;">      path</span><span style="color: #A89984;">: &quot;</span><span style="color: #B8BB26;">/databases</span><span style="color: #A89984;">&quot;,</span></span>
+<span class="giallo-l"><span style="color: #D3869B;">      body</span><span style="color: #A89984;">: {</span><span style="color: #D3869B;"> cluster</span><span style="color: #A89984;">:</span><span> cluster_name</span><span style="color: #A89984;">,</span><span style="color: #D3869B;"> username</span><span style="color: #A89984;">:</span><span> owner</span><span style="color: #A89984;">,</span><span style="color: #D3869B;"> action</span><span style="color: #A89984;">: &quot;</span><span style="color: #B8BB26;">create</span><span style="color: #A89984;">&quot; }</span></span>
+<span class="giallo-l"><span style="color: #A89984;">    )</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FB4934;">  private</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FB4934;">  def</span><span style="color: #FABD2F;"> self.call_postgres_manager</span><span style="color: #A89984;">(</span><span style="color: #D3869B;">cluster_name</span><span style="color: #A89984;">:,</span><span style="color: #D3869B;"> method</span><span style="color: #A89984;">:,</span><span style="color: #D3869B;"> path</span><span style="color: #A89984;">:,</span><span style="color: #D3869B;"> body</span><span style="color: #A89984;">:</span><span style="color: #D3869B;"> nil</span><span style="color: #A89984;">)</span></span>
+<span class="giallo-l"><span style="color: #83A598;">    api_key</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> ENV</span><span>[</span><span style="color: #A89984;">&quot;</span><span style="color: #B8BB26;">POSTGRES_MANAGER_API_KEY</span><span style="color: #A89984;">&quot;</span><span>]</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">    raise</span><span style="color: #A89984;"> &quot;</span><span style="color: #B8BB26;">POSTGRES_MANAGER_API_KEY not configured</span><span style="color: #A89984;">&quot;</span><span style="color: #FB4934;"> if !</span><span>api_key</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #83A598;">    base_url</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> ENV</span><span>[</span><span style="color: #A89984;">&quot;</span><span style="color: #B8BB26;">POSTGRES_MANAGER_BASE_URL</span><span style="color: #A89984;">&quot;</span><span>]</span><span style="color: #FB4934;"> ||</span></span>
+<span class="giallo-l"><span style="color: #A89984;">               &quot;</span><span style="color: #B8BB26;">http://postgres-manager-</span><span style="color: #A89984;">#{</span><span style="color: #B8BB26;">cluster_name</span><span style="color: #A89984;">}</span><span style="color: #B8BB26;">:9105</span><span style="color: #A89984;">&quot;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #83A598;">    uri</span><span style="color: #8EC07C;"> =</span><span style="color: #83A598;"> URI</span><span style="color: #A89984;">(&quot;#{</span><span style="color: #B8BB26;">base_url</span><span style="color: #A89984;">}#{</span><span style="color: #B8BB26;">path</span><span style="color: #A89984;">}&quot;)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #83A598;">    http</span><span style="color: #8EC07C;"> =</span><span> Net</span><span style="color: #A89984;">::</span><span>HTTP</span><span style="color: #A89984;">.</span><span style="color: #FB4934;">new</span><span style="color: #A89984;">(</span><span>uri</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">host</span><span style="color: #A89984;">,</span><span> uri</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">port</span><span style="color: #A89984;">)</span></span>
+<span class="giallo-l"><span>    http</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">open_timeout</span><span style="color: #8EC07C;"> =</span><span style="color: #D3869B;"> 5</span></span>
+<span class="giallo-l"><span>    http</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">read_timeout</span><span style="color: #8EC07C;"> =</span><span style="color: #D3869B;"> 30</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #83A598;">    request</span><span style="color: #8EC07C;"> =</span><span style="color: #FB4934;"> case</span><span> method</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">    when</span><span style="color: #A89984;"> :</span><span style="color: #D3869B;">post</span><span style="color: #FB4934;"> then</span><span> Net</span><span style="color: #A89984;">::</span><span>HTTP</span><span style="color: #A89984;">::</span><span>Post</span><span style="color: #A89984;">.</span><span style="color: #FB4934;">new</span><span style="color: #A89984;">(</span><span>uri</span><span style="color: #A89984;">)</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">    when</span><span style="color: #A89984;"> :</span><span style="color: #D3869B;">delete</span><span style="color: #FB4934;"> then</span><span> Net</span><span style="color: #A89984;">::</span><span>HTTP</span><span style="color: #A89984;">::</span><span>Delete</span><span style="color: #A89984;">.</span><span style="color: #FB4934;">new</span><span style="color: #A89984;">(</span><span>uri</span><span style="color: #A89984;">)</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">    end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    request</span><span style="color: #A89984;">[&quot;</span><span style="color: #B8BB26;">Authorization</span><span style="color: #A89984;">&quot;]</span><span style="color: #8EC07C;"> =</span><span style="color: #A89984;"> &quot;</span><span style="color: #B8BB26;">Bearer </span><span style="color: #A89984;">#{</span><span style="color: #B8BB26;">api_key</span><span style="color: #A89984;">}&quot;</span></span>
+<span class="giallo-l"><span>    request</span><span style="color: #A89984;">[&quot;</span><span style="color: #B8BB26;">Content-Type</span><span style="color: #A89984;">&quot;]</span><span style="color: #8EC07C;"> =</span><span style="color: #A89984;"> &quot;</span><span style="color: #B8BB26;">application/json</span><span style="color: #A89984;">&quot;</span></span>
+<span class="giallo-l"><span>    request</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">body</span><span style="color: #8EC07C;"> =</span><span> body</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">to_json</span><span style="color: #FB4934;"> if</span><span> body</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FB4934;">    begin</span></span>
+<span class="giallo-l"><span style="color: #83A598;">      response</span><span style="color: #8EC07C;"> =</span><span> http</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">request</span><span style="color: #A89984;">(</span><span>request</span><span style="color: #A89984;">)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FB4934;">      case</span><span> response</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">code</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">to_i</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">      when</span><span style="color: #D3869B;"> 200</span><span style="color: #A89984;">..</span><span style="color: #D3869B;">299</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">        return</span><span style="color: #D3869B;"> nil</span><span style="color: #FB4934;"> if</span><span> response</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">body</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">to_s</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">empty?</span></span>
+<span class="giallo-l"><span>        JSON</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">parse</span><span style="color: #A89984;">(</span><span>response</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">body</span><span style="color: #A89984;">)</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">      when</span><span style="color: #D3869B;"> 401</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">        raise</span><span style="color: #83A598;"> PostgresManagerAuthError</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #A89984;">              &quot;</span><span style="color: #B8BB26;">Authentication failed: </span><span style="color: #A89984;">#{</span><span style="color: #B8BB26;">response</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">body</span><span style="color: #A89984;">}&quot;</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">      when</span><span style="color: #D3869B;"> 400</span><span style="color: #A89984;">..</span><span style="color: #D3869B;">499</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">        raise</span><span style="color: #83A598;"> PostgresManagerError</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #A89984;">              &quot;</span><span style="color: #B8BB26;">Client error (</span><span style="color: #A89984;">#{</span><span style="color: #B8BB26;">response</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">code</span><span style="color: #A89984;">}</span><span style="color: #B8BB26;">): </span><span style="color: #A89984;">#{</span><span style="color: #B8BB26;">response</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">body</span><span style="color: #A89984;">}&quot;</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">      when</span><span style="color: #D3869B;"> 500</span><span style="color: #A89984;">..</span><span style="color: #D3869B;">599</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">        raise</span><span style="color: #83A598;"> PostgresManagerError</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #A89984;">              &quot;</span><span style="color: #B8BB26;">Server error (</span><span style="color: #A89984;">#{</span><span style="color: #B8BB26;">response</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">code</span><span style="color: #A89984;">}</span><span style="color: #B8BB26;">): </span><span style="color: #A89984;">#{</span><span style="color: #B8BB26;">response</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">body</span><span style="color: #A89984;">}&quot;</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">      end</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">    rescue</span><span> Net</span><span style="color: #A89984;">::</span><span style="color: #83A598;">OpenTimeout</span><span style="color: #A89984;">,</span><span> Net</span><span style="color: #A89984;">::</span><span style="color: #83A598;">ReadTimeout</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">      raise</span><span style="color: #83A598;"> PostgresManagerTimeout</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #A89984;">            &quot;</span><span style="color: #B8BB26;">Request timed out for </span><span style="color: #A89984;">#{</span><span style="color: #B8BB26;">uri</span><span style="color: #A89984;">}&quot;</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">    rescue</span><span> Errno</span><span style="color: #A89984;">::</span><span style="color: #83A598;">ECONNREFUSED</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">      raise</span><span style="color: #83A598;"> PostgresManagerError</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #A89984;">            &quot;</span><span style="color: #B8BB26;">Connection refused to </span><span style="color: #A89984;">#{</span><span style="color: #B8BB26;">uri</span><span style="color: #A89984;">}&quot;</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">    end</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  end</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">end</span></span></code></pre><h2 id="testing-strategy-unit-and-integration-tests">Testing Strategy: Unit and Integration Tests</h2>
+<p>The HTTP service has a test suite with 54 tests covering both unit and
+integration testing:</p>
+<h3 id="unit-tests-16-tests-no-postgresql-required">Unit Tests (16 tests, no PostgreSQL required)</h3>
+<p>Unit tests use WebMock to stub external dependencies:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="ruby"><span class="giallo-l"><span>it </span><span style="color: #A89984;">&quot;</span><span style="color: #B8BB26;">makes POST request to /databases with correct parameters</span><span style="color: #A89984;">&quot;</span><span style="color: #FB4934;"> do</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">  stub_request</span><span style="color: #A89984;">(:</span><span style="color: #D3869B;">post</span><span style="color: #A89984;">, &quot;#{</span><span style="color: #B8BB26;">base_url</span><span style="color: #A89984;">}</span><span style="color: #B8BB26;">/databases</span><span style="color: #A89984;">&quot;)</span></span>
+<span class="giallo-l"><span style="color: #A89984;">    .</span><span style="color: #FABD2F;">with</span><span style="color: #A89984;">(</span></span>
+<span class="giallo-l"><span style="color: #D3869B;">      body</span><span style="color: #A89984;">: {</span><span style="color: #D3869B;"> cluster</span><span style="color: #A89984;">: &quot;</span><span style="color: #B8BB26;">flex001</span><span style="color: #A89984;">&quot;,</span><span style="color: #D3869B;"> username</span><span style="color: #A89984;">: &quot;</span><span style="color: #B8BB26;">example</span><span style="color: #A89984;">&quot;,</span></span>
+<span class="giallo-l"><span style="color: #D3869B;">              action</span><span style="color: #A89984;">: &quot;</span><span style="color: #B8BB26;">create</span><span style="color: #A89984;">&quot; }.</span><span style="color: #FABD2F;">to_json</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #D3869B;">      headers</span><span style="color: #A89984;">: { &quot;</span><span style="color: #B8BB26;">Authorization</span><span style="color: #A89984;">&quot; =&gt; &quot;</span><span style="color: #B8BB26;">Bearer test-api-key</span><span style="color: #A89984;">&quot; }</span></span>
+<span class="giallo-l"><span style="color: #A89984;">    )</span></span>
+<span class="giallo-l"><span style="color: #A89984;">    .</span><span style="color: #FABD2F;">to_return</span><span style="color: #A89984;">(</span></span>
+<span class="giallo-l"><span style="color: #D3869B;">      status</span><span style="color: #A89984;">:</span><span style="color: #D3869B;"> 200</span><span style="color: #A89984;">,</span></span>
+<span class="giallo-l"><span style="color: #D3869B;">      body</span><span style="color: #A89984;">: {</span><span style="color: #D3869B;"> status</span><span style="color: #A89984;">: &quot;</span><span style="color: #B8BB26;">success</span><span style="color: #A89984;">&quot;,</span><span style="color: #D3869B;"> message</span><span style="color: #A89984;">: &quot;</span><span style="color: #B8BB26;">Database sync completed</span><span style="color: #A89984;">&quot; }.</span><span style="color: #FABD2F;">to_json</span></span>
+<span class="giallo-l"><span style="color: #A89984;">    )</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #83A598;">  result</span><span style="color: #8EC07C;"> =</span><span> PostgresManagerHttpClient</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">create_db</span><span style="color: #A89984;">(&quot;</span><span style="color: #B8BB26;">example</span><span style="color: #A89984;">&quot;, &quot;</span><span style="color: #B8BB26;">flex001</span><span style="color: #A89984;">&quot;)</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">  expect</span><span style="color: #A89984;">(</span><span>result</span><span style="color: #A89984;">[&quot;</span><span style="color: #B8BB26;">status</span><span style="color: #A89984;">&quot;]).</span><span style="color: #FABD2F;">to eq</span><span style="color: #A89984;">(&quot;</span><span style="color: #B8BB26;">success</span><span style="color: #A89984;">&quot;)</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">end</span></span></code></pre>
+<p>These tests run fast (under 1 second) and validate HTTP client logic, metrics
+tracking, and configuration handling without requiring PostgreSQL.</p>
+<h3 id="integration-tests-38-tests-with-real-postgresql">Integration Tests (38 tests, with real PostgreSQL)</h3>
+<p>Integration tests use Docker to automatically start/stop PostgreSQL and test
+real database operations:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="ruby"><span class="giallo-l"><span>it </span><span style="color: #A89984;">&#39;</span><span style="color: #B8BB26;">creates database and user</span><span style="color: #A89984;">&#39;</span><span style="color: #FB4934;"> do</span></span>
+<span class="giallo-l"><span style="color: #83A598;">  multisite_config</span><span style="color: #8EC07C;"> =</span><span style="color: #A89984;"> {</span></span>
+<span class="giallo-l"><span style="color: #A89984;">    &quot;</span><span style="color: #B8BB26;">example</span><span style="color: #A89984;">&quot; =&gt; {</span></span>
+<span class="giallo-l"><span style="color: #A89984;">      &quot;</span><span style="color: #B8BB26;">username</span><span style="color: #A89984;">&quot; =&gt; &quot;</span><span style="color: #B8BB26;">example</span><span style="color: #A89984;">&quot;,</span></span>
+<span class="giallo-l"><span style="color: #A89984;">      &quot;</span><span style="color: #B8BB26;">password</span><span style="color: #A89984;">&quot; =&gt; &quot;</span><span style="color: #B8BB26;">test123</span><span style="color: #A89984;">&quot;,</span></span>
+<span class="giallo-l"><span style="color: #A89984;">      &quot;</span><span style="color: #B8BB26;">database</span><span style="color: #A89984;">&quot; =&gt; &quot;</span><span style="color: #B8BB26;">example_discourse</span><span style="color: #A89984;">&quot;</span></span>
+<span class="giallo-l"><span style="color: #A89984;">    }</span></span>
+<span class="giallo-l"><span style="color: #A89984;">  }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FABD2F;">  stub_request</span><span style="color: #A89984;">(:</span><span style="color: #D3869B;">get</span><span style="color: #A89984;">, &quot;</span><span style="color: #B8BB26;">http://mothership.test/api/multisite_config?container_name=test-cluster</span><span style="color: #A89984;">&quot;)</span></span>
+<span class="giallo-l"><span style="color: #A89984;">    .</span><span style="color: #FABD2F;">to_return</span><span style="color: #A89984;">(</span><span style="color: #D3869B;">status</span><span style="color: #A89984;">:</span><span style="color: #D3869B;"> 200</span><span style="color: #A89984;">,</span><span style="color: #D3869B;"> body</span><span style="color: #A89984;">:</span><span> JSON</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">dump</span><span style="color: #A89984;">(</span><span>multisite_config</span><span style="color: #A89984;">))</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #83A598;">  result</span><span style="color: #8EC07C;"> =</span><span> sync</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">perform</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #928374;font-style: italic;">  # Verify in actual PostgreSQL</span></span>
+<span class="giallo-l"><span>  sync</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">database</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">with_db</span><span style="color: #A89984;">(&#39;</span><span style="color: #B8BB26;">postgres</span><span style="color: #A89984;">&#39;)</span><span style="color: #FB4934;"> do</span><span style="color: #A89984;"> |</span><span style="color: #83A598;">db</span><span style="color: #A89984;">|</span></span>
+<span class="giallo-l"><span style="color: #83A598;">    user_result</span><span style="color: #8EC07C;"> =</span><span> db</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">exec_params</span><span style="color: #A89984;">(&#39;</span><span style="color: #B8BB26;">SELECT usename FROM pg_user WHERE usename = $1</span><span style="color: #A89984;">&#39;, [&#39;</span><span style="color: #B8BB26;">example</span><span style="color: #A89984;">&#39;])</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">    expect</span><span style="color: #A89984;">(</span><span>user_result</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">ntuples</span><span style="color: #A89984;">).</span><span style="color: #FABD2F;">to eq</span><span style="color: #A89984;">(</span><span style="color: #D3869B;">1</span><span style="color: #A89984;">)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #83A598;">    db_result</span><span style="color: #8EC07C;"> =</span><span> db</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">exec_params</span><span style="color: #A89984;">(&#39;</span><span style="color: #B8BB26;">SELECT datname FROM pg_database WHERE datname = $1</span><span style="color: #A89984;">&#39;, [&#39;</span><span style="color: #B8BB26;">example_discourse</span><span style="color: #A89984;">&#39;])</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">    expect</span><span style="color: #A89984;">(</span><span>db_result</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">ntuples</span><span style="color: #A89984;">).</span><span style="color: #FABD2F;">to eq</span><span style="color: #A89984;">(</span><span style="color: #D3869B;">1</span><span style="color: #A89984;">)</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  end</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">end</span></span></code></pre><h3 id="idempotency-tests">Idempotency Tests</h3>
+<p>Critical tests verify the service handles message replay scenarios that caused
+production outages:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="ruby"><span class="giallo-l"><span>it </span><span style="color: #A89984;">&#39;</span><span style="color: #B8BB26;">handles rapid duplicate creates (race condition simulation)</span><span style="color: #A89984;">&#39;</span><span style="color: #FB4934;"> do</span></span>
+<span class="giallo-l"><span style="color: #83A598;">  threads</span><span style="color: #8EC07C;"> =</span><span style="color: #D3869B;"> 2</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">times</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">map</span><span style="color: #FB4934;"> do</span></span>
+<span class="giallo-l"><span>    Thread</span><span style="color: #A89984;">.</span><span style="color: #FB4934;">new do</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">      begin</span></span>
+<span class="giallo-l"><span>        database</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">create</span><span style="color: #A89984;">(</span><span>test_db</span><span style="color: #A89984;">,</span><span> test_user</span><span style="color: #A89984;">)</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">      rescue</span><span> PG</span><span style="color: #A89984;">::</span><span style="color: #83A598;">DuplicateDatabase</span></span>
+<span class="giallo-l"><span style="color: #928374;font-style: italic;">        # Expected - one thread wins, other gets duplicate error</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">      end</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">    end</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  end</span></span>
+<span class="giallo-l"><span>  threads</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">each</span><span style="color: #A89984;">(</span><span style="color: #8EC07C;">&amp;</span><span style="color: #A89984;">:</span><span style="color: #D3869B;">join</span><span style="color: #A89984;">)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #928374;font-style: italic;">  # Verify only one database created</span></span>
+<span class="giallo-l"><span>  database</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">with_db</span><span style="color: #A89984;">(&#39;</span><span style="color: #B8BB26;">postgres</span><span style="color: #A89984;">&#39;)</span><span style="color: #FB4934;"> do</span><span style="color: #A89984;"> |</span><span style="color: #83A598;">db</span><span style="color: #A89984;">|</span></span>
+<span class="giallo-l"><span style="color: #83A598;">    result</span><span style="color: #8EC07C;"> =</span><span> db</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">exec_params</span><span style="color: #A89984;">(&#39;</span><span style="color: #B8BB26;">SELECT datname FROM pg_database WHERE datname = $1</span><span style="color: #A89984;">&#39;, [</span><span>test_db</span><span style="color: #A89984;">])</span></span>
+<span class="giallo-l"><span style="color: #FABD2F;">    expect</span><span style="color: #A89984;">(</span><span>result</span><span style="color: #A89984;">.</span><span style="color: #FABD2F;">ntuples</span><span style="color: #A89984;">).</span><span style="color: #FABD2F;">to eq</span><span style="color: #A89984;">(</span><span style="color: #D3869B;">1</span><span style="color: #A89984;">)</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">  end</span></span>
+<span class="giallo-l"><span style="color: #FB4934;">end</span></span></code></pre>
+<p>These tests validate that calling create operations multiple times (as happens
+during message replay) doesn't cause crashes or duplicate resources.</p>
+<h2 id="migration-strategy">Migration Strategy</h2>
+<p>We can't switch all clusters at once. The migration strategy:</p>
+<ol>
+<li>Deploy HTTP version alongside MessageBus - Run both in separate
+containers</li>
+<li>Test HTTP version manually - Verify endpoints work, check metrics</li>
+<li>Switch control plane to HTTP - Deploy control plane changes, monitor logs</li>
+<li>Clean up MessageBus - Stop old containers, remove environment variables</li>
+</ol>
+<p>Both services can run simultaneously during migration, and rollback is just
+reverting the control plane code and restarting services.</p>
+<h2 id="expected-results">Expected Results</h2>
+<ul>
+<li>No more duplicate operations from message replay</li>
+<li>Immediate visibility into success/failure</li>
+<li>Proper error handling with retries</li>
+<li>Easy to test with curl or standard HTTP tools</li>
+<li>Can be load balanced through standard proxies</li>
+<li>Standard HTTP monitoring and metrics</li>
+</ul>
+<h2 id="outcomes">Outcomes</h2>
+<ol>
+<li>
+<p>Fire-and-forget messaging has hidden costs. The lack of feedback makes
+debugging production issues extremely difficult. We don't know if operations
+fail until customers complain.</p>
+</li>
+<li>
+<p>Message replay is a feature until it's a bug. MessageBus's backlog replay is
+useful for reliable message delivery, but causes havoc when operations aren't
+idempotent.</p>
+</li>
+<li>
+<p>Different HTTP patterns, same protocol. Both MessageBus (HTTP long-polling)
+and our REST API use HTTP for transport, but serve fundamentally different
+communication patterns. MessageBus uses HTTP to implement pub/sub messaging
+(asynchronous, one-to-many), while REST implements request/response
+(synchronous, one-to-one). The choice isn't HTTP vs something else - it's
+choosing the right messaging pattern for your use case.</p>
+</li>
+<li>
+<p>Testing gets easier with simpler patterns. The old MessageBus setup requires
+a full environment. The HTTP version can be tested with simple request/response
+stubs.</p>
+</li>
+</ol>
+<h2 id="summary">Summary</h2>
+<p>This migration will take our infrastructure service from fire-and-forget
+messaging to synchronous request/response patterns. The expected result: no more
+duplicate operations, immediate feedback on success/failure, and much simpler
+debugging. Sometimes the solution isn't choosing new technology - it's choosing
+the right pattern for your use case.</p>
+<h2 id="current-status">Current Status</h2>
+<p>The HTTP service implementation is complete and tested:</p>
+<ul>
+<li>Modular architecture with 6 separated modules (Config, Database, User,
+Client, Sync, Metrics)</li>
+<li>Test suite (16 unit tests, 38 integration, all passing)</li>
+<li>RuboCop clean (zero offenses)</li>
+<li>Security fixes (parameterized queries, retry limits)</li>
+<li>GitHub Actions CI configured and passing</li>
+</ul>
+<p>The service is production-ready and awaiting deployment to test clusters. Once
+validated with real PostgreSQL operations and monitored for stability, we'll
+proceed with gradual rollout to production infrastructure.</p>
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="/blog/2025/replacing-messagebus-with-http-apis/">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2025-replacing-messagebus-with-http-apis"
+      data-goatcounter-title="Helpful click on blog-2025-replacing-messagebus-with-http-apis"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>

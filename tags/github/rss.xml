@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - github</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/github/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Thu, 20 Aug 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>I Got Tired of gh Failing, So I Built Tongs</title>
+          <pubDate>Thu, 20 Aug 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/tongs-github-cli-built-for-agents/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/tongs-github-cli-built-for-agents/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/tongs-github-cli-built-for-agents/">&lt;p&gt;I was trying to review a pull request. &lt;code&gt;gh&lt;/code&gt; failed.&lt;/p&gt;
+&lt;p&gt;Not because the pull request was gone. Not because my token had expired. Not
+because GitHub was down. A GraphQL query somewhere inside &lt;code&gt;gh&lt;/code&gt; had failed, and
+the ordinary pull request operation I wanted went down with it.&lt;/p&gt;
+&lt;p&gt;This was not the first time.&lt;/p&gt;
+&lt;p&gt;I had already started working around these failures with direct API calls. That
+works, but now every agent has to rediscover the endpoint, authentication,
+pagination, response shape, and whatever bit of GraphQL GitHub still requires
+for review threads. I did not want a growing pile of one-off &lt;code&gt;curl&lt;/code&gt; and &lt;code&gt;jq&lt;/code&gt;
+commands pretending to be a tool.&lt;/p&gt;
+&lt;p&gt;So I wrote another GitHub CLI.&lt;/p&gt;
+&lt;p&gt;It is called &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/tongs&quot;&gt;Tongs&lt;/a&gt;, which retroactively stands
+for &lt;strong&gt;Typed Operations for Networked Git Services&lt;/strong&gt;.&lt;/p&gt;
+&lt;h2 id=&quot;rest-first-not-rest-only&quot;&gt;REST first, not REST only&lt;/h2&gt;
+&lt;p&gt;The first design decision was simple: use REST for normal pull request work.&lt;/p&gt;
+&lt;p&gt;Creating a pull request does not need GraphQL. Neither does inspecting one,
+editing its body, checking CI, submitting an approval, or merging it. Tongs uses
+the smaller REST operation for each of those instead of asking GitHub one large
+question and hoping every field remains available.&lt;/p&gt;
+&lt;p&gt;GitHub does reserve some review-thread operations for GraphQL. Replying to and
+resolving a thread still use it, but those queries live inside that narrow part
+of the GitHub adapter. If GitHub changes a review-thread field, &lt;code&gt;tongs inspect&lt;/code&gt;
+does not care.&lt;/p&gt;
+&lt;p&gt;The point is not that GraphQL is bad. The point is that unrelated surfaces
+should fail independently.&lt;/p&gt;
+&lt;h2 id=&quot;what-agent-native-means&quot;&gt;What agent-native means&lt;/h2&gt;
+&lt;p&gt;Tongs calls itself agent-native. That does not mean it contains a model or asks
+an LLM what command to run. It means the command behaves like something an
+agent can safely build on.&lt;/p&gt;
+&lt;p&gt;Every successful command returns the same outer JSON shape:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;json&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;{&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #689D6A;&quot;&gt;schema_version&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;:&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;1&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #689D6A;&quot;&gt;ok&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;true&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #689D6A;&quot;&gt;data&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;:{}}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Failures have a stable error object and a useful exit code:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;json&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;{&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #689D6A;&quot;&gt;schema_version&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;:&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;1&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #689D6A;&quot;&gt;ok&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;false&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #689D6A;&quot;&gt;error&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;:{&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #689D6A;&quot;&gt;code&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;:&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;not_found&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #689D6A;&quot;&gt;message&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;:&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;Not Found&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #689D6A;&quot;&gt;status_code&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;404&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;There are no tables to scrape, decorative status lines to strip, or prompts
+waiting invisibly for input. Authentication checks environment variables, the
+git credential helper, and an existing &lt;code&gt;gh&lt;/code&gt; login as a migration fallback. If
+none of those work, Tongs fails. It does not suddenly ask an unattended agent
+for a username.&lt;/p&gt;
+&lt;p&gt;That last behavior required its own fix. My first credential-helper call could
+still fall through to Git&#39;s interactive prompt. The CLI designed not to prompt
+prompted on its first real authentication failure. Setting Git&#39;s terminal
+prompt flag to false fixed it.&lt;/p&gt;
+&lt;p&gt;The useful distinction is not human CLI versus AI CLI. Humans also benefit from
+commands that return predictable data and fail without theater. Agents just
+make the sloppy parts impossible to ignore.&lt;/p&gt;
+&lt;h2 id=&quot;pull-request-work-so-far&quot;&gt;Pull request work so far&lt;/h2&gt;
+&lt;p&gt;Tongs detects the repository from the current git remote and, when possible,
+finds the open pull request for the current branch. You can also be explicit:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;tongs&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; --repo&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; discourse-org/mothership inspect&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 6620&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;tongs&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; --repo&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; discourse-org/mothership reviews&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 6620&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;tongs&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; --repo&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; discourse-org/mothership checks&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 6620&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Review threads are first-class operations rather than a blob hidden somewhere
+inside the pull request response. From inside the repository checkout:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;tongs&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; reply&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; --thread&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; PRRT_node_id&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; --body-file&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; reply.md&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 6620&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;tongs&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; resolve&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; --thread&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; PRRT_node_id&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 6620&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;It can create and approve pull requests too:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;tongs&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; create&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; --title&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Add useful feature&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; --body-file&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; description.md&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;tongs&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; approve&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; --body&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Looks good&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 6620&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Mutations support &lt;code&gt;--dry-run&lt;/code&gt;. Approval and merge requests include the pull
+request&#39;s current head SHA, so an agent cannot inspect one revision and quietly
+approve a different one after somebody pushes. Merge requires both an explicit
+method and &lt;code&gt;--yes&lt;/code&gt;:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;tongs&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; --dry-run&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; merge&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; --method&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; squash&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 6620&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;tongs&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; merge&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; --method&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; squash&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; --yes 6620&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;These are small constraints. That is the point. A safe tool should make the
+careful path the short path.&lt;/p&gt;
+&lt;h2 id=&quot;github-is-the-first-provider&quot;&gt;GitHub is the first provider&lt;/h2&gt;
+&lt;p&gt;I did not want to bake GitHub&#39;s nouns and response shapes through the whole
+program, then discover later that adding GitLab meant rewriting it.&lt;/p&gt;
+&lt;p&gt;The command layer talks to a provider interface. Repository detection,
+pull-request models, review threads, checks, and output schemas are shared.
+GitHub-specific REST and GraphQL live in the GitHub adapter. GitLab, Gitea, and
+Codeberg remotes can already be identified and parsed.&lt;/p&gt;
+&lt;p&gt;Their API adapters do not exist yet.&lt;/p&gt;
+&lt;p&gt;That boundary is deliberate. Tongs returns &lt;code&gt;provider_not_implemented&lt;/code&gt; instead
+of sending a GitLab repository to GitHub and producing a much more creative
+error. The architecture is ready for more forges; the product is currently a
+GitHub client. Those are different claims.&lt;/p&gt;
+&lt;h2 id=&quot;installing-it&quot;&gt;Installing it&lt;/h2&gt;
+&lt;p&gt;Tongs is written in Go and published at
+&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/tongs&quot;&gt;github.com/ducks/tongs&lt;/a&gt;. Install it with:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;go&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; install github.com/ducks/tongs/cmd/tongs@latest&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;There is also a Nix flake for development and packaging. CI runs the full test
+suite with the race detector, &lt;code&gt;go vet&lt;/code&gt;, and a clean build.&lt;/p&gt;
+&lt;p&gt;It is early. GitHub is the only implemented provider, the command set is still
+smaller than &lt;code&gt;gh&lt;/code&gt;, and I am sure the first other person to use it will find an
+operation I assumed nobody needed. That is useful information. I would rather
+grow it from actual agent workflows than clone every command in a mature CLI
+before knowing which ones matter.&lt;/p&gt;
+&lt;p&gt;For now, Tongs does the part I built it for: inspect a pull request, understand
+its review state, make a deliberate change, and return something a program can
+trust.&lt;/p&gt;
+&lt;p&gt;No unrelated GraphQL field gets a vote.&lt;/p&gt;
+</description>
+      </item>
+      <item>
+          <title>Deploying a Zola static site to a custom domain with Github Actions</title>
+          <pubDate>Sat, 24 May 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/deploying-static-site-zola-github-actions/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/deploying-static-site-zola-github-actions/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/deploying-static-site-zola-github-actions/">&lt;p&gt;As I&#39;ve been searching for a new gig, I&#39;ve gotten the urge to write a bit more
+about some of the stuff I&#39;m up to to help make myself stand out. I really like
+using the fewest tools as needed so I knew a static site generator was what I
+wanted. I also like to use Rust based tools when possible.&lt;/p&gt;
+&lt;p&gt;Searching for Rust static site generators lead me to
+&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://www.getzola.org/&quot;&gt;Zola&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Some of the top advertised features are no dependencies, blazingly fast,
+and easy to use. Those sound great to me.&lt;/p&gt;
+&lt;h3 id=&quot;set-up-zola-site&quot;&gt;Set up Zola site&lt;/h3&gt;
+&lt;p&gt;While this isn&#39;t a few blown Zola tutorial, I did want to include a few things.&lt;/p&gt;
+&lt;p&gt;After installing Zola, you can simply run &lt;code&gt;zola init myblog&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;You&#39;ll be asked a few questions and a base site will be setup for you.&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;├── config.toml&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;├── content&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;├── sass&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;├── static&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;├── templates&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;└── themes&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Without going too deep, your CommonMark pages will go in &lt;code&gt;content&lt;/code&gt;, Tera/HTML
+templates in &lt;code&gt;templates&lt;/code&gt;, and any css/js/images or other static content will go
+in &lt;code&gt;static&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;SASS is enabled by default but can be disabled. I am not currently using SASS
+personally.&lt;/p&gt;
+&lt;p&gt;Running &lt;code&gt;zola build&lt;/code&gt; will build the site and output it a directory called &lt;code&gt;public&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Here is a link to a complete overview:&lt;/p&gt;
+&lt;p&gt;&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://www.getzola.org/documentation/getting-started/overview/&quot;&gt;https://www.getzola.org/documentation/getting-started/overview/&lt;/a&gt;&lt;/p&gt;
+&lt;h3 id=&quot;push-to-github-create-github-actions-workflow&quot;&gt;Push to Github &amp;amp; Create Github Actions workflow&lt;/h3&gt;
+&lt;p&gt;After getting your content written, site styled, and ready for deployment, it&#39;s time to
+push to Github. Create a repo and push it to a &lt;code&gt;main&lt;/code&gt; branch (exclude the &lt;code&gt;public&lt;/code&gt;
+directory).&lt;/p&gt;
+&lt;p&gt;Next, we will setup the actual workflow to take our input files, setup zola,
+build the site, and commit it to the correct branch.&lt;/p&gt;
+&lt;p&gt;Create a file at &lt;code&gt;.github/workflows/deploy.yml&lt;/code&gt; and insert this:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;name: Deploy Zola to GitHub Pages&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;on:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  push:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    branches: [main]&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;jobs:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  build-deploy:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    runs-on: ubuntu-latest&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    steps:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    - name: Check out source&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;      uses: actions/checkout@v4&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    - name: Install Zola&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;      run: |&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        curl -L https://github.com/getzola/zola/releases/download/v0.20.0/zola-v0.20.0-x86_64-unknown-linux-gnu.tar.gz -o zola.tar.gz&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        tar -xzf zola.tar.gz&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        sudo mv zola /usr/local/bin/&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    - name: Build site&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;      run: zola build&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    - name: Deploy to GitHub Pages&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;      uses: peaceiris/actions-gh-pages@v3&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;      with:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        github_token: ${{ secrets.GITHUB_TOKEN }}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        publish_dir: ./public&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        publish_branch: gh-pages&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;        force_orphan: true&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;This setups up a workflow that:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;watches for pushes to main branch&lt;/li&gt;
+&lt;li&gt;checks out the zola source and installs it&lt;/li&gt;
+&lt;li&gt;builds your site using zola build&lt;/li&gt;
+&lt;li&gt;uses github pages plugin to push &lt;code&gt;public&lt;/code&gt; output dir to a &lt;code&gt;gh-pages&lt;/code&gt; branch&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;You will also need to go to your repos settings and look for the actions section
+to enable write permissions.&lt;/p&gt;
+&lt;p&gt;Push this up and watch the build by going to your repo and clicking the &quot;Actions&quot;
+tab. You will see a workflow that you can click into and see build and deploy
+jobs.&lt;/p&gt;
+&lt;p&gt;If everything goes well, you can now  visit your site by filling in your values:&lt;/p&gt;
+&lt;p&gt;https://${username}.github.io/${repo}&lt;/p&gt;
+&lt;h3 id=&quot;add-custom-domain-optional&quot;&gt;Add Custom Domain (optional)&lt;/h3&gt;
+&lt;p&gt;After you have the initial workflow working, you will need to configure some
+Github settings for a custom domain.&lt;/p&gt;
+&lt;p&gt;First, run &lt;code&gt;echo &quot;yourdomain.com&quot; &amp;gt; static/CNAME&lt;/code&gt; and commit this file.
+Next, go to your Github repo&#39;s &quot;Pages&quot; setting and add the domain name.&lt;/p&gt;
+&lt;h3 id=&quot;configure-dns-optional&quot;&gt;Configure DNS (optional)&lt;/h3&gt;
+&lt;p&gt;If using a custom domain, you will also need to setup DNS. Go to your domain
+settings and add 4 A records for Github pages:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;A	@	185.199.108.153&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;A	@	185.199.109.153&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;A	@	185.199.110.153&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;A	@	185.199.111.153&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Setup any subdirectories you might want.&lt;/p&gt;
+&lt;p&gt;You may need to give this step some extra time to update before you can
+see your new site at your custom URL. Other times it&#39;s nearly instant so your
+results may vary.&lt;/p&gt;
+&lt;h3 id=&quot;profit&quot;&gt;Profit&lt;/h3&gt;
+&lt;p&gt;That&#39;s basically it for a basic setup. You should now have a static site
+setup at a custom domain that gets automatically built by just pushing a branch.&lt;/p&gt;
+&lt;p&gt;While simple, this is a complete setup that let&#39;s you create and deploy content
+to your own URL with ease.&lt;/p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

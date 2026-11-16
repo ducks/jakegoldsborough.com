@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Using Dotter to manage NixOS configuration and Hyprland settings in version control with symlinks, making it simple to deploy and reproduce your setup across machines.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="NixOS as a daily driver or Zero to Nixty, part 4/? - dotfile/config management">
+    <meta property="og:description" content="Using Dotter to manage NixOS configuration and Hyprland settings in version control with symlinks, making it simple to deploy and reproduce your setup across machines.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-4/">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="NixOS as a daily driver or Zero to Nixty, part 4/? - dotfile/config management">
+    <meta name="twitter:description" content="Using Dotter to manage NixOS configuration and Hyprland settings in version control with symlinks, making it simple to deploy and reproduce your setup across machines.">
+
+    <title>NixOS as a daily driver or Zero to Nixty, part 4/? - dotfile/config management - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css?h=4ae15179b7c33c92f362" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>NixOS as a daily driver or Zero to Nixty, part 4/? - dotfile/config management</h1>
+      <div class="meta">
+        
+        <p>Jun 27, 2025</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/nixos">#nixos</a></p>
+          
+          <p><a href="/tags/linux">#linux</a></p>
+          
+        </div>
+      
+
+      
+  
+    
+    
+
+    
+      
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+      
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+
+    
+      
+      <aside class="post-series" aria-label="NixOS as a Daily Driver series">
+        <div class="post-series-header">
+          <span class="post-series-label">Series</span>
+          <div class="post-series-heading">
+            <strong>NixOS as a Daily Driver</strong>
+            <span class="post-series-count">9 posts</span>
+          </div>
+        </div>
+        <ol>
+          
+            <li>
+              <span class="post-series-number">01</span>
+              <div class="post-series-entry">
+                
+                  <a href="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-1/">NixOS as a daily driver on a late 2011 Macbook Pro, part 1/? - What and why?</a>
+                
+                
+                  <span class="post-series-description">An introduction to Nix and NixOS, explaining purely functional package management, declarative system configuration, atomic rollbacks, and why this approach makes for a powerful daily driver OS.</span>
+                
+              </div>
+              
+            </li>
+          
+            <li>
+              <span class="post-series-number">02</span>
+              <div class="post-series-entry">
+                
+                  <a href="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-2/">NixOS as a daily driver on a late 2011 Macbook Pro, part 2/? - Installation, Basic Configuration</a>
+                
+                
+                  <span class="post-series-description">A step-by-step guide to installing NixOS from a minimal ISO, including partitioning with EFI, formatting drives, generating configuration files, and completing the first system build.</span>
+                
+              </div>
+              
+            </li>
+          
+            <li>
+              <span class="post-series-number">03</span>
+              <div class="post-series-entry">
+                
+                  <a href="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-3/">NixOS as a daily driver on a late 2011 Macbook Pro, part 3/? - user, WM, tools</a>
+                
+                
+                  <span class="post-series-description">Setting up a non-root user with sudo access, installing Hyprland as a window manager, and configuring essential daily driver tools like Neovim, Git, and Librewolf on NixOS.</span>
+                
+              </div>
+              
+            </li>
+          
+            <li class="current" aria-current="page">
+              <span class="post-series-number">04</span>
+              <div class="post-series-entry">
+                
+                  <span class="post-series-current-title">NixOS as a daily driver or Zero to Nixty, part 4/? - dotfile/config management</span>
+                
+                
+                  <span class="post-series-description">Using Dotter to manage NixOS configuration and Hyprland settings in version control with symlinks, making it simple to deploy and reproduce your setup across machines.</span>
+                
+              </div>
+              
+                <span class="post-series-current-label">current</span>
+              
+            </li>
+          
+            <li>
+              <span class="post-series-number">05</span>
+              <div class="post-series-entry">
+                
+                  <a href="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-5/">NixOS as a daily driver or Zero to Nixty, part 5/? - QoL enhancements</a>
+                
+                
+                  <span class="post-series-description">Configuring keyboard remapping with Interception Tools to make Caps Lock act as Escape when tapped and Control when held, plus setting up hypridle and hyprlock for automatic screen locking.</span>
+                
+              </div>
+              
+            </li>
+          
+            <li>
+              <span class="post-series-number">06</span>
+              <div class="post-series-entry">
+                
+                  <a href="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-6/">NixOS as a daily driver or Zero to Nixty, part 6/? - Dev environment</a>
+                
+                
+                  <span class="post-series-description">Introducing NixVim for declarative Neovim configuration and exploring nix-shell for creating reproducible, project-specific development environments without global installs.</span>
+                
+              </div>
+              
+            </li>
+          
+            <li>
+              <span class="post-series-number">07</span>
+              <div class="post-series-entry">
+                
+                  <a href="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-7-5/">NixOS as a daily driver or Zero to Nixty, part 7.5/? - Trial by Encrypted Fire</a>
+                
+                
+                  <span class="post-series-description">A detailed account of struggling through manual LUKS encryption setup on NixOS, hitting multiple roadblocks, and ultimately succeeding with the graphical installer after three failed attempts.</span>
+                
+              </div>
+              
+            </li>
+          
+            <li>
+              <span class="post-series-number">08</span>
+              <div class="post-series-entry">
+                
+                  <a href="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-8/">NixOS as a daily driver or Zero to Nixty, part 8/? - Modular Config</a>
+                
+                
+                  <span class="post-series-description">Breaking down a NixOS configuration into reusable modules organized by host and common settings, making it easy to deploy consistent environments across multiple machines.</span>
+                
+              </div>
+              
+            </li>
+          
+            <li>
+              <span class="post-series-number">09</span>
+              <div class="post-series-entry">
+                
+                  <a href="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-9/">NixOS as a daily driver or Zero to Nixty, part 9/? - Enabling Wi-Fi</a>
+                
+                
+                  <span class="post-series-description">Troubleshooting and fixing Wi-Fi on a Framework 16 laptop running NixOS by loading the Intel AX210 driver, enabling firmware, and configuring NetworkManager with wpa_supplicant.</span>
+                
+              </div>
+              
+            </li>
+          
+        </ol>
+      </aside>
+    
+  
+
+
+      <h3 id="from-tty-to-tiling">From TTY to Tiling</h3>
+<p>In the last post, we enabled Hyprland and set it to run by default on login.</p>
+<p>In this post, we will be taking a slight detour and will be going over how to
+manage your NixOS config in version control. This step might be overkill for
+some but it makes it so we can easily checkout our config on any machine and
+have a working NixOS install fairly quickly.</p>
+<p>We will also cover a little Hyprland config at the end.</p>
+<h3 id="introducing-dotter">Introducing Dotter</h3>
+<p><a rel="noopener noreferrer external" target="_blank" href="https://github.com/SuperCuber/dotter">Dotter</a> is a dotfile manager and templater.</p>
+<p>You have a repo of dotfiles and two main config files:</p>
+<p><code>.dotter/global.toml</code></p>
+<ul>
+<li>global config where you define "modules" and tell Dotter how to handle
+copying config.</li>
+<li>commit to version control</li>
+</ul>
+<p><code>.dotter/local.toml</code></p>
+<ul>
+<li>Per machine file that tells dotter which config to load. The idea being
+you may have different config needs for linux, macos, or windows.</li>
+<li>This file is not committed to git because local lets you switch configs
+per machine without affecting version control</li>
+</ul>
+<p>Add a <code>.gitignore</code> if not already present.
+Add a new line:
+<code>.dotter/local.toml</code></p>
+<p>After configuring everything, you simply run <code>dotter deploy</code> and the config
+files are copied to the locations set in <code>global.toml</code>.</p>
+<p>It's a great project and I highly recommend it.</p>
+<h3 id="moving-nixos-config-to-dotfiles-repo">Moving NixOS Config to Dotfiles Repo</h3>
+<p>The first thing we'll do is add a new directory in our dotfile repo. Then
+we'll need to open up our <code>.dotter/global.toml</code> file and add our NixOS config
+paths. That looks like this for me:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="plain"><span class="giallo-l"><span>[nixos.files]</span></span>
+<span class="giallo-l"><span>nixos = &#39;/etc/nixos&#39;</span></span></code></pre>
+<p>In Dotter talk, this is setting up a "module" named <code>nixos</code>. We are telling Dotter
+that this module's files will be located in the <code>nixos</code> folder and need to be
+copied to <code>/etc/nixos</code>.</p>
+<p>Now you will need to move the current NixOS config from
+<code>/etc/nixos/configuration.nix</code> to your new <code>nixos</code> folder.</p>
+<p>One other step will be to allow writes to your <code>/etc/nixos</code> dir by running
+<code>sudo chmod o+w /etc/nixos</code>.</p>
+<p>One important configuration option to mention for Dotter is the
+<code>default_target_type</code>. Because of the template functionality of Dotter,
+it can either physically copy your config, or simply create a symlink.</p>
+<p>I prefer symlinks by default so I use this config option. In <code>global.toml</code>, I
+set the following:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="plain"><span class="giallo-l"><span>[settings]</span></span>
+<span class="giallo-l"><span>default_target_type = &#39;symbolic&#39;</span></span></code></pre>
+<p>More info about that can be found in the <a rel="noopener noreferrer external" target="_blank" href="https://github.com/SuperCuber/dotter/wiki/5.-Built%E2%80%90ins,-Helpers,-and-Settings#settings">Dotter wiki</a>.</p>
+<p>If you plan to use symlinks with Dotter, you will need to open up
+<code>nixos/configuration.nix</code> and make the <code>hardware-configuration.nix</code> import
+an absolute path instead of relative path.</p>
+<p>Example:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="plain"><span class="giallo-l"><span># nixos/configuration.nix</span></span>
+<span class="giallo-l"><span>{ config, pkgs, ... }:</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>{</span></span>
+<span class="giallo-l"><span>  imports =</span></span>
+<span class="giallo-l"><span>    [ /etc/nixos/hardware-configuration.nix ];</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>You will also need to add your <code>.dotter/local.toml</code> file.</p>
+<p>That will look something like this:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="plain"><span class="giallo-l"><span>packages = [</span></span>
+<span class="giallo-l"><span>  &#39;cmus&#39;,</span></span>
+<span class="giallo-l"><span>  &#39;git&#39;,</span></span>
+<span class="giallo-l"><span>  &#39;hypr&#39;,</span></span>
+<span class="giallo-l"><span>  &#39;nvim&#39;,</span></span>
+<span class="giallo-l"><span>  &#39;nushell&#39;,</span></span>
+<span class="giallo-l"><span>  &#39;starship&#39;,</span></span>
+<span class="giallo-l"><span>  &#39;waybar&#39;,</span></span>
+<span class="giallo-l"><span>  &#39;wezterm&#39;,</span></span>
+<span class="giallo-l"><span>  &#39;wofi&#39;</span></span>
+<span class="giallo-l"><span>]</span></span></code></pre>
+<p>This is telling Dotter which of the "packages" in your <code>global.toml</code> should be
+copied. This helps allow us to define our complete config in one repo even if
+every host doesn't use every package. Each host will have a <code>local.toml</code> that
+copies specific packages.</p>
+<p>Now it's finally time to run <code>dotter deploy</code>. This will do the important step
+of taking our local dotfiles and copying (or symlinking) to the dirs we
+specified. After running that command, you will see
+<code>/etc/nixos/configuration.nix</code> is present again.</p>
+<p>The moment of truth, time to rebuild. You can start by doing a dry run
+<code>sudo nixos-rebuild dry-activate</code>. This will build the system and tell you what
+would happen. If that goes well, run <code>sudo nixos-rebuild switch</code>. NixOS gives a lot
+of protection around broken config so it's unlikely anything should break here
+and if it does, there will be an error that tells you why.</p>
+<p>Commit your configuration file and merge your branch back to <code>main</code>.</p>
+<h3 id="adding-hyprland-config-to-dotfiles-repo">Adding Hyprland Config to Dotfiles Repo</h3>
+<p>We are now going to do the same with our <code>Hyprland</code> config. The steps are pretty
+much the same minus some <code>chmod</code> and file path updates.</p>
+<p>First, create a new branch and check it out. Then we create a new directory that
+I simply called <code>hypr</code>. Next, copy the current <code>Hyprland</code> config from
+<code>~/.config/hypr</code> into this new dir.</p>
+<p>Now we will need to add a little Dotter config:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="plain"><span class="giallo-l"><span>[hypr.files]</span></span>
+<span class="giallo-l"><span>hypr = &#39;~/.config/hypr&#39;</span></span></code></pre>
+<p>Again, in Dotter talk, we are creating a <code>hypr</code> module. Then we tell Dotter that
+any files in our local <code>hypr</code> dir need to be copied to <code>~/.config/hypr</code>.</p>
+<p>Now it's time to run <code>dotter deploy</code>. This will do the step of copying our
+local config to the correct path in <code>~/.config</code>.</p>
+<p>Confirm that file got copied and then run <code>hyprctl reload</code> to reload the <code>hypr</code>
+config.</p>
+<h3 id="congrats-on-version-controlled-config">Congrats On Version Controlled Config</h3>
+<p>Your dotfile repo should now look something like this:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="plain"><span class="giallo-l"><span>dotfiles/</span></span>
+<span class="giallo-l"><span>├── .dotter/</span></span>
+<span class="giallo-l"><span>│   ├── global.toml</span></span>
+<span class="giallo-l"><span>│   └── local.toml</span></span>
+<span class="giallo-l"><span>├── hypr/</span></span>
+<span class="giallo-l"><span>│   └── hyprland.conf</span></span>
+<span class="giallo-l"><span>└── nixos/</span></span>
+<span class="giallo-l"><span>    └── configuration.nix</span></span></code></pre>
+<p>We have now added two sets of our config into version control. This will allow
+us to easily pass around our config to a new machine if needed, especially with
+NixOS and it's declarative config.</p>
+<h3 id="next-time">Next Time</h3>
+<p>In the next post, I plan to get back to actually setting up NixOS for daily driver
+use. This will probably include some <code>hypr</code> config and introducing Nixvim. Nixvim
+is a way to manage your neovim plugins in a NixOS-y way.</p>
+<hr />
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="/blog/2025/nixos-daily-driver-4/">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2025-nixos-daily-driver-4"
+      data-goatcounter-title="Helpful click on blog-2025-nixos-daily-driver-4"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/mini-racer-nixos-bundle-gemfile/">mini_racer on NixOS: Three Things That Were Wrong</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 25, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">mini_racer 0.21.4 wouldn&#39;t build in my nix-shell. The fix turned out to be counterintuitive: removing glibc from buildInputs made stdlib.h work again. Plus a BUNDLE_GEMFILE footgun hiding in plain sight.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/debugging">#debugging</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/patchelf-broke-claude-code/">When patchelf stopped working on Claude Code</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 20, 2026</p>
+                    
+                    <p>9 min read</p>
+                  </div>
+                  
+                    <p class="desc">A sequel to the NixOS fix. The patchelf-based shell.nix was working, then a Claude Code update made it produce binaries that segfaulted before main(). Three wrong hypotheses, one real cause, two more gotchas hiding inside the fix, and the resolution that finally made it all moot: nix-ld.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/debugging">#debugging</a></p>
+                      
+                      <p><a href="/tags/elf">#elf</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/running-claude-code-on-nixos/">Running Claude Code on NixOS</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 07, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Claude Code&#39;s official installer drops a prebuilt Linux binary that won&#39;t execute on NixOS. A 133-line shell.nix patches it on the way in. Here&#39;s what&#39;s broken, why, and how to fix it without leaving the official install path.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/nix-shells-ssh-claude-code/">The Unholy Trinity: Nix Shells, SSH Config, and Claude Code</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 21, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">How proper environment setup turns AI coding assistants from novelty into genuine infrastructure. Nix makes everything reproducible. SSH makes everything reachable. Claude ties it together.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/real-declarative-infrastructure-nixos/">From Bash Scripts to NixOS: Real Declarative Infrastructure on a VPS</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 18, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Converting a bash script + systemd-based VPS to NixOS for truly declarative infrastructure. No more update scripts or edge cases, just configuration.nix.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/self-hosting">#self-hosting</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>

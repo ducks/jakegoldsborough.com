@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="fediverse:creator" content="@ducks@hachyderm.io">
+    <link rel="me" href="https://hachyderm.io/@ducks" />
+    <meta name="author" content="Jake Goldsborough">
+
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/berkeley-mono/BerkeleyMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://jakegoldsborough.com/fonts/waika/waika-webfont.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <meta name="description" content="Configuring keyboard remapping with Interception Tools to make Caps Lock act as Escape when tapped and Control when held, plus setting up hypridle and hyprlock for automatic screen locking.">
+    <meta name="keywords" content="NixOS, Linux, Rust, self-hosting, programming, tech blog, OSS">
+
+    
+    <meta property="og:site_name" content="Jake Goldsborough">
+    <meta property="og:title" content="NixOS as a daily driver or Zero to Nixty, part 5/? - QoL enhancements">
+    <meta property="og:description" content="Configuring keyboard remapping with Interception Tools to make Caps Lock act as Escape when tapped and Control when held, plus setting up hypridle and hyprlock for automatic screen locking.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-5/">
+
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="NixOS as a daily driver or Zero to Nixty, part 5/? - QoL enhancements">
+    <meta name="twitter:description" content="Configuring keyboard remapping with Interception Tools to make Caps Lock act as Escape when tapped and Control when held, plus setting up hypridle and hyprlock for automatic screen locking.">
+
+    <title>NixOS as a daily driver or Zero to Nixty, part 5/? - QoL enhancements - Jake Goldsborough</title>
+
+    <link rel="stylesheet" href="https://jakegoldsborough.com/css/style.css?h=4ae15179b7c33c92f362" />
+
+    
+    <link rel="icon" href="https://jakegoldsborough.com/images/favicon.png" />
+  </head>
+  <body>
+    <header>
+      
+        <h1><a href="https://jakegoldsborough.com">Jake Goldsborough</a></h1>
+      
+
+      <input type="checkbox" id="menu-toggle" class="menu-toggle" />
+      <label for="menu-toggle" class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav>
+        <a
+          href="https://jakegoldsborough.com/blog"
+          class="active"
+        >Blog</a>
+        <a
+          href="https://jakegoldsborough.com/resume"
+          class=""
+          >Resume</a>
+        <a
+          href="https://jakegoldsborough.com/projects"
+          class=""
+          >Projects</a>
+        <a
+          href="https://jakegoldsborough.com/contact"
+          class=""
+          >Contact</a>
+      </nav>
+    </header>
+    <main>
+      
+  
+    <article>
+      <h1>NixOS as a daily driver or Zero to Nixty, part 5/? - QoL enhancements</h1>
+      <div class="meta">
+        
+        <p>Jul 07, 2025</p>
+        
+        <p>4 min read</p>
+      </div>
+
+      
+        <div class="tags">
+          
+          <p><a href="/tags/nixos">#nixos</a></p>
+          
+          <p><a href="/tags/linux">#linux</a></p>
+          
+        </div>
+      
+
+      
+  
+    
+    
+
+    
+      
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+      
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+
+    
+      
+      <aside class="post-series" aria-label="NixOS as a Daily Driver series">
+        <div class="post-series-header">
+          <span class="post-series-label">Series</span>
+          <div class="post-series-heading">
+            <strong>NixOS as a Daily Driver</strong>
+            <span class="post-series-count">9 posts</span>
+          </div>
+        </div>
+        <ol>
+          
+            <li>
+              <span class="post-series-number">01</span>
+              <div class="post-series-entry">
+                
+                  <a href="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-1/">NixOS as a daily driver on a late 2011 Macbook Pro, part 1/? - What and why?</a>
+                
+                
+                  <span class="post-series-description">An introduction to Nix and NixOS, explaining purely functional package management, declarative system configuration, atomic rollbacks, and why this approach makes for a powerful daily driver OS.</span>
+                
+              </div>
+              
+            </li>
+          
+            <li>
+              <span class="post-series-number">02</span>
+              <div class="post-series-entry">
+                
+                  <a href="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-2/">NixOS as a daily driver on a late 2011 Macbook Pro, part 2/? - Installation, Basic Configuration</a>
+                
+                
+                  <span class="post-series-description">A step-by-step guide to installing NixOS from a minimal ISO, including partitioning with EFI, formatting drives, generating configuration files, and completing the first system build.</span>
+                
+              </div>
+              
+            </li>
+          
+            <li>
+              <span class="post-series-number">03</span>
+              <div class="post-series-entry">
+                
+                  <a href="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-3/">NixOS as a daily driver on a late 2011 Macbook Pro, part 3/? - user, WM, tools</a>
+                
+                
+                  <span class="post-series-description">Setting up a non-root user with sudo access, installing Hyprland as a window manager, and configuring essential daily driver tools like Neovim, Git, and Librewolf on NixOS.</span>
+                
+              </div>
+              
+            </li>
+          
+            <li>
+              <span class="post-series-number">04</span>
+              <div class="post-series-entry">
+                
+                  <a href="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-4/">NixOS as a daily driver or Zero to Nixty, part 4/? - dotfile/config management</a>
+                
+                
+                  <span class="post-series-description">Using Dotter to manage NixOS configuration and Hyprland settings in version control with symlinks, making it simple to deploy and reproduce your setup across machines.</span>
+                
+              </div>
+              
+            </li>
+          
+            <li class="current" aria-current="page">
+              <span class="post-series-number">05</span>
+              <div class="post-series-entry">
+                
+                  <span class="post-series-current-title">NixOS as a daily driver or Zero to Nixty, part 5/? - QoL enhancements</span>
+                
+                
+                  <span class="post-series-description">Configuring keyboard remapping with Interception Tools to make Caps Lock act as Escape when tapped and Control when held, plus setting up hypridle and hyprlock for automatic screen locking.</span>
+                
+              </div>
+              
+                <span class="post-series-current-label">current</span>
+              
+            </li>
+          
+            <li>
+              <span class="post-series-number">06</span>
+              <div class="post-series-entry">
+                
+                  <a href="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-6/">NixOS as a daily driver or Zero to Nixty, part 6/? - Dev environment</a>
+                
+                
+                  <span class="post-series-description">Introducing NixVim for declarative Neovim configuration and exploring nix-shell for creating reproducible, project-specific development environments without global installs.</span>
+                
+              </div>
+              
+            </li>
+          
+            <li>
+              <span class="post-series-number">07</span>
+              <div class="post-series-entry">
+                
+                  <a href="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-7-5/">NixOS as a daily driver or Zero to Nixty, part 7.5/? - Trial by Encrypted Fire</a>
+                
+                
+                  <span class="post-series-description">A detailed account of struggling through manual LUKS encryption setup on NixOS, hitting multiple roadblocks, and ultimately succeeding with the graphical installer after three failed attempts.</span>
+                
+              </div>
+              
+            </li>
+          
+            <li>
+              <span class="post-series-number">08</span>
+              <div class="post-series-entry">
+                
+                  <a href="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-8/">NixOS as a daily driver or Zero to Nixty, part 8/? - Modular Config</a>
+                
+                
+                  <span class="post-series-description">Breaking down a NixOS configuration into reusable modules organized by host and common settings, making it easy to deploy consistent environments across multiple machines.</span>
+                
+              </div>
+              
+            </li>
+          
+            <li>
+              <span class="post-series-number">09</span>
+              <div class="post-series-entry">
+                
+                  <a href="https://jakegoldsborough.com/blog/2025/nixos-daily-driver-9/">NixOS as a daily driver or Zero to Nixty, part 9/? - Enabling Wi-Fi</a>
+                
+                
+                  <span class="post-series-description">Troubleshooting and fixing Wi-Fi on a Framework 16 laptop running NixOS by loading the Intel AX210 driver, enabling firmware, and configuring NetworkManager with wpa_supplicant.</span>
+                
+              </div>
+              
+            </li>
+          
+        </ol>
+      </aside>
+    
+  
+
+
+      <h3 id="recap">Recap</h3>
+<p>In the last post, we successfully got our configuration stored in version control.
+This will make it very simple to pass our config around if needed. We also
+learned about Dotter, a dotfile configuration management tool, which we will
+be using again today.</p>
+<h3 id="intro">Intro</h3>
+<p>Today, we will be covering a few quality of life enhancements. Those will
+include keyboard remapping and locking our screen after a certain amount of
+idle time.</p>
+<p>Quality of life enhancements are things that while not strictly necessary,
+they make life much better.</p>
+<h3 id="keyboard-remapping">Keyboard Remapping</h3>
+<p>First, I'll show you how to remap keys. For me personally, this will include:</p>
+<ul>
+<li>Caps Lock -&gt; Esc when pressed</li>
+<li>Caps Lock -&gt; Control when held (and another key is pressed)</li>
+</ul>
+<p>Caps Lock as Control when being held is a new change for me but I'm really
+enjoying it. It has opened up many more keybind options for me.</p>
+<p>This remapping will be done using "Interception Tools"</p>
+<h4 id="interception-tools">Interception Tools</h4>
+<p><a rel="noopener noreferrer external" target="_blank" href="https://wiki.archlinux.org/title/Interception-tools">Interception Tools</a> is a
+set of utilities to control and customize the behavior of keyboard input
+mappings.</p>
+<p>It works at a lower level than tools like <code>xcape</code> or <code>xmodmap</code> which makes it
+one of the only options available for customizing keyboard behavior across
+X11, Wayland, and the Linux console.</p>
+<p>Below is an example of mine. It's stored in
+<code>~/dotfiles/nixos/modules/interception-caps.nix</code>.</p>
+<p>This config:</p>
+<ul>
+<li>enables the <code>services.interception-tools</code> module</li>
+<li>adds a plugin called caps2esc</li>
+<li>adds a <code>udevmonConfig</code> file</li>
+</ul>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="plain"><span class="giallo-l"><span>{ config, pkgs, ...}:</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>let</span></span>
+<span class="giallo-l"><span>  intercept = &quot;${pkgs.interception-tools}/bin/intercept&quot;;</span></span>
+<span class="giallo-l"><span>  uinput = &quot;${pkgs.interception-tools}/bin/uinput&quot;;</span></span>
+<span class="giallo-l"><span>in {</span></span>
+<span class="giallo-l"><span>  services.interception-tools = {</span></span>
+<span class="giallo-l"><span>    enable = true;</span></span>
+<span class="giallo-l"><span>    plugins = with pkgs; [</span></span>
+<span class="giallo-l"><span>      interception-tools-plugins.caps2esc</span></span>
+<span class="giallo-l"><span>    ];</span></span>
+<span class="giallo-l"><span>    udevmonConfig = &#39;&#39;</span></span>
+<span class="giallo-l"><span>      - JOB: &quot;${intercept} -g $DEVNODE |</span></span>
+<span class="giallo-l"><span>              ${pkgs.interception-tools-plugins.caps2esc}/bin/caps2esc -m 1 |</span></span>
+<span class="giallo-l"><span>              ${uinput} -d $DEVNODE&quot;</span></span>
+<span class="giallo-l"><span>        DEVICE:</span></span>
+<span class="giallo-l"><span>          EVENTS:</span></span>
+<span class="giallo-l"><span>            EV_KEY: [KEY_CAPSLOCK, KEY_ESC]</span></span>
+<span class="giallo-l"><span>    &#39;&#39;;</span></span>
+<span class="giallo-l"><span>  };</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>Let's breakdown what's happening here.</p>
+<ul>
+<li>
+<p><code>JOB</code> defines a processing pipeline for input events. Each matching device runs
+this chain of commands.</p>
+</li>
+<li>
+<p><code>${intercept} -g $DEVNODE</code> reads events from the input device</p>
+<ul>
+<li><code>intercept</code> is the main input capture tool</li>
+<li><code>-g</code> ensures the device stays grabbed</li>
+</ul>
+</li>
+<li>
+<p><code>caps2esc -m 1</code> is what actually transform the Caps Lock input into our dual
+behavior</p>
+<ul>
+<li>Tap/Press = Escape</li>
+<li>Hold = Control</li>
+<li>Note - Control is only emitted if another key is pressed. holding Caps Lock
+will not simply emit Control</li>
+</ul>
+</li>
+<li>
+<p><code>${input} -d $DEVNODE</code> writes the transformed input back into the system using
+<code>uinput</code> kernel device</p>
+</li>
+<li>
+<p><code>DEVICE</code> block filters which devices this pipelines applies to.</p>
+<ul>
+<li><code>EV_KEY: [KEY_CAPSLOCK, KEY_ESC]</code> means this only runs for devices that emit
+Caps Locks or Escape key events</li>
+</ul>
+</li>
+</ul>
+<p>In short, this config captures raw key events for Caps Lock and Escape,
+transforms them using the caps2esc plugin, and injects the new behavior back
+into the system -- all at a low level that works across Wayland, X11, and even
+TTYs.</p>
+<p>The above is stored in a separate NixOS module and then imported in my main
+configuration:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="plain"><span class="giallo-l"><span>imports =</span></span>
+<span class="giallo-l"><span>  [ # Include the results of the hardware scan.</span></span>
+<span class="giallo-l"><span>    /etc/nixos/hardware-configuration.nix</span></span>
+<span class="giallo-l"><span>    /etc/nixos/modules/interception-caps.nix</span></span>
+<span class="giallo-l"><span>  ];</span></span></code></pre><h3 id="idle-and-lock">Idle and Lock</h3>
+<p>Next, we will set our machine up to first lock, then power the screen down after
+a certain amount of idle time.</p>
+<p>This is done using Hyprland companion packages, <code>hyprlock</code> and <code>hypridle</code>.</p>
+<p>You can install those by adding them to your package list:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="plain"><span class="giallo-l"><span>environment.systemPackages = with pkgs; [</span></span>
+<span class="giallo-l"><span>  hypridle</span></span>
+<span class="giallo-l"><span>  hyprlock</span></span>
+<span class="giallo-l"><span>];</span></span></code></pre><h4 id="hyperidle">Hyperidle</h4>
+<p>Save this config as:
+<code>~/dotfiles/hypr/hypridle.conf</code></p>
+<p>Here is my current setup:</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="plain"><span class="giallo-l"><span>general {</span></span>
+<span class="giallo-l"><span>    lock_cmd = hyprlock</span></span>
+<span class="giallo-l"><span>    before_sleep_cmd = hyprlock</span></span>
+<span class="giallo-l"><span>    after_sleep_cmd = hyprctl dispatch dpms on</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>listener {</span></span>
+<span class="giallo-l"><span>    timeout = 300</span></span>
+<span class="giallo-l"><span>    on-timeout = hyprlock</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>listener {</span></span>
+<span class="giallo-l"><span>    timeout = 330</span></span>
+<span class="giallo-l"><span>    on-timeout = hyprctl dispatch dpms off</span></span>
+<span class="giallo-l"><span>    on-resume = hyprctl dispatch dpms on</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span></code></pre>
+<p>This is telling <code>hypridle</code> to run <code>hyprlock</code> as the lock_cmd and right before sleep.
+Then after we wake, use hyprctl to turn the monitor back on.</p>
+<p>Then we set up a few simple listeners. The first one is for 300 seconds (5
+minutes) and simply runs <code>hyprlock</code> on-timeout. Then, I have another for 330
+seconds (5 minutes 30 seconds) that will shut my monitor off on-timeout, and turn
+it back on after resuming.</p>
+<p>Reload hypr conf with <code>hyprctl reload</code> and you should now have a functioning
+idle and lock screen.</p>
+<h4 id="hyperlock">Hyperlock</h4>
+<p>Note: Hyprlock does not automatically create a config, and without one,
+<code>hyprlock</code> will not render anything, meaning you will just see your screen, but
+it will be locked -- you will not be able to interact with it again until you
+enter your password and hit Enter.</p>
+<p>We are also able to customize our lock screen some. This config will also
+live in the same directory as the other hyprland config files.
+<code>~/dotfiles/hypr/hyprlock.conf</code></p>
+<p>Below is an example of mine. It looks similar to css styling but not exactly.</p>
+<p>Here, I'm setting up a simple background color, an input field with a border,
+and a label that just outputs the time. I like to keep mine simple but you can
+add a background image, move the input box around, and do a lot more than I am.</p>
+<p>You can find more in the docs
+<a rel="noopener noreferrer external" target="_blank" href="https://wiki.hypr.land/Hypr-Ecosystem/hyprlock/">here</a>. It covers all the
+available elements you can use to style your Hyprlock screen.</p>
+<pre class="giallo" style="color: #EBDBB2; background-color: #1D2021;" ><code data-lang="plain"><span class="giallo-l"><span>background {</span></span>
+<span class="giallo-l"><span>    color = rgb(282828)  # Gruvbox dark background</span></span>
+<span class="giallo-l"><span>    blur_passes = 0</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>input-field {</span></span>
+<span class="giallo-l"><span>    font_color = rgb(ebdbb2)</span></span>
+<span class="giallo-l"><span>    inner_color = rgb(282828) # Slightly lighter than background</span></span>
+<span class="giallo-l"><span>    outer_color = rgb(928374)</span></span>
+<span class="giallo-l"><span>    outline_thickness = 3</span></span>
+<span class="giallo-l"><span>    size = 500, 50</span></span>
+<span class="giallo-l"><span>    position = 0, -33%</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>label {</span></span>
+<span class="giallo-l"><span>    text = cmd[update:1000] echo &quot;&lt;b&gt;&lt;big&gt; $(date +&quot;%H:%M:%S&quot;) &lt;/big&gt;&lt;/b&gt;&quot;</span></span>
+<span class="giallo-l"><span>    color = rgb(ebdbb2)</span></span>
+<span class="giallo-l"><span>    font_size = 32</span></span>
+<span class="giallo-l"><span>    position = 0, 0</span></span>
+<span class="giallo-l"><span>    valign = center</span></span>
+<span class="giallo-l"><span>    halign = center</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>After adding both files, remember to run <code>dotter deploy</code>. This will add symlinks
+for our newly added files to our correct Hyprland config directory by default
+based on our Dotter config.</p>
+<h3 id="fun-fact">Fun Fact</h3>
+<p>This post was written from NixOS!</p>
+<h3 id="summary">Summary</h3>
+<p>In this post, we have:</p>
+<ul>
+<li>Configured some muscle memory engraved key remappings including:
+<ul>
+<li>Caps Lock -&gt; Esc when pressed</li>
+<li>Caps Lock -&gt; Control when held (and another key is pressed)</li>
+</ul>
+</li>
+<li>Setup <code>hypridle</code> to lock out computer after 5 minutes then turn the screen off
+30 seconds after that.</li>
+<li>Styled a simple <code>hyprlock</code> screen that shows the time and an input box for our
+password</li>
+</ul>
+<h3 id="next-time">Next Time</h3>
+<p>Next time will be all about development work. We will introduce Nixvim and
+<code>nix shell</code>. Nix shells are development environments you can set up via config.
+They are very powerful and make developing on NixOS much easier.</p>
+<hr />
+
+
+      
+  
+  
+  
+  <aside class="helpful" data-helpful-path="/blog/2025/nixos-daily-driver-5/">
+    <p class="helpful-prompt">Was this helpful?</p>
+    <button
+      type="button"
+      class="helpful-button"
+      data-helpful-action="vote"
+      data-goatcounter-click="helpful-blog-2025-nixos-daily-driver-5"
+      data-goatcounter-title="Helpful click on blog-2025-nixos-daily-driver-5"
+    >Yep, this helped</button>
+    <p class="helpful-thanks" hidden>✓ Glad it helped</p>
+  </aside>
+
+
+      
+        
+        
+
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+                
+                  
+                
+              
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+            
+          
+        
+
+        
+          <section class="related-posts">
+            <h2>Related Posts</h2>
+            <ul class="blog-posts">
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/mini-racer-nixos-bundle-gemfile/">mini_racer on NixOS: Three Things That Were Wrong</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jun 25, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">mini_racer 0.21.4 wouldn&#39;t build in my nix-shell. The fix turned out to be counterintuitive: removing glibc from buildInputs made stdlib.h work again. Plus a BUNDLE_GEMFILE footgun hiding in plain sight.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/ruby">#ruby</a></p>
+                      
+                      <p><a href="/tags/discourse">#discourse</a></p>
+                      
+                      <p><a href="/tags/debugging">#debugging</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/patchelf-broke-claude-code/">When patchelf stopped working on Claude Code</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 20, 2026</p>
+                    
+                    <p>9 min read</p>
+                  </div>
+                  
+                    <p class="desc">A sequel to the NixOS fix. The patchelf-based shell.nix was working, then a Claude Code update made it produce binaries that segfaulted before main(). Three wrong hypotheses, one real cause, two more gotchas hiding inside the fix, and the resolution that finally made it all moot: nix-ld.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/debugging">#debugging</a></p>
+                      
+                      <p><a href="/tags/elf">#elf</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/running-claude-code-on-nixos/">Running Claude Code on NixOS</a></h3>
+                  <div class="meta">
+                    
+                    <p>May 07, 2026</p>
+                    
+                    <p>3 min read</p>
+                  </div>
+                  
+                    <p class="desc">Claude Code&#39;s official installer drops a prebuilt Linux binary that won&#39;t execute on NixOS. A 133-line shell.nix patches it on the way in. Here&#39;s what&#39;s broken, why, and how to fix it without leaving the official install path.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/nix-shells-ssh-claude-code/">The Unholy Trinity: Nix Shells, SSH Config, and Claude Code</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 21, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">How proper environment setup turns AI coding assistants from novelty into genuine infrastructure. Nix makes everything reproducible. SSH makes everything reachable. Claude ties it together.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/ai">#ai</a></p>
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/tools">#tools</a></p>
+                      
+                      <p><a href="/tags/dev">#dev</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+                <li class="post-item">
+                  <h3><a href="https://jakegoldsborough.com/blog/2026/real-declarative-infrastructure-nixos/">From Bash Scripts to NixOS: Real Declarative Infrastructure on a VPS</a></h3>
+                  <div class="meta">
+                    
+                    <p>Jan 18, 2026</p>
+                    
+                    <p>4 min read</p>
+                  </div>
+                  
+                    <p class="desc">Converting a bash script + systemd-based VPS to NixOS for truly declarative infrastructure. No more update scripts or edge cases, just configuration.nix.</p>
+                  
+                  
+                    <div class="tags">
+                      
+                      <p><a href="/tags/nixos">#nixos</a></p>
+                      
+                      <p><a href="/tags/self-hosting">#self-hosting</a></p>
+                      
+                      <p><a href="/tags/infrastructure">#infrastructure</a></p>
+                      
+                    </div>
+                  
+                  <div class="squiqqle-line"></div>
+                </li>
+              
+            </ul>
+          </section>
+        
+      
+    </article>
+  
+
+    </main>
+
+    <footer>
+      <p><a href="https://jakegoldsborough.com/rss.xml">Subscribe via RSS</a></p>
+    </footer>
+
+    <script src="/js/main.js"></script>
+    <script src="/js/helpful.js" defer></script>
+    <script data-goatcounter="https://stats.jakegoldsborough.com/count"
+        async src="//stats.jakegoldsborough.com/count.js"></script>
+  </body>
+</html>

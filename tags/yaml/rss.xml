@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - yaml</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/yaml/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Fri, 14 Nov 2025 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Building yaml-janitor: Solving the Comment Preservation Problem</title>
+          <pubDate>Fri, 14 Nov 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/yaml-janitor-comment-preservation/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/yaml-janitor-comment-preservation/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/yaml-janitor-comment-preservation/">&lt;p&gt;For the past five years, there&#39;s been an intermittent problem at work:
+sometimes, when editing YAML configuration files with automated tools, comments
+get destroyed. The comments contain critical context like why certain values
+exist or what not to change, so losing them causes real problems when trying to
+maintain infrastructure configuration.&lt;/p&gt;
+&lt;p&gt;A coworker tried to solve this in 2021 by building tooling around
+psych-pure, a pure Ruby YAML parser that can preserve comments. But
+psych-pure wasn&#39;t stable enough at the time, so the project stalled.&lt;/p&gt;
+&lt;p&gt;Fast forward to 2025, and I happened to be looking through devops topics and
+stumbled upon this one. This seemed like the perfect opportunity to revisit the
+comment preservation problem.&lt;/p&gt;
+&lt;h2 id=&quot;the-initial-validation&quot;&gt;The Initial Validation&lt;/h2&gt;
+&lt;p&gt;I started by writing a simple validation script using psych-pure to check
+if our production YAML files could survive a round-trip: load the file,
+dump it back out, and verify the semantics stayed the same.&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;require&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;psych/pure&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;yaml_content&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span&gt; File&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;read&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;config.yml&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;loaded&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span&gt; Psych&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;::&lt;/span&gt;&lt;span&gt;Pure&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span&gt;load&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span&gt;yaml_content&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; comments&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; true&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;dumped&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span&gt; Psych&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;::&lt;/span&gt;&lt;span&gt;Pure&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;dump&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span&gt;loaded&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;# Verify semantics match&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;original_data&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span&gt; Psych&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;::&lt;/span&gt;&lt;span&gt;Pure&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span&gt;load&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span&gt;yaml_content&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;dumped_data&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span&gt; Psych&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;::&lt;/span&gt;&lt;span&gt;Pure&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span&gt;load&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span&gt;dumped&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;if&lt;/span&gt;&lt;span&gt; original_data &lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;==&lt;/span&gt;&lt;span&gt; dumped_data&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  puts&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;✅ Semantics preserved&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;else&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  puts&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;❌ MISMATCH&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;end&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;I ran this against 1,736 production YAML files across two repositories.
+The good news: no corrupt YAML! Most files validated successfully, with
+only a handful failing due to using patterns that are technically invalid
+per the YAML spec (though the C implementation of Psych accepts them
+anyway).&lt;/p&gt;
+&lt;h2 id=&quot;building-yaml-janitor&quot;&gt;Building yaml-janitor&lt;/h2&gt;
+&lt;p&gt;With validation working, I built a proper linter around psych-pure. The
+key challenge was that while psych-pure preserves comments when loading,
+its built-in dump function doesn&#39;t give enough control over formatting.
+I needed custom formatting rules like consistent indentation and compact
+array notation.&lt;/p&gt;
+&lt;p&gt;Here&#39;s what yaml-janitor fixes:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;yaml&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;# Before: mixed indentation, explicit array format&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;config&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;    # Database settings&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    database&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;      host&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; localhost&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;        port&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 5432&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    features&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;      -&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;        name&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; caching&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;        enabled&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; true&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;# After: consistent indentation, compact arrays&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;config&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;  # Database settings&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  database&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    host&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; localhost&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    port&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 5432&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  features&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    -&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; name&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; caching&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;      enabled&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; true&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The solution was to build a custom emitter that walks the loaded data
+structure and outputs formatted YAML while preserving all comments:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;class&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; Emitter&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  def&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; initialize&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;node&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; config&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    @&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;node&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span&gt; node&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    @&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;config&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span&gt; config&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    @&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;output&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; []&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  end&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  def&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; emit&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;    emit_comments&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;get_comments&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(@&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;node&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;, :&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;leading&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;),&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 0&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;    emit_document&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(@&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;node&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    @&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;output&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;join&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;\n&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;)&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; +&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;\n&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  end&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  def&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; emit_mapping&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;hash&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; indent&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    entries&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span&gt; hash&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;respond_to?&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;psych_keys&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; ?&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;      hash&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;psych_keys&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;map&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; { |&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;pk&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;| [&lt;/span&gt;&lt;span&gt;pk&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;key_node&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;span&gt; pk&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;value_node&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;] } :&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;      hash&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;to_a&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    entries&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;each_with_index&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; do&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; |&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;key&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; value&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; index&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;|&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;      emit_comments&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;get_comments&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span&gt;key&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;, :&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;leading&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;),&lt;/span&gt;&lt;span&gt; indent&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;      key_str&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; scalar_to_string&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span&gt;key&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;      case&lt;/span&gt;&lt;span&gt; value&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;      when&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; Hash&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; Array&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;        @&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;output&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; &amp;lt;&amp;lt;&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;#{&amp;#39; &amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; *&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; indent&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}#{&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;key_str&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;        emit_node&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span&gt;value&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;span&gt; indent &lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;+&lt;/span&gt;&lt;span&gt; indentation&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;      else&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;        value_str&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; scalar_to_string&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span&gt;value&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;        @&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;output&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; &amp;lt;&amp;lt;&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;#{&amp;#39; &amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; *&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; indent&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}#{&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;key_str&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;: &lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;#{&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;value_str&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;      end&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;      emit_comments&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;get_comments&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span&gt;key&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;, :&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;trailing&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;),&lt;/span&gt;&lt;span&gt; indent&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;    end&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  end&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;end&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;This gave me complete control over formatting while preserving every
+comment. The emitter handles:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Consistent indentation (2 or 4 spaces)&lt;/li&gt;
+&lt;li&gt;Compact array format (dash on same line as first key)&lt;/li&gt;
+&lt;li&gt;Comment placement (leading and trailing)&lt;/li&gt;
+&lt;li&gt;Blank lines between top-level sections&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;production-testing&quot;&gt;Production Testing&lt;/h2&gt;
+&lt;p&gt;I tested yaml-janitor on a production file with mixed 2-space and 4-space
+indentation:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;# Backup original&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;cp&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; pipeline.yaml /tmp/pipeline_backup.yaml&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;# Fix with yaml-janitor&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;yaml-janitor&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; --fix --indentation 2&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; pipeline.yaml&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;# Verify semantics preserved&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;ruby&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; -ryaml -e&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;  orig = YAML.load_file(&amp;#39;/tmp/pipeline_backup.yaml&amp;#39;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;  fixed = YAML.load_file(&amp;#39;pipeline.yaml&amp;#39;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;  puts orig == fixed ? &amp;#39;✅ Semantics preserved&amp;#39; : &amp;#39;❌ MISMATCH&amp;#39;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;# Output: ✅ Semantics preserved&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The fix worked perfectly. Consistent indentation, all comments preserved,
+and semantics verified to be identical.&lt;/p&gt;
+&lt;h2 id=&quot;configuration-system&quot;&gt;Configuration System&lt;/h2&gt;
+&lt;p&gt;I added a configuration file system so teams can standardize their YAML
+formatting:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;yaml&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;# .yaml-janitor.yml&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;indentation&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 2&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;line_width&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 80&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;sequence_indent&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; false&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;rules&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  consistent_indentation&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    enabled&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; true&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  multiline_certificate&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    enabled&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; true&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The CLI supports both config files and command-line overrides:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;yaml-janitor&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; --config&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; .yaml-janitor.yml files/&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;*&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;.yml&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;yaml-janitor&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; --fix --indentation 2&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; config.yml&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;h2 id=&quot;publishing-to-rubygems&quot;&gt;Publishing to RubyGems&lt;/h2&gt;
+&lt;p&gt;Once the linter was working, I published it to RubyGems so anyone could
+use it. I set up automated publishing with GitHub Actions and RubyGems
+trusted publishing (no API keys needed):&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;yaml&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;name&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; Publish to RubyGems&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;on&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  push&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    tags&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;      - &amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;v*&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;jobs&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  publish&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    runs-on&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; ubuntu-latest&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    permissions&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;      contents&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; read&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;      id-token&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; write&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    steps&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;      -&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; uses&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; actions/checkout@v4&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;      -&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; uses&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; ruby/setup-ruby@v1&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;        with&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;          ruby-version&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: &amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;3.3&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;          bundler-cache&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; true&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;      -&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; uses&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; rubygems/release-gem@v1&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The release process is now fully automated:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Update version number (date-based: YYYYMMDD)&lt;/li&gt;
+&lt;li&gt;Run &lt;code&gt;bundle install&lt;/code&gt; to update lockfile&lt;/li&gt;
+&lt;li&gt;Commit and push to main&lt;/li&gt;
+&lt;li&gt;Create and push tag: &lt;code&gt;git tag v20251113 &amp;amp;&amp;amp; git push origin v20251113&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;GitHub Actions automatically publishes to RubyGems&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h2 id=&quot;results&quot;&gt;Results&lt;/h2&gt;
+&lt;p&gt;yaml-janitor is now published and available on RubyGems:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;gem&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; install yaml-janitor&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;yaml-janitor&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; --help&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Production validation results:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Scanned 1,736 YAML files&lt;/li&gt;
+&lt;li&gt;Found 0 corrupt files&lt;/li&gt;
+&lt;li&gt;Fixed widespread formatting inconsistencies&lt;/li&gt;
+&lt;li&gt;Preserved all comments during fixes&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;People are already using it to lint their YAML configurations.&lt;/p&gt;
+&lt;h2 id=&quot;the-five-year-solution&quot;&gt;The Five-Year Solution&lt;/h2&gt;
+&lt;p&gt;The problem my coworker identified in 2021 is finally solved. Teams can
+now safely automate YAML editing without losing critical context in
+comments. The infrastructure was already there, it just needed psych-pure
+to stabilize and someone to finish building the tooling.&lt;/p&gt;
+&lt;p&gt;yaml-janitor is open source and available on
+&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/yaml-janitor&quot;&gt;GitHub&lt;/a&gt; and
+&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://rubygems.org/gems/yaml-janitor&quot;&gt;RubyGems&lt;/a&gt;. If you&#39;ve ever had
+to choose between manual YAML editing and losing your comments, check
+it out.&lt;/p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

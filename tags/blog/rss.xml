@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - blog</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/blog/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Sat, 24 Oct 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Where a Blog Post Goes</title>
+          <pubDate>Sat, 24 Oct 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/where-a-blog-post-goes/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/where-a-blog-post-goes/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/where-a-blog-post-goes/">&lt;p&gt;On September 26, I published &lt;a href=&quot;/blog/2026/goodbye-to-the-hard-parts-that-never-mattered/&quot;&gt;Goodbye to the Hard Parts That Never
+Mattered&lt;/a&gt;. It was a
+response to another post about what AI is changing in software engineering.&lt;/p&gt;
+&lt;p&gt;By October 24, GoatCounter had recorded 4,818 visits to it. On September 28
+alone, it recorded 3,229.&lt;/p&gt;
+&lt;p&gt;Those are big numbers for this blog. But the part that surprised me most was
+the list of places people came from.&lt;/p&gt;
+&lt;p&gt;TLDR. Hacker News. Labnotes. Brutalist Report. LinkedIn. Google. Kagi. Slack.
+Microsoft Teams.&lt;/p&gt;
+&lt;p&gt;A newsletter, a discussion site, curated reading lists, search engines, and
+work chats. All leading to the same Markdown file on my VPS.&lt;/p&gt;
+&lt;h2 id=&quot;the-large-sources-and-the-small-ones&quot;&gt;The large sources and the small ones&lt;/h2&gt;
+&lt;p&gt;I queried the SQLite database behind my self-hosted GoatCounter instance. These
+are some of the referral counts from publication through October 24:&lt;/p&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Source&lt;/th&gt;&lt;th style=&quot;text-align: right&quot;&gt;Visits&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;TLDR Newsletter&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;2,277&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Hacker News&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;978&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Labnotes&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;67&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Brutalist Report&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;52&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;LinkedIn&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;43&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Google&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;31&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Microsoft Teams related referrer&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;18&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Kagi&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;15&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Slack&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;12&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;p&gt;Another 1,155 visits had no recorded referrer. That bucket could include
+bookmarks, email, private messages, and browsers that strip the information.
+It does not tell me which.&lt;/p&gt;
+&lt;p&gt;TLDR and Hacker News account for about two-thirds of the article&#39;s counted
+visits. They explain most of the volume.&lt;/p&gt;
+&lt;p&gt;But twelve visits from Slack are interesting in a different way.&lt;/p&gt;
+&lt;p&gt;A referrer cannot tell me what someone said when they shared the link. Maybe
+it supported an argument. Maybe someone thought it was bullshit. Maybe it
+landed in a channel full of links that nobody had time to read.&lt;/p&gt;
+&lt;p&gt;I have no idea. I can see the click that reached my site. Everything around it
+is missing.&lt;/p&gt;
+&lt;p&gt;The same is true of the Teams-related traffic. It suggests a route through a
+workplace tool, without giving me a window into the workplace. I find that
+little trace more interesting than its contribution to the total.&lt;/p&gt;
+&lt;p&gt;I also found Nathan Pettit responding to the article on LinkedIn. He agreed
+with parts of it and pushed back on others. Someone else had saved it to
+Scholion with annotations. Those tell me something a referral count cannot:
+someone took the time to formulate a counterargument, and someone else took
+notes. In the traffic data, either interaction could look like another click,
+if it appeared at all.&lt;/p&gt;
+&lt;p&gt;Then there are the tracked email clicks. For several days, I have been
+watching links with HubSpot tracking parameters arrive without being able to
+identify the sender. I can recognize the distribution technology. I still do
+not know which email carried the link or what it said.&lt;/p&gt;
+&lt;h2 id=&quot;a-different-kind-of-discovery&quot;&gt;A different kind of discovery&lt;/h2&gt;
+&lt;p&gt;In May, I wrote about &lt;a href=&quot;/blog/2026/blog-stats-six-numbers/&quot;&gt;six numbers from this blog&#39;s
+analytics&lt;/a&gt;. The biggest single-day spike I
+found then was 33 visits to a post about Nix shells, SSH, and Claude Code.&lt;/p&gt;
+&lt;p&gt;The pattern at the time was specific technical problems getting found through
+search. Someone hits an error, searches for it, and finds the thing I wrote
+when I hit the same error. A small post keeps being useful months later.&lt;/p&gt;
+&lt;p&gt;I still like that pattern. A lot of this blog exists because I would rather
+write down the fix once than figure it out again six months from now.&lt;/p&gt;
+&lt;p&gt;This post had a different shape. It was an essay about the work itself, and
+people reached it through newsletters, reading lists, and links shared with
+other people. Google accounted for just 31 visits in the referral data.&lt;/p&gt;
+&lt;p&gt;That is an interesting addition to what I saw in May. The technical posts
+were being discovered through a problem someone already had. This one could
+turn up among the things someone else thought were worth reading.&lt;/p&gt;
+&lt;p&gt;The countries were varied too. The United States supplied the largest share,
+followed by the United Kingdom, Germany, Canada, and Australia. Those are the
+top five, not the whole list.&lt;/p&gt;
+&lt;p&gt;There are several kinds of distance in that data. Geographic distance is the
+one with country names. The distance between my blog and a work chat I will
+never see is harder to measure.&lt;/p&gt;
+&lt;h2 id=&quot;what-the-numbers-leave-out&quot;&gt;What the numbers leave out&lt;/h2&gt;
+&lt;p&gt;These are recorded visits, not 4,818 distinct people. They do not tell me how
+many people finished the post or agreed with it. October 24 was also still in
+progress when I ran the queries.&lt;/p&gt;
+&lt;p&gt;The site recorded 45 helpful-click events associated with the article. That
+is another small piece of feedback, with plenty left unexplained.&lt;/p&gt;
+&lt;p&gt;I could spend a lot of time trying to turn all of this into a strategy. Find
+the right subject. Get into the right newsletter. Reproduce the spike.&lt;/p&gt;
+&lt;p&gt;What interests me more is how many routes showed up at all.&lt;/p&gt;
+&lt;p&gt;I wrote a response to something I read. It became something other people
+could read, search for, collect, or pass along. Some of those routes left a
+name in a database. Plenty probably did not.&lt;/p&gt;
+&lt;p&gt;A dozen Slack visits will not dominate a traffic chart. They were still
+someone following a link to something I wrote.&lt;/p&gt;
+&lt;p&gt;That is a pretty good reason to keep publishing.&lt;/p&gt;
+</description>
+      </item>
+      <item>
+          <title>Six numbers from my blog&#39;s analytics</title>
+          <pubDate>Sun, 17 May 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/blog-stats-six-numbers/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/blog-stats-six-numbers/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/blog-stats-six-numbers/">&lt;p&gt;I recently noticed that the 1 year anniversary of my blog came and went. I was curious about how much traffic I got so I took a look.&lt;/p&gt;
+&lt;p&gt;I sshed into my VPS and pointed sqlite at the GoatCounter database that powers my analytics. Six numbers stood out.&lt;/p&gt;
+&lt;p&gt;For context: this blog gets modest traffic. Usually 20-50 unique visitors a day, mostly from search. I&#39;m not actively trying to grow it, I just write. But the data is interesting because it shows what people actually read versus what I assumed they would.&lt;/p&gt;
+&lt;h2 id=&quot;1-biggest-single-day-spike-33-hits&quot;&gt;1. Biggest single-day spike: 33 hits&lt;/h2&gt;
+&lt;p&gt;On 2026-05-11, the post &lt;a href=&quot;/blog/2026/nix-shells-ssh-claude-code/&quot;&gt;Nix shells, SSH, and Claude Code&lt;/a&gt; got 33 visits in one day. That&#39;s the single biggest day for any post I&#39;ve published.&lt;/p&gt;
+&lt;p&gt;For comparison, the next biggest days were 25 (a January post called &lt;a href=&quot;/blog/2026/letting-ai-pick-the-project/&quot;&gt;Letting AI pick the project&lt;/a&gt;), 19 (&lt;a href=&quot;/blog/2026/how-a-friends-gif-broke-our-filesystem/&quot;&gt;How a friend&#39;s gif broke our filesystem&lt;/a&gt;), and 13 (&lt;a href=&quot;/blog/2026/rewriting-claude-code-in-rust-with-claude/&quot;&gt;Rewriting Claude Code in Rust&lt;/a&gt;).&lt;/p&gt;
+&lt;p&gt;The pattern is obvious in hindsight: every spike came from a post solving a specific problem someone was searching for. None of them are essays. None of them are opinions. They&#39;re all &quot;here&#39;s a weird thing I ran into and how I fixed it.&quot;&lt;/p&gt;
+&lt;p&gt;This is the closest thing I have to &quot;going viral,&quot; and it&#39;s about a 30-line shell.nix.&lt;/p&gt;
+&lt;h2 id=&quot;2-fastest-rising-nixos-claude-code&quot;&gt;2. Fastest rising: NixOS + Claude Code&lt;/h2&gt;
+&lt;p&gt;In the last seven days versus the prior seven, the two biggest gainers are both about running Claude Code on NixOS:&lt;/p&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Post&lt;/th&gt;&lt;th style=&quot;text-align: right&quot;&gt;Last 7d&lt;/th&gt;&lt;th style=&quot;text-align: right&quot;&gt;Prev 7d&lt;/th&gt;&lt;th style=&quot;text-align: right&quot;&gt;Delta&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;&lt;a href=&quot;/blog/2026/nix-shells-ssh-claude-code/&quot;&gt;Nix shells, SSH, and Claude Code&lt;/a&gt;&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;49&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;10&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;+39&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;a href=&quot;/blog/2026/running-claude-code-on-nixos/&quot;&gt;Running Claude Code on NixOS&lt;/a&gt;&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;34&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;9&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;+25&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;p&gt;That&#39;s probably not a coincidence. Anthropic must have changed something recently that caused more people to hit problems running Claude Code on NixOS, and search engines surface my posts as the fix.&lt;/p&gt;
+&lt;p&gt;The two posts also feed each other. Readers land on one, then click through to the other. Internal linking matters more than I expected.&lt;/p&gt;
+&lt;h2 id=&quot;3-fastest-out-the-gate-88-hits-in-the-first-30-days&quot;&gt;3. Fastest out the gate: 88 hits in the first 30 days&lt;/h2&gt;
+&lt;p&gt;The previous numbers measure &quot;popular right now.&quot; A different question is &quot;which posts hit hardest in their first month after publishing?&quot;&lt;/p&gt;
+&lt;p&gt;The top five by views in the first 30 days after their publish date:&lt;/p&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Post&lt;/th&gt;&lt;th&gt;Published&lt;/th&gt;&lt;th style=&quot;text-align: right&quot;&gt;First 30d&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;&lt;a href=&quot;/blog/2026/rewriting-claude-code-in-rust-with-claude/&quot;&gt;Rewriting Claude Code in Rust&lt;/a&gt;&lt;/td&gt;&lt;td&gt;2026-04-01&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;88&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;a href=&quot;/blog/2026/running-claude-code-on-nixos/&quot;&gt;Running Claude Code on NixOS&lt;/a&gt;&lt;/td&gt;&lt;td&gt;2026-05-07&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;43&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;a href=&quot;/blog/2026/letting-ai-pick-the-project/&quot;&gt;Letting AI pick the project&lt;/a&gt;&lt;/td&gt;&lt;td&gt;2026-01-19&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;37&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;a href=&quot;/blog/2025/skin-shedding-not-bikeshedding/&quot;&gt;Skin shedding, not bikeshedding&lt;/a&gt;&lt;/td&gt;&lt;td&gt;2025-11-23&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;32&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;a href=&quot;/blog/2026/rewriting-claude-code-in-rust-part-2/&quot;&gt;Rewriting Claude Code in Rust (Part 2)&lt;/a&gt;&lt;/td&gt;&lt;td&gt;2026-04-02&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;29&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;p&gt;The Rust + Claude post is in its own tier. It got 47 of those 88 hits in the first 7 days. That&#39;s almost certainly a referral spike from somewhere - Hacker News, Lobsters, a Mastodon boost, hard to say without per-day referrer data.&lt;/p&gt;
+&lt;p&gt;This is a different shape from the NixOS posts. The NixOS surge is search-driven and building over weeks. The Rust + Claude launch was a sharp burst that mostly came and went. Both are &quot;popular.&quot; Only one keeps compounding.&lt;/p&gt;
+&lt;h2 id=&quot;4-longest-site-wide-streak-119-days&quot;&gt;4. Longest site-wide streak: 119 days&lt;/h2&gt;
+&lt;p&gt;Every single day from 2026-01-19 to today, at least one post on this blog has been read by someone. That&#39;s 119 consecutive days without a gap.&lt;/p&gt;
+&lt;p&gt;The previous longest streak was 49 days. Before that, 29. Before that, 25.&lt;/p&gt;
+&lt;p&gt;This is what &quot;getting indexed&quot; actually looks like as a curve.&lt;/p&gt;
+&lt;p&gt;Before indexing, your blog gets read on days when you publish something or share a link somewhere. After indexing, it gets read every day, forever, because somebody somewhere is searching for a problem you wrote about.&lt;/p&gt;
+&lt;p&gt;That shift was the biggest surprise from all this data. The traffic doesn&#39;t spike and disappear anymore. It compounds.&lt;/p&gt;
+&lt;h2 id=&quot;5-longest-per-post-streak-32-days&quot;&gt;5. Longest per-post streak: 32 days&lt;/h2&gt;
+&lt;p&gt;&lt;a href=&quot;/blog/2026/nix-shells-ssh-claude-code/&quot;&gt;Nix shells, SSH, and Claude Code&lt;/a&gt; was read every day from 2026-03-26 to 2026-04-26 - 32 consecutive days. That&#39;s the longest streak any single post has had.&lt;/p&gt;
+&lt;p&gt;The next best are all under two weeks:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;/blog/2026/rewriting-claude-code-in-rust-with-claude/&quot;&gt;Rewriting Claude Code in Rust&lt;/a&gt;: 13 days (twice)&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;/blog/2025/hyprland-tricks-close-window-confirmation/&quot;&gt;Hyprland tricks: close window confirmation&lt;/a&gt;: 13 days&lt;/li&gt;
+&lt;li&gt;Same hyprland post again: 11 days, then 10, then 8, then 7&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The hyprland post is still the quiet workhorse of the blog. Published in 2025, it&#39;s been read at least once on 146 different days. About 1.8 hits per day on average, every week, for nearly a year.&lt;/p&gt;
+&lt;p&gt;Nothing else comes close to that consistency.&lt;/p&gt;
+&lt;p&gt;If you can choose the problems you write about, choose ones that everybody eventually hits and that nobody else has documented clearly.&lt;/p&gt;
+&lt;p&gt;Length is uncorrelated with traffic.&lt;/p&gt;
+&lt;p&gt;Problem-specificity is.&lt;/p&gt;
+&lt;p&gt;The hyprland post is one paragraph and a screenshot. The nix-shells post is six paragraphs. Both outperform longer essays by a wide margin.&lt;/p&gt;
+&lt;h2 id=&quot;6-where-readers-actually-come-from&quot;&gt;6. Where readers actually come from&lt;/h2&gt;
+&lt;p&gt;Top 10 referrers, last 90 days:&lt;/p&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Source&lt;/th&gt;&lt;th style=&quot;text-align: right&quot;&gt;Hits&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;(direct)&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;391&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Google&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;382&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;duckduckgo.com&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;45&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;jakegoldsborough.com/blog&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;37&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;/tags/nixos&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;33&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;/blog/2026/nix-shells-ssh-claude-code&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;32&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;/resume&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;32&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;jakegoldsborough.com&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;29&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;kagi.com&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;19&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Hacker News&lt;/td&gt;&lt;td style=&quot;text-align: right&quot;&gt;14&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;p&gt;A few things stood out immediately:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Direct and Google are basically tied.&lt;/strong&gt; &quot;Direct&quot; includes users with stripped referrer headers, privacy-focused browsers, chat apps, bookmarks, and manually typed URLs. In practice, a lot of &quot;direct&quot; is probably search-driven too.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;DuckDuckGo (45) and Kagi (19) combined still trail Google by an order of magnitude.&lt;/strong&gt; Kagi has a much smaller user base than Google, so this isn&#39;t surprising, but it&#39;s a useful reality check on how niche the alternative-search world still is.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Internal navigation matters.&lt;/strong&gt; The /blog index, /tags/nixos, and even /resume page each drive 30+ clicks. Once someone lands on the site, they often keep exploring.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Hacker News isn&#39;t the firehose people imagine.&lt;/strong&gt; A front-page post probably changes the math, but a link in /new creates a short spike and then vanishes quickly.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The more surprising pattern is that almost all long-term traffic comes from search and internal links, not social media.&lt;/p&gt;
+&lt;h2 id=&quot;what-i-d-do-differently&quot;&gt;What I&#39;d do differently&lt;/h2&gt;
+&lt;p&gt;Honestly? Nothing.&lt;/p&gt;
+&lt;p&gt;I&#39;m not optimizing for traffic. But if I were, the data points toward one obvious strategy:&lt;/p&gt;
+&lt;p&gt;Write more posts documenting highly specific problems with highly specific solutions.&lt;/p&gt;
+&lt;p&gt;Not opinions.&lt;/p&gt;
+&lt;p&gt;Not giant tutorials covering everything.&lt;/p&gt;
+&lt;p&gt;Just the thing somebody searches for after they hit a wall at 1am.&lt;/p&gt;
+&lt;p&gt;Small technical posts outperform broad polished essays by a huge margin. At least on this blog.&lt;/p&gt;
+&lt;h2 id=&quot;how-i-got-this-data&quot;&gt;How I got this data&lt;/h2&gt;
+&lt;p&gt;GoatCounter ships a SQLite database. I ssh into my VPS, run &lt;code&gt;nix-shell -p sqlite&lt;/code&gt;, and query it directly.&lt;/p&gt;
+&lt;p&gt;The two most useful tables are:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;paths&lt;/code&gt;: post URLs and titles&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;hit_counts&lt;/code&gt;: hour-bucketed view counts joined by &lt;code&gt;path_id&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The streak queries use the standard SQL trick of subtracting a row number from a date. Rows with the same difference belong to the same consecutive run.&lt;/p&gt;
+&lt;p&gt;If you self-host GoatCounter, the same queries work on your data. If you don&#39;t, the API exposes most of this through &lt;code&gt;/api/v0/stats/hits&lt;/code&gt; and related endpoints.&lt;/p&gt;
+&lt;p&gt;The funny part is that after a year of blogging, the strongest signal wasn&#39;t traffic volume.&lt;/p&gt;
+&lt;p&gt;It was consistency.&lt;/p&gt;
+&lt;p&gt;Once a post solves a real problem and gets indexed, it just keeps quietly working in the background forever.&lt;/p&gt;
+</description>
+      </item>
+      <item>
+          <title>A &#39;Was this helpful?&#39; button for a static blog</title>
+          <pubDate>Sat, 16 May 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/was-this-helpful-button/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/was-this-helpful-button/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/was-this-helpful-button/">&lt;p&gt;I write a lot here. I don&#39;t have comments. I don&#39;t want comments. But I do want some signal about which posts are actually landing - not &quot;did someone load the page&quot; (GoatCounter already tells me that) but &quot;did this post help someone.&quot;&lt;/p&gt;
+&lt;p&gt;So I added a small button at the bottom of every post:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Was this helpful?
+[ Yep, this helped ]&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Click it once and it swaps to a thank-you line. Click is recorded as a GoatCounter event. No login, no comment box, no thumbs down. Per-browser dedupe via localStorage so the same person can&#39;t pad the number by refreshing.&lt;/p&gt;
+&lt;p&gt;This post is how it works.&lt;/p&gt;
+&lt;h2 id=&quot;constraints&quot;&gt;Constraints&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;The site is a static Zola build. I don&#39;t want a backend, a database, or auth.&lt;/li&gt;
+&lt;li&gt;I already use &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://www.goatcounter.com/&quot;&gt;GoatCounter&lt;/a&gt; for analytics. I don&#39;t want a second analytics dependency.&lt;/li&gt;
+&lt;li&gt;It has to keep working with JavaScript off, in the sense of not being broken. The widget can be inert when JS is disabled, but the page shouldn&#39;t render a button that lies about doing something.&lt;/li&gt;
+&lt;li&gt;No thumbs down. Negative feedback without a way to discuss it is just background noise.&lt;/li&gt;
+&lt;li&gt;Mobile-friendly. A pill-shaped button with a 44px tap target on small screens.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;the-shape&quot;&gt;The shape&lt;/h2&gt;
+&lt;p&gt;Three new files plus three small edits to existing templates.&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;templates/macros/helpful.html      (new — Tera macro)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;static/css/helpful.css             (new — scoped styles)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;static/js/helpful.js               (new — ~25 lines)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;templates/page.html                (import + render the macro)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;templates/base.html                (load the JS)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;static/css/style.css               (@import the CSS)&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The whole feature is under 70 lines total.&lt;/p&gt;
+&lt;h2 id=&quot;goatcounter-does-the-click&quot;&gt;GoatCounter does the click&lt;/h2&gt;
+&lt;p&gt;The first thing I learned reading &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://www.goatcounter.com/help/events&quot;&gt;the GoatCounter events docs&lt;/a&gt;: you don&#39;t have to write a click handler. Any element with a &lt;code&gt;data-goatcounter-click&lt;/code&gt; attribute gets bound automatically. The attribute&#39;s value is the event name; &lt;code&gt;data-goatcounter-title&lt;/code&gt; sets a human-readable title.&lt;/p&gt;
+&lt;p&gt;So the Tera macro just stamps the button:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;jinja&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{%&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; macro&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; widget&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;page&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;span&gt; %}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  {%&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; set&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; slug&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; page&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;path&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;       |&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; replace&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;from&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;/&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; to&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;-&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;       |&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; trim_start_matches&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;pat&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;-&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;       |&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; trim_end_matches&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;pat&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;-&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;)&lt;/span&gt;&lt;span&gt; %}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  {%&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; set&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; event_name&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;helpful-&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span&gt; ~ &lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;slug&lt;/span&gt;&lt;span&gt; %}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  &amp;lt;aside class=&amp;quot;helpful&amp;quot; data-helpful-path=&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;{{ page&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;path }}&lt;/span&gt;&lt;span&gt;&amp;quot;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    &amp;lt;p class=&amp;quot;helpful-prompt&amp;quot;&amp;gt;Was this helpful?&amp;lt;/p&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    &amp;lt;button&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;      type=&amp;quot;button&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;      class=&amp;quot;helpful-button&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;      data-helpful-action=&amp;quot;vote&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;      data-goatcounter-click=&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;{{ event_name }}&lt;/span&gt;&lt;span&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;      data-goatcounter-title=&amp;quot;Helpful click on &lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;{{ slug }}&lt;/span&gt;&lt;span&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    &amp;gt;Yep, this helped&amp;lt;/button&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    &amp;lt;p class=&amp;quot;helpful-thanks&amp;quot; hidden&amp;gt;✓ Glad it helped&amp;lt;/p&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  &amp;lt;/aside&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{%&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; endmacro&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; widget&lt;/span&gt;&lt;span&gt; %}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The slug is the post path with slashes replaced by dashes and the leading/trailing dashes trimmed. So &lt;code&gt;/blog/2026/was-this-helpful-button/&lt;/code&gt; becomes &lt;code&gt;helpful-blog-2026-was-this-helpful-button&lt;/code&gt;. Each post is its own row in GoatCounter&#39;s event list.&lt;/p&gt;
+&lt;p&gt;One gotcha: GoatCounter rejects event paths that start with &lt;code&gt;/&lt;/code&gt; (the path doubles as the event name, and they reserve &lt;code&gt;/&lt;/code&gt; as a real-path marker). If you forget to strip the leading slash, your events silently don&#39;t get recorded.&lt;/p&gt;
+&lt;h2 id=&quot;javascript-handles-the-dedupe&quot;&gt;JavaScript handles the dedupe&lt;/h2&gt;
+&lt;p&gt;GoatCounter records the click. localStorage remembers it. The script only does the visual swap:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;javascript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;function&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; () {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  var&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; widget&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; document&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;querySelector&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;.helpful[data-helpful-path]&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  if&lt;/span&gt;&lt;span&gt; (&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;!&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;widget&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; return&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  var&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; path&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; widget&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;getAttribute&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;data-helpful-path&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  var&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; storageKey&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;helpful:&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; +&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; path&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  var&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; button&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; widget&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;querySelector&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;[data-helpful-action=&amp;quot;vote&amp;quot;]&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  var&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; thanks&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; widget&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;querySelector&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;.helpful-thanks&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  function&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; showThanks&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;() {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    button&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;hidden&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; true&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    thanks&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;hidden&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; false&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;  }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  try&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;    if&lt;/span&gt;&lt;span&gt; (&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;localStorage&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;getItem&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;storageKey&lt;/span&gt;&lt;span&gt;))&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;      showThanks&lt;/span&gt;&lt;span&gt;()&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;      return&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;  }&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; catch&lt;/span&gt;&lt;span&gt; (&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;e&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;    // Private browsing / storage disabled: continue without persistence.&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;  }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;  button&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;addEventListener&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;click&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;,&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt; function&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; () {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;    try&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;      localStorage&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;setItem&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;storageKey&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; Date&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;now&lt;/span&gt;&lt;span&gt;()&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;toString&lt;/span&gt;&lt;span&gt;())&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    }&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; catch&lt;/span&gt;&lt;span&gt; (&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;e&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;      // ignore&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;    showThanks&lt;/span&gt;&lt;span&gt;()&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;  }&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;span&gt;)()&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Twenty-five lines. No framework, no dependencies, no async, no fetch. The &lt;code&gt;try/catch&lt;/code&gt; blocks around localStorage are for Safari private mode and embedded webviews, where &lt;code&gt;localStorage&lt;/code&gt; throws on access rather than just being absent.&lt;/p&gt;
+&lt;h2 id=&quot;edge-cases-i-thought-about&quot;&gt;Edge cases I thought about&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;Tracker blockers.&lt;/strong&gt; If your readers run uBlock Origin or similar, count.js gets blocked and the click goes nowhere. The UI still swaps state, so they don&#39;t see a broken button - the dashboard just under-counts. Acceptable for a directional metric.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;localStorage disabled.&lt;/strong&gt; Try/catch keeps the UI working; users in this mode can vote again across reloads. Tolerable for a directional metric.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Same person, multiple browsers.&lt;/strong&gt; Each browser counts once. There&#39;s no way to deduplicate without auth, and I don&#39;t want auth.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;JS disabled.&lt;/strong&gt; The button renders but does nothing. I&#39;d rather show a friendly prompt that can&#39;t be acted on than hide the section entirely. If you find that offensive, a one-liner in &lt;code&gt;&amp;lt;noscript&amp;gt;&lt;/code&gt; hides it.&lt;/p&gt;
+&lt;h2 id=&quot;what-i-learned-about-goatcounter&quot;&gt;What I learned about GoatCounter&lt;/h2&gt;
+&lt;p&gt;Three things that aren&#39;t obvious from the docs:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Events show up in the same Pages view as pageviews.&lt;/strong&gt; I expected a separate &quot;Events&quot; tab. There isn&#39;t one. The events are inlined into the regular pages list, marked with their event title.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;The GIF response is always 200.&lt;/strong&gt; GoatCounter returns a 1x1 GIF for every count request, regardless of whether the hit was actually recorded. You can&#39;t tell from HTTP status alone whether your event registered. The signal is whether it shows up in the dashboard.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;&lt;code&gt;data-goatcounter-click&lt;/code&gt; is dramatically simpler than calling &lt;code&gt;window.goatcounter.count()&lt;/code&gt; manually.&lt;/strong&gt; First version of this widget did the manual call. Second version reads the data attribute. Same behavior, less code, less to break.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h2 id=&quot;what-i-m-not-doing&quot;&gt;What I&#39;m not doing&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;No &quot;X people found this helpful&quot; counter.&lt;/strong&gt; GoatCounter&#39;s API doesn&#39;t expose per-page event counts to the client, so showing the number would require a backend. I don&#39;t care enough.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;No reading-time gate.&lt;/strong&gt; I considered only showing the button after 30 seconds or 60% scroll, to filter skim-clicks. I&#39;ll add it if the noise becomes annoying. For now, every click is signal.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;No newsletter pitch on click.&lt;/strong&gt; &quot;Glad it helped - want more?&quot; would convert better. But I don&#39;t have a newsletter, so it&#39;d be a lie.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;try-it&quot;&gt;Try it&lt;/h2&gt;
+&lt;p&gt;There&#39;s one at the bottom of this post. If this was useful, click it.&lt;/p&gt;
+&lt;p&gt;I&#39;ll know whether the post landed because the dashboard will tell me. Not in pageviews. In &lt;code&gt;helpful-blog-2026-was-this-helpful-button&lt;/code&gt;.&lt;/p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

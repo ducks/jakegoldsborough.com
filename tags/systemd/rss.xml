@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - systemd</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/systemd/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Sat, 10 Jan 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Running VPS Infrastructure with Systemd</title>
+          <pubDate>Sat, 10 Jan 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/running-infrastructure-with-systemd/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/running-infrastructure-with-systemd/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/running-infrastructure-with-systemd/">&lt;p&gt;I run all my personal infrastructure on a single VPS using systemd
+services instead of Docker. No containers, no orchestration, just
+systemd units and bash scripts.&lt;/p&gt;
+&lt;h2 id=&quot;why-not-docker&quot;&gt;Why Not Docker?&lt;/h2&gt;
+&lt;p&gt;Docker is fine, but for a single VPS it felt like overhead. I wanted something simpler
+and built-in. I initially started with Docker but was constantly hitting
+networking issues with services communicating.&lt;/p&gt;
+&lt;p&gt;Systemd already handles process supervision, logging, and restarts. Why
+add another layer?&lt;/p&gt;
+&lt;h2 id=&quot;what-s-running&quot;&gt;What&#39;s Running&lt;/h2&gt;
+&lt;p&gt;The VPS hosts:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Gitea&lt;/strong&gt; - Git hosting at code.jakegoldsborough.com&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Woodpecker CI&lt;/strong&gt; - Continuous integration (idle for now)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Scrob&lt;/strong&gt; - Music scrobbling server (see &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://jakegoldsborough.com/blog/2026/building-scrob-self-hosted-scrobbling/&quot;&gt;previous
+post&lt;/a&gt;)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;GoatCounter&lt;/strong&gt; (3 instances) - Analytics for multiple sites&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Caddy&lt;/strong&gt; - Reverse proxy with automatic HTTPS&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;PostgreSQL&lt;/strong&gt; - Shared database for Gitea, Woodpecker, and Scrob&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Everything runs as dedicated system users with systemd units managing
+their lifecycle.&lt;/p&gt;
+&lt;h2 id=&quot;how-it-works&quot;&gt;How It Works&lt;/h2&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Caddy (reverse proxy + TLS)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    |&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    +-- code.jakegoldsborough.com -&amp;gt; Gitea (port 3000)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    +-- ci.jakegoldsborough.com -&amp;gt; Woodpecker (port 8000)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    +-- scrob.jakegoldsborough.com -&amp;gt; Scrob (port 3002)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    +-- ui.scrob.jakegoldsborough.com -&amp;gt; Scrob UI (static files)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    +-- stats.jakegoldsborough.com -&amp;gt; GoatCounter (port 8081)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    +-- stats.date-ver.com -&amp;gt; GoatCounter (port 8082)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    +-- stats.gnarlyvoid.com -&amp;gt; GoatCounter (port 8083)&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Each service runs as a systemd unit. Caddy handles TLS termination and
+proxies requests to the appropriate backend.&lt;/p&gt;
+&lt;h2 id=&quot;the-repository-structure&quot;&gt;The Repository Structure&lt;/h2&gt;
+&lt;p&gt;The entire setup lives in a git repo called &lt;code&gt;burrow-systemd&lt;/code&gt;:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;burrow-systemd/&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;├── systemd/            # Service unit files&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│   ├── gitea.service&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│   ├── woodpecker-server.service&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│   ├── scrob.service&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│   ├── goatcounter-*.service&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│   └── caddy.service&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;├── config/             # Service configurations&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│   ├── Caddyfile&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│   ├── gitea/app.ini&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│   ├── woodpecker/server.env&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;│   └── scrob/scrob.env&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;└── bin/                # Deployment scripts&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    ├── bootstrap       # Initial setup&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    ├── deploy          # Update and restart&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    ├── update          # Check and apply updates&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    └── backup          # Backup databases&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Configuration is declarative. Change a config file, commit, push, pull
+on the VPS, run &lt;code&gt;./bin/deploy&lt;/code&gt;, done.&lt;/p&gt;
+&lt;h2 id=&quot;bootstrap-script&quot;&gt;Bootstrap Script&lt;/h2&gt;
+&lt;p&gt;The bootstrap script sets up everything from scratch:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Installs packages (Caddy, PostgreSQL)&lt;/li&gt;
+&lt;li&gt;Downloads service binaries (Gitea, GoatCounter, Woodpecker)&lt;/li&gt;
+&lt;li&gt;Creates system users (&lt;code&gt;gitea&lt;/code&gt;, &lt;code&gt;goatcounter&lt;/code&gt;, &lt;code&gt;scrob&lt;/code&gt;, etc.)&lt;/li&gt;
+&lt;li&gt;Initializes PostgreSQL databases&lt;/li&gt;
+&lt;li&gt;Generates secure passwords and tokens&lt;/li&gt;
+&lt;li&gt;Copies config files from templates&lt;/li&gt;
+&lt;li&gt;Installs systemd service files&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Run once on a fresh VPS:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;sudo&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; ./bin/bootstrap&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;It generates a &lt;code&gt;.env&lt;/code&gt; file with all secrets and database passwords. This
+file is git-ignored and stays on the server.&lt;/p&gt;
+&lt;h2 id=&quot;deploy-script&quot;&gt;Deploy Script&lt;/h2&gt;
+&lt;p&gt;The deploy script handles updates and restarts:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Updates configuration files (substitutes passwords from &lt;code&gt;.env&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;Copies service files to &lt;code&gt;/etc/systemd/system/&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Reloads systemd&lt;/li&gt;
+&lt;li&gt;Creates databases if they don&#39;t exist&lt;/li&gt;
+&lt;li&gt;Enables and restarts all services&lt;/li&gt;
+&lt;li&gt;Checks service status&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;After changing config locally:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;git&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; add config/Caddyfile&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;git&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; commit&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; -m&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Update reverse proxy config&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;git&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; push&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;# On VPS&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;cd&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; ~/dev/burrow-systemd&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;git&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; pull&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;sudo&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; ./bin/deploy&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The deploy script is idempotent. Run it as many times as you want.&lt;/p&gt;
+&lt;h2 id=&quot;service-updates&quot;&gt;Service Updates&lt;/h2&gt;
+&lt;p&gt;Updates are automated via the update script. It checks GitHub releases
+for all services and downloads new binaries when available:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;# Check what needs updating&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;sudo&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; ./bin/update check&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;# Apply all updates&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;sudo&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; ./bin/update apply&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;# Update specific service&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;sudo&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; ./bin/update apply gitea&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The script compares installed versions against the latest GitHub
+releases. If an update is available, it downloads the new binary, stops
+the service, replaces the binary, and restarts the service.&lt;/p&gt;
+&lt;p&gt;Scrob migrations run automatically on startup via &lt;code&gt;sqlx::migrate!()&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Simple and explicit.&lt;/p&gt;
+&lt;h2 id=&quot;database-strategy&quot;&gt;Database Strategy&lt;/h2&gt;
+&lt;p&gt;PostgreSQL is shared across Gitea, Woodpecker, and Scrob. Each service
+gets its own database and user with limited permissions.&lt;/p&gt;
+&lt;p&gt;GoatCounter uses SQLite because each instance is independent. Three
+separate SQLite databases, three separate systemd units, three separate
+ports.&lt;/p&gt;
+&lt;p&gt;No database clustering, no replication, no complexity. Daily backups via
+cron are enough for my use case.&lt;/p&gt;
+&lt;h2 id=&quot;what-works&quot;&gt;What Works&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Single command deployment (&lt;code&gt;./bin/deploy&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;Automated binary updates (&lt;code&gt;./bin/update&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;Centralized logging via journalctl&lt;/li&gt;
+&lt;li&gt;Automatic HTTPS via Caddy + Let&#39;s Encrypt&lt;/li&gt;
+&lt;li&gt;Service isolation via systemd users&lt;/li&gt;
+&lt;li&gt;Declarative config in git&lt;/li&gt;
+&lt;li&gt;Low memory footprint (no container runtime)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;what-doesn-t&quot;&gt;What Doesn&#39;t&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Can&#39;t easily move to a different host (not portable like containers)&lt;/li&gt;
+&lt;li&gt;Service isolation is weaker than containers&lt;/li&gt;
+&lt;li&gt;Harder to test locally (no docker-compose equivalent)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;security-model&quot;&gt;Security Model&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Each service runs as a dedicated system user&lt;/li&gt;
+&lt;li&gt;PostgreSQL only listens on localhost&lt;/li&gt;
+&lt;li&gt;TLS handled by Caddy (reverse proxy)&lt;/li&gt;
+&lt;li&gt;Secrets stored in &lt;code&gt;.env&lt;/code&gt; (git-ignored, mode 600)&lt;/li&gt;
+&lt;li&gt;No rate limiting (future work)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;All services bind to localhost and are only accessible via Caddy&#39;s
+reverse proxy. The VPS firewall blocks everything except 80, 443, and
+SSH.&lt;/p&gt;
+&lt;h2 id=&quot;reflections&quot;&gt;Reflections&lt;/h2&gt;
+&lt;p&gt;The best part is the simplicity. No Docker networking, no volume mounts,
+no image building. Just systemd units, config files, and bash scripts.&lt;/p&gt;
+&lt;p&gt;When something breaks, &lt;code&gt;journalctl -u &amp;lt;service&amp;gt;&lt;/code&gt; shows exactly what went
+wrong. No container layers to debug.&lt;/p&gt;
+&lt;p&gt;The tradeoff is portability. This setup is tied to the specific VPS and
+filesystem layout. Migrating to a new server means running bootstrap
+again and restoring database backups.&lt;/p&gt;
+&lt;p&gt;For my use case, that&#39;s fine. I&#39;m not running a multi-tenant SaaS. I&#39;m
+hosting services for myself.&lt;/p&gt;
+&lt;p&gt;That&#39;s enough.&lt;/p&gt;
+&lt;h2 id=&quot;links&quot;&gt;Links&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/burrow-systemd&quot;&gt;burrow-systemd&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://jakegoldsborough.com/blog/2026/building-scrob-self-hosted-scrobbling/&quot;&gt;Scrob blog post&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://about.gitea.com/&quot;&gt;Gitea&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://woodpecker-ci.org/&quot;&gt;Woodpecker CI&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://www.goatcounter.com/&quot;&gt;GoatCounter&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://caddyserver.com/&quot;&gt;Caddy&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</description>
+      </item>
+    </channel>
+</rss>

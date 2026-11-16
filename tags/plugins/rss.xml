@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - plugins</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/plugins/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Sun, 28 Jun 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>discourse-manager: A Community Management Sim Inside Discourse</title>
+          <pubDate>Sun, 28 Jun 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/discourse-manager-community-sim/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/discourse-manager-community-sim/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/discourse-manager-community-sim/">&lt;p&gt;There&#39;s a browser game called &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/plbrault/youre-the-os&quot;&gt;You are the
+OS&lt;/a&gt; where you play as a computer&#39;s
+operating system. Processes request memory, users get impatient, the machine
+dies if you can&#39;t keep up. It&#39;s a sim about a thing most people interact with
+every day but never think about.&lt;/p&gt;
+&lt;p&gt;I wanted to make that, but for community moderation.&lt;/p&gt;
+&lt;p&gt;The result is &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/discourse-manager&quot;&gt;discourse-manager&lt;/a&gt;,
+a Discourse plugin that turns your forum into the game. You play as the
+moderator. Fake users, fake posts, and fake drama are generated inside your
+actual Discourse instance and rendered with real Discourse components. The flag
+queue looks like the real flag queue. The user cards look like real user cards.
+The avatars, the trust level badges, the category labels - all real.&lt;/p&gt;
+&lt;p&gt;The whole joke is that it runs inside Discourse itself.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/ducks/discourse-manager/main/docs/screenshot.png&quot; alt=&quot;discourse-managerscreenshot&quot; /&gt;&lt;/p&gt;
+&lt;h2 id=&quot;the-game&quot;&gt;The game&lt;/h2&gt;
+&lt;p&gt;You manage four meters: community health, mod response time, spam rate, and
+user retention. Let any of them hit zero and the community collapses.&lt;/p&gt;
+&lt;p&gt;Flags come in continuously. Each one is a decision:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Approve&lt;/strong&gt; - the post stands, move on&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Remove&lt;/strong&gt; - gone&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Warn&lt;/strong&gt; - the user gets a PM, post stays&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Suspend&lt;/strong&gt; - off the forum for a while&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Ban&lt;/strong&gt; - gone for good, but take retention damage if you&#39;re wrong&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Speed matters. A flag that sits unresolved too long costs health. Clearing them
+fast restores response time. The tension is between acting fast and acting
+correctly.&lt;/p&gt;
+&lt;p&gt;On top of the queue, random events fire. Each has two or three resolution
+options with different tradeoffs across the meters.&lt;/p&gt;
+&lt;p&gt;Community events: a spicy topic goes viral and generates 30 flags in 60
+seconds, a wave of sockpuppets registers, two trusted users start fighting in a
+thread, a great newcomer shows up worth recognizing.&lt;/p&gt;
+&lt;p&gt;Technical incidents too: a plugin update ships and breaks something, the server
+goes down and users are posting about it on Twitter, a database migration fails
+in production, a CDN failure makes images disappear sitewide, a cleanup script
+runs with the wrong scope and takes out several categories. Each incident hits
+different meters - an outage tanks response time and health, a CDN failure
+hammers retention. The resolutions have real tradeoffs: push a hotfix live and
+risk making it worse, or roll back and eat the downtime.&lt;/p&gt;
+&lt;p&gt;Each day has a timer. When it ends you get a summary - flags resolved, bans
+issued, incidents handled - before starting the next one. Survive 30 days to
+win.&lt;/p&gt;
+&lt;h2 id=&quot;the-fake-community&quot;&gt;The fake community&lt;/h2&gt;
+&lt;p&gt;The forum is populated at game start with 40 generated users across five
+behavioral profiles: lurkers, contributors, trolls, spammers, and newbies. Each
+profile generates realistic-looking posts and a realistic probability of
+getting flagged.&lt;/p&gt;
+&lt;p&gt;The posts are the best part. A troll posts &quot;anyone who disagrees with me is
+just wrong, full stop.&quot; A spammer posts &quot;I make $4000/week working from home.
+DM me for details.&quot; A newbie asks &quot;HOW DO I CHANGE MY USERNAME?? I&#39;ve been
+trying for 20 minutes!!&quot; A contributor posts something thoughtful about why the
+community has been so toxic lately.&lt;/p&gt;
+&lt;p&gt;None of it is real. All of it feels real. That&#39;s the thing Discourse&#39;s design
+language does so well - the UI is so recognizable that fake content in it reads
+as plausible immediately.&lt;/p&gt;
+&lt;p&gt;Occasionally a legitimate post gets flagged incorrectly. You have to read the
+content and make a judgment call, not just pattern-match on the flag type.&lt;/p&gt;
+&lt;h2 id=&quot;why-inside-discourse&quot;&gt;Why inside Discourse&lt;/h2&gt;
+&lt;p&gt;I could have built this as a standalone web app. It would have been faster and
+simpler.&lt;/p&gt;
+&lt;p&gt;But the whole premise of the game is that you&#39;re moderating a forum that looks
+real. If I build a custom UI, it looks like a game. If I build it as a
+Discourse plugin, it looks like Discourse. The cognitive effect only works when
+you can&#39;t tell at a glance whether you&#39;re looking at a real post or a fake one.&lt;/p&gt;
+&lt;p&gt;The plugin renders with actual Discourse components: the same avatars, the same
+button styles, the same layout. The HUD - four meters with green/yellow/red
+color coding - sits above the review queue the way a real dashboard might.
+Events pop in as styled cards. It all fits the host environment.&lt;/p&gt;
+&lt;p&gt;Building inside Discourse also gave me MessageBus for free. Real-time state
+updates from the server to the client - flags disappearing as you clear them,
+meters ticking down - all through the same pub/sub system Discourse uses for
+live notifications. No WebSocket setup. No extra infrastructure.&lt;/p&gt;
+&lt;h2 id=&quot;what-s-next&quot;&gt;What&#39;s next&lt;/h2&gt;
+&lt;p&gt;The one thing I still want to add: LLM-generated content. Right now the post
+pool is handwritten strings - good enough to feel real, but every playthrough
+is the same drama. Running an LLM at game init to generate a full set of forum
+posts tuned to the behavioral profiles would make each run different. The
+structure is already there; it just needs something to fill it with varied text.&lt;/p&gt;
+&lt;p&gt;The most interesting idea that came up while building it: this could double as
+a spam detection training tool. Every flagged post has a profile type and a
+human moderation decision attached. Play enough sessions and you have a labeled
+dataset of spam, trolling, and legitimate posts. The game generates it as a
+side effect.&lt;/p&gt;
+&lt;h2 id=&quot;the-code&quot;&gt;The code&lt;/h2&gt;
+&lt;p&gt;It&#39;s a Discourse plugin, so the setup is what you&#39;d expect:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;cd&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; /var/www/discourse/plugins&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;git&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; clone https://github.com/ducks/discourse-manager&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;bundle&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; exec rake db:migrate&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Then go to &lt;code&gt;/play&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Source at
+&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/discourse-manager&quot;&gt;github.com/ducks/discourse-manager&lt;/a&gt;.&lt;/p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

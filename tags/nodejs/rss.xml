@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - nodejs</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/nodejs/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Fri, 20 Jun 2025 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>node-postgres-exporter — A Lightweight, Configurable PostgreSQL Prometheus Exporter</title>
+          <pubDate>Fri, 20 Jun 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/building-node-postgres-exporter/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/building-node-postgres-exporter/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/building-node-postgres-exporter/">&lt;p&gt;I’m releasing a small project I’ve been building:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;node-postgres-exporter&lt;/code&gt;, is a lightweight Prometheus exporter for PostgreSQL,
+written in Node.js.&lt;/p&gt;
+&lt;p&gt;The goal: build a fully configurable exporter that supports multiple databases,
+dynamic custom metrics, and solid production fault tolerance — while keeping
+the design modular and simple to operate.&lt;/p&gt;
+&lt;p&gt;There are excellent existing exporters in the ecosystem — but many of them
+require full privilege access, tightly coupled SQL views, or lack flexible
+multi-database support.&lt;/p&gt;
+&lt;p&gt;This exporter aims to solve a more targeted problem:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Support multiple independent PostgreSQL instances&lt;/li&gt;
+&lt;li&gt;Expose core database metrics (connections, size, etc.)&lt;/li&gt;
+&lt;li&gt;Allow fully configurable, per-database custom metrics via JSON&lt;/li&gt;
+&lt;li&gt;Provide basic fault isolation so partial database failures don&#39;t block full scrapes&lt;/li&gt;
+&lt;li&gt;Expose Prometheus-friendly endpoints with modern HTTP APIs&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;key-features&quot;&gt;Key Features&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Node.js + Express based architecture&lt;/li&gt;
+&lt;li&gt;Uses &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://node-postgres.com/&quot;&gt;&lt;code&gt;pg&lt;/code&gt;&lt;/a&gt; for database access via dedicated connection pools per database&lt;/li&gt;
+&lt;li&gt;Uses &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/siimon/prom-client&quot;&gt;&lt;code&gt;prom-client&lt;/code&gt;&lt;/a&gt; for full Prometheus metric management&lt;/li&gt;
+&lt;li&gt;Simple configuration via JSON files (&lt;code&gt;databases.json&lt;/code&gt; and &lt;code&gt;queries.json&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;API key authentication (Bearer token) for securing metrics endpoint&lt;/li&gt;
+&lt;li&gt;Graceful shutdown handling for safe database pool cleanup&lt;/li&gt;
+&lt;li&gt;Fully Dockerized with ready-to-run &lt;code&gt;docker-compose&lt;/code&gt; setup for local testing&lt;/li&gt;
+&lt;li&gt;Includes health endpoints: &lt;code&gt;/healthz&lt;/code&gt;, &lt;code&gt;/readyz&lt;/code&gt;, &lt;code&gt;/livez&lt;/code&gt;, &lt;code&gt;/configz&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;metric-types-supported&quot;&gt;Metric Types Supported&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;PostgreSQL connection counts&lt;/li&gt;
+&lt;li&gt;Per-database size metrics&lt;/li&gt;
+&lt;li&gt;Custom query metrics with support for &lt;code&gt;Gauge&lt;/code&gt; and &lt;code&gt;Counter&lt;/code&gt; types&lt;/li&gt;
+&lt;li&gt;Exporter self-metrics: scrape duration, error tracking, scrape lockouts, etc.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;dynamic-query-configuration&quot;&gt;Dynamic Query Configuration&lt;/h3&gt;
+&lt;p&gt;One of the core design goals for &lt;code&gt;node-postgres-exporter&lt;/code&gt; was flexibility
+without requiring code changes. To achieve this, all custom metric definitions
+are fully externalized via configuration files.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;queries.json&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Custom metrics are defined in a simple &lt;code&gt;queries.json&lt;/code&gt; file, allowing operators
+to add new metrics by writing plain SQL queries without modifying or
+redeploying the exporter. Each query entry includes:&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;name&lt;/code&gt; – the Prometheus metric name&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;help&lt;/code&gt; – description for the metric&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;type&lt;/code&gt; – gauge or counter&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;labels&lt;/code&gt; – array of columns to extract as metric labels&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;query&lt;/code&gt; – the raw SQL statement to run against the target database&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;[&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    &amp;quot;name&amp;quot;: &amp;quot;active_users&amp;quot;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    &amp;quot;help&amp;quot;: &amp;quot;Number of active users&amp;quot;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    &amp;quot;type&amp;quot;: &amp;quot;gauge&amp;quot;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    &amp;quot;labels&amp;quot;: [&amp;quot;status&amp;quot;],&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    &amp;quot;query&amp;quot;: &amp;quot;SELECT status, COUNT(*)::int FROM users GROUP BY status&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;]&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;On each scrape, the exporter executes the configured queries, extracts label
+values from the row fields, and populates the Prometheus metric accordingly.&lt;/p&gt;
+&lt;h3 id=&quot;fault-tolerance-and-isolation&quot;&gt;Fault Tolerance and Isolation&lt;/h3&gt;
+&lt;p&gt;Another design goal was to handle database failures gracefully. If one database
+becomes unavailable (network issue, restart, maintenance), the exporter:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Continues scraping all healthy databases&lt;/li&gt;
+&lt;li&gt;Exposes scrape success/failure per database as dedicated metrics
+(&lt;code&gt;pg_scrape_success&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;Never fails the entire scrape due to single database issues&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Internally, this is implemented using:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;Promise.allSettled()&lt;/code&gt; to concurrently scrape databases while isolating
+failures&lt;/li&gt;
+&lt;li&gt;Explicit error metric tracking&lt;/li&gt;
+&lt;li&gt;Per-database scrape duration timing&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;example-use-case&quot;&gt;Example Use Case&lt;/h3&gt;
+&lt;p&gt;This design fits environments where:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;You manage multiple distinct PostgreSQL instances&lt;/li&gt;
+&lt;li&gt;You have limited privilege access on some databases&lt;/li&gt;
+&lt;li&gt;You want metrics to be purely driven by SQL queries without deeper system
+integration&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;what-it-s-not-trying-to-be&quot;&gt;What it’s not trying to be&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;A full replacement for highly privileged exporters like the canonical
+&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/prometheus-community/postgres_exporter&quot;&gt;&lt;code&gt;postgres_exporter&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;A deep SQL monitoring agent requiring superuser roles or heavy introspection&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;This exporter is intentionally &lt;strong&gt;simple, safe, and scoped&lt;/strong&gt; — easy to audit and
+deploy.&lt;/p&gt;
+&lt;h3 id=&quot;roadmap-future-ideas&quot;&gt;Roadmap / Future Ideas&lt;/h3&gt;
+&lt;p&gt;There’s plenty of room for future enhancement:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Hot-reload support for queries and DB configs&lt;/li&gt;
+&lt;li&gt;JSON schema validation on configuration files&lt;/li&gt;
+&lt;li&gt;Cardinality protection on dynamic label sets&lt;/li&gt;
+&lt;li&gt;Additional metric types (&lt;code&gt;Histogram&lt;/code&gt;, &lt;code&gt;Summary&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;Publish Docker images to container registries&lt;/li&gt;
+&lt;li&gt;Integration with secret management for DB credentials&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;source-code&quot;&gt;Source Code&lt;/h3&gt;
+&lt;p&gt;Repo available here:
+&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/node-postgres-exporter&quot;&gt;https://github.com/ducks/node-postgres-exporter&lt;/a&gt;&lt;/p&gt;
+&lt;h3 id=&quot;a-side-benefit&quot;&gt;A Side Benefit&lt;/h3&gt;
+&lt;p&gt;Although this started as part of an audition project, I ended up building
+something I’d absolutely consider productionizing for real-world use cases —
+and more importantly, something I can showcase as a clean systems-level
+engineering project.&lt;/p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

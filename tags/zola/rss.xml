@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - zola</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/zola/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Sat, 16 May 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>A &#39;Was this helpful?&#39; button for a static blog</title>
+          <pubDate>Sat, 16 May 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/was-this-helpful-button/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/was-this-helpful-button/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/was-this-helpful-button/">&lt;p&gt;I write a lot here. I don&#39;t have comments. I don&#39;t want comments. But I do want some signal about which posts are actually landing - not &quot;did someone load the page&quot; (GoatCounter already tells me that) but &quot;did this post help someone.&quot;&lt;/p&gt;
+&lt;p&gt;So I added a small button at the bottom of every post:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Was this helpful?
+[ Yep, this helped ]&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Click it once and it swaps to a thank-you line. Click is recorded as a GoatCounter event. No login, no comment box, no thumbs down. Per-browser dedupe via localStorage so the same person can&#39;t pad the number by refreshing.&lt;/p&gt;
+&lt;p&gt;This post is how it works.&lt;/p&gt;
+&lt;h2 id=&quot;constraints&quot;&gt;Constraints&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;The site is a static Zola build. I don&#39;t want a backend, a database, or auth.&lt;/li&gt;
+&lt;li&gt;I already use &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://www.goatcounter.com/&quot;&gt;GoatCounter&lt;/a&gt; for analytics. I don&#39;t want a second analytics dependency.&lt;/li&gt;
+&lt;li&gt;It has to keep working with JavaScript off, in the sense of not being broken. The widget can be inert when JS is disabled, but the page shouldn&#39;t render a button that lies about doing something.&lt;/li&gt;
+&lt;li&gt;No thumbs down. Negative feedback without a way to discuss it is just background noise.&lt;/li&gt;
+&lt;li&gt;Mobile-friendly. A pill-shaped button with a 44px tap target on small screens.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;the-shape&quot;&gt;The shape&lt;/h2&gt;
+&lt;p&gt;Three new files plus three small edits to existing templates.&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;plain&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;templates/macros/helpful.html      (new — Tera macro)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;static/css/helpful.css             (new — scoped styles)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;static/js/helpful.js               (new — ~25 lines)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;templates/page.html                (import + render the macro)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;templates/base.html                (load the JS)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;static/css/style.css               (@import the CSS)&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The whole feature is under 70 lines total.&lt;/p&gt;
+&lt;h2 id=&quot;goatcounter-does-the-click&quot;&gt;GoatCounter does the click&lt;/h2&gt;
+&lt;p&gt;The first thing I learned reading &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://www.goatcounter.com/help/events&quot;&gt;the GoatCounter events docs&lt;/a&gt;: you don&#39;t have to write a click handler. Any element with a &lt;code&gt;data-goatcounter-click&lt;/code&gt; attribute gets bound automatically. The attribute&#39;s value is the event name; &lt;code&gt;data-goatcounter-title&lt;/code&gt; sets a human-readable title.&lt;/p&gt;
+&lt;p&gt;So the Tera macro just stamps the button:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;jinja&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{%&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; macro&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; widget&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;page&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;span&gt; %}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  {%&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; set&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; slug&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; page&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;path&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;       |&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; replace&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;from&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;/&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; to&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;-&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;       |&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; trim_start_matches&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;pat&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;-&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;       |&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; trim_end_matches&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;pat&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;-&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;)&lt;/span&gt;&lt;span&gt; %}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  {%&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; set&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; event_name&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;helpful-&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span&gt; ~ &lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;slug&lt;/span&gt;&lt;span&gt; %}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  &amp;lt;aside class=&amp;quot;helpful&amp;quot; data-helpful-path=&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;{{ page&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;path }}&lt;/span&gt;&lt;span&gt;&amp;quot;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    &amp;lt;p class=&amp;quot;helpful-prompt&amp;quot;&amp;gt;Was this helpful?&amp;lt;/p&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    &amp;lt;button&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;      type=&amp;quot;button&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;      class=&amp;quot;helpful-button&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;      data-helpful-action=&amp;quot;vote&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;      data-goatcounter-click=&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;{{ event_name }}&lt;/span&gt;&lt;span&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;      data-goatcounter-title=&amp;quot;Helpful click on &lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;{{ slug }}&lt;/span&gt;&lt;span&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    &amp;gt;Yep, this helped&amp;lt;/button&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    &amp;lt;p class=&amp;quot;helpful-thanks&amp;quot; hidden&amp;gt;✓ Glad it helped&amp;lt;/p&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  &amp;lt;/aside&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;{%&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; endmacro&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; widget&lt;/span&gt;&lt;span&gt; %}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The slug is the post path with slashes replaced by dashes and the leading/trailing dashes trimmed. So &lt;code&gt;/blog/2026/was-this-helpful-button/&lt;/code&gt; becomes &lt;code&gt;helpful-blog-2026-was-this-helpful-button&lt;/code&gt;. Each post is its own row in GoatCounter&#39;s event list.&lt;/p&gt;
+&lt;p&gt;One gotcha: GoatCounter rejects event paths that start with &lt;code&gt;/&lt;/code&gt; (the path doubles as the event name, and they reserve &lt;code&gt;/&lt;/code&gt; as a real-path marker). If you forget to strip the leading slash, your events silently don&#39;t get recorded.&lt;/p&gt;
+&lt;h2 id=&quot;javascript-handles-the-dedupe&quot;&gt;JavaScript handles the dedupe&lt;/h2&gt;
+&lt;p&gt;GoatCounter records the click. localStorage remembers it. The script only does the visual swap:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;javascript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;function&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; () {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  var&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; widget&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; document&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;querySelector&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;.helpful[data-helpful-path]&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  if&lt;/span&gt;&lt;span&gt; (&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;!&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;widget&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; return&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  var&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; path&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; widget&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;getAttribute&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;data-helpful-path&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  var&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; storageKey&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;helpful:&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; +&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; path&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  var&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; button&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; widget&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;querySelector&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;[data-helpful-action=&amp;quot;vote&amp;quot;]&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  var&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; thanks&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; widget&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;querySelector&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;.helpful-thanks&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  function&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; showThanks&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;() {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    button&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;hidden&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; true&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    thanks&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;hidden&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; false&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;  }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  try&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;    if&lt;/span&gt;&lt;span&gt; (&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;localStorage&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;getItem&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;storageKey&lt;/span&gt;&lt;span&gt;))&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;      showThanks&lt;/span&gt;&lt;span&gt;()&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;      return&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;  }&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; catch&lt;/span&gt;&lt;span&gt; (&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;e&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;    // Private browsing / storage disabled: continue without persistence.&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;  }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;  button&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;addEventListener&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;click&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;#39;,&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt; function&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; () {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;    try&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;      localStorage&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;setItem&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;storageKey&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; Date&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;now&lt;/span&gt;&lt;span&gt;()&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;toString&lt;/span&gt;&lt;span&gt;())&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    }&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; catch&lt;/span&gt;&lt;span&gt; (&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;e&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;      // ignore&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;    showThanks&lt;/span&gt;&lt;span&gt;()&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;  }&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;span&gt;)()&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Twenty-five lines. No framework, no dependencies, no async, no fetch. The &lt;code&gt;try/catch&lt;/code&gt; blocks around localStorage are for Safari private mode and embedded webviews, where &lt;code&gt;localStorage&lt;/code&gt; throws on access rather than just being absent.&lt;/p&gt;
+&lt;h2 id=&quot;edge-cases-i-thought-about&quot;&gt;Edge cases I thought about&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;Tracker blockers.&lt;/strong&gt; If your readers run uBlock Origin or similar, count.js gets blocked and the click goes nowhere. The UI still swaps state, so they don&#39;t see a broken button - the dashboard just under-counts. Acceptable for a directional metric.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;localStorage disabled.&lt;/strong&gt; Try/catch keeps the UI working; users in this mode can vote again across reloads. Tolerable for a directional metric.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Same person, multiple browsers.&lt;/strong&gt; Each browser counts once. There&#39;s no way to deduplicate without auth, and I don&#39;t want auth.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;JS disabled.&lt;/strong&gt; The button renders but does nothing. I&#39;d rather show a friendly prompt that can&#39;t be acted on than hide the section entirely. If you find that offensive, a one-liner in &lt;code&gt;&amp;lt;noscript&amp;gt;&lt;/code&gt; hides it.&lt;/p&gt;
+&lt;h2 id=&quot;what-i-learned-about-goatcounter&quot;&gt;What I learned about GoatCounter&lt;/h2&gt;
+&lt;p&gt;Three things that aren&#39;t obvious from the docs:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Events show up in the same Pages view as pageviews.&lt;/strong&gt; I expected a separate &quot;Events&quot; tab. There isn&#39;t one. The events are inlined into the regular pages list, marked with their event title.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;The GIF response is always 200.&lt;/strong&gt; GoatCounter returns a 1x1 GIF for every count request, regardless of whether the hit was actually recorded. You can&#39;t tell from HTTP status alone whether your event registered. The signal is whether it shows up in the dashboard.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;&lt;code&gt;data-goatcounter-click&lt;/code&gt; is dramatically simpler than calling &lt;code&gt;window.goatcounter.count()&lt;/code&gt; manually.&lt;/strong&gt; First version of this widget did the manual call. Second version reads the data attribute. Same behavior, less code, less to break.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h2 id=&quot;what-i-m-not-doing&quot;&gt;What I&#39;m not doing&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;No &quot;X people found this helpful&quot; counter.&lt;/strong&gt; GoatCounter&#39;s API doesn&#39;t expose per-page event counts to the client, so showing the number would require a backend. I don&#39;t care enough.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;No reading-time gate.&lt;/strong&gt; I considered only showing the button after 30 seconds or 60% scroll, to filter skim-clicks. I&#39;ll add it if the noise becomes annoying. For now, every click is signal.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;No newsletter pitch on click.&lt;/strong&gt; &quot;Glad it helped - want more?&quot; would convert better. But I don&#39;t have a newsletter, so it&#39;d be a lie.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;try-it&quot;&gt;Try it&lt;/h2&gt;
+&lt;p&gt;There&#39;s one at the bottom of this post. If this was useful, click it.&lt;/p&gt;
+&lt;p&gt;I&#39;ll know whether the post landed because the dashboard will tell me. Not in pageviews. In &lt;code&gt;helpful-blog-2026-was-this-helpful-button&lt;/code&gt;.&lt;/p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

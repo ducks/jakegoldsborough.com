@@ -1,0 +1,542 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title>Jake Goldsborough - ember</title>
+      <link>https://jakegoldsborough.com</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://jakegoldsborough.com/tags/ember/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Mon, 25 May 2026 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>Building a Travel Itinerary Plugin Inside Discourse</title>
+          <pubDate>Mon, 25 May 2026 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2026/building-discourse-itinerary/</link>
+          <guid>https://jakegoldsborough.com/blog/2026/building-discourse-itinerary/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2026/building-discourse-itinerary/">&lt;p&gt;I built a Discourse plugin that turns a category of topics into a chronological
+travel itinerary. One topic per trip, then a flight topic, a hotel topic, a
+note topic, all linked back to the trip. The plugin renders them on /itinerary
+as a clean list and per-trip timeline grouped by day.&lt;/p&gt;
+&lt;p&gt;You can see the result here:
+&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/discourse-itinerary&quot;&gt;discourse-itinerary on GitHub&lt;/a&gt;&lt;/p&gt;
+&lt;h2 id=&quot;why-discourse-for-this&quot;&gt;Why Discourse for This?&lt;/h2&gt;
+&lt;p&gt;Same reason I keep doing this: Discourse topics are extremely flexible, and
+seeing how far I can push them keeps teaching me the platform. A trip is just
+a topic. A flight is just a topic. The relationship between them is a custom
+field pointing at the parent trip. Everything else (permissions, search,
+edit history, who posted what, comments) comes for free.&lt;/p&gt;
+&lt;p&gt;That was the bet anyway. Reality had some opinions.&lt;/p&gt;
+&lt;h2 id=&quot;the-data-model&quot;&gt;The Data Model&lt;/h2&gt;
+&lt;p&gt;After a couple of rewrites, the model settled at:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Category&lt;/strong&gt; = &quot;Itinerary&quot;. One per forum. Auto-created by the plugin on
+first boot, with a configurable site setting if the admin wants to point
+it at a different category.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Topic with &lt;code&gt;itinerary_item_type = trip&lt;/code&gt;&lt;/strong&gt; = a trip (the container).&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Other itinerary topics&lt;/strong&gt; = items (flight, train, hotel, event,
+transfer, note) that point at their parent trip via
+&lt;code&gt;itinerary_parent_trip_id&lt;/code&gt; on the topic&#39;s custom_fields.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Earlier versions used a tag (&lt;code&gt;itinerary&lt;/code&gt;) to mark which topics belonged to
+the plugin. That got dropped once &lt;code&gt;itinerary_item_type&lt;/code&gt; existed. The tag was
+load-bearing nostalgia, not real structure.&lt;/p&gt;
+&lt;p&gt;All metadata lives in &lt;code&gt;topic_custom_fields&lt;/code&gt;:&lt;/p&gt;
+&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;Field&lt;/th&gt;&lt;th&gt;Type&lt;/th&gt;&lt;th&gt;Example&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;itinerary_item_type&lt;/code&gt;&lt;/td&gt;&lt;td&gt;string&lt;/td&gt;&lt;td&gt;&lt;code&gt;flight&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;itinerary_parent_trip_id&lt;/code&gt;&lt;/td&gt;&lt;td&gt;integer&lt;/td&gt;&lt;td&gt;&lt;code&gt;123&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;itinerary_starts_at&lt;/code&gt;&lt;/td&gt;&lt;td&gt;string&lt;/td&gt;&lt;td&gt;&lt;code&gt;2026-09-20T14:30&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;itinerary_ends_at&lt;/code&gt;&lt;/td&gt;&lt;td&gt;string&lt;/td&gt;&lt;td&gt;&lt;code&gt;2026-09-21T09:15&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;itinerary_origin&lt;/code&gt;&lt;/td&gt;&lt;td&gt;string&lt;/td&gt;&lt;td&gt;&lt;code&gt;PDX&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;itinerary_destination&lt;/code&gt;&lt;/td&gt;&lt;td&gt;string&lt;/td&gt;&lt;td&gt;&lt;code&gt;MAD&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;itinerary_location&lt;/code&gt;&lt;/td&gt;&lt;td&gt;string&lt;/td&gt;&lt;td&gt;&lt;code&gt;Madrid&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;itinerary_confirmation_code&lt;/code&gt;&lt;/td&gt;&lt;td&gt;string&lt;/td&gt;&lt;td&gt;&lt;code&gt;ABC123&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&lt;code&gt;itinerary_status&lt;/code&gt;&lt;/td&gt;&lt;td&gt;string&lt;/td&gt;&lt;td&gt;&lt;code&gt;booked&lt;/code&gt;&lt;/td&gt;&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+&lt;p&gt;Timestamps are stored as ISO-8601 strings, not DateTime. Lexical sorting
+on the raw column does the right thing for &lt;code&gt;YYYY-MM-DDTHH:MM&lt;/code&gt;, which means
+I never have to parse them on the database side.&lt;/p&gt;
+&lt;h2 id=&quot;the-plugin-api-trapdoors&quot;&gt;The Plugin API Trapdoors&lt;/h2&gt;
+&lt;p&gt;Discourse plugins have a deceptively friendly API. You write a &lt;code&gt;plugin.rb&lt;/code&gt;,
+drop some assets under &lt;code&gt;assets/javascripts/discourse/&lt;/code&gt;, and things mostly
+work. Until they don&#39;t, and you have to figure out why.&lt;/p&gt;
+&lt;p&gt;Here are the ones that actually stopped me cold.&lt;/p&gt;
+&lt;h3 id=&quot;the-route-map-filename-convention&quot;&gt;The route-map filename convention&lt;/h3&gt;
+&lt;p&gt;To register Ember client routes from a plugin, you put a file named
+&lt;code&gt;&amp;lt;plugin-slug&amp;gt;-route-map.js&lt;/code&gt; in &lt;code&gt;assets/javascripts/discourse/&lt;/code&gt;. Discourse
+scans &lt;code&gt;requirejs.entries&lt;/code&gt; for anything matching &lt;code&gt;/route-map$/&lt;/code&gt; and invokes
+its default export to build out the route tree.&lt;/p&gt;
+&lt;p&gt;I named the file correctly. The file loaded. The composer connector loaded.
+The route map itself never ran.&lt;/p&gt;
+&lt;p&gt;Turns out Ember resolves the actual route modules by name. With this
+route map:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;javascript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;export default&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt; function&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; () {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  this&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;route&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;itinerary&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt; function&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; () {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;    this&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;route&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;show&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, {&lt;/span&gt;&lt;span&gt; path&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;/:trip_id&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot; }&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;  }&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Ember will look for &lt;code&gt;routes/itinerary/index.js&lt;/code&gt; and &lt;code&gt;routes/itinerary/show.js&lt;/code&gt;.
+Not &lt;code&gt;routes/itinerary-index.js&lt;/code&gt; or &lt;code&gt;routes/itinerary-show.js&lt;/code&gt;, which is what
+I had originally. The dot in the route name becomes a path separator. I had
+copied the route map from discourse-cakeday but missed the nested directory
+convention for the route files.&lt;/p&gt;
+&lt;p&gt;You don&#39;t get an error for this. The route map just silently doesn&#39;t match
+anything client-side and the URL falls through to Rails.&lt;/p&gt;
+&lt;h3 id=&quot;rails-has-to-serve-the-html-for-an-ember-route&quot;&gt;Rails has to serve the HTML for an Ember route&lt;/h3&gt;
+&lt;p&gt;This was the big one. After fixing the route file paths, &lt;code&gt;/itinerary&lt;/code&gt; still
+404&#39;d. The error came from Rails, not Ember. The plugin had JSON routes:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;Discourse&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;::&lt;/span&gt;&lt;span&gt;Application&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;routes&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;append&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; do&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  get &lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;/itinerary/trips&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot; =&amp;gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;itinerary#index&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;      defaults&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: {&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; format&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: :&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;json&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; },&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;      constraints&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: {&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; format&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: :&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;json&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  get &lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;/itinerary/trips/:id&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot; =&amp;gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;itinerary#show&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;      defaults&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: {&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; format&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: :&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;json&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; },&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;      constraints&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: {&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; format&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: :&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;json&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; id&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: /&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;\d&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;+&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;/ }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;end&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;But none of those match a browser request for &lt;code&gt;GET /itinerary&lt;/code&gt; (which wants
+HTML). Rails 404s, the browser never gets the Discourse app shell, Ember
+never loads, the route map never runs.&lt;/p&gt;
+&lt;p&gt;discourse-cakeday works because it mounts a full Rails Engine at &lt;code&gt;/cakeday&lt;/code&gt;,
+which catches the HTML request and serves the SPA bootstrap. Discourse
+plugins like discourse-invite-stats use the simpler pattern:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;get &lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;/itinerary&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot; =&amp;gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;itinerary#page&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; constraints&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: {&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; format&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: :&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;html&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;get &lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;/itinerary/*path&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot; =&amp;gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;itinerary#page&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; constraints&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: {&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; format&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: :&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;html&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; }&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;With an action that just renders the empty layout:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;def&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; page&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  render &lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;default/empty&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;end&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The empty layout is the SPA bootstrap. Ember takes over from there.&lt;/p&gt;
+&lt;p&gt;I burned a couple of hours on this before searching for it. Sometimes the
+fastest way to debug a plugin is to read three other plugins that do the
+same thing.&lt;/p&gt;
+&lt;h3 id=&quot;composer-fields-and-glimmer-autotracking&quot;&gt;Composer fields and Glimmer autotracking&lt;/h3&gt;
+&lt;p&gt;The composer panel for itinerary fields shows different inputs depending on
+the item type. Flight has origin and destination, hotel has location, note
+has neither. The conditional rendering was driven by getters:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;javascript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;get&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; itemType&lt;/span&gt;&lt;span&gt;()&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  return&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt; this&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;composer&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;itinerary_item_type&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;get&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; showsRoute&lt;/span&gt;&lt;span&gt;()&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  return&lt;/span&gt;&lt;span&gt; [&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;flight&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;train&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;transfer&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span&gt;]&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;includes&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;this&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;itemType&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;This silently broke. The user could pick &quot;Flight&quot; from the dropdown, but
+the route inputs never appeared. The dropdown&#39;s change handler was firing.
+The composer model was being updated. But the template never re-rendered.&lt;/p&gt;
+&lt;p&gt;The reason: &lt;code&gt;this.composer.set(&quot;itinerary_item_type&quot;, value)&lt;/code&gt; doesn&#39;t go
+through a &lt;code&gt;@tracked&lt;/code&gt; property. Glimmer&#39;s autotracking can&#39;t follow
+&lt;code&gt;composer.set(...)&lt;/code&gt; on non-tracked composer fields. The getter reads from
+the composer correctly the first time, then becomes a dead read.&lt;/p&gt;
+&lt;p&gt;Fix:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;javascript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;@&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;tracked itemType&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;@&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;action&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;setItemType&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;e&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  this&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;itemType&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; e&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;target&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;value&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; ||&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; null&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  this&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;composer&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;set&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;itinerary_item_type&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt; this&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;itemType&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Keep a local &lt;code&gt;@tracked&lt;/code&gt; copy of anything you read from the composer model
+in conditional getters. The composer side stays in sync via the
+&lt;code&gt;.set()&lt;/code&gt; call.&lt;/p&gt;
+&lt;h3 id=&quot;datetime-local-silently-drops-half-filled-values&quot;&gt;datetime-local silently drops half-filled values&lt;/h3&gt;
+&lt;p&gt;I had separate inputs for &quot;Starts at&quot; and &quot;Ends at&quot; with &lt;code&gt;type=&quot;datetime-local&quot;&lt;/code&gt;.
+The user creates a flight, types a date, doesn&#39;t bother with the time,
+clicks save. The flight saves. The trip page shows &quot;No items in this trip
+yet.&quot;&lt;/p&gt;
+&lt;p&gt;The flight was actually saved, just without &lt;code&gt;itinerary_starts_at&lt;/code&gt;. The
+TripItemFinder filters out items without a start time, so the flight
+existed in the DB but never reached the timeline.&lt;/p&gt;
+&lt;p&gt;Why? &lt;code&gt;&amp;lt;input type=&quot;datetime-local&quot;&amp;gt;&lt;/code&gt; doesn&#39;t fire &lt;code&gt;input&lt;/code&gt; or &lt;code&gt;change&lt;/code&gt; until
+both the date and time portions are populated. A half-filled value is
+&quot;invalid&quot; to the browser, and you get nothing.&lt;/p&gt;
+&lt;p&gt;I split the field into a &lt;code&gt;&amp;lt;input type=&quot;date&quot;&amp;gt;&lt;/code&gt; plus an optional
+&lt;code&gt;&amp;lt;input type=&quot;time&quot;&amp;gt;&lt;/code&gt;. The composer combines them into the stored format
+(&lt;code&gt;YYYY-MM-DD&lt;/code&gt; if just date, &lt;code&gt;YYYY-MM-DDTHH:MM&lt;/code&gt; if both). The timeline
+component already knew how to render both formats.&lt;/p&gt;
+&lt;p&gt;Two inputs, one stored field, no silent data loss.&lt;/p&gt;
+&lt;h3 id=&quot;topics-need-a-title-that-discourse-will-accept&quot;&gt;Topics need a title that Discourse will accept&lt;/h3&gt;
+&lt;p&gt;Once the composer worked, I hit the wall I&#39;d been ignoring: Discourse&#39;s
+title length validator requires 15 characters minimum, plus a &quot;title seems
+unclear&quot; heuristic that rejects titles like &quot;Flight&quot; or &quot;Lisbon&quot;. For a
+travel itinerary where the &quot;data&quot; is in custom fields, making the user
+invent a meaningful 15-char title for every flight is hostile.&lt;/p&gt;
+&lt;p&gt;Discourse doesn&#39;t have per-category overrides for &lt;code&gt;min_topic_title_length&lt;/code&gt;.
+The validator reads the global site setting, full stop. I considered three
+options:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Lower the global. Affects every topic on the forum.&lt;/li&gt;
+&lt;li&gt;Monkey-patch the validator to skip checks for itinerary topics. Fragile.&lt;/li&gt;
+&lt;li&gt;Synthesize the title from the structured fields the user is already
+filling in.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Option 3 is the move. The composer already collects item type, origin,
+destination, location. Build the title from those and the user never has
+to type one.&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;javascript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;synthesizeTitle&lt;/span&gt;&lt;span&gt;()&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  const&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; type&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt; this&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;itemType&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  if&lt;/span&gt;&lt;span&gt; (&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;!&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;type&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; ||&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; type&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; ===&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;trip&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; return&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  const&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; cap&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; (&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;s&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt; =&amp;gt;&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; s&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;charAt&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;0&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;toUpperCase&lt;/span&gt;&lt;span&gt;()&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; +&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; s&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;slice&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;1&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  const&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; o&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt; this&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;composer&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;itinerary_origin&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  const&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; d&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt; this&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;composer&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;itinerary_destination&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  const&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; loc&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt; this&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;composer&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;itinerary_location&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  let&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; title&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; cap&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;type&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  if&lt;/span&gt;&lt;span&gt; ([&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;flight&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;train&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;, &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;transfer&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span&gt;]&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;includes&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;type&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; &amp;amp;&amp;amp;&lt;/span&gt;&lt;span&gt; (&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;o&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; ||&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; d&lt;/span&gt;&lt;span&gt;))&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    title&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; `${&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;cap&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;type&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;: &lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;${&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;o&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; ||&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;?&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;}&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; -&amp;gt; &lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;${&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;d&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; ||&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;?&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;}`;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;  }&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; else if&lt;/span&gt;&lt;span&gt; (&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;loc&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;    title&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; `${&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;cap&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;type&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;: &lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;${&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;loc&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}`;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;  }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  this&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;composer&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;set&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;title&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;,&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; title&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Trip topics still take the user&#39;s title (you name a trip meaningfully;
+&quot;European trip 2026&quot; is more useful than &quot;Trip&quot;). Items get derived titles:
+&quot;Flight: PDX -&amp;gt; MAD&quot;, &quot;Hotel: Madrid Marriott&quot;, &quot;Event: Symphony&quot;.&lt;/p&gt;
+&lt;p&gt;I also hide the title input via a body class when the composer is in
+itinerary-item mode, so users don&#39;t see a phantom input that gets
+overwritten on every field change.&lt;/p&gt;
+&lt;h2 id=&quot;the-other-stuff&quot;&gt;The Other Stuff&lt;/h2&gt;
+&lt;p&gt;A few smaller things that made the plugin feel like a real tool.&lt;/p&gt;
+&lt;h3 id=&quot;auto-creating-the-category&quot;&gt;Auto-creating the category&lt;/h3&gt;
+&lt;p&gt;The plugin provisions an &quot;Itinerary&quot; category on first boot. The slug-first
+lookup means if an admin already has a category called &quot;itinerary&quot; or
+&quot;ITINERARY&quot;, we adopt it instead of creating a duplicate (which would fail
+uniqueness anyway). The provisioner also adds the category id to
+&lt;code&gt;default_categories_muted&lt;/code&gt; so new users don&#39;t see itinerary topics
+cluttering /latest.&lt;/p&gt;
+&lt;h3 id=&quot;sidebar-link&quot;&gt;Sidebar link&lt;/h3&gt;
+&lt;p&gt;Discourse&#39;s &lt;code&gt;api.addCommunitySectionLink&lt;/code&gt; adds a link to the sidebar&#39;s
+Community section. With the category muted by default, the sidebar link
+becomes the canonical entrypoint. No URL guessing required.&lt;/p&gt;
+&lt;h3 id=&quot;add-buttons&quot;&gt;Add buttons&lt;/h3&gt;
+&lt;p&gt;Two big buttons: &quot;+ Add trip&quot; on /itinerary, &quot;+ Add leg&quot; on
+/itinerary/:trip_id. Each opens the standard composer pre-scoped to the
+itinerary category, with the right &lt;code&gt;itinerary_item_type&lt;/code&gt; (for trip) or
+&lt;code&gt;itinerary_parent_trip_id&lt;/code&gt; (for leg) seeded on the composer model after the
+modal opens. The composer panel&#39;s conditional rendering picks up the
+seeded values and shows the right fields.&lt;/p&gt;
+&lt;p&gt;This pattern is straight from discourse-kanban: rather than build a custom
+modal, lean on Discourse&#39;s existing composer with sensible defaults. You
+get rich text, drafts, file uploads, all the auth machinery, for free.&lt;/p&gt;
+&lt;h2 id=&quot;screenshots&quot;&gt;Screenshots&lt;/h2&gt;
+&lt;p&gt;Coming once I&#39;ve populated my own itinerary further. I want the screenshots
+to show realistic data rather than the &quot;Flight to madrid for meetup&quot; test
+post that&#39;s currently in my dev instance.&lt;/p&gt;
+&lt;h2 id=&quot;takeaways&quot;&gt;Takeaways&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;Plugins built on topics keep paying off.&lt;/strong&gt; Search, permissions, edit
+history, mentions, attachments. None of it is plugin code. It&#39;s all
+Discourse, and I get it by default by storing data in topics.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;The plugin API has trapdoors.&lt;/strong&gt; Most of them aren&#39;t documented because
+nobody hits them until they hit them. Reading three working plugins
+side-by-side is faster than reading docs.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Glimmer autotracking is invisible until it isn&#39;t.&lt;/strong&gt; If a getter reads a
+non-&lt;code&gt;@tracked&lt;/code&gt; value and you&#39;re surprised it doesn&#39;t re-render, that&#39;s the
+likely cause. Always.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Synthesize what you can.&lt;/strong&gt; The user shouldn&#39;t have to type a topic title
+when the structured fields already encode it. Hide the title input, derive
+it, move on.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Per-category validation overrides would be great.&lt;/strong&gt; Discourse already
+has site-wide setting overrides per category for things like default tags
+and minimum trust levels. Extending the per-category override surface to
+title and post length validators would let plugins like this stop fighting
+the global validators. Filed in the back of my brain for a future
+contribution.&lt;/p&gt;
+&lt;h2 id=&quot;try-it&quot;&gt;Try It&lt;/h2&gt;
+&lt;p&gt;The plugin is open source:
+&lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/discourse-itinerary&quot;&gt;ducks/discourse-itinerary&lt;/a&gt;.
+Symlink it into your &lt;code&gt;plugins/&lt;/code&gt; directory, restart Rails, visit
+/itinerary, and you&#39;ve got a travel timeline backed entirely by Discourse
+topics.&lt;/p&gt;
+&lt;p&gt;Now I just need to actually go on a trip.&lt;/p&gt;
+</description>
+      </item>
+      <item>
+          <title>Building The Guest Spot: Part 2 - Two Refactors</title>
+          <pubDate>Sun, 26 Oct 2025 00:00:00 +0000</pubDate>
+          <author>Unknown</author>
+          <link>https://jakegoldsborough.com/blog/2025/building-the-guest-spot-part-2/</link>
+          <guid>https://jakegoldsborough.com/blog/2025/building-the-guest-spot-part-2/</guid>
+          <description xml:base="https://jakegoldsborough.com/blog/2025/building-the-guest-spot-part-2/">&lt;p&gt;In Part 1, I built an Instagram-style showcase using a custom &lt;code&gt;GuestSpotPost&lt;/code&gt;
+model. It worked. But it also meant maintaining a parallel data structure
+instead of leveraging what Discourse already provides.&lt;/p&gt;
+&lt;p&gt;This post covers two major refactors: first from custom models to Discourse Topics, then from custom feed infrastructure to plugin outlets. Each time, less code gave me more features.&lt;/p&gt;
+&lt;h2 id=&quot;why-refactor&quot;&gt;Why Refactor?&lt;/h2&gt;
+&lt;p&gt;The custom model approach had problems:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Duplicate logic: Comments, moderation, spam protection already exist for Topics&lt;/li&gt;
+&lt;li&gt;Extra maintenance: Every time Discourse updates, potential breakage&lt;/li&gt;
+&lt;li&gt;Missing features: No native file upload, no revision history, no trust levels&lt;/li&gt;
+&lt;li&gt;More code: Separate serializers, separate permissions, separate everything&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Discourse Topics already have everything we need:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;First post holds the caption and images&lt;/li&gt;
+&lt;li&gt;Title can be auto-generated&lt;/li&gt;
+&lt;li&gt;Categories handle public vs private&lt;/li&gt;
+&lt;li&gt;Pinning is built-in&lt;/li&gt;
+&lt;li&gt;Commenting works out of the box&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The showcase is just a custom view of Topics in the &quot;Public Feed&quot; category.&lt;/p&gt;
+&lt;h2 id=&quot;the-refactor&quot;&gt;The Refactor&lt;/h2&gt;
+&lt;h3 id=&quot;backend-changes&quot;&gt;Backend Changes&lt;/h3&gt;
+&lt;p&gt;Deleted the entire &lt;code&gt;GuestSpotPost&lt;/code&gt; model and migrations. Instead, the controller now works with Topics:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;# app/controllers/guest_spot/posts_controller.rb&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;def&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; index&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;  category_id&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span&gt; CategoryHelper&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;public_feed_category_id&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;  topics&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; Topic&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    .&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;where&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;category_id&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span&gt; category_id&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    .&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;where&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;deleted_at&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; nil&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    .&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;includes&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;user&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; posts&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: :&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;uploads&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    .&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;order&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;created_at&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: :&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;desc&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    .&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;limit&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;50&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;  pinned_topics&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; Topic&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    .&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;where&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;category_id&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span&gt; category_id&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    .&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;where&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;deleted_at&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; nil&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    .&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;where&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;not&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;pinned_at&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; nil&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    .&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;includes&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;user&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; posts&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: :&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;uploads&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    .&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;order&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;created_at&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: :&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;desc&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  render &lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;json&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;: {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;    posts&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; serialize_data&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span&gt;topics&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; GuestSpotPostSerializer&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;),&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;    pinned&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; serialize_data&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span&gt;pinned_topics&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; GuestSpotPostSerializer&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;  }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;end&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The serializer extracts what we need from Topics:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #928374;font-style: italic;&quot;&gt;# app/serializers/guest_spot_post_serializer.rb&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;class&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; GuestSpotPostSerializer&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;lt;&lt;/span&gt;&lt;span&gt; ApplicationSerializer&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;  attributes &lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;id&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;, :&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;user_id&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;, :&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;username&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;, :&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;caption&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;, :&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;image_urls&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;, :&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;created_at&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;, :&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;pinned&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  def&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; caption&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    object&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;first_post&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;&amp;amp;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;raw&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; ||&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  end&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  def&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; image_urls&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    object&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;first_post&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;uploads&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;map&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; { |&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;upload&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;|&lt;/span&gt;&lt;span&gt; UrlHelper&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;absolute&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span&gt;upload&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;url&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;) }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  end&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  def&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; pinned&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    object&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;pinned_at&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;present?&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;  end&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;end&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Caption is the post content. Images come from uploads. Pinned status is the native &lt;code&gt;pinned_at&lt;/code&gt; field.&lt;/p&gt;
+&lt;h3 id=&quot;creating-posts&quot;&gt;Creating Posts&lt;/h3&gt;
+&lt;p&gt;Instead of &lt;code&gt;GuestSpotPost.create&lt;/code&gt;, we use &lt;code&gt;TopicCreator&lt;/code&gt;:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;def&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; create&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;  category_id&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span&gt; CategoryHelper&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;public_feed_category_id&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;  title&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;@&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;#{&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;current_user&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;username&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; - &lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;#{&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;Time&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;now&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;to_i&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;  topic_creator&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span&gt; TopicCreator&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;new&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    current_user&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;    Guardian&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;new&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span&gt;current_user&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;),&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;    category&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span&gt; category_id&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;    title&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span&gt; title&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;    raw&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span&gt; params&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;[:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;caption&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;]&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; ||&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&amp;quot;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;  )&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;  topic&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span&gt; topic_creator&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;create&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;  render_serialized&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span&gt;topic&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; GuestSpotPostSerializer&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;end&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Auto-generated titles keep them unique. The caption goes in the first post&#39;s raw content. Image uploads attach automatically through Discourse&#39;s existing upload system.&lt;/p&gt;
+&lt;h3 id=&quot;frontend-changes&quot;&gt;Frontend Changes&lt;/h3&gt;
+&lt;p&gt;Frontend barely changed. The serializer provides the same JSON structure, so components worked as-is. The only update was changing &lt;code&gt;@post.id&lt;/code&gt; to reference topic IDs instead of custom model IDs.&lt;/p&gt;
+&lt;h3 id=&quot;what-this-got-us&quot;&gt;What This Got Us&lt;/h3&gt;
+&lt;p&gt;The refactor from custom models to Topics gave us:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Comments work natively (no custom implementation)&lt;/li&gt;
+&lt;li&gt;Moderation tools work (flags, hiding, deleting)&lt;/li&gt;
+&lt;li&gt;File uploads work (native uploader)&lt;/li&gt;
+&lt;li&gt;Revision history works (edit tracking)&lt;/li&gt;
+&lt;li&gt;Trust levels work (spam protection)&lt;/li&gt;
+&lt;li&gt;All for free, by using what Discourse already provides&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;But I still had a custom feed with its own routes, controllers, and serializers. That was the next problem to solve.&lt;/p&gt;
+&lt;h2 id=&quot;going-native-deleting-the-custom-feed&quot;&gt;Going Native: Deleting the Custom Feed&lt;/h2&gt;
+&lt;p&gt;In Part 1, I built a custom &lt;code&gt;GuestSpotPost&lt;/code&gt; model. Then I realized that was
+overkill and refactored to use Discourse Topics. But I kept the custom feed
+with its own routes, controllers, and serializers.&lt;/p&gt;
+&lt;p&gt;After implementing that custom feed, I realized there was an uncomfortable
+disconnect. Users would browse an Instagram-style feed, click a post, and
+suddenly land in Discourse&#39;s standard topic view. The context switch was jarring.&lt;/p&gt;
+&lt;p&gt;The question became: why maintain a custom feed at all? If the custom model
+was unnecessary, maybe the custom feed was too.&lt;/p&gt;
+&lt;p&gt;Discourse already has everything we need:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Category pages show topic lists&lt;/li&gt;
+&lt;li&gt;Category permissions control who can post and who can view&lt;/li&gt;
+&lt;li&gt;Native pinning highlights featured content&lt;/li&gt;
+&lt;li&gt;Theme system allows extensive visual customization&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Instead of maintaining a parallel feed system, we could just make the Public
+Feed category look great using plugin outlets.&lt;/p&gt;
+&lt;h3 id=&quot;the-deletion&quot;&gt;The Deletion&lt;/h3&gt;
+&lt;p&gt;I deleted the entire custom feed infrastructure:&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Removed (1,078 lines)&lt;/strong&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Custom feed routes and controllers (&lt;code&gt;guest_spot/feed_controller.rb&lt;/code&gt;,
+&lt;code&gt;guest_spot/posts_controller.rb&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;Custom post serializer (&lt;code&gt;guest_spot_post_serializer.rb&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;All custom Ember components (&lt;code&gt;guest-spot-feed.gjs&lt;/code&gt;,
+&lt;code&gt;guest-spot-post-card.gjs&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;Custom route definitions and templates&lt;/li&gt;
+&lt;li&gt;Multiple initializers for hiding UI elements&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;strong&gt;Added (264 lines)&lt;/strong&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Single plugin outlet connector:
+&lt;code&gt;assets/javascripts/discourse/connectors/topic-list-item/guest-spot-item.gjs&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;CSS Grid layout for responsive cards&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Net result: 814 fewer lines of code.&lt;/p&gt;
+&lt;h3 id=&quot;plugin-outlets-the-right-pattern&quot;&gt;Plugin Outlets: The Right Pattern&lt;/h3&gt;
+&lt;p&gt;Discourse provides plugin outlets - extension points where plugins can inject
+custom HTML. There are two types:&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Regular outlets&lt;/strong&gt; inject content but Discourse still renders the default
+elements. &lt;strong&gt;Wrapper outlets&lt;/strong&gt; completely replace the template.&lt;/p&gt;
+&lt;p&gt;I used the &lt;code&gt;topic-list-item&lt;/code&gt; wrapper outlet to completely replace how topics
+display in the Public Feed category:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;javascript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;import&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; Component&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; from&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;@glimmer/component&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;import&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; avatar&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; from&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;discourse/helpers/avatar&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;import&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; replaceEmoji&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; from&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;discourse/helpers/replace-emoji&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;import&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; formatDate&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; from&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;discourse/helpers/format-date&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;export default&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt; class&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; GuestSpotItem&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt; extends&lt;/span&gt;&lt;span&gt; Component&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  get&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; isPublicFeed&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;() {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;    return&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt; this&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;args&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;outletArgs&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;?.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;topic&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;?.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;category&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;?.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;slug&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; ===&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;public-feed&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;  }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;  get&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; truncatedExcerpt&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;() {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;    const&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; excerpt&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; =&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt; this&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;args&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;outletArgs&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;?.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;topic&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;?.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;excerpt&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; ||&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&amp;quot;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;    if&lt;/span&gt;&lt;span&gt; (&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;excerpt&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;length&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; &amp;lt;=&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 50&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;      return&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; excerpt&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;    return&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; excerpt&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;substring&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;0&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 50&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt; +&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;...&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;  }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;  &amp;lt;&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;template&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    {{&lt;/span&gt;&lt;span&gt;#if this.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;isPublicFeed&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;      &amp;lt;&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;td&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; class&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;topic-list-data guest-spot-card&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;        &amp;lt;&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;div&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; class&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;guest-spot-author&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;          &amp;lt;&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;a&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; href&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;/u/{{this.args.outletArgs.topic.creator.username}}&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;            {{&lt;/span&gt;&lt;span&gt;avatar this.args.outletArgs.topic.creator &lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;imageSize&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;medium&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;}}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;            &amp;lt;&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;span&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; class&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;username&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;              {{&lt;/span&gt;&lt;span&gt;this.args.outletArgs.topic.creator.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;username&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;            &amp;lt;/&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;span&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;          &amp;lt;/&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;a&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;        &amp;lt;/&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;div&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;        &amp;lt;&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;div&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; class&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;guest-spot-image&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;          &amp;lt;&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;a&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; href&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;{{&lt;/span&gt;&lt;span&gt;this.args.outletArgs.topic.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;url&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}}&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;            &amp;lt;&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;img&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; src&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;{{&lt;/span&gt;&lt;span&gt;this.args.outletArgs.topic.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;image_url&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}}&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; alt&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt; /&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;          &amp;lt;/&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;a&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;        &amp;lt;/&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;div&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;        &amp;lt;&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;div&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; class&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;guest-spot-excerpt&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;          {{&lt;/span&gt;&lt;span&gt;replaceEmoji this.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;truncatedExcerpt&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;        &amp;lt;/&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;div&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;        &amp;lt;&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;div&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; class&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;guest-spot-metadata&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;          &amp;lt;&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;div&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; class&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;meta-item&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;            Views: &lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;{{&lt;/span&gt;&lt;span&gt;this.args.outletArgs.topic.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;views&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;          &amp;lt;/&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;div&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;          &amp;lt;&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;div&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; class&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;meta-item&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;            Replies: &lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;{{&lt;/span&gt;&lt;span&gt;this.args.outletArgs.topic.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;posts_count&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;          &amp;lt;/&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;div&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;          &amp;lt;&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;div&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; class&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;meta-item&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span&gt;            Posted: &lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;{{&lt;/span&gt;&lt;span&gt;formatDate this.args.outletArgs.topic.&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;createdAt&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;            leaveAgo&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;=&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;true&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;          &amp;lt;/&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;div&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;        &amp;lt;/&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;div&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;      &amp;lt;/&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;td&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    {{&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;else&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;      {{&lt;/span&gt;&lt;span&gt;@&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;default&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    {{&lt;/span&gt;&lt;span&gt;/&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;if&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}}&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;  &amp;lt;/&lt;/span&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;template&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;&amp;gt;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The component checks if we&#39;re in the public-feed category. If yes, render the
+custom card layout. If no, render the default (&lt;code&gt;{{@default}}&lt;/code&gt;).&lt;/p&gt;
+&lt;h3 id=&quot;css-grid-for-responsive-layout&quot;&gt;CSS Grid for Responsive Layout&lt;/h3&gt;
+&lt;p&gt;Instead of JavaScript handling the layout, CSS Grid does all the work:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;scss&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;category-public-feed&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;  .&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;topic-list&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;    display&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; grid&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;    grid-template-columns&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; repeat&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;auto-fill&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; minmax&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;280&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;px&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;,&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 1&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;fr&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;));&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;    gap&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 1.5&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;rem&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    @&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt;media&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; (&lt;/span&gt;&lt;span style=&quot;color: #689D6A;&quot;&gt;max-width&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 480&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;px&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;) {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;      grid-template-columns&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 1&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;fr&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;    tr&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;.&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;topic-list-item&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;      display&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; flex&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;      flex-direction&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; column&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;      border-radius&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 8&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;px&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;      overflow&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; hidden&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;      background&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; var&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #83A598;&quot;&gt;--primary-very-low&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;);&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;      transition&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt; transform&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; 0.2&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;s&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;      &amp;amp;&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;hover&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FE8019;&quot;&gt;        transform&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;:&lt;/span&gt;&lt;span style=&quot;color: #FB4934;&quot;&gt; translateY&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;(&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt;-2&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;px&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;);&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;      }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;    }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;  }&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;On mobile, it collapses to a single column. On tablet and desktop, it flows
+naturally based on available space.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/images/guest-spot-mobile-3.png&quot; alt=&quot;Mobile view of The Guest Spot showing a nature image from Tattoo Mike&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/images/guest-spot-feed-1.png&quot; alt=&quot;Desktop view of The Guest Spot showing a grid of tattoo pictures&quot; /&gt;&lt;/p&gt;
+&lt;h3 id=&quot;discovery-process&quot;&gt;Discovery Process&lt;/h3&gt;
+&lt;p&gt;Finding the right plugin outlet took some research. I used &lt;code&gt;rg&lt;/code&gt; to search
+Discourse core for available outlets:&lt;/p&gt;
+&lt;pre class=&quot;giallo&quot; style=&quot;color: #EBDBB2; background-color: #1D2021;&quot; &gt;&lt;code data-lang=&quot;shellscript&quot;&gt;&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt;rg&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt;PluginOutlet&lt;/span&gt;&lt;span style=&quot;color: #A89984;&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; app/assets/javascripts/discourse/app/components/&lt;/span&gt;&lt;span style=&quot;color: #D3869B;&quot;&gt; \&lt;/span&gt;&lt;/span&gt;
+&lt;span class=&quot;giallo-l&quot;&gt;&lt;span style=&quot;color: #8EC07C;&quot;&gt;  |&lt;/span&gt;&lt;span style=&quot;color: #FABD2F;&quot;&gt; grep&lt;/span&gt;&lt;span style=&quot;color: #B8BB26;&quot;&gt; topic-list&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Found several candidates:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;topic-list-before-link&lt;/code&gt; - Injects before the title link (still renders
+default content)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;topic-list-after-title&lt;/code&gt; - Injects after the title (still renders default
+content)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;topic-list-item&lt;/code&gt; - Wrapper outlet (replaces entire template)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The wrapper outlet was key. Regular outlets would have shown both my custom
+card and the default topic row, creating duplicate content.&lt;/p&gt;
+&lt;h3 id=&quot;what-works-now&quot;&gt;What Works Now&lt;/h3&gt;
+&lt;p&gt;The native approach gives us:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Comments work out of the box (no custom implementation needed)&lt;/li&gt;
+&lt;li&gt;All Discourse features work (moderation, flags, bookmarks, etc.)&lt;/li&gt;
+&lt;li&gt;814 fewer lines of code to maintain&lt;/li&gt;
+&lt;li&gt;Better mobile support (Grid automatically adapts)&lt;/li&gt;
+&lt;li&gt;No custom API (no serializers, controllers, or routes)&lt;/li&gt;
+&lt;li&gt;Pin/unpin still works (using Discourse&#39;s native pinning)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The showcase is now just &quot;a really nicely styled Discourse category&quot; instead
+of &quot;a custom app built on top of Discourse.&quot;&lt;/p&gt;
+&lt;h2 id=&quot;vibe-coding-pros-and-cons&quot;&gt;Vibe Coding: Pros and Cons&lt;/h2&gt;
+&lt;p&gt;This project is a perfect example of &quot;vibe coding&quot; - building something by
+feel, iterating quickly, and learning what works through trial and error.&lt;/p&gt;
+&lt;p&gt;I started with a custom model because that felt right. Then I realized Topics
+already did everything I needed. I built a custom feed because I wanted full
+control. Then I realized plugin outlets gave me that control without the
+maintenance burden.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;The downside&lt;/strong&gt;: I went too fast and tried too much. Each iteration meant
+throwing away code. The custom model, the custom feed infrastructure - all
+that work ended up deleted. If I&#39;d researched Discourse patterns first, I
+could have gone straight to the plugin outlet approach.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;The upside&lt;/strong&gt;: I learned way more by doing it wrong first. I understand why
+wrapper outlets exist, because I felt the pain of duplicate content with
+regular outlets. I understand why Discourse&#39;s native features are powerful,
+because I tried to rebuild them and saw how much work that is.&lt;/p&gt;
+&lt;p&gt;Fast iteration meant I could course-correct. I wasn&#39;t six months into building
+a custom ORM before realizing Topics existed. I was a few days in, so
+refactoring didn&#39;t hurt. The velocity of vibe coding let me try ideas, see
+them fail, and pivot quickly.&lt;/p&gt;
+&lt;p&gt;The final result is simple and maintainable. It took three iterations to get
+there, but each iteration taught me something. Now I know how to not do things,
+which is just as valuable as knowing how to do them.&lt;/p&gt;
+&lt;p&gt;The code is on GitHub: &lt;a rel=&quot;noopener noreferrer external&quot; target=&quot;_blank&quot; href=&quot;https://github.com/ducks/discourse-guest-spot&quot;&gt;discourse-guest-spot&lt;/a&gt;&lt;/p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

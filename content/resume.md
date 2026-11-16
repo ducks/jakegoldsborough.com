@@ -3,4 +3,4 @@ title = "Resume"
 path = "resume"
 +++
 
-{{ resume_content() }}
+{{ <resume_content /> }}

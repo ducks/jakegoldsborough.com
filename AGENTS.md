@@ -35,14 +35,14 @@ push to `main`. There is no staging environment — merging to `main` deploys.
   gitignored `content/blog/_drafts/` directory only for local scratch drafts
   that are not meant to travel with a branch.
 - **Resume**: `content/resume.md` is a near-empty page that renders via the
-  `{{ resume_content() }}` shortcode. The actual resume content — all
+  `{{ <resume_content /> }}` component. The actual resume content — all
   experience, skills, and bullet points — lives in
-  `templates/shortcodes/resume_content.html` as hand-written HTML, not in
+  `templates/component_resume_content.html` as hand-written HTML, not in
   `content/`. Edit that template directly to update the resume; entries
   under each role are ordered most-recent-first.
 - **Projects showcase**: a separate thing from the resume. Structured data
   in `data/projects.toml` (categories → projects, each with name/url/
-  description), rendered by `templates/shortcodes/projects_list.html` and
+  description), rendered by `templates/component_projects_list.html` and
   included from `content/projects.md`. This is for public open-source
   projects (TUI apps, tools), not employer work — resume entries for
   employer/production work don't belong here.
@@ -99,9 +99,9 @@ work. To draft one:
 
 Tera templates in `templates/`. `base.html` is the shared layout; `page.html`
 and `blog/single.html` extend it for generic pages and blog posts
-respectively. Shortcodes (`templates/shortcodes/`) are reusable HTML/Tera
-fragments invoked from Markdown content via `{{ shortcode_name() }}` —
-`resume_content` and `resume_intro` are the resume shortcodes, `projects_list`
+respectively. Tera components are reusable HTML/Tera fragments invoked from
+Markdown via `{{ <component_name /> }}` —
+`resume_content` and `resume_intro` are the resume components, `projects_list`
 renders the projects page from `data/projects.toml`.
 
 Styling is plain CSS under `static/css/`, split by concern (`blog.css`,
